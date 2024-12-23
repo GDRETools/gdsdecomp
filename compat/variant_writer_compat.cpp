@@ -400,12 +400,12 @@ Error VariantParserCompat::parse_value(VariantParser::Token &token, Variant &r_v
 						return err;
 					}
 				} else {
-					// Ref<Script> script = resource;
-					// if (script.is_valid() && script->is_valid()) {
-					// 	key_type = Variant::OBJECT;
-					// 	key_class_name = script->get_instance_base_type();
-					// 	key_script = script;
-					// }
+					Ref<Script> script = resource;
+					if (script.is_valid() && script->is_valid()) {
+						key_type = Variant::OBJECT;
+						key_class_name = script->get_instance_base_type();
+						key_script = script;
+					}
 				}
 			} else if (ClassDB::class_exists(token.value)) {
 				key_type = Variant::OBJECT;
@@ -446,13 +446,12 @@ Error VariantParserCompat::parse_value(VariantParser::Token &token, Variant &r_v
 						return err;
 					}
 				} else {
-					// TODO: fix this
-					// Ref<Script> script = resource;
-					// if (script.is_valid() && script->is_valid()) {
-					// 	value_type = Variant::OBJECT;
-					// 	value_class_name = script->get_instance_base_type();
-					// 	value_script = script;
-					// }
+					Ref<Script> script = resource;
+					if (script.is_valid() && script->is_valid()) {
+						value_type = Variant::OBJECT;
+						value_class_name = script->get_instance_base_type();
+						value_script = script;
+					}
 				}
 			} else if (ClassDB::class_exists(token.value)) {
 				value_type = Variant::OBJECT;
@@ -489,9 +488,14 @@ Error VariantParserCompat::parse_value(VariantParser::Token &token, Variant &r_v
 				return err;
 			}
 
+			// COMPAT: Don't assign type if we don't have real objects
 			if (key_type != Variant::NIL || value_type != Variant::NIL) {
 				bool contains_missing_resources = false;
-				if (ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled()) {
+				// check if key_script or value_script is not null and if the class name is empty;
+				// if the script is set and type class name is empty (likely because it's a fake script) then type assignment will fail.
+				if (((!key_script.is_null() && key_type == Variant::OBJECT && key_class_name.is_empty()) || (!value_script.is_null() && value_type == Variant::OBJECT && value_class_name.is_empty()))) {
+					contains_missing_resources = true;
+				} else if (ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled()) {
 					if (key_type == Variant::OBJECT && key_class_name != "MissingResource") {
 						for (const Variant &key : values.keys()) {
 							if (key.get_type() == Variant::OBJECT) {
@@ -580,11 +584,12 @@ Error VariantParserCompat::parse_value(VariantParser::Token &token, Variant &r_v
 						return err;
 					}
 				} else {
-					// TODO: fix this
-					// Ref<Script> script = resource;
-					// if (script.is_valid() && script->is_valid()) {
-					// 	array.set_typed(Variant::OBJECT, script->get_instance_base_type(), script);
-					// }
+					Ref<Script> script = resource;
+					if (script.is_valid() && script->is_valid()) {
+						type = Variant::OBJECT;
+						type_class_name = script->get_instance_base_type();
+						var_script = resource;
+					}
 				}
 			} else if (ClassDB::class_exists(token.value)) {
 				type = Variant::OBJECT;
@@ -623,18 +628,24 @@ Error VariantParserCompat::parse_value(VariantParser::Token &token, Variant &r_v
 				r_err_str = "Expected ')'";
 				return ERR_PARSE_ERROR;
 			}
-			if (type != Variant::NIL) {
+			// COMPAT: Don't assign type if we don't have real objects
+			if (type != Variant::NIL && !array.is_typed()) {
 				bool contains_missing_resources = false;
-				if (ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled() && type == Variant::OBJECT && type_class_name != "MissingResource") {
-					for (int i = 0; i < values.size(); i++) {
-						if (values[i].get_type() == Variant::OBJECT) {
-							Ref<Resource> res = values[i];
-							if (res.is_null()) {
-								continue;
-							}
-							if (res->get_class() == "MissingResource") {
-								contains_missing_resources = true;
-								break;
+				if (type == Variant::OBJECT) {
+					// if var_script is set and type_class_name is empty (likely because it's a fake script) then type assignment will fail.
+					if (!var_script.is_null() && type_class_name.is_empty()) {
+						contains_missing_resources = true;
+					} else if (!type_class_name.is_empty() && ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled() && type_class_name != "MissingResource") {
+						for (int i = 0; i < values.size(); i++) {
+							if (values[i].get_type() == Variant::OBJECT) {
+								Ref<Resource> res = values[i];
+								if (res.is_null()) {
+									continue;
+								}
+								if (res->get_class() == "MissingResource") {
+									contains_missing_resources = true;
+									break;
+								}
 							}
 						}
 					}
