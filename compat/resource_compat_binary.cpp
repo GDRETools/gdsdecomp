@@ -820,6 +820,17 @@ Error ResourceLoaderCompatBinary::load() {
 			r = res.ptr();
 		}
 		bool is_scene = false;
+		bool fake_script = false;
+		auto init_missing_resource([&]() {
+			auto nres = main ? CompatFormatLoader::create_missing_main_resource(path, t, uid) : CompatFormatLoader::create_missing_internal_resource(path, t, id);
+			res = Ref<Resource>(nres);
+			if (res->get_class() == "MissingResource") {
+				missing_resource = Object::cast_to<MissingResource>(res.ptr());
+			} else {
+				fake_script = true;
+			}
+		});
+
 		if (!r) {
 			if (cache_mode == ResourceFormatLoader::CACHE_MODE_REPLACE && ResourceCache::has(path)) {
 				//use the existing one
@@ -834,14 +845,12 @@ Error ResourceLoaderCompatBinary::load() {
 				is_scene = true;
 			}
 			if (load_type == ResourceInfo::FAKE_LOAD) {
-				missing_resource = main ? CompatFormatLoader::create_missing_main_resource(path, t, uid) : CompatFormatLoader::create_missing_internal_resource(path, t, id);
-				res = Ref<Resource>(missing_resource);
+				init_missing_resource();
 			} else if (res.is_null()) {
 				converter = ResourceCompatLoader::get_converter_for_type(t, ver_major);
 				if (converter.is_valid()) {
 					// We pass a missing resource to the converter, so it can set the properties correctly.
-					missing_resource = main ? CompatFormatLoader::create_missing_main_resource(path, t, uid) : CompatFormatLoader::create_missing_internal_resource(path, t, id);
-					res = Ref<Resource>(missing_resource);
+					init_missing_resource();
 				} // else, we will try to load it normally
 			}
 
@@ -918,7 +927,7 @@ Error ResourceLoaderCompatBinary::load() {
 			bool set_valid = true;
 
 			// The below won't happen on a fake load
-			if (value.get_type() == Variant::OBJECT && (name == "script" || missing_resource == nullptr) && ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled()) {
+			if (value.get_type() == Variant::OBJECT && (!fake_script && missing_resource == nullptr) && ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled()) {
 				// If the property being set is a missing resource (and the parent is not),
 				// then setting it will most likely not work.
 				// Instead, save it as metadata.

@@ -1,4 +1,5 @@
 #pragma once
+#include "compat/fake_script.h"
 #include "compat/resource_import_metadatav2.h"
 #include "core/io/file_access.h"
 #include "core/io/missing_resource.h"
@@ -89,45 +90,55 @@ public:
 		}
 	}
 
+	static Resource *make_fakescript_or_mising_resource(const String &path, const String &type, const String &scene_id = "") {
+		Resource *ret;
+		if (type == "Script" || type == "GDScript" || type == "CSharpScript") {
+			FakeEmbeddedScript *res{ memnew(FakeEmbeddedScript) };
+			res->set_original_class(type);
+			ret = res;
+		} else {
+			MissingResource *res{ memnew(MissingResource) };
+			res->set_original_class(type);
+			res->set_recording_properties(true);
+			ret = res;
+		}
+		if (!path.is_empty()) {
+			ret->set_path_cache(path);
+		}
+		if (!scene_id.is_empty()) {
+			ret->set_scene_unique_id(scene_id);
+		}
+		return ret;
+	}
+
 	static Ref<Resource> create_missing_external_resource(const String &path, const String &type, const ResourceUID::ID uid, const String &scene_id = "") {
-		Ref<MissingResource> res{ memnew(MissingResource) };
-		res->set_original_class(type);
-		res->set_path_cache(path);
+		Ref<Resource> res{ make_fakescript_or_mising_resource(path, type) };
 		ResourceInfo compat;
 		compat.uid = uid;
 		compat.type = type;
 		compat.cached_id = scene_id;
 		compat.topology_type = ResourceInfo::UNLOADED_EXTERNAL_RESOURCE;
 		res->set_meta("compat", compat.to_dict());
-		res->set_recording_properties(true);
 		return res;
 	}
 
-	static MissingResource *create_missing_main_resource(const String &path, const String &type, const ResourceUID::ID uid) {
-		MissingResource *res{ memnew(MissingResource) };
-		res->set_original_class(type);
-		res->set_path_cache(path);
+	static Resource *create_missing_main_resource(const String &path, const String &type, const ResourceUID::ID uid) {
+		Resource *res{ make_fakescript_or_mising_resource(path, type) };
 		ResourceInfo compat;
 		compat.uid = uid;
 		compat.type = type;
 		compat.topology_type = ResourceInfo::MAIN_RESOURCE;
 		res->set_meta("compat", compat.to_dict());
-
-		res->set_recording_properties(true);
 		return res;
 	}
 
-	static MissingResource *create_missing_internal_resource(const String &path, const String &type, const String &scene_id) {
-		MissingResource *res{ memnew(MissingResource) };
-		res->set_original_class(type);
-		// res->set_path_cache(path);
-		res->set_scene_unique_id(scene_id);
+	static Resource *create_missing_internal_resource(const String &path, const String &type, const String &scene_id) {
+		Resource *res{ make_fakescript_or_mising_resource("", type, scene_id) };
 		ResourceInfo compat;
 		compat.uid = ResourceUID::INVALID_ID;
 		compat.type = type;
 		compat.topology_type = ResourceInfo::INTERNAL_RESOURCE;
 		res->set_meta("compat", compat.to_dict());
-		res->set_recording_properties(true);
 		return res;
 	}
 

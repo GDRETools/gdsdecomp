@@ -590,12 +590,21 @@ Error ResourceLoaderCompatText::load() {
 			}
 		}
 
+		bool fake_script = false;
 		MissingResource *missing_resource = nullptr;
 		Ref<ResourceCompatConverter> converter;
+		auto init_missing_internal_resource([&]() {
+			auto nres = CompatFormatLoader::create_missing_internal_resource(path, type, id);
+			res = Ref<Resource>(nres);
+			if (res->get_class() == "MissingResource") {
+				missing_resource = Object::cast_to<MissingResource>(res.ptr());
+			} else {
+				fake_script = true;
+			}
+		});
 
 		if (load_type == ResourceInfo::FAKE_LOAD) {
-			missing_resource = CompatFormatLoader::create_missing_internal_resource(path, type, id);
-			res = Ref<Resource>(missing_resource);
+			init_missing_internal_resource();
 		} else if (res.is_null()) {
 			converter = ResourceCompatLoader::get_converter_for_type(type, ver_major);
 		}
@@ -603,8 +612,7 @@ Error ResourceLoaderCompatText::load() {
 			Ref<Resource> cache = ResourceCache::get_ref(path);
 			if (converter.is_valid() && (!cache.is_valid() || cache_mode == ResourceFormatLoader::CACHE_MODE_IGNORE)) {
 				// We pass a missing resource to the converter, so it can set the properties correctly.
-				missing_resource = CompatFormatLoader::create_missing_internal_resource(path, type, id);
-				res = Ref<Resource>(missing_resource);
+				init_missing_internal_resource();
 			} else if (cache_mode != ResourceFormatLoader::CACHE_MODE_IGNORE && cache.is_valid()) { //only if it doesn't exist
 				// cached, do not assign
 				res = cache;
@@ -681,7 +689,7 @@ Error ResourceLoaderCompatText::load() {
 					bool set_valid = true;
 
 					// Should only get here on real loads.
-					if (value.get_type() == Variant::OBJECT && (assign == "script" || missing_resource == nullptr) && ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled()) {
+					if (value.get_type() == Variant::OBJECT && (!fake_script && missing_resource == nullptr) && ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled()) {
 						// If the property being set is a missing resource (and the parent is not),
 						// then setting it will most likely not work.
 						// Instead, save it as metadata.
@@ -774,9 +782,18 @@ Error ResourceLoaderCompatText::load() {
 			return error;
 		}
 
+		bool fake_script = false;
 		MissingResource *missing_resource = nullptr;
 		Ref<ResourceCompatConverter> converter;
-
+		auto init_missing_main_resource([&]() {
+			auto res = CompatFormatLoader::create_missing_main_resource(local_path, res_type, res_uid);
+			resource = Ref<Resource>(res);
+			if (resource->get_class() == "MissingResource") {
+				missing_resource = Object::cast_to<MissingResource>(resource.ptr());
+			} else {
+				fake_script = true;
+			}
+		});
 		if (is_real_load()) {
 			resource = ResourceLoader::get_resource_ref_override(local_path);
 		}
@@ -791,13 +808,11 @@ Error ResourceLoaderCompatText::load() {
 			}
 			// clang-format on
 			if (load_type == ResourceInfo::FAKE_LOAD) {
-				missing_resource = CompatFormatLoader::create_missing_main_resource(local_path, res_type, res_uid);
-				resource = Ref<Resource>(missing_resource);
+				init_missing_main_resource();
 			} else if (resource.is_null()) {
 				converter = ResourceCompatLoader::get_converter_for_type(res_type, ver_major);
 				if (converter.is_valid()) {
-					missing_resource = CompatFormatLoader::create_missing_main_resource(local_path, res_type, res_uid);
-					resource = Ref<Resource>(missing_resource);
+					init_missing_main_resource();
 				} // else, we will create a new resource
 			}
 
@@ -863,7 +878,7 @@ Error ResourceLoaderCompatText::load() {
 			if (!assign.is_empty()) {
 				bool set_valid = true;
 
-				if (value.get_type() == Variant::OBJECT && (assign == "script" || missing_resource == nullptr) && ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled()) {
+				if (value.get_type() == Variant::OBJECT && (!fake_script && missing_resource == nullptr) && ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled()) {
 					// If the property being set is a missing resource (and the parent is not),
 					// then setting it will most likely not work.
 					// Instead, save it as metadata.
@@ -2258,7 +2273,7 @@ static String _resource_get_class(Ref<Resource> p_resource) {
 	if (missing_resource.is_valid()) {
 		return missing_resource->get_original_class();
 	} else {
-		return p_resource->get_class();
+		return p_resource->get_save_class();
 	}
 }
 
