@@ -3021,7 +3021,7 @@ Error ResourceLoaderCompatBinary::load_import_metadata(bool p_return_to_pos) {
 }
 
 bool ResourceLoaderCompatBinary::should_threaded_load() const {
-	return use_sub_threads && is_real_load() && ResourceCompatLoader::is_globally_available() && (load_type != ResourceInfo::GLTF_LOAD || ResourceCompatLoader::is_default_gltf_load());
+	return use_sub_threads && is_real_load() && ResourceCompatLoader::is_globally_available() && ((load_type == ResourceInfo::GLTF_LOAD) == ResourceCompatLoader::is_default_gltf_load());
 }
 
 Ref<ResourceLoader::LoadToken> ResourceLoaderCompatBinary::start_ext_load(const String &p_path, const String &p_type_hint, const ResourceUID::ID uid, const int er_idx) {
