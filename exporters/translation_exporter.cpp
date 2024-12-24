@@ -176,15 +176,60 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 	HashMap<StringName, StringName> key_to_message;
 	String prefix;
 	bool keys_have_spaces = false;
+	bool keys_have_periods = false;
+	bool keys_have_dashes = false;
+	bool keys_are_all_upper = true;
+	bool keys_are_all_lower = true;
+	bool keys_are_all_ascii = true;
+	auto string_is_ascii = [](const String &s) {
+		for (int i = 0; i < s.length(); i++) {
+			if (s[i] > 127) {
+				return false;
+			}
+		}
+		return true;
+	};
+	auto set_key_stuff = [&](const String &key) {
+		if (!keys_have_spaces && key.contains(" ")) {
+			keys_have_spaces = true;
+		}
+		if (!keys_have_periods && key.contains(".")) {
+			keys_have_periods = true;
+		}
+		if (!keys_have_dashes && key.contains("-")) {
+			keys_have_dashes = true;
+		}
+		if (keys_are_all_upper && key.to_upper() != key) {
+			keys_are_all_upper = false;
+		}
+		if (keys_are_all_lower && key.to_lower() != key) {
+			keys_are_all_lower = false;
+		}
+		if (keys_are_all_ascii) {
+			keys_are_all_ascii = string_is_ascii(key);
+		}
+	};
+	auto try_key = [&](const String &key) {
+		auto msg = default_translation->get_message(key);
+		if (!msg.is_empty()) {
+			set_key_stuff(key);
+			if (key_to_message.has(key)) {
+				if (msg != key_to_message[key]) {
+					WARN_PRINT(vformat("Found matching key '%s' for message '%s' but key is used for message '%s'", key, msg, key_to_message[key]));
+				} else {
+					return;
+				}
+			}
+			key_to_message[key] = msg;
+		}
+	};
 	if (keys.size() == 0) {
 		for (const StringName &msg : default_messages) {
 			String key = guess_key_from_tr(msg, default_translation);
 			if (key.is_empty()) {
 				missing_keys++;
 			} else {
-				if (!keys_have_spaces && key.contains(" ")) {
-					keys_have_spaces = true;
-				}
+				set_key_stuff(key);
 				key_to_message[key] = msg;
 			}
 		}
@@ -195,35 +240,55 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 			}
 			GDRESettings::get_singleton()->get_resource_strings(resource_strings);
 			for (const String &key : resource_strings) {
-				auto msg = default_translation->get_message(key);
-				if (!msg.is_empty()) {
-					if (!keys_have_spaces && key.contains(" ")) {
-						keys_have_spaces = true;
-					}
-					if (key_to_message.has(key) && msg != key_to_message[key]) {
-						WARN_PRINT(vformat("Found matching key '%s' for message '%s' but key is used for message '%s'", key, msg, key_to_message[key]));
-					}
-					key_to_message[key] = msg;
-				}
+				try_key(key);
 			}
-			// We didn't find all the keys
+			// We didn't find all the keys, look for keys in every PART of the resource strings
 			if (key_to_message.size() != default_messages.size()) {
 				prefix = find_common_prefix(key_to_message);
+				bool has_common_prefix = !prefix.is_empty();
 				// Only do this if no keys have spaces or they have a common prefix; otherwise this is practically useless to do
-				if (!keys_have_spaces || !prefix.is_empty()) {
+				if (!keys_have_spaces || has_common_prefix) {
 					Ref<RegEx> re;
 					re.instantiate();
 					re->compile("\\b" + prefix + "[\\w\\d\\-\\_\\.]+\\b");
 					for (const String &res_s : resource_strings) {
-						if ((prefix.is_empty() || res_s.contains(prefix)) && !key_to_message.has(res_s)) {
+						if ((!has_common_prefix || res_s.contains(prefix))) {
 							auto matches = re->search_all(res_s);
 							for (const Ref<RegExMatch> match : matches) {
 								for (const String &key : match->get_strings()) {
-									auto msg = default_translation->get_message(key);
-									if (!msg.is_empty()) {
-										key_to_message[key] = msg;
-									}
+									try_key(key);
 								}
+							}
+						}
+					}
+					// If we're still missing keys and no keys have spaces, we try combining every string with every other string
+					// We first filter them according to common characteristics so that this doesn't take forever.
+					if (key_to_message.size() != default_messages.size()) {
+						HashSet<String> filtered_resource_strings;
+						for (const String &res_s : resource_strings) {
+							if (res_s.contains(" ")) {
+								continue;
+							}
+							if (res_s.begins_with("res://")) {
+								continue;
+							}
+							if (!prefix.is_empty() && !res_s.begins_with(prefix)) {
+								continue;
+							}
+							if (keys_are_all_upper && res_s.to_upper() != res_s) {
+								continue;
+							}
+							if (keys_are_all_lower && res_s.to_lower() != res_s) {
+								continue;
+							}
+							if (keys_are_all_ascii && !string_is_ascii(res_s)) {
+								continue;
+							}
+							filtered_resource_strings.insert(res_s);
+						}
+						for (const String &res_s : filtered_resource_strings) {
+							for (const String &res_s2 : filtered_resource_strings) {
+								try_key(res_s + res_s2);
 							}
 						}
 					}

@@ -6,6 +6,7 @@ class SceneExporter : public ResourceExporter {
 
 	Error _export_scene(const String &p_dest_path, const String &p_src_path, bool use_subthreads);
 	virtual Error _export_file(const String &out_path, const String &res_path);
+	bool using_threaded_load() const;
 
 public:
 	virtual Error export_file(const String &out_path, const String &res_path) override;

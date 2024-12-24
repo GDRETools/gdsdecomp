@@ -10,6 +10,7 @@
 #include "core/io/image_loader.h"
 #include "core/io/resource_loader.h"
 #include "scene/resources/atlas_texture.h"
+#include "utility/resource_info.h"
 
 namespace {
 bool get_bit(const Vector<uint8_t> &bitmask, int width, int p_x, int p_y) {
@@ -138,8 +139,7 @@ Error TextureExporter::_convert_tex(const String &p_path, const String &dest_pat
 Error TextureExporter::_convert_atex(const String &p_path, const String &dest_path, bool lossy, String &image_format) {
 	Error err;
 	String dst_dir = dest_path.get_base_dir();
-	// TODO: make gltf_load take in a cache mode
-	Ref<AtlasTexture> atex = ResourceCompatLoader::gltf_load(p_path, "", &err);
+	Ref<AtlasTexture> atex = ResourceCompatLoader::custom_load(p_path, "", ResourceInfo::GLTF_LOAD, &err, false, ResourceFormatLoader::CACHE_MODE_IGNORE);
 	// deprecated format
 	if (err == ERR_UNAVAILABLE) {
 		// TODO: Not reporting here because we can't get the deprecated format type yet,

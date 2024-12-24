@@ -683,12 +683,12 @@ Vector<Ref<Image>> TextureLoaderCompat::load_images_from_layered_tex(const Strin
 	switch (textype) {
 		case TEXTURE_TYPE_3D: {
 			ResourceFormatLoaderCompatTexture3D rlcb;
-			Ref<Texture3D> res = rlcb.custom_load(res_path, ResourceInfo::LoadType::NON_GLOBAL_LOAD, &err);
+			Ref<Texture3D> res = rlcb.custom_load(res_path, {}, ResourceInfo::LoadType::NON_GLOBAL_LOAD, &err);
 			data = res->get_data();
 		} break;
 		case TEXTURE_TYPE_LAYERED: {
 			ResourceFormatLoaderCompatTextureLayered rlcb;
-			Ref<TextureLayered> res = rlcb.custom_load(res_path, ResourceInfo::LoadType::NON_GLOBAL_LOAD, &err);
+			Ref<TextureLayered> res = rlcb.custom_load(res_path, {}, ResourceInfo::LoadType::NON_GLOBAL_LOAD, &err);
 
 			for (int i = 0; i < res->get_layers(); i++) {
 				data.push_back(res->get_layer_data(i));
@@ -728,10 +728,8 @@ Ref<Resource> ResourceConverterTexture2D::convert(const Ref<MissingResource> &re
 	if (res->get("load_path").get_type() == Variant::NIL) {
 		return Ref<CompressedTexture2D>(memnew(CompressedTexture2D));
 	}
-	if (p_type == ResourceInfo::GLTF_LOAD) {
-		texture = ResourceCompatLoader::gltf_load(load_path, type, r_error);
-	} else if (p_type == ResourceInfo::REAL_LOAD) {
-		texture = ResourceCompatLoader::real_load(load_path, type, r_error, ResourceFormatLoader::CACHE_MODE_IGNORE);
+	if (p_type == ResourceInfo::GLTF_LOAD || p_type == ResourceInfo::REAL_LOAD) {
+		texture = ResourceCompatLoader::custom_load(load_path, type, p_type, r_error, false, ResourceFormatLoader::CACHE_MODE_IGNORE);
 	}
 	ERR_FAIL_COND_V_MSG(texture.is_null(), res, "Failed to load texture " + load_path);
 	if (compat_dict.size() > 0) {
@@ -813,10 +811,10 @@ ResourceInfo TextureLoaderCompat::get_resource_info(const String &p_path, Error 
 }
 
 Ref<Resource> ResourceFormatLoaderCompatTexture2D::load(const String &p_path, const String &p_original_path, Error *r_error, bool p_use_sub_threads, float *r_progress, ResourceFormatLoader::CacheMode p_cache_mode) {
-	return custom_load(p_path, get_default_real_load(), r_error);
+	return custom_load(p_path, p_original_path, get_default_real_load(), r_error);
 }
 
-Ref<Resource> ResourceFormatLoaderCompatTexture2D::custom_load(const String &p_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
+Ref<Resource> ResourceFormatLoaderCompatTexture2D::custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
 	Error err;
 	Ref<Resource> res;
 	TextureLoaderCompat::TextureVersionType t = TextureLoaderCompat::recognize(p_path, &err);
@@ -849,7 +847,7 @@ Ref<Resource> ResourceFormatLoaderCompatTexture2D::custom_load(const String &p_p
 }
 
 Ref<Resource> ResourceFormatLoaderCompatTexture3D::load(const String &p_path, const String &p_original_path, Error *r_error, bool p_use_sub_threads, float *r_progress, CacheMode p_cache_mode) {
-	return custom_load(p_path, get_default_real_load(), r_error);
+	return custom_load(p_path, p_original_path, get_default_real_load(), r_error);
 }
 
 void ResourceFormatLoaderCompatTexture3D::get_recognized_extensions(List<String> *p_extensions) const {
@@ -891,7 +889,7 @@ Ref<CompressedTexture3D> ResourceFormatLoaderCompatTexture3D::_set_tex(const Str
 	return texture;
 }
 
-Ref<Resource> ResourceFormatLoaderCompatTexture3D::custom_load(const String &p_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
+Ref<Resource> ResourceFormatLoaderCompatTexture3D::custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
 	Error err;
 	TextureLoaderCompat::TextureVersionType t = TextureLoaderCompat::recognize(p_path, &err);
 	if (t == TextureLoaderCompat::FORMAT_NOT_TEXTURE) {
@@ -923,7 +921,7 @@ Ref<Resource> ResourceFormatLoaderCompatTexture3D::custom_load(const String &p_p
 }
 
 Ref<Resource> ResourceFormatLoaderCompatTextureLayered::load(const String &p_path, const String &p_original_path, Error *r_error, bool p_use_sub_threads, float *r_progress, CacheMode p_cache_mode) {
-	return custom_load(p_path, get_default_real_load(), r_error);
+	return custom_load(p_path, p_original_path, get_default_real_load(), r_error);
 }
 
 void ResourceFormatLoaderCompatTextureLayered::get_recognized_extensions(List<String> *p_extensions) const {
@@ -986,7 +984,7 @@ Ref<CompressedTextureLayered> ResourceFormatLoaderCompatTextureLayered::_set_tex
 	return texture;
 }
 
-Ref<Resource> ResourceFormatLoaderCompatTextureLayered::custom_load(const String &p_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
+Ref<Resource> ResourceFormatLoaderCompatTextureLayered::custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
 	Error err;
 	Ref<Resource> res;
 	TextureLoaderCompat::TextureVersionType t = TextureLoaderCompat::recognize(p_path, &err);

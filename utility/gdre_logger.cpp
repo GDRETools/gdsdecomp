@@ -15,13 +15,15 @@ bool inGuiMode() {
 
 thread_local uint64_t GDRELogger::thread_error_count = 0;
 std::atomic<uint64_t> GDRELogger::error_count = 0;
+thread_local uint64_t GDRELogger::thread_warning_count = 0;
+std::atomic<uint64_t> GDRELogger::warning_count = 0;
 
 void GDRELogger::logv(const char *p_format, va_list p_list, bool p_err) {
-	if (p_err) {
-		error_count++;
-		thread_error_count++;
-	}
 	if (disabled || !should_log(p_err)) {
+		if (p_err) {
+			error_count++;
+			thread_error_count++;
+		}
 		return;
 	}
 	if (file.is_valid() || inGuiMode() || is_prebuffering) {
@@ -36,6 +38,16 @@ void GDRELogger::logv(const char *p_format, va_list p_list, bool p_err) {
 			vsnprintf(buf, len + 1, p_format, list_copy);
 		}
 		va_end(list_copy);
+		if (p_err) {
+			// check if buf begins with "WARNING:"
+			if (len >= 8 && buf[0] == 'W' && buf[1] == 'A' && buf[2] == 'R' && buf[3] == 'N' && buf[4] == 'I' && buf[5] == 'N' && buf[6] == 'G' && buf[7] == ':') {
+				warning_count++;
+				thread_warning_count++;
+			} else {
+				error_count++;
+				thread_error_count++;
+			}
+		}
 
 		if (inGuiMode()) {
 			// TODO: route this through GDRE Settings rather than GDRE Editor

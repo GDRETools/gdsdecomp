@@ -242,7 +242,7 @@ void gdre::get_strings_from_variant(const Variant &p_var, Vector<String> &r_stri
 			}
 			if (!engine_version.is_empty()) {
 				Ref<MissingResource> mr = p_var;
-				if (obj->get_class() == "GDScript" || (mr.is_valid() && mr->get_original_class() == "GDScript")) {
+				if (obj->get_save_class() == "GDScript") {
 					String code = obj->get("script/source");
 					if (!code.is_empty()) {
 						auto decomp = GDScriptDecomp::create_decomp_for_version(engine_version, true);

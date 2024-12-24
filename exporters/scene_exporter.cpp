@@ -1,9 +1,12 @@
 #include "scene_exporter.h"
 
 #include "compat/resource_loader_compat.h"
+#include "core/io/file_access.h"
+#include "core/io/resource_loader.h"
 #include "exporters/export_report.h"
 #include "modules/gltf/gltf_document.h"
 #include "utility/common.h"
+#include "utility/gdre_logger.h"
 #include "utility/gdre_settings.h"
 
 #include "core/error/error_list.h"
@@ -18,36 +21,12 @@ struct dep_info {
 	String type;
 };
 
-String get_remapped_path(const String &dep, const String &p_src_path) {
-	String dep_path;
-	Ref<ImportInfo> tex_iinfo;
-	if (GDRESettings::get_singleton()->is_pack_loaded()) {
-		dep_path = GDRESettings::get_singleton()->get_mapped_path(dep);
-		if (dep_path.is_empty()) {
-			dep_path = dep;
-		}
-		return dep_path;
+#define MAX_DEPTH 256
+void get_deps_recursive(const String &p_path, HashMap<String, dep_info> &r_deps, int depth = 0) {
+	if (depth > MAX_DEPTH) {
+		ERR_PRINT("Dependency recursion depth exceeded.");
+		return;
 	}
-
-	String iinfo_path = dep + ".import";
-	if (FileAccess::exists(iinfo_path)) {
-		tex_iinfo = ImportInfo::load_from_file(iinfo_path, 0, 0);
-		dep_path = tex_iinfo->get_path();
-	}
-	if (dep_path.is_empty()) {
-		String iinfo_path = dep + ".remap";
-		if (FileAccess::exists(iinfo_path)) {
-			tex_iinfo = ImportInfo::load_from_file(iinfo_path, 0, 0);
-			dep_path = tex_iinfo->get_path();
-		}
-	}
-	if (dep_path.is_empty()) {
-		return dep;
-	}
-	return dep_path;
-}
-
-void get_deps_recursive(const String &p_path, HashMap<String, dep_info> &r_deps) {
 	List<String> deps;
 	ResourceCompatLoader::get_dependencies(p_path, &deps, true);
 	for (const String &dep : deps) {
@@ -60,16 +39,41 @@ void get_deps_recursive(const String &p_path, HashMap<String, dep_info> &r_deps)
 				info.uid = splits[0].is_empty() ? ResourceUID::INVALID_ID : ResourceUID::get_singleton()->text_to_id(splits[0]);
 				info.type = splits[1];
 				info.dep = splits[2];
-				splits.remove_at(0);
+				info.remap = GDRESettings::get_singleton()->get_mapped_path(info.dep);
+				auto thingy = GDRESettings::get_singleton()->get_mapped_path(splits[0]);
+				if (!FileAccess::exists(info.remap)) {
+					if (FileAccess::exists(info.dep)) {
+						info.remap = info.dep;
+					} else {
+						// If the remap doesn't exist, try to find the remap in the UID system
+						auto mapped_path = info.uid != ResourceUID::INVALID_ID && ResourceUID::get_singleton()->has_id(info.uid) ? ResourceUID::get_singleton()->get_id_path(info.uid) : "";
+						if (mapped_path.is_empty() || !FileAccess::exists(mapped_path)) {
+							mapped_path = GDRESettings::get_singleton()->get_mapped_path(mapped_path);
+							if (mapped_path.is_empty() || !FileAccess::exists(mapped_path)) {
+								ERR_PRINT(vformat("Failed to export scene %s: Dependency %s:%s does not exist.", p_path, info.dep, info.remap));
+								continue;
+							}
+						}
+						info.remap = mapped_path;
+					}
+				}
+
 			} else {
 				// otherwise, it's path followed by type
 				info.dep = splits[0];
 				info.type = splits[1];
 			}
-			info.remap = get_remapped_path(info.dep, p_path);
-			get_deps_recursive(info.remap, r_deps);
+			if (info.remap.is_empty()) {
+				info.remap = GDRESettings::get_singleton()->get_mapped_path(info.dep);
+			}
+			get_deps_recursive(info.remap, r_deps, depth + 1);
 		}
 	}
+}
+
+bool SceneExporter::using_threaded_load() const {
+	// If the scenes are being exported using the worker task pool, we can't use threaded load
+	return !supports_multithread();
 }
 
 Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src_path) {
@@ -103,9 +107,9 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 		// If GLTF exporter somehow starts making use of them, we'll have to do this
 		// bool is_default_gltf_load = ResourceCompatLoader::is_default_gltf_load();
 		// if (has_shader) {
-		// print_line("This scene has shaders, which may not be compatible with the exporter.");
-		// if it has a shader, we have to set gltf_load to false and do a real load on the textures, otherwise shaders will not be applied to the textures
-		// ResourceCompatLoader::set_default_gltf_load(false);
+		// 	print_line("This scene has shaders, which may not be compatible with the exporter.");
+		// 	// if it has a shader, we have to set gltf_load to false and do a real load on the textures, otherwise shaders will not be applied to the textures
+		// 	ResourceCompatLoader::set_default_gltf_load(false);
 		// }
 		auto set_cache_res = [&](const dep_info &info, Ref<Resource> texture, bool force_replace) {
 			if (texture.is_null() || (!force_replace && ResourceCache::get_ref(info.dep).is_valid())) {
@@ -123,21 +127,12 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 			dep_info &info = E.value;
 			// Never set Script or Shader, they're not used by the GLTF writer and cause errors
 			if (info.type == "Script" || info.type == "Shader") {
-				// TODO: Need to create a "MissingScript" resource derived from "Script" so that the assigns don't fail and spew errors to the log; preventing a load is ok for now.
 				auto texture = CompatFormatLoader::create_missing_external_resource(info.dep, info.type, info.uid, "");
 				set_cache_res(info, texture, false);
 				continue;
 			}
 			if (!FileAccess::exists(info.remap) && !FileAccess::exists(info.dep)) {
-				// TODO: move this logic elsewhere
-				auto mapped_path = info.uid != ResourceUID::INVALID_ID && ResourceUID::get_singleton()->has_id(info.uid) ? ResourceUID::get_singleton()->get_id_path(info.uid) : "";
-				if (mapped_path.is_empty() || !FileAccess::exists(mapped_path)) {
-					mapped_path = get_remapped_path(mapped_path, p_src_path);
-					if (mapped_path.is_empty() || !FileAccess::exists(mapped_path)) {
-						return ERR_FILE_MISSING_DEPENDENCIES;
-					}
-				}
-				info.remap = mapped_path;
+				ERR_FAIL_V_MSG(ERR_FILE_MISSING_DEPENDENCIES, vformat("Failed to export scene %s: Dependency %s:%s does not exist.", p_src_path, info.dep, info.remap));
 			} else if (info.uid != ResourceUID::INVALID_ID) {
 				if (!ResourceUID::get_singleton()->has_id(info.uid)) {
 					ResourceUID::get_singleton()->add_id(info.uid, info.remap);
@@ -148,37 +143,49 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 
 			if (info.dep != info.remap) {
 				auto texture = ResourceCompatLoader::custom_load(
-						p_src_path, "",
+						info.remap, "",
 						ResourceCompatLoader::is_default_gltf_load() ? ResourceInfo::GLTF_LOAD : ResourceInfo::REAL_LOAD,
 						&err,
-						!supports_multithread(),
+						using_threaded_load(),
 						ResourceFormatLoader::CACHE_MODE_REUSE);
 				if (err || texture.is_null()) {
-					return ERR_FILE_MISSING_DEPENDENCIES;
+					ERR_FAIL_V_MSG(ERR_FILE_MISSING_DEPENDENCIES, vformat("Failed to export scene %s: Dependency %s:%s failed to load.", p_src_path, info.dep, info.remap));
 				}
 				set_cache_res(info, texture, false);
 			}
 		}
-		if (has_script) {
-			print_line("Exporting this scene will cause a bunch of errors stating 'Cannot set object script.'.\nIt may still export correctly. Inspect the scene before reporting an issue.");
+		auto errors_before = using_threaded_load() ? GDRELogger::get_error_count() : GDRELogger::get_thread_error_count();
+		err = _export_scene(p_dest_path, p_src_path, using_threaded_load());
+		auto errors_after = using_threaded_load() ? GDRELogger::get_error_count() : GDRELogger::get_thread_error_count();
+		if (err == OK && errors_after > errors_before) {
+			err = ERR_PRINTER_ON_FIRE;
 		}
-		err = _export_scene(p_dest_path, p_src_path, !supports_multithread());
-		// if (has_shader) {
-		// 	ResourceCompatLoader::set_default_gltf_load(is_default_gltf_load);
-		// }
 	}
-	// remove the UIDs
+	// if (has_shader) {
+	// 	ResourceCompatLoader::set_default_gltf_load(true);
+	// }
+	// remove the UIDs that we added that didn't exist before
 	for (uint64_t id : texture_uids) {
 		ResourceUID::get_singleton()->remove_id(id);
 	}
-	ERR_FAIL_COND_V_MSG(err, err, "Failed to export scene " + p_src_path);
+	if (err != ERR_PRINTER_ON_FIRE) {
+		ERR_FAIL_COND_V_MSG(err, err, "Failed to export scene " + p_src_path);
+	} else {
+		WARN_PRINT("Exported scene had errors: " + p_src_path);
+	}
 	return err;
 }
 
 Error SceneExporter::_export_scene(const String &p_dest_path, const String &p_src_path, bool use_subthreads) {
 	Error err;
 	auto mode_type = ResourceCompatLoader::is_default_gltf_load() ? ResourceInfo::GLTF_LOAD : ResourceInfo::REAL_LOAD;
-	Ref<PackedScene> scene = ResourceCompatLoader::custom_load(p_src_path, "", mode_type, &err, use_subthreads, ResourceFormatLoader::CACHE_MODE_REUSE);
+	Ref<PackedScene> scene;
+	// For some reason, scenes with meshes fail to load without the load done by ResourceLoader::load, possibly due to notification shenanigans.
+	if (ResourceCompatLoader::is_globally_available() && use_subthreads) {
+		scene = ResourceLoader::load(p_src_path, "PackedScene", ResourceFormatLoader::CACHE_MODE_REUSE, &err);
+	} else {
+		scene = ResourceCompatLoader::custom_load(p_src_path, "PackedScene", mode_type, &err, use_subthreads, ResourceFormatLoader::CACHE_MODE_REUSE);
+	}
 	ERR_FAIL_COND_V_MSG(err, err, "Failed to load scene " + p_src_path);
 	// GLTF export can result in inaccurate models
 	// save it under .assets, which won't be picked up for import by the godot editor
@@ -236,15 +243,19 @@ Ref<ExportReport> SceneExporter::export_resource(const String &output_dir, Ref<I
 	} else {
 		report->set_new_source_path(new_path);
 		err = _export_file(dest_path, iinfo->get_path());
-		// if (!err && to_text && iinfo->get_ver_major() == 4) {
-		// 	// save .glb too
-		// 	String glb_path = output_dir.path_join(new_path.replace("res://", ".assets/").get_basename() + ".glb");
-		// 	_export_file(glb_path, iinfo->get_path());
-		// }
 	}
 	if (err == OK) {
 		report->set_saved_path(dest_path);
+	} else if (err == ERR_PRINTER_ON_FIRE) {
+		report->set_message("Scene export had errors.");
 	}
+#if DEBUG_ENABLED
+	if (err) {
+		// save it as a text scene so we can see what went wrong
+		auto new_dest = dest_path.get_basename() + ".tscn";
+		ResourceCompatLoader::to_text(iinfo->get_path(), new_dest);
+	}
+#endif
 	report->set_error(err);
 	return report; // We always save to an unoriginal path
 }
