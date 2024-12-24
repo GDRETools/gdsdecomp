@@ -2938,7 +2938,7 @@ ResourceInfo ResourceLoaderCompatText::get_resource_info() {
 	return info;
 }
 
-Ref<Resource> ResourceFormatLoaderCompatText::custom_load(const String &p_path, ResourceInfo::LoadType p_load_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
+Ref<Resource> ResourceFormatLoaderCompatText::custom_load(const String &p_path, const String& p_original_path, ResourceInfo::LoadType p_load_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
 	if (r_error) {
 		*r_error = ERR_CANT_OPEN;
 	}
@@ -2950,7 +2950,6 @@ Ref<Resource> ResourceFormatLoaderCompatText::custom_load(const String &p_path, 
 	ERR_FAIL_COND_V_MSG(err != OK, Ref<Resource>(), "Cannot open file '" + p_path + "'.");
 
 	ResourceLoaderCompatText loader;
-	String path = p_path;
 	loader.load_type = p_load_type;
 	switch (p_load_type) {
 		// TODO: Figure out if we can do caching at all
@@ -2962,10 +2961,26 @@ Ref<Resource> ResourceFormatLoaderCompatText::custom_load(const String &p_path, 
 		case ResourceInfo::GLTF_LOAD:
 		case ResourceInfo::REAL_LOAD:
 		default:
-			loader.cache_mode = p_cache_mode;
+			switch (p_cache_mode) {
+				case CACHE_MODE_IGNORE:
+				case CACHE_MODE_REUSE:
+				case CACHE_MODE_REPLACE:
+					loader.cache_mode = p_cache_mode;
+					loader.cache_mode_for_external = CACHE_MODE_REUSE;
+					break;
+				case CACHE_MODE_IGNORE_DEEP:
+					loader.cache_mode = CACHE_MODE_IGNORE;
+					loader.cache_mode_for_external = p_cache_mode;
+					break;
+				case CACHE_MODE_REPLACE_DEEP:
+					loader.cache_mode = CACHE_MODE_REPLACE;
+					loader.cache_mode_for_external = p_cache_mode;
+					break;
+			}
 			loader.use_sub_threads = use_threads;
 			break;
 	}
+	String path = !p_original_path.is_empty() ? p_original_path : p_path;
 	loader.local_path = GDRESettings::get_singleton()->localize_path(path);
 	loader.progress = nullptr;
 	loader.res_path = loader.local_path;

@@ -181,13 +181,13 @@ void ResourceCompatLoader::get_base_extensions_for_type(const String &p_type, Li
 Ref<Resource> ResourceCompatLoader::fake_load(const String &p_path, const String &p_type_hint, Error *r_error) {
 	auto loadr = get_loader_for_path(p_path, p_type_hint);
 	FAIL_LOADER_NOT_FOUND(loadr);
-	return loadr->custom_load(p_path, ResourceInfo::LoadType::FAKE_LOAD, r_error, false, ResourceFormatLoader::CACHE_MODE_IGNORE);
+	return loadr->custom_load(p_path, {}, ResourceInfo::LoadType::FAKE_LOAD, r_error, false, ResourceFormatLoader::CACHE_MODE_IGNORE);
 }
 
 Ref<Resource> ResourceCompatLoader::non_global_load(const String &p_path, const String &p_type_hint, Error *r_error) {
 	auto loader = get_loader_for_path(p_path, p_type_hint);
 	FAIL_LOADER_NOT_FOUND(loader);
-	return loader->custom_load(p_path, ResourceInfo::LoadType::NON_GLOBAL_LOAD, r_error, false, ResourceFormatLoader::CACHE_MODE_IGNORE);
+	return loader->custom_load(p_path, {}, ResourceInfo::LoadType::NON_GLOBAL_LOAD, r_error, false, ResourceFormatLoader::CACHE_MODE_IGNORE);
 }
 
 Ref<Resource> ResourceCompatLoader::gltf_load(const String &p_path, const String &p_type_hint, Error *r_error) {
@@ -202,10 +202,10 @@ Ref<Resource> ResourceCompatLoader::custom_load(const String &p_path, const Stri
 	String res_path = GDRESettings::get_singleton()->get_mapped_path(p_path);
 	auto loader = get_loader_for_path(res_path, p_type_hint);
 	if (loader.is_null() && (p_type == ResourceInfo::LoadType::REAL_LOAD || p_type == ResourceInfo::LoadType::GLTF_LOAD)) {
-		return load_with_real_resource_loader(p_path, p_type_hint, r_error, use_threads, p_cache_mode);
+		return load_with_real_resource_loader(res_path, p_type_hint, r_error, use_threads, p_cache_mode);
 	}
 	FAIL_LOADER_NOT_FOUND(loader);
-	return loader->custom_load(res_path, p_type, r_error, use_threads, p_cache_mode);
+	return loader->custom_load(res_path, p_path, p_type, r_error, use_threads, p_cache_mode);
 }
 
 Ref<Resource> ResourceCompatLoader::load_with_real_resource_loader(const String &p_path, const String &p_type_hint, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
@@ -326,7 +326,7 @@ Error ResourceCompatLoader::to_text(const String &p_path, const String &p_dst, u
 	ERR_FAIL_COND_V_MSG(loader.is_null(), ERR_FILE_NOT_FOUND, "Failed to load resource '" + p_path + "'. ResourceFormatLoader::load was not implemented for this resource type.");
 	Error err;
 
-	auto res = loader->custom_load(p_path, ResourceInfo::LoadType::FAKE_LOAD, &err);
+	auto res = loader->custom_load(p_path, {}, ResourceInfo::LoadType::FAKE_LOAD, &err);
 	ERR_FAIL_COND_V_MSG(err != OK || res.is_null(), err, "Failed to load " + p_path);
 	ResourceFormatSaverCompatTextInstance saver;
 	err = gdre::ensure_dir(p_dst.get_base_dir());
@@ -339,7 +339,7 @@ Error ResourceCompatLoader::to_binary(const String &p_path, const String &p_dst,
 	ERR_FAIL_COND_V_MSG(loader.is_null(), ERR_FILE_NOT_FOUND, "Failed to load resource '" + p_path + "'. ResourceFormatLoader::load was not implemented for this resource type.");
 	Error err;
 
-	auto res = loader->custom_load(p_path, ResourceInfo::LoadType::FAKE_LOAD, &err);
+	auto res = loader->custom_load(p_path, {}, ResourceInfo::LoadType::FAKE_LOAD, &err);
 	ERR_FAIL_COND_V_MSG(err != OK || res.is_null(), err, "Failed to load " + p_path);
 	err = gdre::ensure_dir(p_dst.get_base_dir());
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to create directory for " + p_dst);
@@ -473,7 +473,7 @@ void ResourceCompatLoader::_bind_methods() {
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("is_default_gltf_load"), &ResourceCompatLoader::is_default_gltf_load);
 }
 
-Ref<Resource> CompatFormatLoader::custom_load(const String &p_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
+Ref<Resource> CompatFormatLoader::custom_load(const String &p_path, const String& p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
 	if (r_error) {
 		*r_error = ERR_UNAVAILABLE;
 	}
