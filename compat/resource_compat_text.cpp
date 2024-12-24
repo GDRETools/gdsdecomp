@@ -2676,11 +2676,9 @@ Ref<Resource> ResourceFormatLoaderCompatText::custom_load(const String &p_path, 
 ResourceInfo ResourceFormatLoaderCompatText::get_resource_info(const String &p_path, Error *r_error) const {
 	_SET_R_ERR(ERR_CANT_OPEN, r_error);
 
-	Error err;
+	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ, r_error);
 
-	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ, &err);
-
-	ERR_FAIL_COND_V_MSG(err, ResourceInfo(), "Cannot open file '" + p_path + "'.");
+	ERR_FAIL_COND_V_MSG(f.is_null(), ResourceInfo(), "Cannot open file '" + p_path + "'.");
 
 	ResourceLoaderCompatText loader;
 	String path = p_path;
@@ -2691,7 +2689,7 @@ ResourceInfo ResourceFormatLoaderCompatText::get_resource_info(const String &p_p
 	loader.progress = nullptr;
 	loader.res_path = loader.local_path;
 	loader.open(f);
-	_SET_R_ERR(err, r_error);
-	ERR_FAIL_COND_V_MSG(err, ResourceInfo(), "Cannot load file '" + p_path + "'.");
+	_SET_R_ERR(loader.error, r_error);
+	ERR_FAIL_COND_V_MSG(loader.error, ResourceInfo(), "Cannot load file '" + p_path + "'.");
 	return loader.get_resource_info();
 }
