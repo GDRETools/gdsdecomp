@@ -143,7 +143,7 @@ class ResourceFormatLoaderCompatBinary : public CompatFormatLoader {
 
 public:
 	static Error get_ver_major_minor(const String &p_path, uint32_t &r_ver_major, uint32_t &r_ver_minor, bool &r_suspicious);
-	virtual Ref<Resource> custom_load(const String &p_path, const String& p_original_path, ResourceInfo::LoadType p_type, Error *r_error = nullptr, bool use_threads = true, ResourceFormatLoader::CacheMode p_cache_mode = CACHE_MODE_REUSE) override;
+	virtual Ref<Resource> custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error = nullptr, bool use_threads = true, ResourceFormatLoader::CacheMode p_cache_mode = CACHE_MODE_REUSE) override;
 	virtual ResourceInfo get_resource_info(const String &p_path, Error *r_error) const override;
 	virtual bool handles_fake_load() const override { return true; }
 

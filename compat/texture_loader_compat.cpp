@@ -814,7 +814,7 @@ Ref<Resource> ResourceFormatLoaderCompatTexture2D::load(const String &p_path, co
 	return custom_load(p_path, p_original_path, get_default_real_load(), r_error);
 }
 
-Ref<Resource> ResourceFormatLoaderCompatTexture2D::custom_load(const String &p_path, const String& p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
+Ref<Resource> ResourceFormatLoaderCompatTexture2D::custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
 	Error err;
 	Ref<Resource> res;
 	TextureLoaderCompat::TextureVersionType t = TextureLoaderCompat::recognize(p_path, &err);
@@ -889,7 +889,7 @@ Ref<CompressedTexture3D> ResourceFormatLoaderCompatTexture3D::_set_tex(const Str
 	return texture;
 }
 
-Ref<Resource> ResourceFormatLoaderCompatTexture3D::custom_load(const String &p_path, const String& p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
+Ref<Resource> ResourceFormatLoaderCompatTexture3D::custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
 	Error err;
 	TextureLoaderCompat::TextureVersionType t = TextureLoaderCompat::recognize(p_path, &err);
 	if (t == TextureLoaderCompat::FORMAT_NOT_TEXTURE) {
@@ -984,7 +984,7 @@ Ref<CompressedTextureLayered> ResourceFormatLoaderCompatTextureLayered::_set_tex
 	return texture;
 }
 
-Ref<Resource> ResourceFormatLoaderCompatTextureLayered::custom_load(const String &p_path, const String& p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
+Ref<Resource> ResourceFormatLoaderCompatTextureLayered::custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
 	Error err;
 	Ref<Resource> res;
 	TextureLoaderCompat::TextureVersionType t = TextureLoaderCompat::recognize(p_path, &err);

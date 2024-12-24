@@ -645,7 +645,7 @@ Error ResourceLoaderCompatText::load() {
 			}
 			res->set_scene_unique_id(id);
 			do_assign = true;
-		} else if (not_cached) {
+		} else if (converter.is_valid() && not_cached) {
 			do_assign = true;
 		}
 
@@ -2610,7 +2610,7 @@ ResourceInfo ResourceLoaderCompatText::get_resource_info() {
 	return info;
 }
 
-Ref<Resource> ResourceFormatLoaderCompatText::custom_load(const String &p_path, const String& p_original_path, ResourceInfo::LoadType p_load_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
+Ref<Resource> ResourceFormatLoaderCompatText::custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_load_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
 	if (r_error) {
 		*r_error = ERR_CANT_OPEN;
 	}

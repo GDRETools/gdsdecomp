@@ -70,7 +70,7 @@ class CompatFormatLoader : public ResourceFormatLoader {
 	GDCLASS(CompatFormatLoader, ResourceFormatLoader);
 
 public:
-	virtual Ref<Resource> custom_load(const String &p_path, const String& p_original_path, ResourceInfo::LoadType p_type, Error *r_error = nullptr, bool use_threads = true, ResourceFormatLoader::CacheMode p_cache_mode = CACHE_MODE_REUSE);
+	virtual Ref<Resource> custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error = nullptr, bool use_threads = true, ResourceFormatLoader::CacheMode p_cache_mode = CACHE_MODE_REUSE);
 	virtual ResourceInfo get_resource_info(const String &p_path, Error *r_error) const;
 	virtual bool handles_fake_load() const;
 	static ResourceInfo::LoadType get_default_real_load() {
