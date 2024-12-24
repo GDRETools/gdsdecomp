@@ -17,6 +17,7 @@
 #include "utility/file_access_gdre.h"
 #include "utility/gdre_logger.h"
 #include "utility/gdre_packed_source.h"
+#include "utility/import_info.h"
 
 #include "core/config/project_settings.h"
 #include "core/io/json.h"
@@ -1197,7 +1198,16 @@ bool has_old_remap(const Vector<String> &remaps, const String &src, const String
 	return false;
 }
 
-String GDRESettings::get_mapped_path(const String &src) const {
+String GDRESettings::get_mapped_path(const String &p_src) const {
+	String src = p_src;
+	if (src.begins_with("uid://")) {
+		auto id = ResourceUID::get_singleton()->text_to_id(src);
+		if (ResourceUID::get_singleton()->has_id(id)) {
+			src = ResourceUID::get_singleton()->get_id_path(id);
+		} else {
+			return "";
+		}
+	}
 	if (is_pack_loaded()) {
 		String remapped_path = get_remap(src);
 		if (!remapped_path.is_empty()) {
@@ -1210,6 +1220,29 @@ String GDRESettings::get_mapped_path(const String &src) const {
 		for (int i = 0; i < import_files.size(); i++) {
 			Ref<ImportInfo> iinfo = import_files[i];
 			if (iinfo->get_source_file() == local_src) {
+				return iinfo->get_path();
+			}
+		}
+	} else {
+		Ref<ImportInfo> iinfo;
+		String iinfo_path = src + ".import";
+		String dep_path;
+		if (FileAccess::exists(iinfo_path)) {
+			iinfo = ImportInfo::load_from_file(iinfo_path, 0, 0);
+			if (FileAccess::exists(iinfo->get_path())) {
+				return iinfo->get_path();
+			}
+			auto dests = iinfo->get_dest_files();
+			for (int i = 0; i < dests.size(); i++) {
+				if (FileAccess::exists(dests[i])) {
+					return dests[i];
+				}
+			}
+		}
+		iinfo_path = src + ".remap";
+		if (FileAccess::exists(iinfo_path)) {
+			iinfo = ImportInfo::load_from_file(iinfo_path, 0, 0);
+			if (FileAccess::exists(iinfo->get_path())) {
 				return iinfo->get_path();
 			}
 		}

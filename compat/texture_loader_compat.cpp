@@ -728,10 +728,8 @@ Ref<Resource> ResourceConverterTexture2D::convert(const Ref<MissingResource> &re
 	if (res->get("load_path").get_type() == Variant::NIL) {
 		return Ref<CompressedTexture2D>(memnew(CompressedTexture2D));
 	}
-	if (p_type == ResourceInfo::GLTF_LOAD) {
-		texture = ResourceCompatLoader::gltf_load(load_path, type, r_error);
-	} else if (p_type == ResourceInfo::REAL_LOAD) {
-		texture = ResourceCompatLoader::real_load(load_path, type, r_error, ResourceFormatLoader::CACHE_MODE_IGNORE);
+	if (p_type == ResourceInfo::GLTF_LOAD || p_type == ResourceInfo::REAL_LOAD) {
+		texture = ResourceCompatLoader::custom_load(load_path, type, p_type, r_error, false, ResourceFormatLoader::CACHE_MODE_IGNORE);
 	}
 	ERR_FAIL_COND_V_MSG(texture.is_null(), res, "Failed to load texture " + load_path);
 	if (compat_dict.size() > 0) {

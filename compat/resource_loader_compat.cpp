@@ -179,50 +179,49 @@ void ResourceCompatLoader::get_base_extensions_for_type(const String &p_type, Li
 }
 
 Ref<Resource> ResourceCompatLoader::fake_load(const String &p_path, const String &p_type_hint, Error *r_error) {
-	Ref<CompatFormatLoader> loadr;
-	for (int i = 0; i < loader_count; i++) {
-		if (loader[i]->recognize_path(p_path, p_type_hint) && loader[i]->handles_fake_load()) {
-			loadr = loader[i];
-		}
-	}
-
+	auto loadr = get_loader_for_path(p_path, p_type_hint);
 	FAIL_LOADER_NOT_FOUND(loadr);
-	return loadr->custom_load(p_path, ResourceInfo::LoadType::FAKE_LOAD, r_error);
+	return loadr->custom_load(p_path, ResourceInfo::LoadType::FAKE_LOAD, r_error, false, ResourceFormatLoader::CACHE_MODE_IGNORE);
 }
 
 Ref<Resource> ResourceCompatLoader::non_global_load(const String &p_path, const String &p_type_hint, Error *r_error) {
 	auto loader = get_loader_for_path(p_path, p_type_hint);
 	FAIL_LOADER_NOT_FOUND(loader);
-	return loader->custom_load(p_path, ResourceInfo::LoadType::NON_GLOBAL_LOAD, r_error);
+	return loader->custom_load(p_path, ResourceInfo::LoadType::NON_GLOBAL_LOAD, r_error, false, ResourceFormatLoader::CACHE_MODE_IGNORE);
 }
 
 Ref<Resource> ResourceCompatLoader::gltf_load(const String &p_path, const String &p_type_hint, Error *r_error) {
-	// TODO: This may not be thread-safe.
-	String res_path = GDRESettings::get_singleton()->get_mapped_path(p_path);
-	auto loader = get_loader_for_path(res_path, p_type_hint);
-	if (loader.is_null()) {
-		return ResourceLoader::load(res_path, p_type_hint, ResourceFormatLoader::CACHE_MODE_REUSE, r_error);
-	}
-	auto ret = loader->custom_load(res_path, ResourceInfo::LoadType::GLTF_LOAD, r_error);
-	return ret;
+	return ResourceCompatLoader::custom_load(p_path, p_type_hint, ResourceInfo::LoadType::GLTF_LOAD, r_error);
 }
 
 Ref<Resource> ResourceCompatLoader::real_load(const String &p_path, const String &p_type_hint, Error *r_error, ResourceFormatLoader::CacheMode p_cache_mode) {
-	String res_path = GDRESettings::get_singleton()->get_mapped_path(p_path);
-	auto loader = get_loader_for_path(res_path, p_type_hint);
-	if (loader.is_null()) {
-		return ResourceLoader::load(res_path, p_type_hint, ResourceFormatLoader::CACHE_MODE_REUSE, r_error);
-	}
-	return loader->custom_load(res_path, ResourceInfo::LoadType::REAL_LOAD, r_error, true, p_cache_mode);
+	return ResourceCompatLoader::custom_load(p_path, p_type_hint, ResourceInfo::LoadType::REAL_LOAD, r_error, true, p_cache_mode);
 }
 
 Ref<Resource> ResourceCompatLoader::custom_load(const String &p_path, const String &p_type_hint, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
-	auto loader = get_loader_for_path(p_path, p_type_hint);
+	String res_path = GDRESettings::get_singleton()->get_mapped_path(p_path);
+	auto loader = get_loader_for_path(res_path, p_type_hint);
 	if (loader.is_null() && (p_type == ResourceInfo::LoadType::REAL_LOAD || p_type == ResourceInfo::LoadType::GLTF_LOAD)) {
-		return ResourceLoader::load(p_path, p_type_hint, ResourceFormatLoader::CACHE_MODE_REPLACE, r_error);
+		return load_with_real_resource_loader(p_path, p_type_hint, r_error, use_threads, p_cache_mode);
 	}
 	FAIL_LOADER_NOT_FOUND(loader);
-	return loader->custom_load(p_path, p_type, r_error, use_threads, p_cache_mode);
+	return loader->custom_load(res_path, p_type, r_error, use_threads, p_cache_mode);
+}
+
+Ref<Resource> ResourceCompatLoader::load_with_real_resource_loader(const String &p_path, const String &p_type_hint, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
+	if (use_threads) {
+		return ResourceLoader::load(p_path, p_type_hint, p_cache_mode, r_error);
+	}
+	auto load_token = ResourceLoader::_load_start(p_path, p_type_hint, ResourceLoader::LoadThreadMode::LOAD_THREAD_FROM_CURRENT, p_cache_mode);
+	if (!load_token.is_valid()) {
+		if (r_error) {
+			*r_error = FAILED;
+		}
+		return Ref<Resource>();
+	}
+
+	Ref<Resource> res = ResourceLoader::_load_complete(*load_token.ptr(), r_error);
+	return res;
 }
 
 void ResourceCompatLoader::add_resource_format_loader(Ref<CompatFormatLoader> p_format_loader, bool p_at_front) {
