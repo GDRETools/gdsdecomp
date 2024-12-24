@@ -566,6 +566,7 @@ Error ResourceLoaderCompatText::load() {
 			}
 		}
 
+		bool not_cached = false;
 		bool fake_script = false;
 		MissingResource *missing_resource = nullptr;
 		Ref<ResourceCompatConverter> converter;
@@ -577,6 +578,7 @@ Error ResourceLoaderCompatText::load() {
 			} else {
 				fake_script = true;
 			}
+			not_cached = true;
 		});
 
 		if (load_type == ResourceInfo::FAKE_LOAD) {
@@ -642,6 +644,9 @@ Error ResourceLoaderCompatText::load() {
 				res->set_path_cache(path);
 			}
 			res->set_scene_unique_id(id);
+			do_assign = true;
+		} else if (not_cached) {
+			do_assign = true;
 		}
 
 		Dictionary missing_resource_properties;
@@ -2543,7 +2548,7 @@ void ResourceLoaderCompatText::set_compat_meta(Ref<Resource> &r_res) {
 }
 
 bool ResourceLoaderCompatText::should_threaded_load() const {
-	return use_sub_threads && is_real_load() && ResourceCompatLoader::is_globally_available() && (load_type != ResourceInfo::GLTF_LOAD || ResourceCompatLoader::is_default_gltf_load());
+	return use_sub_threads && is_real_load() && ResourceCompatLoader::is_globally_available() && ((load_type == ResourceInfo::GLTF_LOAD) == ResourceCompatLoader::is_default_gltf_load());
 }
 
 Ref<ResourceLoader::LoadToken> ResourceLoaderCompatText::start_ext_load(const String &p_path, const String &p_type_hint, const ResourceUID::ID uid, const String id) {
