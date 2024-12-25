@@ -59,6 +59,24 @@ bool hashset_intersects_vector(const HashSet<T> &a, const Vector<T> &b) {
 	return false;
 }
 
+template <class K, class V>
+Vector<K> get_keys(const HashMap<K, V> &map) {
+	Vector<K> ret;
+	for (const auto &E : map) {
+		ret.push_back(E.key);
+	}
+	return ret;
+}
+
+template <class K, class V>
+HashSet<K> get_set_of_keys(const HashMap<K, V> &map) {
+	HashSet<K> ret;
+	for (const auto &E : map) {
+		ret.insert(E.key);
+	}
+	return ret;
+}
+
 template <class T>
 Vector<T> get_vector_intersection(const Vector<T> &a, const Vector<T> &b) {
 	Vector<T> ret;
@@ -87,6 +105,15 @@ void shuffle_vector(Vector<T> &vec) {
 	}
 }
 
+bool string_is_ascii(const String &s);
+bool string_has_whitespace(const String &s);
+void get_chars_in_set(const String &s, const HashSet<char32_t> &chars, HashSet<char32_t> &ret);
+bool has_chars_in_set(const String &s, const HashSet<char32_t> &chars);
+String remove_chars(const String &s, const HashSet<char32_t> &chars);
+Vector<String> split_multichar(const String &s, const HashSet<char32_t> &splitters, bool allow_empty = true,
+		int maxsplit = 0);
+Vector<String> rsplit_multichar(const String &s, const HashSet<char32_t> &splitters, bool allow_empty = true,
+		int maxsplit = 0);
 } // namespace gdre
 
 #define GDRE_ERR_DECOMPRESS_OR_FAIL(img)                                    \

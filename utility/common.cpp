@@ -93,6 +93,7 @@ public:
 	GodotFileInterface(const String &p_path, FileAccess::ModeFlags p_mode) {
 		m_file = FileAccess::open(p_path, p_mode);
 	}
+
 	// Returns true if we can read/write bytes from/into the file
 	virtual bool ok() const override {
 		return m_file.is_valid();
@@ -487,3 +488,105 @@ bool gdre::dir_is_empty(const String &dir) {
 	}
 	return true;
 }
+
+//void get_chars_in_set(const String &s, const HashSet<char32_t> &chars, HashSet<char32_t> &ret);
+
+void gdre::get_chars_in_set(const String &s, const HashSet<char32_t> &chars, HashSet<char32_t> &ret) {
+	for (int i = 0; i < s.length(); i++) {
+		if (chars.has(s[i])) {
+			ret.insert(s[i]);
+		}
+	}
+}
+
+bool gdre::has_chars_in_set(const String &s, const HashSet<char32_t> &chars) {
+	for (int i = 0; i < s.length(); i++) {
+		if (chars.has(s[i])) {
+			return true;
+		}
+	}
+	return false;
+}
+
+String gdre::remove_chars(const String &s, const HashSet<char32_t> &chars) {
+	String ret;
+	for (int i = 0; i < s.length(); i++) {
+		if (!chars.has(s[i])) {
+			ret += s[i];
+		}
+	}
+	return ret;
+}
+
+Vector<String> gdre::split_multichar(const String &s, const HashSet<char32_t> &splitters, bool allow_empty, int maxsplit) {
+	Vector<String> ret;
+	String current;
+	int i;
+	for (i = 0; i < s.length(); i++) {
+		if (splitters.has(s[i])) {
+			if (current.length() > 0 || allow_empty) {
+				ret.push_back(current);
+				current = "";
+				if (maxsplit > 0 && ret.size() >= maxsplit - 1) {
+					i++;
+					break;
+				}
+			}
+		} else {
+			current += s[i];
+		}
+	}
+	if (i < s.length()) {
+		current += s.substr(i, s.length());
+	}
+	if (current.length() > 0 || allow_empty) {
+		ret.push_back(current);
+	}
+	return ret;
+}
+
+Vector<String> gdre::rsplit_multichar(const String &s, const HashSet<char32_t> &splitters, bool allow_empty, int maxsplit) {
+	Vector<String> ret;
+	String current;
+	int i;
+	for (i = s.length() - 1; i >= 0; i--) {
+		if (splitters.has(s[i])) {
+			if (current.length() > 0 || allow_empty) {
+				ret.push_back(current);
+				current = "";
+				if (maxsplit > 0 && ret.size() >= maxsplit - 1) {
+					i--;
+					break;
+				}
+			}
+		} else {
+			current = s[i] + current;
+		}
+	}
+	if (i >= 0) {
+		current = s.substr(0, i + 1) + current;
+	}
+	if (current.length() > 0 || allow_empty) {
+		ret.push_back(current);
+	}
+	ret.reverse();
+	return ret;
+}
+
+bool gdre::string_has_whitespace(const String &s) {
+	for (int i = 0; i < s.length(); i++) {
+		if (s[i] == ' ' || s[i] == '\t' || s[i] == '\n') {
+			return true;
+		}
+	}
+	return false;
+};
+
+bool gdre::string_is_ascii(const String &s) {
+	for (int i = 0; i < s.length(); i++) {
+		if (s[i] > 127) {
+			return false;
+		}
+	}
+	return true;
+};

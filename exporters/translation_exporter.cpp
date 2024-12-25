@@ -1,6 +1,5 @@
 #include "translation_exporter.h"
 
-#include "../../../../../../../../Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__config"
 #include "compat/optimized_translation_extractor.h"
 #include "compat/resource_loader_compat.h"
 #include "exporters/export_report.h"
