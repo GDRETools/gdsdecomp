@@ -1253,7 +1253,7 @@ void ResourceLoaderCompatBinary::open(Ref<FileAccess> p_f, bool p_no_resources, 
 		er.path = get_unicode_string();
 		if (using_uids) {
 			er.uid = ResourceUID::ID(f->get_64());
-			if (is_real_load()) {
+			if (!is_real_load()) {
 				external_resources.push_back(er);
 				continue;
 			}
