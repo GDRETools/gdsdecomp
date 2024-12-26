@@ -41,14 +41,15 @@ class FakeGDScript : public Script {
 	Ref<GDScriptDecomp> decomp;
 	HashMap<StringName, Pair<int, int>> subclasses;
 	Vector<uint8_t> binary_buffer;
-	
+
 	Error parse_script();
+
 protected:
-	bool _get(const StringName& p_name, Variant& r_ret) const;
-	bool _set(const StringName& p_name, const Variant& p_value);
-	void _get_property_list(List<PropertyInfo>* p_properties) const;
-	Variant callp(const StringName& p_method, const Variant** p_args, int p_argcount,
-	              Callable::CallError& r_error) override;
+	bool _get(const StringName &p_name, Variant &r_ret) const;
+	bool _set(const StringName &p_name, const Variant &p_value);
+	void _get_property_list(List<PropertyInfo> *p_properties) const;
+	Variant callp(const StringName &p_method, const Variant **p_args, int p_argcount,
+			Callable::CallError &r_error) override;
 
 	static void _bind_methods();
 
@@ -59,13 +60,13 @@ public:
 
 	Ref<Script> get_base_script() const override; //for script inheritance
 	virtual StringName get_global_name() const override;
-	virtual bool inherits_script(const Ref<Script>& p_script) const override;
+	virtual bool inherits_script(const Ref<Script> &p_script) const override;
 
 	virtual StringName get_instance_base_type() const override;
 	// this may not work in all scripts, will return empty if so
-	virtual ScriptInstance* instance_create(Object* p_this) override;
+	virtual ScriptInstance *instance_create(Object *p_this) override;
 	virtual PlaceHolderScriptInstance *placeholder_instance_create(Object *p_this) override;
-	virtual bool instance_has(const Object* p_this) const override;
+	virtual bool instance_has(const Object *p_this) const override;
 
 	virtual bool has_source_code() const override;
 	virtual String get_source_code() const override;
@@ -117,7 +118,6 @@ public:
 	Error load_source_code(const String &p_path);
 };
 
-
 class FakeEmbeddedScript : public Script {
 	GDCLASS(FakeEmbeddedScript, Script);
 	String original_class;
@@ -131,16 +131,16 @@ protected:
 public:
 	virtual void reload_from_file() override {}
 
-	virtual bool can_instantiate() const override { return false; };
+	virtual bool can_instantiate() const override { return false; }
 
-	virtual Ref<Script> get_base_script() const override { return nullptr; }; //for script inheritance
+	virtual Ref<Script> get_base_script() const override { return nullptr; } //for script inheritance
 	virtual StringName get_global_name() const override { return {}; }
-	virtual bool inherits_script(const Ref<Script> &p_script) const override { return false; };
+	virtual bool inherits_script(const Ref<Script> &p_script) const override { return false; }
 
-	virtual StringName get_instance_base_type() const override { return {}; }; // this may not work in all scripts, will return empty if so
-	virtual ScriptInstance *instance_create(Object *p_this) override { return nullptr; };
+	virtual StringName get_instance_base_type() const override { return {}; } // this may not work in all scripts, will return empty if so
+	virtual ScriptInstance *instance_create(Object *p_this) override { return nullptr; }
 	virtual PlaceHolderScriptInstance *placeholder_instance_create(Object *p_this) override { return nullptr; }
-	virtual bool instance_has(const Object *p_this) const override { return false; };
+	virtual bool instance_has(const Object *p_this) const override { return false; }
 
 	virtual bool has_source_code() const override;
 	virtual String get_source_code() const override;
@@ -158,7 +158,7 @@ public:
 	virtual bool has_method(const StringName &p_method) const override { return false; }
 	virtual bool has_static_method(const StringName &p_method) const override { return false; }
 
-	virtual int get_script_method_argument_count(const StringName &p_method, bool *r_is_valid = nullptr) const override { return 0; };
+	virtual int get_script_method_argument_count(const StringName &p_method, bool *r_is_valid = nullptr) const override { return 0; }
 
 	virtual MethodInfo get_method_info(const StringName &p_method) const override { return {}; }
 

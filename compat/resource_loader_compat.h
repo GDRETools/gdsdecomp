@@ -39,6 +39,7 @@ protected:
 
 	static void _bind_methods();
 	static Ref<Resource> load_with_real_resource_loader(const String &p_path, const String &p_type_hint = "", Error *r_error = nullptr, bool use_threads = true, ResourceFormatLoader::CacheMode p_cache_mode = ResourceFormatLoader::CACHE_MODE_REUSE);
+
 public:
 	static ResourceInfo::LoadType get_default_load_type();
 

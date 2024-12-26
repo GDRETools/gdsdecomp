@@ -251,7 +251,7 @@ GDRESettings::~GDRESettings() {
 }
 String GDRESettings::get_cwd() {
 	return GDRESettings::_get_cwd();
-};
+}
 
 String GDRESettings::get_exec_dir() {
 	return GDRESettings::exec_dir;

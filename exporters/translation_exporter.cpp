@@ -49,7 +49,7 @@ Error TranslationExporter::export_file(const String &out_path, const String &res
 namespace {
 StringName get_msg(Ref<Translation> default_translation, const String &key) {
 	return default_translation->get_message(key);
-};
+}
 } //namespace
 
 static const HashSet<char32_t> ALL_PUNCTUATION = gdre::vector_to_hashset(Vector<char32_t>({ '.', '!', '?', ',', ';', ':', '(', ')', '[', ']', '{', '}', '<', '>', '/', '\\', '|', '`', '~', '@', '#', '$', '%', '^', '&', '*', '-', '_', '+', '=', '\'', '"', '\n', '\t', ' ' }));
@@ -108,7 +108,7 @@ struct KeyWorker {
 			const HashSet<StringName> &p_previous_keys_found) :
 			default_translation(p_default_translation),
 			default_messages(p_default_messages),
-			previous_keys_found(p_previous_keys_found){};
+			previous_keys_found(p_previous_keys_found) {}
 
 	String sanitize_key(const String &s) {
 		String str = s;
@@ -306,7 +306,7 @@ struct KeyWorker {
 		}
 		current_stage_keys_found.insert(key);
 		max_key_len = MAX(max_key_len, key.length());
-	};
+	}
 
 	_FORCE_INLINE_ bool _set_key(const String &key, const StringName &msg) {
 		if (key_to_message.has(key)) {
@@ -329,7 +329,7 @@ struct KeyWorker {
 			}
 		}
 		return false;
-	};
+	}
 
 	template <bool use_lock>
 	bool try_key_prefix(const String &prefix, const String &key) {
@@ -354,7 +354,7 @@ struct KeyWorker {
 			}
 		}
 		return false;
-	};
+	}
 
 	template <bool use_lock>
 	bool try_key_suffix(const String &prefix, const String &suffix) {
@@ -379,7 +379,7 @@ struct KeyWorker {
 			}
 		}
 		return false;
-	};
+	}
 
 	template <bool use_lock>
 	bool try_key_suffixes(const String &prefix, const String &suffix, const String &suffix2) {
@@ -395,7 +395,7 @@ struct KeyWorker {
 			}
 		}
 		return false;
-	};
+	}
 
 	template <bool use_lock>
 	bool try_key_prefix_suffix(const String &prefix, const String &key, const String &suffix) {
@@ -424,7 +424,7 @@ struct KeyWorker {
 			}
 		}
 		return false;
-	};
+	}
 
 	template <bool use_lock>
 	auto try_num_suffix(const String &res_s, const String &suffix = "") {

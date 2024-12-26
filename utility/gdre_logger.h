@@ -13,7 +13,7 @@ class GDRELogger : public Logger {
 	Vector<String> buffer;
 
 public:
-	String get_path() { return base_path; };
+	String get_path() { return base_path; }
 	GDRELogger();
 	bool is_prebuffering_enabled() { return is_prebuffering; }
 	void start_prebuffering();

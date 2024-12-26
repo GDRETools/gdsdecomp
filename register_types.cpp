@@ -44,7 +44,7 @@
 void gdsdecomp_init_callback() {
 	EditorNode *editor = EditorNode::get_singleton();
 	editor->add_child(memnew(GodotREEditor(editor)));
-};
+}
 #endif
 
 static GDRESettings *gdre_singleton = nullptr;

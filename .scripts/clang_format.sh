@@ -1,6 +1,23 @@
 #!/bin/sh
 
-CLANG_FORMAT=clang-format-13
+CLANG_FORMAT_MAJOR="19"
+DEFAULT_CLANG_FORMAT=clang-format-19
+CLANG_FORMAT=${CLANG_FORMAT:-$DEFAULT_CLANG_FORMAT}
+# check if $CLANG_FORMAT is available, use --version
+if ! command -v "$CLANG_FORMAT" &> /dev/null; then
+    # try `clang-format`
+    CLANG_FORMAT=clang-format
+    if ! command -v "$CLANG_FORMAT" &> /dev/null; then
+      echo "Error: $CLANG_FORMAT not found. Please install clang-format-19."
+      exit 1
+    fi
+    # get the output of clang-format --version
+    CLANG_FORMAT_VERSION=$("$CLANG_FORMAT" --version)
+    # check if the version is 19
+    if ! echo "$CLANG_FORMAT_VERSION" | grep -q "version $CLANG_FORMAT_MAJOR"; then
+      echo "WARNING: $CLANG_FORMAT is not version 19; Using $CLANG_FORMAT_VERSION"
+    fi
+fi
 
 CURRENT_BRANCH="$(git branch --show-current)"
 

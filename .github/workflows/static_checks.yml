@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   static-check-clang-format:
-    runs-on: "ubuntu-20.04"
+    runs-on: "ubuntu-24.04"
     name: Static checks (clang-format)
     steps:
     - name: checkout-gdsdecomp
@@ -27,10 +27,7 @@ jobs:
         echo $(git branch --all)
     - name: Install Linux deps
       run: |
-        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-        sudo apt-add-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-13 main"
-        sudo apt-get update
-        sudo apt-get install clang-format-13
-        sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-13 100
+        sudo apt-get install clang-format-19
+        sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-19 100
     - name: check clang_format
       run: bash ./.scripts/clang_format.sh

@@ -192,7 +192,6 @@ protected:
 	// GDScript version 2.0
 	Error get_ids_consts_tokens_v2(const Vector<uint8_t> &p_buffer, int bytecode_version, Vector<StringName> &r_identifiers, Vector<Variant> &r_constants, Vector<uint32_t> &r_tokens, VMap<uint32_t, uint32_t> &lines, VMap<uint32_t, uint32_t> &columns);
 
-
 public:
 	static Vector<String> get_bytecode_versions();
 

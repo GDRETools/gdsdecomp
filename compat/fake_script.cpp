@@ -1,7 +1,7 @@
 #include "fake_script.h"
 
-#include "variant_decoder_compat.h"
 #include "core/string/ustring.h"
+#include "variant_decoder_compat.h"
 #include <utility/gdre_settings.h>
 
 void FakeGDScript::reload_from_file() {
@@ -114,25 +114,45 @@ StringName FakeGDScript::get_doc_class_name() const {
 	return global_name;
 }
 
-Vector<DocData::ClassDoc> FakeGDScript::get_documentation() const { return {}; }
+Vector<DocData::ClassDoc> FakeGDScript::get_documentation() const {
+	return {};
+}
 
-String FakeGDScript::get_class_icon_path() const { return {}; }
+String FakeGDScript::get_class_icon_path() const {
+	return {};
+}
 
-PropertyInfo FakeGDScript::get_class_category() const { return {}; }
+PropertyInfo FakeGDScript::get_class_category() const {
+	return {};
+}
 
-bool FakeGDScript::has_method(const StringName &p_method) const { return false; }
+bool FakeGDScript::has_method(const StringName &p_method) const {
+	return false;
+}
 
-bool FakeGDScript::has_static_method(const StringName &p_method) const { return false; }
+bool FakeGDScript::has_static_method(const StringName &p_method) const {
+	return false;
+}
 
-int FakeGDScript::get_script_method_argument_count(const StringName &p_method, bool *r_is_valid) const { return 0; }
+int FakeGDScript::get_script_method_argument_count(const StringName &p_method, bool *r_is_valid) const {
+	return 0;
+}
 
-MethodInfo FakeGDScript::get_method_info(const StringName &p_method) const { return {}; }
+MethodInfo FakeGDScript::get_method_info(const StringName &p_method) const {
+	return {};
+}
 
-bool FakeGDScript::is_tool() const { return tool; }
+bool FakeGDScript::is_tool() const {
+	return tool;
+}
 
-bool FakeGDScript::is_valid() const { return valid; }
+bool FakeGDScript::is_valid() const {
+	return valid;
+}
 
-bool FakeGDScript::is_abstract() const { return false; }
+bool FakeGDScript::is_abstract() const {
+	return false;
+}
 
 ScriptLanguage *FakeGDScript::get_language() const {
 	return nullptr;
@@ -158,7 +178,9 @@ void FakeGDScript::get_script_method_list(List<MethodInfo> *p_list) const {
 void FakeGDScript::get_script_property_list(List<PropertyInfo> *p_list) const {
 }
 
-int FakeGDScript::get_member_line(const StringName &p_member) const { return -1; }
+int FakeGDScript::get_member_line(const StringName &p_member) const {
+	return -1;
+}
 
 void FakeGDScript::get_constants(HashMap<StringName, Variant> *p_constants) {
 }
@@ -166,9 +188,13 @@ void FakeGDScript::get_constants(HashMap<StringName, Variant> *p_constants) {
 void FakeGDScript::get_members(HashSet<StringName> *p_members) {
 }
 
-bool FakeGDScript::is_placeholder_fallback_enabled() const { return false; }
+bool FakeGDScript::is_placeholder_fallback_enabled() const {
+	return false;
+}
 
-Variant FakeGDScript::get_rpc_config() const { return {}; }
+Variant FakeGDScript::get_rpc_config() const {
+	return {};
+}
 
 Error FakeGDScript::parse_script() {
 	using GT = GlobalToken;
@@ -217,7 +243,7 @@ Error FakeGDScript::parse_script() {
 		if (curr_line <= prev_line) {
 			curr_line = prev_line + 1; // force new line
 		}
-		for (;prev_line < curr_line; prev_line++) {
+		for (; prev_line < curr_line; prev_line++) {
 			if (curr_token != GT::G_TK_NEWLINE && bytecode_version < GDScriptDecomp::GDSCRIPT_2_0_VERSION) {
 				temp_script_text += "\\"; // line continuation
 			}
@@ -282,7 +308,7 @@ Error FakeGDScript::parse_script() {
 		}
 		if (indent <= curr_class_indent && i > curr_class_start_idx + 2) {
 			// end of class
-			subclasses.insert(curr_class, {curr_class_start_line, prev_line - 1});
+			subclasses.insert(curr_class, { curr_class_start_line, prev_line - 1 });
 			curr_class_indent = -1;
 			curr_class_start_idx = -1;
 			curr_class_start_line = -1;
@@ -299,7 +325,7 @@ Error FakeGDScript::parse_script() {
 			case GT::G_TK_CONSTANT: {
 				uint32_t constant = tokens[i] >> GDScriptDecomp::TOKEN_BITS;
 				ERR_FAIL_COND_V(constant >= (uint32_t)constants.size(), ERR_INVALID_DATA);
-				
+
 				// TODO: handle GDScript 2.0 multi-line strings: we have to check the number of newlines
 				// in the string and if the next token has a line number difference >= the number of newlines
 				if (first_constant) {
@@ -505,7 +531,7 @@ Error FakeGDScript::parse_script() {
 			} break;
 			case GT::G_TK_PR_CLASS_NAME: {
 				if (decomp->check_next_token(i, tokens, GT::G_TK_IDENTIFIER)) {
-					uint32_t identifier = tokens[i+1] >> GDScriptDecomp::TOKEN_BITS;
+					uint32_t identifier = tokens[i + 1] >> GDScriptDecomp::TOKEN_BITS;
 					ERR_FAIL_COND_V(identifier >= (uint32_t)identifiers.size(), ERR_INVALID_DATA);
 					global_name = identifiers[identifier];
 					local_name = global_name;
@@ -518,7 +544,7 @@ Error FakeGDScript::parse_script() {
 						uint32_t constant = tokens[i] >> GDScriptDecomp::TOKEN_BITS;
 						ERR_FAIL_COND_V(constant >= (uint32_t)constants.size(), ERR_INVALID_DATA);
 						base_type = constants[constant];
-					} else if (decomp->check_next_token(i, tokens, GT::G_TK_IDENTIFIER)){
+					} else if (decomp->check_next_token(i, tokens, GT::G_TK_IDENTIFIER)) {
 						uint32_t identifier = tokens[i] >> GDScriptDecomp::TOKEN_BITS;
 						ERR_FAIL_COND_V(identifier >= (uint32_t)identifiers.size(), ERR_INVALID_DATA);
 						base_type = identifiers[identifier];
@@ -766,9 +792,7 @@ Variant FakeGDScript::callp(const StringName &p_method, const Variant **p_args, 
 void FakeGDScript::_bind_methods() {
 }
 
-
-String FakeGDScript::get_script_path() const
-{
+String FakeGDScript::get_script_path() const {
 	return script_path;
 }
 

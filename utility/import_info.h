@@ -113,15 +113,15 @@ public:
 	void set_import_md_path(const String &p_path) { import_md_path = p_path; }
 
 	String get_export_dest() const { return export_dest; }
-	void set_export_dest(const String &p_path) { export_dest = p_path; };
+	void set_export_dest(const String &p_path) { export_dest = p_path; }
 
 	String get_export_lossless_copy() const { return export_lossless_copy; }
-	void set_export_lossless_copy(const String &p_path) { export_lossless_copy = p_path; };
+	void set_export_lossless_copy(const String &p_path) { export_lossless_copy = p_path; }
 
 	// Gets the path of the preferred resource that we want to export from
-	String get_path() const { return preferred_import_path; };
+	String get_path() const { return preferred_import_path; }
 	// Sets the path of the preferred resource that we want to export from
-	void set_preferred_resource_path(const String &p_path) { preferred_import_path = p_path; };
+	void set_preferred_resource_path(const String &p_path) { preferred_import_path = p_path; }
 	// Gets the Godot resource type (e.g. "StreamTexture")
 	virtual String get_type() const = 0;
 	virtual void set_type(const String &p_type) = 0;
@@ -140,17 +140,17 @@ public:
 
 	virtual String get_uid() const { return String(); }
 	// v2 only, Atlas Textures had more than one source
-	virtual Vector<String> get_additional_sources() const { return Vector<String>(); };
-	virtual void set_additional_sources(const Vector<String> &p_add_sources) { return; };
+	virtual Vector<String> get_additional_sources() const { return Vector<String>(); }
+	virtual void set_additional_sources(const Vector<String> &p_add_sources) { return; }
 
 	// Gets the godot resources that were created from from this import (e.g. res://icon.<md5>.stex)
 	virtual Vector<String> get_dest_files() const = 0;
 	virtual void set_dest_files(const Vector<String> p_dest_files) = 0;
-	virtual bool has_dest_file(const String &p_dest_file) const { return get_dest_files().has(p_dest_file); };
+	virtual bool has_dest_file(const String &p_dest_file) const { return get_dest_files().has(p_dest_file); }
 
 	// v3-v4 only. Gets the metadata prop in the "remap" section of import file
-	virtual Dictionary get_metadata_prop() const { return Dictionary(); };
-	virtual void set_metadata_prop(Dictionary r_dict) { return; };
+	virtual Dictionary get_metadata_prop() const { return Dictionary(); }
+	virtual void set_metadata_prop(Dictionary r_dict) { return; }
 
 	virtual Variant get_param(const String &p_key) const = 0;
 	virtual void set_param(const String &p_key, const Variant &p_val) = 0;
@@ -233,7 +233,7 @@ public:
 	virtual Error save_to(const String &p_path) override;
 	Error save_md5_file(const String &output_dir);
 
-	virtual Error reload() override { return _load(import_md_path); };
+	virtual Error reload() override { return _load(import_md_path); }
 	ImportInfoModern();
 };
 
@@ -287,7 +287,7 @@ public:
 
 	virtual Error save_to(const String &p_path) override;
 
-	virtual Error reload() override { return _load(import_md_path); };
+	virtual Error reload() override { return _load(import_md_path); }
 	ImportInfov2();
 };
 
@@ -303,44 +303,44 @@ protected:
 	String source_file;
 	String src_md5;
 	Vector<String> dest_files;
-	static void _bind_methods(){};
+	static void _bind_methods() {}
 
 public:
-	virtual String get_type() const override { return type; };
-	virtual void set_type(const String &p_type) override { type = p_type; };
-	virtual String get_compat_type() const override { return ClassDB::get_compatibility_remapped_class(get_type()); };
+	virtual String get_type() const override { return type; }
+	virtual void set_type(const String &p_type) override { type = p_type; }
+	virtual String get_compat_type() const override { return ClassDB::get_compatibility_remapped_class(get_type()); }
 
-	virtual String get_importer() const override { return "<NONE>"; };
+	virtual String get_importer() const override { return "<NONE>"; }
 
-	virtual String get_source_file() const override { return source_file; };
-	virtual void set_source_file(const String &path) override { source_file = path; };
+	virtual String get_source_file() const override { return source_file; }
+	virtual void set_source_file(const String &path) override { source_file = path; }
 
-	virtual String get_source_md5() const override { return src_md5; };
-	virtual void set_source_md5(const String &md5) override { src_md5 = md5; };
+	virtual String get_source_md5() const override { return src_md5; }
+	virtual void set_source_md5(const String &md5) override { src_md5 = md5; }
 
 	virtual void set_source_and_md5(const String &path, const String &md5 = "") override {
 		source_file = path;
 		src_md5 = md5;
-	};
-	virtual Vector<String> get_additional_sources() const override { return Vector<String>(); };
-	virtual void set_additional_sources(const Vector<String> &p_add_sources) override { return; };
+	}
+	virtual Vector<String> get_additional_sources() const override { return Vector<String>(); }
+	virtual void set_additional_sources(const Vector<String> &p_add_sources) override { return; }
 
-	virtual Vector<String> get_dest_files() const override { return dest_files; };
-	virtual void set_dest_files(const Vector<String> p_dest_files) override { dest_files = p_dest_files; };
+	virtual Vector<String> get_dest_files() const override { return dest_files; }
+	virtual void set_dest_files(const Vector<String> p_dest_files) override { dest_files = p_dest_files; }
 
-	virtual Variant get_param(const String &p_key) const override { return Variant(); };
-	virtual void set_param(const String &p_key, const Variant &p_val) override { return; };
-	virtual bool has_param(const String &p_key) const override { return false; };
+	virtual Variant get_param(const String &p_key) const override { return Variant(); }
+	virtual void set_param(const String &p_key, const Variant &p_val) override { return; }
+	virtual bool has_param(const String &p_key) const override { return false; }
 
-	virtual Variant get_iinfo_val(const String &p_section, const String &p_prop) const override { return Variant(); };
-	virtual void set_iinfo_val(const String &p_section, const String &p_prop, const Variant &p_val) override { return; };
+	virtual Variant get_iinfo_val(const String &p_section, const String &p_prop) const override { return Variant(); }
+	virtual void set_iinfo_val(const String &p_section, const String &p_prop, const Variant &p_val) override { return; }
 
-	virtual Dictionary get_params() const override { return Dictionary(); };
-	virtual void set_params(Dictionary params) override { return; };
+	virtual Dictionary get_params() const override { return Dictionary(); }
+	virtual void set_params(Dictionary params) override { return; }
 
 	virtual Error save_to(const String &p_path) override { return ERR_UNAVAILABLE; }
 
-	virtual Error reload() override { return _load(import_md_path); };
+	virtual Error reload() override { return _load(import_md_path); }
 	ImportInfoDummy();
 };
 
@@ -353,7 +353,7 @@ private:
 	virtual Error _load(const String &p_path) override;
 
 public:
-	virtual String get_importer() const override { return importer; };
+	virtual String get_importer() const override { return importer; }
 	ImportInfoRemap();
 };
 
@@ -373,7 +373,7 @@ public:
 	virtual Variant get_iinfo_val(const String &p_section, const String &p_prop) const override;
 	virtual void set_iinfo_val(const String &p_section, const String &p_prop, const Variant &p_val) override;
 
-	virtual String get_importer() const override { return importer; };
+	virtual String get_importer() const override { return importer; }
 
 	Vector<SharedObject> get_libaries(bool fix_rel_paths = true) const;
 	Vector<SharedObject> get_dependencies(bool fix_rel_paths = true) const;

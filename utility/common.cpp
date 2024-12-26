@@ -97,7 +97,7 @@ public:
 	// Returns true if we can read/write bytes from/into the file
 	virtual bool ok() const override {
 		return m_file.is_valid();
-	};
+	}
 
 	// Current position in the file
 	virtual size_t tell() override {
@@ -107,17 +107,17 @@ public:
 	// Jump to the given position in the file
 	virtual void seek(size_t absPos) override {
 		m_file->seek(absPos);
-	};
+	}
 
 	// Returns the next byte in the file or 0 if ok() = false
 	virtual uint8_t read8() override {
 		return m_file->get_8();
-	};
+	}
 
 	// Writes one byte in the file (or do nothing if ok() = false)
 	virtual void write8(uint8_t value) override {
 		m_file->store_8(value);
-	};
+	}
 };
 
 Error gdre::save_image_as_tga(const String &p_path, const Ref<Image> &p_img) {
@@ -580,7 +580,7 @@ bool gdre::string_has_whitespace(const String &s) {
 		}
 	}
 	return false;
-};
+}
 
 bool gdre::string_is_ascii(const String &s) {
 	for (int i = 0; i < s.length(); i++) {
@@ -589,4 +589,4 @@ bool gdre::string_is_ascii(const String &s) {
 		}
 	}
 	return true;
-};
+}

@@ -2,8 +2,7 @@
 #pragma once
 #include "compat/resource_loader_compat.h"
 
-class ResourceFormatGDScriptLoader : public CompatFormatLoader
-{
+class ResourceFormatGDScriptLoader : public CompatFormatLoader {
 	GDCLASS(ResourceFormatGDScriptLoader, CompatFormatLoader);
 
 public:
@@ -17,5 +16,3 @@ public:
 	virtual ResourceInfo get_resource_info(const String &p_path, Error *r_error) const override;
 	virtual bool handles_fake_load() const override { return false; }
 };
-	
-	
