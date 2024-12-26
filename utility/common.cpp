@@ -518,6 +518,20 @@ String gdre::remove_chars(const String &s, const HashSet<char32_t> &chars) {
 	return ret;
 }
 
+String gdre::remove_chars(const String &s, const Vector<char32_t> &chars) {
+	return remove_chars(s, vector_to_hashset(chars));
+}
+
+String gdre::remove_whitespace(const String &s) {
+	String ret;
+	for (int i = 0; i < s.length(); i++) {
+		if (s[i] != ' ' && s[i] != '\t' && s[i] != '\n' && s[i] != '\r') {
+			ret += s[i];
+		}
+	}
+	return ret;
+}
+
 Vector<String> gdre::split_multichar(const String &s, const HashSet<char32_t> &splitters, bool allow_empty, int maxsplit) {
 	Vector<String> ret;
 	String current;

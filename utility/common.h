@@ -110,6 +110,9 @@ bool string_has_whitespace(const String &s);
 void get_chars_in_set(const String &s, const HashSet<char32_t> &chars, HashSet<char32_t> &ret);
 bool has_chars_in_set(const String &s, const HashSet<char32_t> &chars);
 String remove_chars(const String &s, const HashSet<char32_t> &chars);
+String remove_chars(const String &s, const Vector<char32_t> &chars);
+String remove_whitespace(const String &s);
+
 Vector<String> split_multichar(const String &s, const HashSet<char32_t> &splitters, bool allow_empty = true,
 		int maxsplit = 0);
 Vector<String> rsplit_multichar(const String &s, const HashSet<char32_t> &splitters, bool allow_empty = true,
