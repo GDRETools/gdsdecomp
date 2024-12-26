@@ -255,10 +255,6 @@ Ref<ImportInfo> ImportInfo::load_from_file(const String &p_path, int ver_major, 
 		// .remap file for an autoconverted export
 		iinfo = Ref<ImportInfoRemap>(memnew(ImportInfoRemap));
 		err = iinfo->_load(p_path);
-		if (iinfo->get_importer() == "script_bytecode") {
-			iinfo->ver_major = ver_major;
-			iinfo->ver_minor = ver_minor;
-		}
 	} else if (p_path.get_extension() == "gdnlib" || p_path.get_extension() == "gdextension") {
 		iinfo = Ref<ImportInfoGDExt>(memnew(ImportInfoGDExt));
 		err = iinfo->_load(p_path);
@@ -554,8 +550,6 @@ Error ImportInfoRemap::_load(const String &p_path) {
 		type = res_info.type;
 		ver_major = res_info.ver_major;
 		ver_minor = res_info.ver_minor;
-	} else {
-		type = "Script";
 	}
 	dest_files = Vector<String>({ preferred_import_path });
 	not_an_import = true;

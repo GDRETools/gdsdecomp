@@ -8,21 +8,21 @@
 #include "bytecode/bytecode_base.h"
 #include "utility/gdre_settings.h"
 
-Ref<Resource> ScriptLoader::load(const String &p_path, const String &p_original_path, Error *r_error, bool p_use_sub_threads, float *r_progress, CacheMode p_cache_mode) {
+Ref<Resource> ResourceFormatGDScriptLoader::load(const String &p_path, const String &p_original_path, Error *r_error, bool p_use_sub_threads, float *r_progress, CacheMode p_cache_mode) {
 	return custom_load(p_path, p_original_path, ResourceCompatLoader::get_default_load_type(), r_error, p_use_sub_threads, p_cache_mode);
 }
 
-void ScriptLoader::get_recognized_extensions(List<String> *p_extensions) const {
+void ResourceFormatGDScriptLoader::get_recognized_extensions(List<String> *p_extensions) const {
 	p_extensions->push_back("gd");
 	p_extensions->push_back("gdc");
 	p_extensions->push_back("gde");
 }
 
-bool ScriptLoader::handles_type(const String &p_type) const {
+bool ResourceFormatGDScriptLoader::handles_type(const String &p_type) const {
 	return (p_type == "Script" || p_type == "GDScript");
 }
 
-String ScriptLoader::get_resource_type(const String &p_path) const {
+String ResourceFormatGDScriptLoader::get_resource_type(const String &p_path) const {
 	String extension = p_path.get_extension().to_lower();
 	if (extension == "gd" || extension == "gdc" || extension == "gde") {
 		return "GDScript";
@@ -30,7 +30,7 @@ String ScriptLoader::get_resource_type(const String &p_path) const {
 	return "";
 }
 
-Ref<Resource> ScriptLoader::custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
+Ref<Resource> ResourceFormatGDScriptLoader::custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
 	Ref<FakeGDScript> script;
 	script.instantiate();
 	Error err;
@@ -42,7 +42,7 @@ Ref<Resource> ScriptLoader::custom_load(const String &p_path, const String &p_or
 	return script;
 }
 
-ResourceInfo ScriptLoader::get_resource_info(const String &p_path, Error *r_error) const {
+ResourceInfo ResourceFormatGDScriptLoader::get_resource_info(const String &p_path, Error *r_error) const {
 	ResourceInfo info;
 	info.type = get_resource_type(p_path);
 	if (info.type == "") {
@@ -51,11 +51,11 @@ ResourceInfo ScriptLoader::get_resource_info(const String &p_path, Error *r_erro
 		}
 		return info;
 	}
+	String extension = p_path.get_extension().to_lower();
 	auto rev = GDRESettings::get_singleton()->get_bytecode_revision();
 	if (rev) {
 		auto decomp = GDScriptDecomp::create_decomp_for_commit(rev);
 		if (decomp.is_valid()) {
-			String extension = p_path.get_extension().to_lower();
 
 			Ref<GodotVer> ver = decomp->get_godot_ver();
 			if (ver.is_valid() && ver->is_valid_semver()) {
@@ -63,12 +63,12 @@ ResourceInfo ScriptLoader::get_resource_info(const String &p_path, Error *r_erro
 				info.ver_minor = ver->get_minor();
 			}
 			info.ver_format = decomp->get_bytecode_version();
-			if (extension == "gd") {
-				info.resource_format = "GDScriptText";
-			} else if (extension == "gdc" || extension == "gde") {
-				info.resource_format = "GDScriptBytecode";
-			}
 		}
+	}
+	if (extension == "gd") {
+		info.resource_format = "GDScriptText";
+	} else if (extension == "gdc" || extension == "gde") {
+		info.resource_format = "GDScriptBytecode";
 	}
 	return info;
 }

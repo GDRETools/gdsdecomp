@@ -524,7 +524,7 @@ Error ImportExporter::decompile_scripts(const String &p_out_dir, const Vector<St
 
 	print_line("Script version " + decomp->get_engine_version() + " (rev 0x" + String::num_int64(decomp->get_bytecode_rev(), 16) + ") detected");
 	Error err;
-	ScriptLoader script_loader;
+	ResourceFormatGDScriptLoader script_loader;
 	for (int i = 0; i < code_files.size(); i++) {
 		const String &f = code_files[i];
 		String dest_file = f.replace(".gdc", ".gd").replace(".gde", ".gd");
