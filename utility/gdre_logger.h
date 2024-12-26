@@ -7,10 +7,7 @@ class GDRELogger : public Logger {
 	String base_path;
 	bool disabled = false;
 	static std::atomic<uint64_t> warning_count;
-	thread_local static uint64_t thread_warning_count;
-
 	static std::atomic<uint64_t> error_count;
-	thread_local static uint64_t thread_error_count;
 	bool is_prebuffering = false;
 	Mutex buffer_mutex;
 	Vector<String> buffer;

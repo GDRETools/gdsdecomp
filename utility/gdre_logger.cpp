@@ -12,10 +12,10 @@ bool inGuiMode() {
 	}
 	return false;
 }
+thread_local uint64_t thread_warning_count = 0;
+thread_local uint64_t thread_error_count = 0;
 
-thread_local uint64_t GDRELogger::thread_error_count = 0;
 std::atomic<uint64_t> GDRELogger::error_count = 0;
-thread_local uint64_t GDRELogger::thread_warning_count = 0;
 std::atomic<uint64_t> GDRELogger::warning_count = 0;
 
 void GDRELogger::logv(const char *p_format, va_list p_list, bool p_err) {
