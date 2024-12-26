@@ -9,7 +9,7 @@ enum Token {
 	TK_EMPTY,
 	TK_ANNOTATION,
 	TK_IDENTIFIER,
-	TK_LITERAL,
+	TK_CONSTANT,
 	TK_OP_LESS,
 	TK_OP_LESS_EQUAL,
 	TK_OP_GREATER,
@@ -133,7 +133,7 @@ GDScriptDecomp::GlobalToken GDScriptDecomp_77af6ca::get_global_token(int p_token
 		case TK_EMPTY: return GDScriptDecomp::GlobalToken::G_TK_EMPTY;
 		case TK_ANNOTATION: return GDScriptDecomp::GlobalToken::G_TK_ANNOTATION;
 		case TK_IDENTIFIER: return GDScriptDecomp::GlobalToken::G_TK_IDENTIFIER;
-		case TK_LITERAL: return GDScriptDecomp::GlobalToken::G_TK_LITERAL;
+		case TK_CONSTANT: return GDScriptDecomp::GlobalToken::G_TK_CONSTANT;
 		case TK_OP_LESS: return GDScriptDecomp::GlobalToken::G_TK_OP_LESS;
 		case TK_OP_LESS_EQUAL: return GDScriptDecomp::GlobalToken::G_TK_OP_LESS_EQUAL;
 		case TK_OP_GREATER: return GDScriptDecomp::GlobalToken::G_TK_OP_GREATER;
@@ -240,7 +240,7 @@ int GDScriptDecomp_77af6ca::get_local_token_val(GDScriptDecomp::GlobalToken p_to
 		case GDScriptDecomp::GlobalToken::G_TK_EMPTY: return (int) TK_EMPTY;
 		case GDScriptDecomp::GlobalToken::G_TK_ANNOTATION: return (int) TK_ANNOTATION;
 		case GDScriptDecomp::GlobalToken::G_TK_IDENTIFIER: return (int) TK_IDENTIFIER;
-		case GDScriptDecomp::GlobalToken::G_TK_LITERAL: return (int) TK_LITERAL;
+		case GDScriptDecomp::GlobalToken::G_TK_CONSTANT: return (int) TK_CONSTANT;
 		case GDScriptDecomp::GlobalToken::G_TK_OP_LESS: return (int) TK_OP_LESS;
 		case GDScriptDecomp::GlobalToken::G_TK_OP_LESS_EQUAL: return (int) TK_OP_LESS_EQUAL;
 		case GDScriptDecomp::GlobalToken::G_TK_OP_GREATER: return (int) TK_OP_GREATER;

@@ -530,7 +530,6 @@ const char *g_token_str[] = {
 	"TK_CF_CASE",
 	"TK_CF_SWITCH",
 	"TK_ANNOTATION", // added in 4.3
-	"TK_LITERAL", // added in 4.3
 	"TK_AMPERSAND_AMPERSAND", // added in 4.3
 	"TK_PIPE_PIPE", // added in 4.3
 	"TK_BANG", // added in 4.3
@@ -610,7 +609,7 @@ Error GDScriptDecomp::debug_print(Vector<uint8_t> p_buffer) {
 		String tok_str = g_token_str[curr_token];
 		if (curr_token == G_TK_IDENTIFIER) {
 			tok_str += " (" + String(identifiers[tokens[i] >> TOKEN_BITS]) + ")";
-		} else if (curr_token == G_TK_CONSTANT || curr_token == G_TK_LITERAL) {
+		} else if (curr_token == G_TK_CONSTANT) {
 			tok_str += " (" + get_constant_string(constants, tokens[i] >> TOKEN_BITS) + ")";
 		}
 		print_line(itos(i) + ": " + tok_str + " line: " + itos(curr_line) + " column: " + itos(curr_column));
@@ -741,7 +740,6 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 				GDSDECOMP_FAIL_COND_V(identifier >= (uint32_t)identifiers.size(), ERR_INVALID_DATA);
 				line += String(identifiers[identifier]);
 			} break;
-			case G_TK_LITERAL: // fallthrough
 			case G_TK_CONSTANT: {
 				uint32_t constant = tokens[i] >> TOKEN_BITS;
 				GDSDECOMP_FAIL_COND_V(constant >= (uint32_t)constants.size(), ERR_INVALID_DATA);

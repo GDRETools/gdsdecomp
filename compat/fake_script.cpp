@@ -296,7 +296,6 @@ Error FakeGDScript::parse_script() {
 				ERR_FAIL_COND_V((tokens[i] >> GDScriptDecomp::TOKEN_BITS) >= identifiers.size(), ERR_INVALID_DATA);
 				line += String(get_identifier_func(i));
 			} break;
-			case GT::G_TK_LITERAL: // fallthrough
 			case GT::G_TK_CONSTANT: {
 				uint32_t constant = tokens[i] >> GDScriptDecomp::TOKEN_BITS;
 				ERR_FAIL_COND_V(constant >= (uint32_t)constants.size(), ERR_INVALID_DATA);
@@ -515,8 +514,7 @@ Error FakeGDScript::parse_script() {
 			} break;
 			case GT::G_TK_PR_EXTENDS: {
 				if (base_type.is_empty()) {
-					// TODO: remove G_TK_LITERAL, just set it to G_TK_CONSTANT
-					if (decomp->check_next_token(i, tokens, GT::G_TK_LITERAL) || decomp->check_next_token(i, tokens, GT::G_TK_CONSTANT)) {
+					if (decomp->check_next_token(i, tokens, GT::G_TK_CONSTANT)) {
 						uint32_t constant = tokens[i] >> GDScriptDecomp::TOKEN_BITS;
 						ERR_FAIL_COND_V(constant >= (uint32_t)constants.size(), ERR_INVALID_DATA);
 						base_type = constants[constant];

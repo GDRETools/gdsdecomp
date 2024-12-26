@@ -29,7 +29,7 @@ public:
 	enum GlobalToken {
 		G_TK_EMPTY,
 		G_TK_IDENTIFIER,
-		G_TK_CONSTANT,
+		G_TK_CONSTANT, // "TK_LITERAL" in 4.2
 		G_TK_SELF,
 		G_TK_BUILT_IN_TYPE,
 		G_TK_BUILT_IN_FUNC,
@@ -130,7 +130,6 @@ public:
 		G_TK_CF_CASE,
 		G_TK_CF_SWITCH,
 		G_TK_ANNOTATION, // added in 4.3
-		G_TK_LITERAL, // added in 4.3
 		G_TK_AMPERSAND_AMPERSAND, // added in 4.3
 		G_TK_PIPE_PIPE, // added in 4.3
 		G_TK_BANG, // added in 4.3

@@ -21,7 +21,7 @@
             "TK_EMPTY",
             "TK_ANNOTATION",
             "TK_IDENTIFIER",
-            "TK_LITERAL",
+            "TK_CONSTANT",
             "TK_OP_LESS",
             "TK_OP_LESS_EQUAL",
             "TK_OP_GREATER",
