@@ -23,7 +23,6 @@
 
 #include <limits.h>
 
-#define GDSCRIPT_2_0_VERSION 100
 #define LATEST_GDSCRIPT_VERSION 100
 
 #define GDSDECOMP_FAIL_V_MSG(m_retval, m_msg) \

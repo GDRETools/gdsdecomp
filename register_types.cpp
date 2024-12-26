@@ -3,6 +3,7 @@
 /*************************************************************************/
 
 #include "register_types.h"
+#include "compat/fake_script.h"
 #include "core/object/class_db.h"
 #include "modules/regex/regex.h"
 #include "utility/file_access_gdre.h"
@@ -256,6 +257,8 @@ void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
 	ClassDB::register_class<ImageConverterCompat>();
 	ClassDB::register_class<ImageTextureConverterCompat>();
 	ClassDB::register_class<OggStreamConverterCompat>();
+	ClassDB::register_class<FakeEmbeddedScript>();
+	ClassDB::register_class<FakeGDScript>();
 
 	ClassDB::register_class<ImportInfoModern>();
 	ClassDB::register_class<ImportInfov2>();

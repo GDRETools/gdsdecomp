@@ -9,9 +9,11 @@
 #include "core/object/ref_counted.h"
 #include "core/templates/vmap.h"
 
+class FakeGDScript;
+
 class GDScriptDecomp : public RefCounted {
 	GDCLASS(GDScriptDecomp, RefCounted);
-
+	friend class FakeGDScript;
 protected:
 	static void _bind_methods();
 	static void _ensure_space(String &p_code);
@@ -22,6 +24,7 @@ protected:
 	int get_func_arg_count_and_params(int curr_pos, const Vector<uint32_t> &tokens, Vector<Vector<uint32_t>> &r_arguments);
 
 public:
+	static constexpr int GDSCRIPT_2_0_VERSION = 100;
 	enum GlobalToken {
 		G_TK_EMPTY,
 		G_TK_IDENTIFIER,
@@ -189,7 +192,6 @@ protected:
 	// GDScript version 2.0
 	Error get_ids_consts_tokens_v2(const Vector<uint8_t> &p_buffer, int bytecode_version, Vector<StringName> &r_identifiers, Vector<Variant> &r_constants, Vector<uint32_t> &r_tokens, VMap<uint32_t, uint32_t> &lines, VMap<uint32_t, uint32_t> &columns);
 
-	Error get_script_state(const Vector<uint8_t> &p_buffer, ScriptState &r_state);
 
 public:
 	static Vector<String> get_bytecode_versions();
@@ -214,6 +216,7 @@ public:
 	virtual String get_max_engine_version() const = 0;
 	Ref<GodotVer> get_godot_ver() const;
 	Ref<GodotVer> get_max_godot_ver() const;
+	Error get_script_state(const Vector<uint8_t> &p_buffer, ScriptState &r_state);
 
 	static Error get_script_strings(const String &p_path, const String &engine_version, Vector<String> &r_strings, bool include_identifiers = false);
 	void get_dependencies(const String &p_path, List<String> *p_dependencies, bool p_add_types);

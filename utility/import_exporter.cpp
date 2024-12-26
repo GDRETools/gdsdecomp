@@ -25,6 +25,8 @@
 #include "thirdparty/minimp3/minimp3_ex.h"
 #include "utility/import_info.h"
 
+#include <compat/script_loader.h>
+
 using namespace gdre;
 
 GDRESettings *get_settings() {
@@ -522,18 +524,14 @@ Error ImportExporter::decompile_scripts(const String &p_out_dir, const Vector<St
 
 	print_line("Script version " + decomp->get_engine_version() + " (rev 0x" + String::num_int64(decomp->get_bytecode_rev(), 16) + ") detected");
 	Error err;
+	ScriptLoader script_loader;
 	for (int i = 0; i < code_files.size(); i++) {
 		const String &f = code_files[i];
 		String dest_file = f.replace(".gdc", ".gd").replace(".gde", ".gd");
 		Ref<DirAccess> da = DirAccess::open(p_out_dir);
 		print_verbose("decompiling " + f);
-		bool encrypted = false;
-		if (f.get_extension().to_lower() == "gde") {
-			encrypted = true;
-			err = decomp->decompile_byte_code_encrypted(f, get_settings()->get_encryption_key());
-		} else {
-			err = decomp->decompile_byte_code(f);
-		}
+		bool encrypted = f.get_extension().to_lower() == "gde";
+		Ref<Script> script = script_loader.custom_load(f, {}, ResourceInfo::NON_GLOBAL_LOAD, &err);
 		if (err) {
 			String err_string = decomp->get_error_message();
 			// TODO: make it not fail hard on the first script that fails to decompile
@@ -546,7 +544,7 @@ Error ImportExporter::decompile_scripts(const String &p_out_dir, const Vector<St
 				WARN_PRINT("error decompiling " + f + ": " + err_string);
 			}
 		} else {
-			String text = decomp->get_script_text();
+			String text = script->get_source_code();
 			String out_path = p_out_dir.path_join(dest_file.replace("res://", ""));
 			Ref<FileAccess> fa = FileAccess::open(out_path, FileAccess::WRITE);
 			if (fa.is_null()) {
