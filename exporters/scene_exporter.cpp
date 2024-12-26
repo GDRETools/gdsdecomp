@@ -144,7 +144,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 			if (info.dep != info.remap) {
 				auto texture = ResourceCompatLoader::custom_load(
 						info.remap, "",
-						ResourceCompatLoader::is_default_gltf_load() ? ResourceInfo::GLTF_LOAD : ResourceInfo::REAL_LOAD,
+						ResourceCompatLoader::get_default_load_type(),
 						&err,
 						using_threaded_load(),
 						ResourceFormatLoader::CACHE_MODE_REUSE);
@@ -178,7 +178,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 
 Error SceneExporter::_export_scene(const String &p_dest_path, const String &p_src_path, bool use_subthreads) {
 	Error err;
-	auto mode_type = ResourceCompatLoader::is_default_gltf_load() ? ResourceInfo::GLTF_LOAD : ResourceInfo::REAL_LOAD;
+	auto mode_type = ResourceCompatLoader::get_default_load_type();
 	Ref<PackedScene> scene;
 	// For some reason, scenes with meshes fail to load without the load done by ResourceLoader::load, possibly due to notification shenanigans.
 	if (ResourceCompatLoader::is_globally_available() && use_subthreads) {

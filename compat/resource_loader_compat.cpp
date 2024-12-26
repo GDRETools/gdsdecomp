@@ -224,6 +224,13 @@ Ref<Resource> ResourceCompatLoader::load_with_real_resource_loader(const String 
 	return res;
 }
 
+ResourceInfo::LoadType ResourceCompatLoader::get_default_load_type() {
+	if (doing_gltf_load) {
+		return ResourceInfo::LoadType::GLTF_LOAD;
+	}
+	return ResourceInfo::LoadType::REAL_LOAD;
+}
+
 void ResourceCompatLoader::add_resource_format_loader(Ref<CompatFormatLoader> p_format_loader, bool p_at_front) {
 	ERR_FAIL_COND(p_format_loader.is_null());
 	ERR_FAIL_COND(loader_count >= MAX_LOADERS);
