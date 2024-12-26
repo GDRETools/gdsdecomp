@@ -23,8 +23,6 @@
 
 #include <limits.h>
 
-#define LATEST_GDSCRIPT_VERSION 100
-
 #define GDSDECOMP_FAIL_V_MSG(m_retval, m_msg) \
 	error_message = RTR(m_msg);               \
 	ERR_FAIL_V_MSG(m_retval, m_msg);

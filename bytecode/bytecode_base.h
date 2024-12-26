@@ -26,6 +26,7 @@ protected:
 
 public:
 	static constexpr int GDSCRIPT_2_0_VERSION = 100;
+	static constexpr int LATEST_GDSCRIPT_VERSION = 100;
 	enum GlobalToken {
 		G_TK_EMPTY,
 		G_TK_IDENTIFIER,
