@@ -14,6 +14,7 @@ bool inGuiMode() {
 }
 thread_local uint64_t thread_warning_count = 0;
 thread_local uint64_t thread_error_count = 0;
+thread_local bool previous_was_error = false;
 
 std::atomic<uint64_t> GDRELogger::error_count = 0;
 std::atomic<uint64_t> GDRELogger::warning_count = 0;
@@ -39,14 +40,22 @@ void GDRELogger::logv(const char *p_format, va_list p_list, bool p_err) {
 		}
 		va_end(list_copy);
 		if (p_err) {
-			// check if buf begins with "WARNING:"
-			if (len >= 8 && buf[0] == 'W' && buf[1] == 'A' && buf[2] == 'R' && buf[3] == 'N' && buf[4] == 'I' && buf[5] == 'N' && buf[6] == 'G' && buf[7] == ':') {
-				warning_count++;
-				thread_warning_count++;
+			String str = String::utf8(buf, 8).strip_edges();
+			// If it's the follow-up stacktrace line of an error, don't count it.
+			if (!previous_was_error || !str.strip_edges().begins_with("at:")) {
+				if (len >= 8 && str.length() == 8 && (String::utf8(buf, 8) == "WARNING:")) {
+					warning_count++;
+					thread_warning_count++;
+				} else {
+					error_count++;
+					thread_error_count++;
+				}
+				previous_was_error = true;
 			} else {
-				error_count++;
-				thread_error_count++;
+				previous_was_error = false;
 			}
+		} else {
+			previous_was_error = false;
 		}
 
 		if (inGuiMode()) {
