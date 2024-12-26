@@ -171,7 +171,15 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 	if (err != ERR_PRINTER_ON_FIRE) {
 		ERR_FAIL_COND_V_MSG(err, err, "Failed to export scene " + p_src_path);
 	} else {
-		WARN_PRINT("Exported scene had errors: " + p_src_path);
+		String desc;
+		if (has_script && has_shader) {
+			desc = "with scripts and shaders ";
+		} else if (has_script) {
+			desc = "with scripts ";
+		} else if (has_shader) {
+			desc = "with shaders ";
+		}
+		ERR_PRINT(vformat("Exported scene %shad errors: %s", desc, p_src_path));
 	}
 	return err;
 }
@@ -212,6 +220,7 @@ Error SceneExporter::_export_scene(const String &p_dest_path, const String &p_sr
 	ERR_FAIL_COND_V_MSG(err, err, "Failed to write glTF document to " + p_dest_path);
 	return OK;
 }
+
 Error SceneExporter::export_file(const String &p_dest_path, const String &p_src_path) {
 	String ext = p_dest_path.get_extension().to_lower();
 	if (ext != "escn" && ext != "tscn") {
@@ -220,6 +229,7 @@ Error SceneExporter::export_file(const String &p_dest_path, const String &p_src_
 	}
 	return _export_file(p_dest_path, p_src_path);
 }
+
 Ref<ExportReport> SceneExporter::export_resource(const String &output_dir, Ref<ImportInfo> iinfo) {
 	Ref<ExportReport> report = memnew(ExportReport(iinfo));
 
