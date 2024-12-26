@@ -882,15 +882,15 @@ void ImportInfo::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_param", "key", "value"), &ImportInfo::set_param);
 	ClassDB::bind_method(D_METHOD("has_param", "key"), &ImportInfo::has_param);
 
-	ClassDB::bind_method(D_METHOD("get_iinfo_val"), &ImportInfo::get_iinfo_val);
-	ClassDB::bind_method(D_METHOD("set_iinfo_val"), &ImportInfo::set_iinfo_val);
+	ClassDB::bind_method(D_METHOD("get_iinfo_val", "p_section", "p_prop"), &ImportInfo::get_iinfo_val);
+	ClassDB::bind_method(D_METHOD("set_iinfo_val", "p_section", "p_prop", "p_val"), &ImportInfo::set_iinfo_val);
 
 	ClassDB::bind_method(D_METHOD("get_params"), &ImportInfo::get_params);
 	ClassDB::bind_method(D_METHOD("set_params", "params"), &ImportInfo::set_params);
 	ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "params"), "set_params", "get_params");
 	ClassDB::bind_method(D_METHOD("as_text", "full"), &ImportInfo::as_text, DEFVAL(true));
 
-	ClassDB::bind_method(D_METHOD("save_to"), &ImportInfo::save_to);
+	ClassDB::bind_method(D_METHOD("save_to", "p_path"), &ImportInfo::save_to);
 }
 
 void ImportInfoModern::_bind_methods() {

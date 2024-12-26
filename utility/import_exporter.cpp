@@ -744,14 +744,16 @@ void ImportExporter::set_multi_thread(bool p_enable) {
 }
 
 void ImportExporter::_bind_methods() {
+	//Error ImportExporter::convert_res_txt_2_bin(const String &output_dir, const String &p_path, const String &p_dst) {
+
 	ClassDB::bind_method(D_METHOD("decompile_scripts", "output_dir", "files_to_decompile"), &ImportExporter::decompile_scripts, DEFVAL(PackedStringArray()));
-	ClassDB::bind_method(D_METHOD("export_imports"), &ImportExporter::export_imports, DEFVAL(""), DEFVAL(PackedStringArray()));
-	ClassDB::bind_method(D_METHOD("convert_res_txt_2_bin"), &ImportExporter::convert_res_txt_2_bin);
-	ClassDB::bind_method(D_METHOD("convert_res_bin_2_txt"), &ImportExporter::convert_res_bin_2_txt);
-	ClassDB::bind_method(D_METHOD("convert_tex_to_png"), &ImportExporter::convert_tex_to_png);
-	ClassDB::bind_method(D_METHOD("convert_sample_to_wav"), &ImportExporter::convert_sample_to_wav);
-	ClassDB::bind_method(D_METHOD("convert_oggstr_to_ogg"), &ImportExporter::convert_oggstr_to_ogg);
-	ClassDB::bind_method(D_METHOD("convert_mp3str_to_mp3"), &ImportExporter::convert_mp3str_to_mp3);
+	ClassDB::bind_method(D_METHOD("export_imports", "p_out_dir", "files_to_export"), &ImportExporter::export_imports, DEFVAL(""), DEFVAL(PackedStringArray()));
+	ClassDB::bind_method(D_METHOD("convert_res_txt_2_bin", "output_dir", "p_path", "p_dst"), &ImportExporter::convert_res_txt_2_bin);
+	ClassDB::bind_method(D_METHOD("convert_res_bin_2_txt", "output_dir", "p_path", "p_dst"), &ImportExporter::convert_res_bin_2_txt);
+	ClassDB::bind_method(D_METHOD("convert_tex_to_png", "output_dir", "p_path", "p_dst"), &ImportExporter::convert_tex_to_png);
+	ClassDB::bind_method(D_METHOD("convert_sample_to_wav", "output_dir", "p_path", "p_dst"), &ImportExporter::convert_sample_to_wav);
+	ClassDB::bind_method(D_METHOD("convert_oggstr_to_ogg", "output_dir", "p_path", "p_dst"), &ImportExporter::convert_oggstr_to_ogg);
+	ClassDB::bind_method(D_METHOD("convert_mp3str_to_mp3", "output_dir", "p_path", "p_dst"), &ImportExporter::convert_mp3str_to_mp3);
 	ClassDB::bind_method(D_METHOD("get_report"), &ImportExporter::get_report);
 	ClassDB::bind_method(D_METHOD("set_multi_thread", "p_enable"), &ImportExporter::set_multi_thread);
 	ClassDB::bind_method(D_METHOD("reset"), &ImportExporter::reset);
@@ -1192,6 +1194,6 @@ void ImportExporterReport::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_failed_gdnative_copy"), &ImportExporterReport::get_failed_gdnative_copy);
 	ClassDB::bind_method(D_METHOD("get_report_sections"), &ImportExporterReport::get_report_sections);
 	ClassDB::bind_method(D_METHOD("print_report"), &ImportExporterReport::print_report);
-	ClassDB::bind_method(D_METHOD("set_ver"), &ImportExporterReport::set_ver);
+	ClassDB::bind_method(D_METHOD("set_ver", "ver"), &ImportExporterReport::set_ver);
 	ClassDB::bind_method(D_METHOD("get_ver"), &ImportExporterReport::get_ver);
 }
