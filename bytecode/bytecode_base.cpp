@@ -90,7 +90,6 @@ Error GDScriptDecomp::decompile_byte_code_encrypted(const String &p_path, Vector
 		}
 		ERR_FAIL_V_MSG(err, error_message);
 	}
-	error_message = RTR("No error");
 	return decompile_buffer(bytecode);
 }
 
@@ -101,9 +100,6 @@ Error GDScriptDecomp::decompile_byte_code(const String &p_path) {
 		return decompile_byte_code_encrypted(p_path, GDRESettings::get_singleton()->get_encryption_key());
 	}
 	bytecode = FileAccess::get_file_as_bytes(p_path);
-
-	error_message = RTR("No error");
-
 	return decompile_buffer(bytecode);
 }
 
@@ -1269,6 +1265,7 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 	}
 
 #endif
+	error_message = "";
 	return OK;
 }
 
@@ -1667,11 +1664,11 @@ bool GDScriptDecomp::check_compile_errors(const Vector<uint8_t> &p_buffer) {
 			}
 		}
 	}
-	return errors.size() > 0 || (!error_message.is_empty() && error_message != RTR("No error"));
+	return errors.size() > 0 || !error_message.is_empty();
 }
 
 Vector<uint8_t> GDScriptDecomp::compile_code_string(const String &p_code) {
-	error_message = RTR("No error");
+	error_message = "";
 	if (get_bytecode_version() >= GDSCRIPT_2_0_VERSION) {
 		GDScriptTokenizerBuffer tbf;
 		//test with an empty string to check the version

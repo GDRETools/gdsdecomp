@@ -16,7 +16,12 @@ webpthirdparty_dir = "#thirdparty/libwebp/"
 
 env_gdsdecomp = env_modules.Clone()
 
-env_gdsdecomp.Append(CPPPATH=["."])
+# Append the include path to include the current directory
+# This is a hack for tests, since the test headers get built from tests/test_main.cpp,
+# and the headers that our tests pull in are relative to the current directory.
+# TODO: Figure out a way to not have to do this
+env.Append(CPPPATH=["#modules/gdsdecomp/"])
+env_gdsdecomp.Append(CPPPATH=["#modules/gdsdecomp/"])
 env_gdsdecomp.Append(CPPPATH=["#thirdparty/thorsvg/"])
 
 env_gdsdecomp["BUILDERS"]["MakeGDREIconsBuilder"] = Builder(

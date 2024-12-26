@@ -1,7 +1,7 @@
 extends Object
 
 func foo():
-	return("bar")
+	return ("bar")
 
 func test():
 	var a = funcref(self, "foo")
