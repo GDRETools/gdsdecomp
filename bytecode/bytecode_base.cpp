@@ -711,11 +711,12 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 		}
 	};
 
-	auto ensure_ending_space_func([&](int idx) {
+	auto ensure_ending_space_func([&](int idx, GlobalToken check_tk = G_TK_NEWLINE) {
 		if (
 				!line.ends_with(" ") && idx < tokens.size() - 1 &&
 				(get_global_token(tokens[idx + 1]) != G_TK_NEWLINE &&
-						!check_new_line(idx + 1))) {
+						!check_new_line(idx + 1)) &&
+				(check_tk == G_TK_NEWLINE || get_global_token(tokens[idx + 1]) != check_tk)) {
 			line += " ";
 		}
 	});
@@ -900,9 +901,7 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 			case G_TK_CF_ELSE: {
 				ensure_space_func(true);
 				line += "else";
-				if (!check_next_token(i, tokens, G_TK_COLON)) {
-					line += " ";
-				}
+				ensure_ending_space_func(i, G_TK_COLON);
 			} break;
 			case G_TK_CF_FOR: {
 				line += "for ";
@@ -920,10 +919,12 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 				line += "pass";
 			} break;
 			case G_TK_CF_RETURN: {
-				line += "return ";
+				line += "return";
+				ensure_ending_space_func(i);
 			} break;
 			case G_TK_CF_MATCH: {
-				line += "match ";
+				line += "match";
+				ensure_ending_space_func(i);
 			} break;
 			case G_TK_PR_FUNCTION: {
 				line += "func ";
@@ -982,13 +983,15 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 				line += "assert ";
 			} break;
 			case G_TK_PR_YIELD: {
-				line += "yield ";
+				line += "yield";
+				ensure_ending_space_func(i, G_TK_PARENTHESIS_OPEN);
 			} break;
 			case G_TK_PR_SIGNAL: {
 				line += "signal ";
 			} break;
 			case G_TK_PR_BREAKPOINT: {
-				line += "breakpoint ";
+				line += "breakpoint";
+				ensure_ending_space_func(i);
 			} break;
 			case G_TK_PR_REMOTE: {
 				line += "remote ";
@@ -1052,7 +1055,9 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 				line += "$";
 			} break;
 			case G_TK_FORWARD_ARROW: {
+				ensure_space_func();
 				line += "->";
+				ensure_ending_space_func(i);
 			} break;
 			case G_TK_INDENT:
 			case G_TK_DEDENT:
@@ -1149,7 +1154,7 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 		for (int j = 0; j < indent; j++) {
 			script_text += use_spaces ? " " : "\t";
 		}
-		script_text += line + "\n";
+		script_text += line;
 	}
 
 	if (script_text == String()) {
