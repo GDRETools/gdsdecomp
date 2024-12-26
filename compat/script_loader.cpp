@@ -1,11 +1,14 @@
 
 #include "script_loader.h"
+
 #include "core/io/file_access.h"
 #include "core/io/resource_loader.h"
 #include "core/io/resource_saver.h"
 #include "core/os/os.h"
 #include "core/variant/variant_parser.h"
+
 #include "bytecode/bytecode_base.h"
+#include "compat/fake_script.h"
 #include "utility/gdre_settings.h"
 
 Ref<Resource> ResourceFormatGDScriptLoader::load(const String &p_path, const String &p_original_path, Error *r_error, bool p_use_sub_threads, float *r_progress, CacheMode p_cache_mode) {
@@ -56,7 +59,6 @@ ResourceInfo ResourceFormatGDScriptLoader::get_resource_info(const String &p_pat
 	if (rev) {
 		auto decomp = GDScriptDecomp::create_decomp_for_commit(rev);
 		if (decomp.is_valid()) {
-
 			Ref<GodotVer> ver = decomp->get_godot_ver();
 			if (ver.is_valid() && ver->is_valid_semver()) {
 				info.ver_major = ver->get_major();

@@ -741,6 +741,33 @@ Error FakeGDScript::parse_script() {
 	return OK;
 }
 
+bool FakeGDScript::_get(const StringName &p_name, Variant &r_ret) const {
+	if (p_name == "script/source") {
+		r_ret = get_source_code();
+		return true;
+	}
+	return false;
+}
+
+bool FakeGDScript::_set(const StringName &p_name, const Variant &p_value) {
+	if (p_name == "script/source") {
+		set_source_code(p_value);
+		return true;
+	}
+	return false;
+}
+
+void FakeGDScript::_get_property_list(List<PropertyInfo> *p_properties) const {
+	p_properties->push_back(PropertyInfo(Variant::STRING, "script/source", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NO_EDITOR | PROPERTY_USAGE_INTERNAL));
+}
+
+Variant FakeGDScript::callp(const StringName &p_method, const Variant **p_args, int p_argcount, Callable::CallError &r_error) {
+	return {};
+}
+
+void FakeGDScript::_bind_methods() {
+}
+
 
 String FakeGDScript::get_script_path() const
 {
@@ -752,11 +779,7 @@ Error FakeGDScript::load_source_code(const String &p_path) {
 	return reload();
 }
 
-
-
-
-
-
+// FakeEmbeddedScript
 
 bool FakeEmbeddedScript::_get(const StringName &p_name, Variant &r_ret) const {
 	if (!properties.has(p_name)) {

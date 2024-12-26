@@ -14,6 +14,7 @@ class FakeGDScript;
 class GDScriptDecomp : public RefCounted {
 	GDCLASS(GDScriptDecomp, RefCounted);
 	friend class FakeGDScript;
+
 protected:
 	static void _bind_methods();
 	static void _ensure_space(String &p_code);
