@@ -170,8 +170,23 @@ public:
 		Vector<Variant> constants;
 		Vector<uint32_t> tokens;
 		VMap<uint32_t, uint32_t> lines;
+		VMap<uint32_t, uint32_t> end_lines;
 		VMap<uint32_t, uint32_t> columns;
 		HashSet<String> dependencies;
+		uint32_t get_token_line(uint32_t i) const {
+			if (lines.has(i)) {
+				return lines[i];
+			} else if (end_lines.has(i)) {
+				return end_lines[i];
+			}
+			return 0U;
+		}
+		uint32_t get_token_column(uint32_t i) const {
+			if (columns.has(i)) {
+				return columns[i];
+			}
+			return 0U;
+		}
 	};
 
 protected:
@@ -191,7 +206,7 @@ protected:
 	bool is_token_builtin_func(int p_pos, const Vector<uint32_t> &p_tokens);
 	Error get_ids_consts_tokens(const Vector<uint8_t> &p_buffer, Vector<StringName> &r_identifiers, Vector<Variant> &r_constants, Vector<uint32_t> &r_tokens, VMap<uint32_t, uint32_t> &lines, VMap<uint32_t, uint32_t> &columns);
 	// GDScript version 2.0
-	Error get_ids_consts_tokens_v2(const Vector<uint8_t> &p_buffer, int bytecode_version, Vector<StringName> &r_identifiers, Vector<Variant> &r_constants, Vector<uint32_t> &r_tokens, VMap<uint32_t, uint32_t> &lines, VMap<uint32_t, uint32_t> &columns);
+	Error get_ids_consts_tokens_v2(const Vector<uint8_t> &p_buffer, Vector<StringName> &r_identifiers, Vector<Variant> &r_constants, Vector<uint32_t> &r_tokens, VMap<uint32_t, uint32_t> &lines, VMap<uint32_t, uint32_t> &end_lines, VMap<uint32_t, uint32_t> &columns);
 
 public:
 	static Vector<String> get_bytecode_versions();
