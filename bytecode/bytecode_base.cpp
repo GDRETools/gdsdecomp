@@ -893,7 +893,8 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 				ensure_ending_space_func(i);
 			} break;
 			case G_TK_PR_FUNCTION: {
-				line += "func ";
+				line += "func";
+				ensure_ending_space_func(i, G_TK_PARENTHESIS_OPEN);
 			} break;
 			case G_TK_PR_CLASS: {
 				line += "class ";
