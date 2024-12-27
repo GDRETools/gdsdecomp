@@ -110,6 +110,7 @@ Error FakeGDScript::reload(bool p_keep_state) {
 	return OK;
 }
 
+#ifdef TOOLS_ENABLED
 StringName FakeGDScript::get_doc_class_name() const {
 	return global_name;
 }
@@ -125,6 +126,7 @@ String FakeGDScript::get_class_icon_path() const {
 PropertyInfo FakeGDScript::get_class_category() const {
 	return {};
 }
+#endif
 
 bool FakeGDScript::has_method(const StringName &p_method) const {
 	return false;
