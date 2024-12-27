@@ -1,7 +1,6 @@
 #ifndef TEST_BYTECODE_H
 #define TEST_BYTECODE_H
 
-#include "../../../../../../../../Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__config"
 #include "../bytecode/bytecode_base.h"
 #include "test_common.h"
 #include "tests/test_macros.h"
@@ -117,14 +116,7 @@ inline String remove_comments(const String &script_text) {
 	return new_text;
 }
 
-inline void test_script(const String &helper_script_path, int revision, bool check_whitespace_equality) {
-	// tests are located in modules/gdsdecomp/helpers
-	auto da = DirAccess::create_for_path(helper_script_path);
-	CHECK(da.is_valid());
-	CHECK(da->file_exists(helper_script_path));
-	Error err;
-	auto helper_script_text = FileAccess::get_file_as_string(helper_script_path, &err);
-	CHECK(err == OK);
+inline void test_script_text(const String &script_name, const String &helper_script_text, int revision, bool check_whitespace_equality) {
 	auto decomp = GDScriptDecomp::create_decomp_for_commit(revision);
 	CHECK(decomp.is_valid());
 	auto bytecode = decomp->compile_code_string(helper_script_text);
@@ -134,43 +126,51 @@ inline void test_script(const String &helper_script_path, int revision, bool che
 	// TODO: remove BYTECODE_TEST_UNKNOWN and just make it PASS, there are no proper pass cases now
 	CHECK(result == GDScriptDecomp::BYTECODE_TEST_UNKNOWN);
 	// test compiling the decompiled code
-	err = decomp->decompile_buffer(bytecode);
+	Error err = decomp->decompile_buffer(bytecode);
 	CHECK(err == OK);
 	CHECK(decomp->get_error_message() == "");
 	// no whitespace
 	auto decompiled_string = decomp->get_script_text();
 	CHECK(decompiled_string != "");
-	auto helper_script_text_stripped = remove_comments(helper_script_text);
+	auto helper_script_text_stripped = remove_comments(helper_script_text).replace("\"\"\"", "\"");
+	auto decompiled_string_stripped = remove_comments(decompiled_string).replace("\"\"\"", "\"");
 #if DEBUG_ENABLED
-	if (decompiled_string != helper_script_text_stripped) {
+	if (decompiled_string_stripped != helper_script_text_stripped) {
 		// write the script to a temp path
-		auto temp_path = get_tmp_path().path_join(helper_script_path.get_file());
+		auto old_path = get_tmp_path().path_join(script_name + ".old.gd");
+		auto new_path = get_tmp_path().path_join(script_name + ".new.gd");
 		gdre::ensure_dir(get_tmp_path());
-		auto fa = FileAccess::open(temp_path, FileAccess::WRITE);
+		auto fa = FileAccess::open(new_path, FileAccess::WRITE);
 		if (fa.is_valid()) {
 			fa->store_string(decompiled_string);
 			fa->flush();
 			fa->close();
-			auto thingy = { String("-u"), helper_script_path, temp_path };
-			List<String> args;
-			for (auto &arg : thingy) {
-				args.push_back(arg);
-			}
-			String pipe;
-			OS::get_singleton()->execute("diff", args, &pipe);
-			auto temp_path_diff = temp_path + ".diff";
-			auto fa_diff = FileAccess::open(temp_path_diff, FileAccess::WRITE);
-			if (fa_diff.is_valid()) {
-				fa_diff->store_string(pipe);
-				fa_diff->flush();
-				fa_diff->close();
+			auto fa2 = FileAccess::open(old_path, FileAccess::WRITE);
+			if (fa2.is_valid()) {
+				fa2->store_string(helper_script_text_stripped);
+				fa2->flush();
+				fa2->close();
+				auto thingy = { String("-u"), old_path, new_path };
+				List<String> args;
+				for (auto &arg : thingy) {
+					args.push_back(arg);
+				}
+				String pipe;
+				OS::get_singleton()->execute("diff", args, &pipe);
+				auto temp_path_diff = new_path + ".diff";
+				auto fa_diff = FileAccess::open(temp_path_diff, FileAccess::WRITE);
+				if (fa_diff.is_valid()) {
+					fa_diff->store_string(pipe);
+					fa_diff->flush();
+					fa_diff->close();
+				}
 			}
 		}
 	}
 #endif
-	CHECK(gdre::remove_whitespace(decompiled_string) == gdre::remove_whitespace(helper_script_text_stripped));
+	CHECK(gdre::remove_whitespace(decompiled_string_stripped) == gdre::remove_whitespace(helper_script_text_stripped));
 	if (check_whitespace_equality) {
-		CHECK(decompiled_string == helper_script_text_stripped);
+		CHECK(decompiled_string_stripped == helper_script_text_stripped);
 	}
 	auto recompiled_bytecode = decomp->compile_code_string(decompiled_string);
 	CHECK(decomp->get_error_message() == "");
@@ -180,6 +180,19 @@ inline void test_script(const String &helper_script_path, int revision, bool che
 	err = decomp->test_bytecode_match(bytecode, recompiled_bytecode);
 	CHECK(decomp->get_error_message() == "");
 	CHECK(err == OK);
+}
+
+inline void test_script(const String &helper_script_path, int revision, bool check_whitespace_equality) {
+	// tests are located in modules/gdsdecomp/helpers
+	auto da = DirAccess::create_for_path(helper_script_path);
+	CHECK(da.is_valid());
+	CHECK(da->file_exists(helper_script_path));
+	Error err;
+	auto helper_script_text = FileAccess::get_file_as_string(helper_script_path, &err);
+	CHECK(err == OK);
+	CHECK(helper_script_text != "");
+	auto script_name = helper_script_path.get_file().get_basename();
+	test_script_text(script_name, helper_script_text, revision, check_whitespace_equality);
 }
 
 TEST_CASE("[GDSDecomp][Bytecode] Compiling") {
