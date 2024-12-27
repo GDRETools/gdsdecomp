@@ -203,9 +203,10 @@ jobs:
           retention-days: 90
 
       - name: run tests
+        shell: bash
         run: |
           cd ${{github.workspace}}
-          ${{matrix.command-export}} --headless --test --force-colors "--test-case=[GDSDecomp]*"
+          ${{github.workspace}}/${{matrix.command-export}} --headless --test --force-colors "--test-case=[GDSDecomp]*"
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
