@@ -382,43 +382,6 @@ int GDScriptDecomp::read_bytecode_version_encrypted(const String &p_path, int en
 	return version;
 }
 
-#if DEBUG_ENABLED
-// template T where T is derived from Vector
-template <typename T>
-static int continuity_tester(const T &p_vector, const T &p_other, String name, int pos = 0) {
-	if (p_vector.is_empty() && p_other.is_empty()) {
-		return -1;
-	}
-	if (p_vector.is_empty() && !p_other.is_empty()) {
-		WARN_PRINT(name + " first is empty");
-		return -1;
-	}
-	if (!p_vector.is_empty() && p_other.is_empty()) {
-		WARN_PRINT(name + " second is empty");
-		return -1;
-	}
-	if (pos == 0) {
-		if (p_vector.size() != p_other.size()) {
-			WARN_PRINT(name + " size mismatch: " + itos(p_vector.size()) + " != " + itos(p_other.size()));
-		}
-	}
-	if (pos >= p_vector.size() || pos >= p_other.size()) {
-		WARN_PRINT(name + " pos out of range");
-		return MIN(p_vector.size(), p_other.size());
-	}
-	for (int i = pos; i < p_vector.size(); i++) {
-		if (i >= p_other.size()) {
-			WARN_PRINT(name + " discontinuity at index " + itos(i));
-			return i;
-		}
-		if (p_vector[i] != p_other[i]) {
-			WARN_PRINT(name + " bytecode discontinuity at index " + itos(i));
-			return i;
-		}
-	}
-	return -1;
-}
-#endif
 // constant array of string literals of the global token enum values
 const char *g_token_str[] = {
 	"TK_EMPTY",
@@ -1160,111 +1123,6 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 		error_message = RTR("Invalid token");
 		return ERR_INVALID_DATA;
 	}
-
-	// Testing recompile of the bytecode
-	// TODO: move this elsewhere
-#if 0
-	// compiling doesn't work for bytecode version 100 yet
-	if (bytecode_version >= GDSCRIPT_2_0_VERSION) {
-		return OK;
-	}
-	Error new_err;
-	Vector<uint8_t> recompiled_bytecode = compile_code_string(script_text);
-	// compare the recompiled bytecode to the original bytecode
-	int discontinuity = -1;
-	if (bytecode_version < GDSCRIPT_2_0_VERSION) {
-		discontinuity = continuity_tester<Vector<uint8_t>>(p_buffer, recompiled_bytecode, "Bytecode");
-	} else {
-	}
-	if (discontinuity == -1) {
-		return OK;
-	}
-
-	Ref<GDScriptDecomp> decomp = create_decomp_for_commit(get_bytecode_rev());
-
-	Vector<StringName> newidentifiers;
-	Vector<Variant> newconstants;
-	VMap<uint32_t, uint32_t> newlines;
-	VMap<uint32_t, uint32_t> newcolumns;
-
-	Vector<uint32_t> newtokens;
-	new_err = get_ids_consts_tokens(recompiled_bytecode, newidentifiers, newconstants, newtokens, newlines, newcolumns);
-	if (new_err != OK) {
-		WARN_PRINT("Recompiled bytecode failed to decompile: " + error_message);
-		return OK;
-	}
-	discontinuity = continuity_tester<Vector<StringName>>(identifiers, newidentifiers, "Identifiers");
-	if (discontinuity != -1 && discontinuity < identifiers.size() && newidentifiers.size()) {
-		WARN_PRINT("Different StringNames: " + identifiers[discontinuity] + " != " + newidentifiers[discontinuity]);
-	}
-	discontinuity = continuity_tester<Vector<Variant>>(constants, newconstants, "Constants");
-	if (discontinuity != -1 && discontinuity < constants.size() && newconstants.size()) {
-		WARN_PRINT("Different Constants: " + constants[discontinuity].operator String() + " != " + newconstants[discontinuity].operator String());
-	}
-	auto old_tokens_size = tokens.size();
-	auto new_tokens_size = newtokens.size();
-	discontinuity = continuity_tester<Vector<uint32_t>>(tokens, newtokens, "Tokens");
-
-	if (is_print_verbose_enabled() && discontinuity != -1 && discontinuity < new_tokens_size && discontinuity < old_tokens_size) {
-		// go through and print the ALL the tokens, "oldtoken (val)  ==  newtoken  (val)"
-		print_verbose("START TOKEN PRINT");
-		for (int i = 0; i < old_tokens_size; i++) {
-			auto old_token = tokens[i];
-			auto new_token = newtokens[i];
-			String old_token_name = GDScriptTokenizerTextCompat::get_token_name(get_global_token(old_token));
-			String new_token_name = GDScriptTokenizerTextCompat::get_token_name(get_global_token(new_token));
-			if (old_token_name != new_token_name) {
-				print_verbose(String("Different Tokens: ") + old_token_name + String(" != ") + new_token_name);
-			} else {
-				int old_token_val = old_token >> TOKEN_BITS;
-				int new_token_val = new_token >> TOKEN_BITS;
-				if (old_token_val != new_token_val) {
-					print_verbose(String("Different Token Val for ") + old_token_name + ":" + itos(old_token_val) + String(" != ") + itos(new_token_val));
-				} else {
-					print_verbose(String("Same Token Val for ") + old_token_name + ":" + itos(old_token_val) + String(" == ") + itos(new_token_val));
-				}
-			}
-		}
-		print_verbose("END TOKEN PRINT");
-	}
-
-	if (discontinuity != -1 && discontinuity < tokens.size() && discontinuity < newtokens.size()) {
-		while (discontinuity < tokens.size() && discontinuity < newtokens.size() && discontinuity != -1) {
-			auto old_token = tokens[discontinuity];
-			auto new_token = newtokens[discontinuity];
-			String old_token_name = GDScriptTokenizerTextCompat::get_token_name(get_global_token(old_token));
-			String new_token_name = GDScriptTokenizerTextCompat::get_token_name(get_global_token(new_token));
-			if (old_token_name != new_token_name) {
-				WARN_PRINT(String("Different Tokens: ") + old_token_name + String(" != ") + new_token_name);
-			} else {
-				int old_token_val = old_token >> TOKEN_BITS;
-				int new_token_val = new_token >> TOKEN_BITS;
-				if (old_token_val != new_token_val) {
-					WARN_PRINT(String("Different Token Val for ") + old_token_name + ":" + itos(old_token_val) + String(" != ") + itos(new_token_val));
-				}
-			}
-
-			discontinuity = continuity_tester<Vector<uint32_t>>(tokens, newtokens, "Tokens", discontinuity + 1);
-		}
-	}
-	auto lines_Size = lines.size();
-	auto newlines_Size = newlines.size();
-	discontinuity = continuity_tester<VMap<uint32_t, uint32_t>>(lines, newlines, "Lines");
-	if (discontinuity != -1 && discontinuity < lines_Size && discontinuity < newlines_Size) {
-		WARN_PRINT("Different Lines: " + itos(lines[discontinuity]) + " != " + itos(newlines[discontinuity]));
-	}
-
-	new_err = decomp->decompile_buffer(recompiled_bytecode);
-	if (new_err != OK) {
-		WARN_PRINT("Recompiled bytecode failed to decompile: " + error_message);
-	} else if (script_text != decomp->script_text) {
-		WARN_PRINT("Recompiled bytecode decompiled differently: " + decomp->script_text + " != " + script_text);
-	} else {
-		WARN_PRINT("Recompiled bytecode decompiled the same");
-		return OK;
-	}
-
-#endif
 	error_message = "";
 	return OK;
 }
@@ -1904,4 +1762,219 @@ Ref<GDScriptDecomp> GDScriptDecomp::create_decomp_for_version(String str_ver, bo
 		return Ref<GDScriptDecomp>(create_decomp_for_commit(prev_ver_commit));
 	}
 	ERR_FAIL_V_MSG(Ref<GDScriptDecomp>(), "No version found for: " + str_ver);
+}
+
+template <typename T>
+static int64_t continuity_tester(const Vector<T> &p_vector, const Vector<T> &p_other, String name, int pos = 0) {
+	if (p_vector.is_empty() && p_other.is_empty()) {
+		return -1;
+	}
+	if (p_vector.is_empty() && !p_other.is_empty()) {
+		WARN_PRINT(name + " first is empty");
+		return -1;
+	}
+	if (!p_vector.is_empty() && p_other.is_empty()) {
+		WARN_PRINT(name + " second is empty");
+		return -1;
+	}
+	if (pos == 0) {
+		if (p_vector.size() != p_other.size()) {
+			WARN_PRINT(name + " size mismatch: " + itos(p_vector.size()) + " != " + itos(p_other.size()));
+		}
+	}
+	if (pos >= p_vector.size() || pos >= p_other.size()) {
+		WARN_PRINT(name + " pos out of range");
+		return MIN(p_vector.size(), p_other.size());
+	}
+	for (int i = pos; i < p_vector.size(); i++) {
+		if (i >= p_other.size()) {
+			WARN_PRINT(name + " discontinuity at index " + itos(i));
+			return i;
+		}
+		if (p_vector[i] != p_other[i]) {
+			WARN_PRINT(name + " bytecode discontinuity at index " + itos(i));
+			return i;
+		}
+	}
+	return -1;
+}
+
+template <typename K, typename V>
+static int64_t continuity_tester(const VMap<K, V> &p_vector, const VMap<K, V> &p_other, String name, int pos = 0) {
+	if (p_vector.is_empty() && p_other.is_empty()) {
+		return -1;
+	}
+	if (p_vector.is_empty() && !p_other.is_empty()) {
+		WARN_PRINT(name + " first is empty");
+		return -1;
+	}
+	if (!p_vector.is_empty() && p_other.is_empty()) {
+		WARN_PRINT(name + " second is empty");
+		return -1;
+	}
+	if (pos == 0) {
+		if (p_vector.size() != p_other.size()) {
+			WARN_PRINT(name + " size mismatch: " + itos(p_vector.size()) + " != " + itos(p_other.size()));
+		}
+	}
+	if (pos >= p_vector.size() || pos >= p_other.size()) {
+		WARN_PRINT(name + " pos out of range");
+		return MIN(p_vector.size(), p_other.size());
+	}
+	auto p_vector_arr = p_vector.get_array();
+	auto p_other_arr = p_other.get_array();
+	for (int i = pos; i < p_vector.size(); i++) {
+		if (i >= p_other.size()) {
+			WARN_PRINT(name + " discontinuity at index " + itos(i));
+			return i;
+		}
+		if (p_vector_arr[i].key != p_other_arr[i].key) {
+			WARN_PRINT(name + " bytecode discontinuity at index " + itos(i));
+			return i;
+		}
+		if (p_vector_arr[i].value != p_other_arr[i].value) {
+			WARN_PRINT(name + " bytecode discontinuity at index " + itos(i));
+			return i;
+		}
+	}
+	return -1;
+}
+
+Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, const Vector<uint8_t> &p_buffer2) {
+	int64_t discontinuity = -1;
+	if (p_buffer1 == p_buffer2) {
+		return OK;
+	}
+	ScriptState state1;
+	Error error = get_script_state(p_buffer1, state1);
+	ERR_FAIL_COND_V_MSG(error, error, "Error reading first bytecode");
+	ScriptState state2;
+	error = get_script_state(p_buffer2, state2);
+	ERR_FAIL_COND_V_MSG(error, error, "Error reading second bytecode");
+	Error err = OK;
+#define REPORT_DIFF(x)         \
+	err = ERR_BUG;             \
+	error_message += x + "\n"; \
+	WARN_PRINT(x)
+	bool is_printing_verbose;
+#ifdef DEBUG_ENABLED
+#define bl_print(...) print_line(__VA_ARGS__)
+	is_printing_verbose = true;
+#else
+#define bl_print(...) print_verbose(__VA_ARGS__)
+	is_printing_verbose = is_print_verbose_enabled();
+#endif
+
+	if (state1.bytecode_version != state2.bytecode_version) {
+		REPORT_DIFF("Bytecode version mismatch: " + itos(state1.bytecode_version) + " != " + itos(state2.bytecode_version));
+		return ERR_BUG;
+	}
+	if (state1.bytecode_version < GDSCRIPT_2_0_VERSION) {
+		err = ERR_BUG;
+		discontinuity = continuity_tester(p_buffer1, p_buffer2, "Bytecode");
+	} else {
+		auto decompressed_size1 = decode_uint32(&p_buffer1[8]);
+		auto decompressed_size2 = decode_uint32(&p_buffer2[8]);
+		if (decompressed_size1 != decompressed_size2) {
+			REPORT_DIFF("Decompressed size mismatch: " + itos(decompressed_size1) + " != " + itos(decompressed_size2));
+		}
+		Vector<uint8_t> contents1;
+		Vector<uint8_t> contents2;
+		decompress_buf(p_buffer1, contents1);
+		decompress_buf(p_buffer2, contents2);
+		discontinuity = continuity_tester(contents1, contents2, "Decompressed Bytecode");
+		if (discontinuity == -1) {
+			return OK;
+		}
+		err = ERR_BUG;
+	}
+
+	Ref<GDScriptDecomp> decomp = create_decomp_for_commit(get_bytecode_rev());
+	error_message = "";
+	discontinuity = continuity_tester(state1.identifiers, state2.identifiers, "Identifiers");
+	if (discontinuity != -1) {
+		if (discontinuity < state1.identifiers.size() && discontinuity < state2.identifiers.size()) {
+			REPORT_DIFF("Different identifiers: " + state1.identifiers[discontinuity] + " != " + state2.identifiers[discontinuity]);
+		} else {
+			REPORT_DIFF("Different identifier sizes: " + itos(state1.identifiers.size()) + " != " + itos(state2.identifiers.size()));
+		}
+	}
+	discontinuity = continuity_tester(state1.constants, state2.constants, "Constants");
+	if (discontinuity != -1) {
+		if (discontinuity < state1.constants.size() && discontinuity < state2.constants.size()) {
+			REPORT_DIFF("Different constants: " + state1.constants[discontinuity].operator String() + " != " + state2.constants[discontinuity].operator String());
+		} else {
+			REPORT_DIFF("Different constant sizes: " + itos(state1.constants.size()) + " != " + itos(state2.constants.size()));
+		}
+	}
+	auto old_tokens_size = state1.tokens.size();
+	auto new_tokens_size = state2.tokens.size();
+	discontinuity = continuity_tester(state1.tokens, state2.tokens, "Tokens");
+
+	if (is_printing_verbose && discontinuity != -1 && discontinuity < new_tokens_size && discontinuity < old_tokens_size) {
+		// go through and print the ALL the tokens, "oldtoken (val)  ==  state2.token  (val)"
+		bl_print("***START TOKEN PRINT");
+		for (int i = 0; i < old_tokens_size; i++) {
+			auto old_token = state1.tokens[i];
+			auto new_token = state2.tokens[i];
+			String old_token_name = GDScriptTokenizerTextCompat::get_token_name(get_global_token(old_token));
+			String new_token_name = GDScriptTokenizerTextCompat::get_token_name(get_global_token(new_token));
+			if (old_token_name != new_token_name) {
+				bl_print(String("Different Tokens: ") + old_token_name + String(" != ") + new_token_name);
+			} else {
+				int old_token_val = old_token >> TOKEN_BITS;
+				int new_token_val = new_token >> TOKEN_BITS;
+				if (old_token_val != new_token_val) {
+					bl_print(String("Different Token Val for ") + old_token_name + ":" + itos(old_token_val) + String(" != ") + itos(new_token_val));
+				} else {
+					bl_print(String("Same Token Val for ") + old_token_name + ":" + itos(old_token_val) + String(" == ") + itos(new_token_val));
+				}
+			}
+		}
+		bl_print("***END TOKEN PRINT");
+	}
+
+	if (discontinuity != -1) {
+		while (discontinuity < state1.tokens.size() && discontinuity < state2.tokens.size() && discontinuity != -1) {
+			auto old_token = state1.tokens[discontinuity];
+			auto new_token = state2.tokens[discontinuity];
+			String old_token_name = GDScriptTokenizerTextCompat::get_token_name(get_global_token(old_token));
+			String new_token_name = GDScriptTokenizerTextCompat::get_token_name(get_global_token(new_token));
+			if (old_token_name != new_token_name) {
+				REPORT_DIFF(String("Different Tokens: ") + old_token_name + String(" != ") + new_token_name);
+			} else {
+				int old_token_val = old_token >> TOKEN_BITS;
+				int new_token_val = new_token >> TOKEN_BITS;
+				if (old_token_val != new_token_val) {
+					REPORT_DIFF(String("Different Token Val for ") + old_token_name + ":" + itos(old_token_val) + String(" != ") + itos(new_token_val));
+				}
+			}
+			discontinuity = continuity_tester(state1.tokens, state2.tokens, "Tokens", discontinuity + 1);
+		}
+		if (state1.tokens.size() != state2.tokens.size()) {
+			REPORT_DIFF("Different Token sizes: " + itos(state1.tokens.size()) + " != " + itos(state2.tokens.size()));
+		}
+	}
+	auto lines_Size = state1.lines.size();
+	auto new_lines_Size = state2.lines.size();
+	discontinuity = continuity_tester(state1.lines, state2.lines, "Lines");
+	if (discontinuity != -1) {
+		if (discontinuity < lines_Size && discontinuity < new_lines_Size) {
+			REPORT_DIFF("Different Lines: " + itos(state1.lines[discontinuity]) + " != " + itos(state2.lines[discontinuity]));
+		} else {
+			REPORT_DIFF("Different Line sizes: " + itos(lines_Size) + " != " + itos(new_lines_Size));
+		}
+	}
+
+	auto columns_Size = state1.columns.size();
+	auto new_columns_Size = state2.columns.size();
+	discontinuity = continuity_tester(state1.columns, state2.columns, "Columns");
+	if (discontinuity != -1) {
+		if (discontinuity < columns_Size && discontinuity < new_columns_Size) {
+			REPORT_DIFF("Different Columns: " + itos(state1.columns[discontinuity]) + " != " + itos(state2.columns[discontinuity]));
+		} else {
+			REPORT_DIFF("Different Column sizes: " + itos(columns_Size) + " != " + itos(new_columns_Size));
+		}
+	}
+	return err;
 }
