@@ -1,21 +1,21 @@
 #!/bin/sh
 
-CLANG_FORMAT_MAJOR="19"
-DEFAULT_CLANG_FORMAT=clang-format-19
+CLANG_FORMAT_MAJOR="18"
+DEFAULT_CLANG_FORMAT=clang-format-18
 CLANG_FORMAT=${CLANG_FORMAT:-$DEFAULT_CLANG_FORMAT}
 # check if $CLANG_FORMAT is available, use --version
 if ! command -v "$CLANG_FORMAT" &> /dev/null; then
     # try `clang-format`
     CLANG_FORMAT=clang-format
     if ! command -v "$CLANG_FORMAT" &> /dev/null; then
-      echo "Error: $CLANG_FORMAT not found. Please install clang-format-19."
+      echo "Error: $CLANG_FORMAT not found. Please install $DEFAULT_CLANG_FORMAT."
       exit 1
     fi
     # get the output of clang-format --version
     CLANG_FORMAT_VERSION=$("$CLANG_FORMAT" --version)
     # check if the version is 19
     if ! echo "$CLANG_FORMAT_VERSION" | grep -q "version $CLANG_FORMAT_MAJOR"; then
-      echo "WARNING: $CLANG_FORMAT is not version 19; Using $CLANG_FORMAT_VERSION"
+      echo "WARNING: $CLANG_FORMAT is not version $CLANG_FORMAT_MAJOR; Using $CLANG_FORMAT_VERSION"
     fi
 fi
 

@@ -27,7 +27,8 @@ jobs:
         echo $(git branch --all)
     - name: Install Linux deps
       run: |
-        sudo apt-get install clang-format-19
-        sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-19 100
+        sudo apt-get update
+        sudo apt-get install clang-format-18
+        sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
     - name: check clang_format
       run: bash ./.scripts/clang_format.sh
