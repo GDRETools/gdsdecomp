@@ -1799,7 +1799,7 @@ static int64_t continuity_tester(const Vector<T> &p_vector, const Vector<T> &p_o
 			return i;
 		}
 		if (p_vector[i] != p_other[i]) {
-			WARN_PRINT(name + " bytecode discontinuity at index " + itos(i));
+			WARN_PRINT(name + " discontinuity at index " + itos(i));
 			return i;
 		}
 	}
@@ -1900,6 +1900,7 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 	error_message = "";
 	discontinuity = continuity_tester(state1.identifiers, state2.identifiers, "Identifiers");
 	if (discontinuity != -1) {
+		REPORT_DIFF("Discontinuity in identifier at index " + itos(discontinuity));
 		if (discontinuity < state1.identifiers.size() && discontinuity < state2.identifiers.size()) {
 			REPORT_DIFF("Different identifiers: " + state1.identifiers[discontinuity] + " != " + state2.identifiers[discontinuity]);
 		} else {
@@ -1908,6 +1909,7 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 	}
 	discontinuity = continuity_tester(state1.constants, state2.constants, "Constants");
 	if (discontinuity != -1) {
+		REPORT_DIFF("Discontinuity in constants at index " + itos(discontinuity));
 		if (discontinuity < state1.constants.size() && discontinuity < state2.constants.size()) {
 			REPORT_DIFF("Different constants: " + state1.constants[discontinuity].operator String() + " != " + state2.constants[discontinuity].operator String());
 		} else {
@@ -1942,6 +1944,7 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 	}
 
 	if (discontinuity != -1) {
+		REPORT_DIFF("Discontinuity in tokens at index " + itos(discontinuity));
 		while (discontinuity < state1.tokens.size() && discontinuity < state2.tokens.size() && discontinuity != -1) {
 			auto old_token = state1.tokens[discontinuity];
 			auto new_token = state2.tokens[discontinuity];
@@ -1966,6 +1969,7 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 	auto new_lines_Size = state2.lines.size();
 	discontinuity = continuity_tester(state1.lines, state2.lines, "Lines");
 	if (discontinuity != -1) {
+		REPORT_DIFF("Discontinuity in lines at index " + itos(discontinuity));
 		if (discontinuity < lines_Size && discontinuity < new_lines_Size) {
 			REPORT_DIFF("Different Lines: " + itos(state1.lines[discontinuity]) + " != " + itos(state2.lines[discontinuity]));
 		} else {
@@ -1977,10 +1981,23 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 	auto new_columns_Size = state2.columns.size();
 	discontinuity = continuity_tester(state1.columns, state2.columns, "Columns");
 	if (discontinuity != -1) {
+		REPORT_DIFF("Discontinuity in columns at index " + itos(discontinuity));
 		if (discontinuity < columns_Size && discontinuity < new_columns_Size) {
 			REPORT_DIFF("Different Columns: " + itos(state1.columns[discontinuity]) + " != " + itos(state2.columns[discontinuity]));
 		} else {
 			REPORT_DIFF("Different Column sizes: " + itos(columns_Size) + " != " + itos(new_columns_Size));
+		}
+	}
+
+	auto end_lines_size = state1.end_lines.size();
+	auto new_end_lines_size = state2.end_lines.size();
+	discontinuity = continuity_tester(state1.end_lines, state2.end_lines, "End Lines");
+	if (discontinuity != -1) {
+		REPORT_DIFF("Discontinuity in End Lines at index " + itos(discontinuity));
+		if (discontinuity < end_lines_size && discontinuity < new_end_lines_size) {
+			REPORT_DIFF("Different End Lines: " + itos(state1.end_lines[discontinuity]) + " != " + itos(state2.end_lines[discontinuity]));
+		} else {
+			REPORT_DIFF("Different End Line sizes: " + itos(end_lines_size) + " != " + itos(new_end_lines_size));
 		}
 	}
 	return err;
