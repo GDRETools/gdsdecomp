@@ -47,7 +47,7 @@ jobs:
           - name: "Windows"
             os: "windows-latest"
             platform: windows
-            sconsflags: debug_symbols=no
+            sconsflags: debug_symbols=no tests=yes
             sconsflags-template: debug_symbols=no
             command-export: ${env:GITHUB_WORKSPACE}\bin\godot.windows.editor.x86_64.exe
             export-preset: "Windows Desktop"
@@ -56,7 +56,7 @@ jobs:
           - name: "🐧 Linux"
             os: "ubuntu-20.04"
             platform: linux
-            sconsflags: debug_symbols=no
+            sconsflags: debug_symbols=no tests=yes
             sconsflags-template: debug_symbols=no optimize=size use_lto=yes
             command-export: ${env:GITHUB_WORKSPACE}/bin/godot.linuxbsd.editor.x86_64
             export-preset: "Linux/X11"
@@ -65,7 +65,7 @@ jobs:
           - name: "🍎 macOS"
             os: "macos-latest"
             platform: macos
-            sconsflags: debug_symbols=no use_volk=no vulkan_sdk_path=$VULKAN_SDK_PATH
+            sconsflags: debug_symbols=no tests=yes use_volk=no vulkan_sdk_path=$VULKAN_SDK_PATH
             sconsflags-template: debug_symbols=no optimize=size use_lto=yes use_volk=no vulkan_sdk_path=$VULKAN_SDK_PATH
             command-export: ${env:GITHUB_WORKSPACE}/bin/godot.macos.editor.arm64
             export-preset: "macOS"
