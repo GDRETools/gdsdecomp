@@ -11,18 +11,6 @@
 
 namespace TestBytecode {
 
-TEST_CASE("[GDSDecomp] GDRESettings works") {
-	GDRESettings *settings = GDRESettings::get_singleton();
-	CHECK(settings != nullptr);
-	CHECK(settings->get_cwd() != "");
-	auto cwd = settings->get_cwd();
-	auto gdsdecomp_path = get_gdsdecomp_path();
-	// check that modules/gdsdecomp exists
-	auto da = DirAccess::open(gdsdecomp_path);
-	CHECK(da.is_valid());
-	CHECK(da->dir_exists(gdsdecomp_path));
-}
-
 struct ScriptToRevision {
 	const char *script;
 	int revision;

@@ -123,6 +123,7 @@ class ResourceLoaderCompatBinary {
 	Ref<Resource> finish_ext_load(Ref<ResourceLoader::LoadToken> &load_token, Error *r_err);
 
 public:
+	static int get_current_format_version();
 	bool should_threaded_load() const;
 	Ref<Resource> get_resource();
 	Error load();

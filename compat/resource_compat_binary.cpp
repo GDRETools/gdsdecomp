@@ -46,6 +46,7 @@
 
 #include "core/io/resource_format_binary.h"
 
+#include "compat/fake_scene_state.h"
 #include "compat/image_parser_v2.h"
 #include "utility/gdre_settings.h"
 #include "utility/resource_info.h"
@@ -3208,7 +3209,7 @@ struct ConnectionData {
 Dictionary ResourceFormatSaverCompatBinaryInstance::fix_scene_bundle(const Ref<PackedScene> &p_scene, int original_version) {
 	Dictionary bundled = p_scene->get("_bundled");
 	int ver = bundled.get("version", -1);
-	if (ver > 3) {
+	if (ver > SceneStateInstanceGetter::CURRENT_PACKED_SCENE_VERSION) {
 		ERR_FAIL_V_MSG(bundled, "THEY INCREASED THE PACKED SCENE VERSION AGAIN!!!!!! REPORT THIS!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 	}
 
@@ -3247,6 +3248,10 @@ Dictionary ResourceFormatSaverCompatBinaryInstance::fix_scene_bundle(const Ref<P
 	ret["version"] = original_version > 0 ? original_version : 2; // default to 2
 
 	return ret;
+}
+
+int ResourceLoaderCompatBinary::get_current_format_version() {
+	return FORMAT_VERSION;
 }
 
 // Error ResourceFormatSaverCompatBinaryInstance::write_v2_import_metadata(Ref<FileAccess> f, Ref<ResourceImportMetadatav2> imd, uint64_t &r_imd_offset) {
