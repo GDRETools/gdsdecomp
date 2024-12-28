@@ -51,32 +51,38 @@ private:
 	bool packed_data_was_enabled = false;
 
 	void _free_packed_dirs(PackedDir *p_dir);
+	void _get_file_paths(PackedDir *p_dir, const String &p_parent_dir, HashSet<String> &r_paths) const;
+
 	void set_default_file_access();
 	void reset_default_file_access();
 	void _clear();
 
 public:
-	Vector<Ref<PackedFileInfo>> get_file_info_list(const Vector<String> &filters = Vector<String>());
-
 	void add_pack_source(PackSource *p_source);
 	void add_path(const String &p_pkg_path, const String &p_path, uint64_t p_ofs, uint64_t p_size, const uint8_t *p_md5, PackSource *p_src, bool p_replace_files, bool p_encrypted = false, bool p_pck_src = false); // for PackSource
+	void remove_path(const String &p_path);
+	uint8_t *get_file_hash(const String &p_path);
+	HashSet<String> get_file_paths() const;
 
-	void clear();
 	void set_disabled(bool p_disabled);
 	_FORCE_INLINE_ bool is_disabled() const;
 
 	static GDREPackedData *get_singleton();
 	Error add_pack(const String &p_path, bool p_replace_files, uint64_t p_offset);
-	void remove_path(const String &p_path);
-	// Error add_our_pack(const String &p_path, bool p_replace_files, uint64_t p_offset);
-	String fix_res_path(const String &p_path);
+
+	void clear();
+
 	_FORCE_INLINE_ Ref<FileAccess> try_open_path(const String &p_path);
 	bool has_path(const String &p_path);
 
 	_FORCE_INLINE_ Ref<DirAccess> try_open_directory(const String &p_path);
 	_FORCE_INLINE_ bool has_directory(const String &p_path);
+
+	Vector<Ref<PackedFileInfo>> get_file_info_list(const Vector<String> &filters = Vector<String>());
 	static bool real_packed_data_has_pack_loaded();
 	bool has_loaded_packs();
+	String fix_res_path(const String &p_path);
+
 	GDREPackedData();
 	~GDREPackedData();
 };

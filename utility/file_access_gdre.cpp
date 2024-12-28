@@ -9,8 +9,109 @@
 #include "gdre_settings.h"
 #include "packed_file_info.h"
 
-bool is_gdre_file(const String &p_path) {
-	return p_path.begins_with("res://") && p_path.get_basename().begins_with("gdre_");
+Error GDREPackedData::add_pack(const String &p_path, bool p_replace_files, uint64_t p_offset) {
+	if (sources.is_empty()) {
+		sources.push_back(memnew(GDREPackedSource));
+		sources.push_back(memnew(APKArchive));
+	}
+	for (int i = 0; i < sources.size(); i++) {
+		if (sources[i]->try_open_pack(p_path, p_replace_files, p_offset)) {
+			// need to set the default file access to use our own
+			set_disabled(false);
+			// set_default_file_access();
+			return OK;
+		}
+	}
+	return ERR_FILE_UNRECOGNIZED;
+}
+
+void GDREPackedData::add_path(const String &p_pkg_path, const String &p_path, uint64_t p_ofs, uint64_t p_size, const uint8_t *p_md5, PackSource *p_src, bool p_replace_files, bool p_encrypted, bool p_pck_src) {
+	PackedData::PackedFile pf;
+	pf.encrypted = p_encrypted;
+	pf.pack = p_pkg_path;
+	pf.offset = p_ofs;
+	pf.size = p_size;
+	for (int i = 0; i < 16; i++) {
+		pf.md5[i] = p_md5[i];
+	}
+	pf.src = p_src;
+	Ref<PackedFileInfo> pf_info;
+	pf_info.instantiate();
+	String abs_path = p_path.is_relative_path() ? "res://" + p_path : p_path;
+	pf_info->init(abs_path, &pf);
+
+	// Get the fixed path if this is from a PCK source
+	String path = p_pck_src ? pf_info->get_path() : p_path;
+
+	PathMD5 pmd5(path.trim_prefix("res://").md5_buffer());
+
+	bool exists = files.has(pmd5);
+
+	if (!exists || p_replace_files) {
+		files[pmd5] = pf;
+		file_map[path] = pf_info;
+	}
+
+	if (!exists) {
+		//search for dir
+		String p = path.trim_prefix("res://");
+		PackedDir *cd = root;
+
+		if (p.contains("/")) { //in a subdir
+
+			Vector<String> ds = p.get_base_dir().split("/");
+
+			for (int j = 0; j < ds.size(); j++) {
+				if (!cd->subdirs.has(ds[j])) {
+					PackedDir *pd = memnew(PackedDir);
+					pd->name = ds[j];
+					pd->parent = cd;
+					cd->subdirs[pd->name] = pd;
+					cd = pd;
+				} else {
+					cd = cd->subdirs[ds[j]];
+				}
+			}
+		}
+		String filename = path.get_file();
+		// Don't add as a file if the path points to a directory
+		if (!filename.is_empty()) {
+			cd->files.insert(filename);
+		}
+	}
+}
+
+void GDREPackedData::add_pack_source(PackSource *p_source) {
+	if (p_source != nullptr) {
+		sources.push_back(p_source);
+	}
+}
+
+uint8_t *GDREPackedData::get_file_hash(const String &p_path) {
+	String simplified_path = p_path.simplify_path().trim_prefix("res://");
+	PathMD5 pmd5(simplified_path.md5_buffer());
+	HashMap<PathMD5, PackedData::PackedFile, PathMD5>::Iterator E = files.find(pmd5);
+	if (!E) {
+		return nullptr;
+	}
+
+	return E->value.md5;
+}
+
+HashSet<String> GDREPackedData::get_file_paths() const {
+	HashSet<String> file_paths;
+	_get_file_paths(root, root->name, file_paths);
+	return file_paths;
+}
+
+void GDREPackedData::_get_file_paths(PackedDir *p_dir, const String &p_parent_dir, HashSet<String> &r_paths) const {
+	for (const String &E : p_dir->files) {
+		r_paths.insert(p_parent_dir.path_join(E));
+	}
+
+	for (const KeyValue<String, PackedDir *> &E : p_dir->subdirs) {
+		_get_file_paths(E.value, p_parent_dir.path_join(E.key), r_paths);
+	}
 }
 
 GDREPackedData *GDREPackedData::singleton = nullptr;
@@ -36,67 +137,6 @@ Vector<Ref<PackedFileInfo>> GDREPackedData::get_file_info_list(const Vector<Stri
 		}
 	}
 	return ret;
-}
-
-void GDREPackedData::add_pack_source(PackSource *p_source) {
-	if (p_source != nullptr) {
-		sources.push_back(p_source);
-	}
-}
-
-void GDREPackedData::add_path(const String &p_pkg_path, const String &p_path, uint64_t p_ofs, uint64_t p_size, const uint8_t *p_md5, PackSource *p_src, bool p_replace_files, bool p_encrypted, bool p_pck_src) {
-	PackedData::PackedFile pf;
-	pf.encrypted = p_encrypted;
-	pf.pack = p_pkg_path;
-	pf.offset = p_ofs;
-	pf.size = p_size;
-	for (int i = 0; i < 16; i++) {
-		pf.md5[i] = p_md5[i];
-	}
-	pf.src = p_src;
-	Ref<PackedFileInfo> pf_info;
-	pf_info.instantiate();
-	pf_info->init(p_path, &pf);
-
-	// Get the fixed path if this is from a PCK source
-	String path = p_pck_src ? pf_info->get_path() : p_path;
-
-	PathMD5 pmd5(path.md5_buffer());
-
-	bool exists = files.has(pmd5);
-
-	if (!exists || p_replace_files) {
-		files[pmd5] = pf;
-		file_map[path] = pf_info;
-	}
-
-	if (!exists) {
-		//search for dir
-		String p = path.replace_first("res://", "");
-		PackedDir *cd = root;
-
-		if (p.contains("/")) { //in a subdir
-
-			Vector<String> ds = p.get_base_dir().split("/");
-
-			for (int j = 0; j < ds.size(); j++) {
-				if (!cd->subdirs.has(ds[j])) {
-					PackedDir *pd = memnew(PackedDir);
-					pd->name = ds[j];
-					pd->parent = cd;
-					cd->subdirs[pd->name] = pd;
-					cd = pd;
-				} else {
-					cd = cd->subdirs[ds[j]];
-				}
-			}
-		}
-		String filename = path.get_file();
-		// Don't add as a file if the path points to a directory
-		if (!filename.is_empty()) {
-			cd->files.insert(filename);
-		}
-	}
 }
 
 void GDREPackedData::remove_path(const String &p_path) {
@@ -157,24 +197,8 @@ GDREPackedData *GDREPackedData::get_singleton() {
 	return singleton;
 }
 
-Error GDREPackedData::add_pack(const String &p_path, bool p_replace_files, uint64_t p_offset) {
-	if (sources.is_empty()) {
-		sources.push_back(memnew(GDREPackedSource));
-		sources.push_back(memnew(APKArchive));
-	}
-	for (int i = 0; i < sources.size(); i++) {
-		if (sources[i]->try_open_pack(p_path, p_replace_files, p_offset)) {
-			// need to set the default file access to use our own
-			set_disabled(false);
-			// set_default_file_access();
-			return OK;
-		}
-	}
-	return ERR_FILE_UNRECOGNIZED;
-}
-
 Ref<FileAccess> GDREPackedData::try_open_path(const String &p_path) {
-	String simplified_path = p_path.simplify_path();
+	String simplified_path = p_path.simplify_path().trim_prefix("res://");
 	PathMD5 pmd5(simplified_path.md5_buffer());
 	HashMap<PathMD5, PackedData::PackedFile, PathMD5>::Iterator E = files.find(pmd5);
 	if (!E) {
@@ -188,7 +212,7 @@ Ref<FileAccess> GDREPackedData::try_open_path(const String &p_path) {
 }
 
 bool GDREPackedData::has_path(const String &p_path) {
-	return files.has(PathMD5(p_path.simplify_path().md5_buffer()));
+	return files.has(PathMD5(p_path.simplify_path().trim_prefix("res://").md5_buffer()));
 }
 
 Ref<DirAccess> GDREPackedData::try_open_directory(const String &p_path) {
@@ -245,6 +269,10 @@ GDREPackedData::~GDREPackedData() {
 	if (root) {
 		_free_packed_dirs(root);
 	}
+}
+
+bool is_gdre_file(const String &p_path) {
+	return p_path.begins_with("res://") && p_path.get_basename().begins_with("gdre_");
 }
 
 Error FileAccessGDRE::open_internal(const String &p_path, int p_mode_flags) {
@@ -530,7 +558,7 @@ GDREPackedData::PackedDir *DirAccessGDRE::_find_dir(String p_dir) {
 
 	bool absolute = false;
 	if (nd.begins_with("res://")) {
-		nd = nd.replace_first("res://", "");
+		nd = nd.trim_prefix("res://");
 		absolute = true;
 	}
 
@@ -848,11 +876,11 @@ String PathFinder::_fix_path_file_access(const String &p_path, int p_mode_flags)
 			if (!(p_mode_flags & FileAccess::WRITE)) {
 				if (gdre_packed_data_valid_path(p_path)) {
 					WARN_PRINT("WARNING: fix_path: gdre file is in a loaded external pack???? PLEASE REPORT THIS!!!!");
-					return p_path.replace_first("res://", "");
+					return p_path.trim_prefix("res://");
 				};
 				// PackedData is disabled if an external pack is loaded, so we don't check if it's disabled here
 				if (real_packed_data_has_path(p_path)) {
-					return p_path.replace_first("res://", "");
+					return p_path.trim_prefix("res://");
 				}
 			}
 			String res_path = GDRESettings::get_singleton()->get_gdre_resource_path();
@@ -864,7 +892,7 @@ String PathFinder::_fix_path_file_access(const String &p_path, int p_mode_flags)
 		if (project_path != "") {
 			return p_path.replace("res:/", project_path);
 		}
-		return p_path.replace_first("res://", "");
+		return p_path.trim_prefix("res://");
 	} else if (p_path.begins_with("user://")) { // Some packs have user files in them, so we need to check for those
 		if (p_path.get_file().begins_with("gdre_")) {
 			WARN_PRINT(vformat("WARNING: Calling fix_path on a gdre file %s...", p_path));
