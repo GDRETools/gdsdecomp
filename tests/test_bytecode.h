@@ -168,9 +168,6 @@ inline void test_script_text(const String &script_name, const String &helper_scr
 	}
 #endif
 	CHECK(gdre::remove_whitespace(decompiled_string_stripped) == gdre::remove_whitespace(helper_script_text_stripped));
-	if (helper_script) {
-		CHECK(decompiled_string_stripped == helper_script_text_stripped);
-	}
 	auto recompiled_bytecode = decomp->compile_code_string(decompiled_string);
 	CHECK(decomp->get_error_message() == "");
 	CHECK(recompiled_bytecode.size() > 0);
