@@ -99,6 +99,38 @@ void GDREPackedData::add_path(const String &p_pkg_path, const String &p_path, ui
 	}
 }
 
+void GDREPackedData::remove_path(const String &p_path) {
+	String simplified_path = p_path.simplify_path().trim_prefix("res://");
+
+	PathMD5 pmd5(simplified_path.md5_buffer());
+	if (!files.has(pmd5)) {
+		return;
+	}
+
+	// Search for directory.
+	PackedDir *cd = root;
+
+	if (simplified_path.contains_char('/')) { // In a subdirectory.
+		Vector<String> ds = simplified_path.get_base_dir().split("/");
+
+		for (int j = 0; j < ds.size(); j++) {
+			if (!cd->subdirs.has(ds[j])) {
+				return; // Subdirectory does not exist, do not bother creating.
+			} else {
+				cd = cd->subdirs[ds[j]];
+			}
+		}
+	}
+
+	if (file_map.has(p_path.simplify_path())) {
+		file_map.erase(p_path.simplify_path());
+	}
+
+	cd->files.erase(simplified_path.get_file());
+
+	files.erase(pmd5);
+}
+
 void GDREPackedData::set_disabled(bool p_disabled) {
 	if (p_disabled) {
 		// we need to re-enable the default create funcs

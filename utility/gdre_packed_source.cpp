@@ -4,6 +4,8 @@
 #include "file_access_gdre.h"
 #include "gdre_settings.h"
 
+static_assert(PACK_FORMAT_VERSION == GDREPackedSource::CURRENT_PACK_FORMAT_VERSION, "Pack format version changed.");
+
 bool seek_after_magic_unix(Ref<FileAccess> f) {
 	f->seek(0);
 	uint32_t magic = f->get_32();
@@ -253,7 +255,7 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 	uint32_t ver_minor = f->get_32();
 	uint32_t ver_rev = f->get_32(); // patch number, did not start getting set to anything other than 0 until 3.2
 
-	if (version > PACK_FORMAT_VERSION) {
+	if (version > CURRENT_PACK_FORMAT_VERSION) {
 		ERR_FAIL_V_MSG(false, "Pack version unsupported: " + itos(version) + ".");
 	}
 
@@ -346,8 +348,11 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 		if (version == 2) {
 			flags = f->get_32();
 		}
-
-		GDREPackedData::get_singleton()->add_path(pck_path, path, ofs + p_offset, size, md5, this, p_replace_files, (flags & PACK_FILE_ENCRYPTED), true);
+		if (flags & PACK_FILE_REMOVAL) { // The file was removed.
+			GDREPackedData::get_singleton()->remove_path(path);
+		} else {
+			GDREPackedData::get_singleton()->add_path(pck_path, path, ofs + p_offset, size, md5, this, p_replace_files, (flags & PACK_FILE_ENCRYPTED), true);
+		}
 	}
 
 	return true;
