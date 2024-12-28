@@ -250,13 +250,13 @@ Error GDScriptDecomp::get_ids_consts_tokens_v2(const Vector<uint8_t> &p_buffer, 
 
 	for (uint32_t i = 0; i < token_count; i++) {
 		int token_len = 5;
-		if ((*b) & 0x80) { //BYTECODE_MASK, little endian always
+		if ((*b) & TOKEN_BYTE_MASK) { //BYTECODE_MASK, little endian always
 			token_len = 8;
 		}
 		GDSDECOMP_FAIL_COND_V_MSG(total_len < token_len, ERR_INVALID_DATA, "Invalid token length.");
 
 		if (token_len == 8) {
-			tokens.write[i] = decode_uint32(b) & ~0x80;
+			tokens.write[i] = decode_uint32(b) & ~TOKEN_BYTE_MASK;
 			b += 4;
 		} else {
 			tokens.write[i] = *b;
@@ -347,10 +347,10 @@ Error GDScriptDecomp::get_ids_consts_tokens(const Vector<uint8_t> &p_buffer, Vec
 	for (int i = 0; i < token_count; i++) {
 		GDSDECOMP_FAIL_COND_V_MSG(total_len < 1, ERR_INVALID_DATA, "Invalid token length.");
 
-		if ((*b) & 0x80) { //BYTECODE_MASK, little endian always
+		if ((*b) & TOKEN_BYTE_MASK) { //BYTECODE_MASK, little endian always
 			GDSDECOMP_FAIL_COND_V_MSG(total_len < 4, ERR_INVALID_DATA, "Invalid token length.");
 
-			tokens.write[i] = decode_uint32(b) & ~0x80;
+			tokens.write[i] = decode_uint32(b) & ~TOKEN_BYTE_MASK;
 			b += 4;
 		} else {
 			tokens.write[i] = *b;

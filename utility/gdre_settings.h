@@ -13,8 +13,8 @@ class GDREPackSettings : public ProjectSettings {
 	GDCLASS(GDREPackSettings, ProjectSettings);
 
 public:
-	void set_resource_path(const String &p_path) {
-		resource_path = p_path;
+	static void do_set_resource_path(GDREPackSettings *settings, const String &p_path) {
+		settings->resource_path = p_path;
 	}
 };
 

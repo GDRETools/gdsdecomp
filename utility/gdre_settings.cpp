@@ -377,8 +377,8 @@ Error GDRESettings::load_dir(const String &p_path) {
 
 	// This is a hack to get the resource path set to the project folder
 	ProjectSettings *settings_singleton = ProjectSettings::get_singleton();
-	GDREPackSettings *new_singleton = static_cast<GDREPackSettings *>(settings_singleton);
-	new_singleton->set_resource_path(p_path);
+	GDREPackSettings *new_singleton = reinterpret_cast<GDREPackSettings *>(settings_singleton);
+	GDREPackSettings::do_set_resource_path(new_singleton, p_path);
 
 	da = da->open("res://");
 	project_path = p_path;
@@ -400,7 +400,7 @@ Error GDRESettings::load_dir(const String &p_path) {
 Error GDRESettings::unload_dir() {
 	ProjectSettings *settings_singleton = ProjectSettings::get_singleton();
 	GDREPackSettings *new_singleton = static_cast<GDREPackSettings *>(settings_singleton);
-	new_singleton->set_resource_path(gdre_resource_path);
+	GDREPackSettings::do_set_resource_path(new_singleton, gdre_resource_path);
 	project_path = "";
 	return OK;
 }
@@ -1897,7 +1897,9 @@ class GDREOS : public T {
 	static_assert(std::is_base_of<OS, T>::value, "T must derive from OS");
 
 public:
-	void _add_logger(Logger *p_logger) { T::add_logger(p_logger); }
+	static void do_add_logger(GDREOS<T> *ptr, Logger *p_logger) {
+		ptr->add_logger(p_logger);
+	}
 };
 
 // This adds another logger to the global composite logger so that we can write
@@ -1910,44 +1912,44 @@ void GDRESettings::add_logger() {
 
 	if (os_name == "Windows") {
 #ifdef WINDOWS_ENABLED
-		GDREOS<OS_Windows> *_gdre_os = static_cast<GDREOS<OS_Windows> *>(os_singleton);
-		_gdre_os->_add_logger(logger);
+		GDREOS<OS_Windows> *_gdre_os = reinterpret_cast<GDREOS<OS_Windows> *>(os_singleton);
+		GDREOS<OS_Windows>::do_add_logger(_gdre_os, logger);
 #endif
 	}
 #ifdef LINUXBSD_ENABLED
 	else if (os_name == "Linux" || os_name.find("BSD") == -1) {
-		GDREOS<OS_Unix> *_gdre_os = static_cast<GDREOS<OS_Unix> *>(os_singleton);
-		_gdre_os->_add_logger(logger);
+		GDREOS<OS_LinuxBSD> *_gdre_os = reinterpret_cast<GDREOS<OS_LinuxBSD> *>(os_singleton);
+		GDREOS<OS_LinuxBSD>::do_add_logger(_gdre_os, logger);
 	}
 #endif
 #ifdef MACOS_ENABLED
 	else if (os_name == "macOS") {
-		GDREOS<OS_Unix> *_gdre_os = static_cast<GDREOS<OS_Unix> *>(os_singleton);
-		_gdre_os->_add_logger(logger);
+		GDREOS<OS_Unix> *_gdre_os = reinterpret_cast<GDREOS<OS_Unix> *>(os_singleton);
+		GDREOS<OS_Unix>::do_add_logger(_gdre_os, logger);
 	}
 #endif
 #ifdef UWP_ENABLED
 	else if (os_name == "UWP") {
-		GDREOS<OS_UWP> *_gdre_os = static_cast<GDREOS<OS_UWP> *>(os_singleton);
-		_gdre_os->_add_logger(logger);
+		GDREOS<OS_UWP> *_gdre_os = reinterpret_cast<GDREOS<OS_UWP> *>(os_singleton);
+		GDREOS<OS_UWP>::do_add_logger(_gdre_os, logger);
 	}
 #endif
 #ifdef WEB_ENABLED
 	else if (os_name == "Web") {
-		GDREOS<OS_Web> *_gdre_os = static_cast<GDREOS<OS_Web> *>(os_singleton);
-		_gdre_os->_add_logger(logger);
+		GDREOS<OS_Web> *_gdre_os = reinterpret_cast<GDREOS<OS_Web> *>(os_singleton);
+		GDREOS<OS_Web>::do_add_logger(_gdre_os, logger);
 	}
 #endif
 #if defined(__ANDROID__) // the rest of these are probably unnecessary
 	else if (os_name == "Android") {
-		GDREOS<OS_Android> *_gdre_os = static_cast<GDREOS<OS_Android> *>(os_singleton);
-		_gdre_os->_add_logger(logger);
+		GDREOS<OS_Android> *_gdre_os = reinterpret_cast<GDREOS<OS_Android> *>(os_singleton);
+		GDREOS<OS_Android>::do_add_logger(_gdre_os, logger);
 	}
 #endif
 #ifdef IPHONE_ENABLED
 	else if (os_name == "iOS") {
-		GDREOS<OSIPhone> *_gdre_os = static_cast<GDREOS<OSIPhone> *>(os_singleton);
-		_gdre_os->_add_logger(logger);
+		GDREOS<OSIPhone> *_gdre_os = reinterpret_cast<GDREOS<OSIPhone> *>(os_singleton);
+		GDREOS<OSIPhone>::do_add_logger(_gdre_os, logger);
 	}
 #endif
 	else {
