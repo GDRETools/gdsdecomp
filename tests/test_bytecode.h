@@ -104,7 +104,7 @@ inline String remove_comments(const String &script_text) {
 	return new_text;
 }
 
-inline void test_script_text(const String &script_name, const String &helper_script_text, int revision, bool check_whitespace_equality) {
+inline void test_script_text(const String &script_name, const String &helper_script_text, int revision, bool helper_script) {
 	auto decomp = GDScriptDecomp::create_decomp_for_commit(revision);
 	CHECK(decomp.is_valid());
 	auto bytecode = decomp->compile_code_string(helper_script_text);
@@ -113,6 +113,17 @@ inline void test_script_text(const String &script_name, const String &helper_scr
 	auto result = decomp->test_bytecode(bytecode, false);
 	// TODO: remove BYTECODE_TEST_UNKNOWN and just make it PASS, there are no proper pass cases now
 	CHECK(result == GDScriptDecomp::BYTECODE_TEST_UNKNOWN);
+	if (helper_script && decomp->get_parent() != 0) {
+		// Test our previously compiled bytecode against the parent
+		auto parent = GDScriptDecomp::create_decomp_for_commit(decomp->get_parent());
+		CHECK(parent.is_valid());
+		// Can't test be46be7, the only thing that changed in this commit is the name of the function
+		if (revision != 0xbe46be7) {
+			auto parent_result = parent->test_bytecode(bytecode, false);
+			CHECK(parent_result == GDScriptDecomp::BYTECODE_TEST_FAIL);
+		}
+	}
+
 	// test compiling the decompiled code
 	Error err = decomp->decompile_buffer(bytecode);
 	CHECK(err == OK);
@@ -157,7 +168,7 @@ inline void test_script_text(const String &script_name, const String &helper_scr
 	}
 #endif
 	CHECK(gdre::remove_whitespace(decompiled_string_stripped) == gdre::remove_whitespace(helper_script_text_stripped));
-	if (check_whitespace_equality) {
+	if (helper_script) {
 		CHECK(decompiled_string_stripped == helper_script_text_stripped);
 	}
 	auto recompiled_bytecode = decomp->compile_code_string(decompiled_string);
@@ -170,7 +181,7 @@ inline void test_script_text(const String &script_name, const String &helper_scr
 	CHECK(err == OK);
 }
 
-inline void test_script(const String &helper_script_path, int revision, bool check_whitespace_equality) {
+inline void test_script(const String &helper_script_path, int revision, bool helper_script) {
 	// tests are located in modules/gdsdecomp/helpers
 	auto da = DirAccess::create_for_path(helper_script_path);
 	CHECK(da.is_valid());
@@ -180,7 +191,7 @@ inline void test_script(const String &helper_script_path, int revision, bool che
 	CHECK(err == OK);
 	CHECK(helper_script_text != "");
 	auto script_name = helper_script_path.get_file().get_basename();
-	test_script_text(script_name, helper_script_text, revision, check_whitespace_equality);
+	test_script_text(script_name, helper_script_text, revision, helper_script);
 }
 
 TEST_CASE("[GDSDecomp][Bytecode] Compiling") {
@@ -192,7 +203,7 @@ TEST_CASE("[GDSDecomp][Bytecode] Compiling") {
 	}
 	for (int i = 0; tests[i].script != nullptr; i++) {
 		auto &script_to_revision = tests[i];
-		String sub_case_name = vformat("Testing compiling script %s, revision %08x", String(script_to_revision.script), script_to_revision.revision);
+		String sub_case_name = vformat("Testing compiling script %s, revision %07x", String(script_to_revision.script), script_to_revision.revision);
 		SUBCASE(sub_case_name.utf8().get_data()) {
 			// tests are located in modules/gdsdecomp/helpers
 			auto helpers_path = get_gdsdecomp_path().path_join("helpers");
