@@ -1916,7 +1916,7 @@ void GDRESettings::add_logger() {
 	}
 #ifdef LINUXBSD_ENABLED
 	else if (os_name == "Linux" || os_name.find("BSD") == -1) {
-		GDREOS<OS_LinuxBSD> *_gdre_os = static_cast<GDREOS<OS_LinuxBSD> *>(os_singleton);
+		GDREOS<OS_Unix> *_gdre_os = static_cast<GDREOS<OS_Unix> *>(os_singleton);
 		_gdre_os->_add_logger(logger);
 	}
 #endif

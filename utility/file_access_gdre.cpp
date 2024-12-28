@@ -210,6 +210,9 @@ void GDREPackedData::_clear() {
 
 GDREPackedData::~GDREPackedData() {
 	_clear();
+	if (root) {
+		_free_packed_dirs(root);
+	}
 }
 
 Error FileAccessGDRE::open_internal(const String &p_path, int p_mode_flags) {

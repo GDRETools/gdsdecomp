@@ -155,7 +155,7 @@ public:
 		BYTECODE_TEST_CORRUPT,
 		BYTECODE_TEST_UNKNOWN,
 	};
-	enum {
+	enum : uint32_t {
 		TOKEN_BYTE_MASK = 0x80,
 		TOKEN_BITS = 8,
 		TOKEN_MASK = (1 << TOKEN_BITS) - 1,

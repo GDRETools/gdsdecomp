@@ -652,7 +652,7 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 			indent = tokens[i] >> TOKEN_BITS;
 		} else if (bytecode_version >= GDSCRIPT_2_0_VERSION) {
 			prev_token = G_TK_NEWLINE;
-			int col_diff = curr_column - prev_line_start_column;
+			int col_diff = (int)curr_column - prev_line_start_column;
 			if (col_diff != 0) {
 				int tabs = col_diff / tab_size;
 				if (tabs == 0) {
