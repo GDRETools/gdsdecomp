@@ -1679,7 +1679,7 @@ Vector<uint8_t> GDScriptDecomp::compile_code_string(const String &p_code) {
 		Error err = VariantDecoderCompat::encode_variant_compat(get_variant_ver_major(), E->get(), nullptr, len, encode_full_objects);
 		GDSDECOMP_FAIL_COND_V_MSG(err != OK, Vector<uint8_t>(), "Error when trying to encode Variant.");
 		int pos = buf.size();
-		buf.resize(pos + len);
+		buf.resize_zeroed(pos + len);
 		VariantDecoderCompat::encode_variant_compat(get_variant_ver_major(), E->get(), &buf.write[pos], len, encode_full_objects);
 	}
 
@@ -1877,7 +1877,6 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 		return ERR_BUG;
 	}
 	if (state1.bytecode_version < GDSCRIPT_2_0_VERSION) {
-		err = ERR_BUG;
 		discontinuity = continuity_tester(p_buffer1, p_buffer2, "Bytecode");
 	} else {
 		auto decompressed_size1 = decode_uint32(&p_buffer1[8]);
@@ -1893,7 +1892,6 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 		if (discontinuity == -1) {
 			return OK;
 		}
-		err = ERR_BUG;
 	}
 
 	Ref<GDScriptDecomp> decomp = create_decomp_for_commit(get_bytecode_rev());
