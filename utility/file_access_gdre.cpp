@@ -41,7 +41,7 @@ void GDREPackedData::add_path(const String &p_pkg_path, const String &p_path, ui
 	pf_info->init(abs_path, &pf);
 
 	// Get the fixed path if this is from a PCK source
-	String path = p_pck_src ? pf_info->get_path() : p_path;
+	String path = p_pck_src ? pf_info->get_path() : p_path.simplify_path();
 
 	PathMD5 pmd5(path.trim_prefix("res://").md5_buffer());
 
