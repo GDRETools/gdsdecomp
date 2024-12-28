@@ -44,32 +44,63 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "Windows"
+          - name: "Windows Editor"
             os: "windows-latest"
+            id: windows-editor
             platform: windows
+            target: editor
             sconsflags: debug_symbols=no tests=yes
-            sconsflags-template: debug_symbols=no
-            command-export: ./bin/godot.windows.editor.x86_64.exe
-            export-preset: "Windows Desktop"
-            export-name: .export\gdre_tools.exe
+            bin: ./bin/godot.windows.editor.x86_64.exe
 
-          - name: "🐧 Linux"
-            os: "ubuntu-20.04"
+          - name: "Windows Template Release"
+            os: "windows-latest"
+            id: windows-template
+            platform: windows
+            target: template_release
+            sconsflags: debug_symbols=no
+            bin: ./bin/godot.windows.editor.x86_64.exe
+
+          - name: "🐧 Linux Editor"
+            os: "ubuntu-24.04"
+            id: linux-editor
             platform: linux
+            target: editor
             sconsflags: debug_symbols=no tests=yes
             sconsflags-template: debug_symbols=no optimize=size use_lto=yes
-            command-export: ./bin/godot.linuxbsd.editor.x86_64
-            export-preset: "Linux/X11"
-            export-name: .export/gdre_tools.x86_64
+            bin: ./bin/godot.linuxbsd.editor.x86_64
 
-          - name: "🍎 macOS"
+          # TODO: move into its own workflow
+          # - name: "🐧 Linux Editor with sanitizers"
+          #   os: "ubuntu-24.04"
+          #   id: linux-sanitizers
+          #   platform: linux
+          #   target: editor
+          #   sconsflags: dev_build=yes debug_symbols=no tests=yes use_asan=yes use_ubsan=yes linker=gold
+          #   bin: ./bin/godot.linuxbsd.editor.x86_64.san
+
+          - name: "🐧 Linux Template Release"
+            os: "ubuntu-24.04"
+            id: linux-template
+            platform: linux
+            target: template_release
+            sconsflags: debug_symbols=no optimize=size use_lto=yes
+            bin: ./bin/godot.linuxbsd.editor.x86_64
+
+          - name: "🍎 macOS Editor"
             os: "macos-latest"
+            id: macos-editor
             platform: macos
+            target: editor
             sconsflags: debug_symbols=no tests=yes use_volk=no vulkan_sdk_path=$VULKAN_SDK_PATH
-            sconsflags-template: debug_symbols=no optimize=size use_lto=yes use_volk=no vulkan_sdk_path=$VULKAN_SDK_PATH
-            command-export: ./bin/godot.macos.editor.arm64
-            export-preset: "macOS"
-            export-name: .export/gdre_tools.universal.zip
+            bin: ./bin/godot.macos.editor.arm64
+
+          - name: "🍎 macOS Template Release"
+            os: "macos-latest"
+            id: macos-template
+            platform: macos
+            target: template_release
+            sconsflags: debug_symbols=no optimize=size use_lto=yes use_volk=no vulkan_sdk_path=$VULKAN_SDK_PATH
+            bin: ./bin/godot.macos.editor.arm64
 
     steps:
       - name: checkout-godot
@@ -93,7 +124,7 @@ jobs:
         uses: ./.github/actions/godot-cache-restore
         id: restore-cache
         with:
-          cache-name: ${{ matrix.platform }}-editor-and-standalone
+          cache-name: ${{ matrix.id }}-${{ matrix.target }}
         continue-on-error: true
 
       - name: Install Linux deps
@@ -102,7 +133,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install build-essential pkg-config libx11-dev libxcursor-dev \
             libxinerama-dev libgl1-mesa-dev libglu-dev libasound2-dev libpulse-dev \
-            libudev-dev libxi-dev libxrandr-dev yasm clang-format-8
+            libudev-dev libxi-dev libxrandr-dev yasm clang-format libwayland-bin
           sudo apt-get install libwayland-bin
 
       - name: Setup python and scons
@@ -114,6 +145,7 @@ jobs:
           sh misc/scripts/install_vulkan_sdk_macos.sh
 
       - name: Compile Editor
+        if: matrix.target == 'editor'
         id: compile-editor
         uses: ./.github/actions/godot-build
         with:
@@ -123,20 +155,12 @@ jobs:
           tests: false
           scons-cache-limit: 4096
 
-      - name: Prepare artifact
-        uses: ./.github/actions/godot-prepare-artifact
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: GDRE_tools-editor-${{ matrix.platform }}
-          path: ${{github.workspace}}/bin/*
-          retention-days: 90
-
       - name: Compile godot export template (x86_64)
+        if: matrix.target == 'template_release'
         id: compile-template
         uses: ./.github/actions/godot-build
         with:
-          sconsflags: arch=x86_64 ${{ env.SCONSFLAGS }} ${{ env.SCONSFLAGS_TEMPLATE }} ${{ matrix.sconsflags-template }}
+          sconsflags: arch=x86_64 ${{ env.SCONSFLAGS }} ${{ env.SCONSFLAGS_TEMPLATE }} ${{ matrix.sconsflags }}
           platform: ${{ matrix.platform }}
           target: template_release
           tests: false
@@ -144,26 +168,26 @@ jobs:
 
       - name: Compile godot export template for macos arm64
         uses: ./.github/actions/godot-build
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && matrix.target == 'template_release'
         with:
-          sconsflags: arch=arm64 ${{ env.SCONSFLAGS }} ${{ env.SCONSFLAGS_TEMPLATE }} ${{ matrix.sconsflags-template }}
+          sconsflags: arch=arm64 ${{ env.SCONSFLAGS }} ${{ env.SCONSFLAGS_TEMPLATE }} ${{ matrix.sconsflags }}
           platform: ${{ matrix.platform }}
           target: template_release
           tests: false
           scons-cache-limit: 4096
 
       - name: Save Godot build cache
-        if: success() || (steps.restore-cache.outputs.cache-hit == 'false' && steps.compile-editor.outcome != 'skipped' )
+        # if: success() || (steps.restore-cache.outputs.cache-hit == 'false' && (steps.compile-editor.outcome != 'skipped' || steps.compile-template.outcome != 'skipped'))
         uses: ./.github/actions/godot-cache-save
         with:
-          cache-name: ${{ matrix.platform }}-editor-and-standalone
+          cache-name: ${{ matrix.id }}-${{ matrix.target }}
         continue-on-error: true
 
       - name: Prepare template artifact
         uses: ./.github/actions/godot-prepare-artifact
 
       - name: Make macOS template
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && matrix.target == 'template_release'
         run: |
           cp -R "misc/dist/macos_template.app" "bin/"
           mkdir -p "bin/macos_template.app/Contents/MacOS"
@@ -172,8 +196,137 @@ jobs:
           cp "bin/godot.macos.template_release.universal" "bin/macos_template.app/Contents/MacOS/godot_macos_release.universal"
           cd bin/
           zip -r9 "macos.zip" "macos_template.app/"
+          rm -f godot.macos.template_release.universal
+          rm -f godot.macos.template_release.x86_64
+          rm -f godot.macos.template_release.arm64
+          rm -rf "macos_template.app/"
           cd ..
 
+      - uses: actions/upload-artifact@v4
+        if: matrix.id != 'linux-sanitizers'
+        with:
+          name: GDRE_tools-${{ matrix.target }}-${{ matrix.platform }}
+          path: ${{github.workspace}}/bin/*
+          retention-days: 90
+
+  test:
+    needs: build
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.name }} test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Windows"
+            os: "windows-latest"
+            platform: windows
+            bin: ./bin/godot.windows.editor.x86_64.exe
+
+          - name: "🐧 Linux"
+            os: "ubuntu-24.04"
+            platform: linux
+            bin: ./bin/godot.linuxbsd.editor.x86_64
+
+          - name: "🍎 macOS"
+            os: "macos-latest"
+            platform: macos
+            bin: ./bin/godot.macos.editor.arm64
+
+    steps:
+      - name: checkout-godot
+        uses: actions/checkout@v4
+        with:
+          repository: godotengine/godot
+          ref: ${{env.GODOT_MAIN_SYNC_REF}}
+
+      - name: checkout-gdsdecomp
+        uses: actions/checkout@v4
+        with:
+          path: modules/gdsdecomp
+          fetch-depth: 0
+
+      - name: copy actions
+        shell: bash
+        run: |
+          cp -R modules/gdsdecomp/.github/actions/* .github/actions/
+
+      - name: Download GDRE_tools artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: GDRE_tools-editor-${{ matrix.platform }}
+          path: bin
+
+      - name: set permissions
+        shell: bash
+        run: |
+          chmod a+x bin/godot*
+    
+      - name: run tests
+        shell: bash
+        run: |
+          ${{matrix.bin}} --headless --test --force-colors "--test-case=[GDSDecomp]*"
+
+  export:
+    needs: build
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.name }} export
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Windows"
+            os: "windows-latest"
+            platform: windows
+            command-export: ${env:GITHUB_WORKSPACE}\bin\godot.windows.editor.x86_64.exe
+            export-preset: "Windows Desktop"
+            export-name: .export\gdre_tools.exe
+
+          - name: "🐧 Linux"
+            os: "ubuntu-24.04"
+            platform: linux
+            command-export: ${env:GITHUB_WORKSPACE}/bin/godot.linuxbsd.editor.x86_64
+            export-preset: "Linux/X11"
+            export-name: .export/gdre_tools.x86_64
+
+          - name: "🍎 macOS"
+            os: "macos-latest"
+            platform: macos
+            command-export: ${env:GITHUB_WORKSPACE}/bin/godot.macos.editor.arm64
+            export-preset: "macOS"
+            export-name: .export/gdre_tools.universal.zip
+
+    steps:
+      - name: checkout-gdsdecomp
+        uses: actions/checkout@v4
+        with:
+          path: modules/gdsdecomp
+          fetch-depth: 0
+
+      - name: copy actions
+        shell: bash
+        run: |
+          mkdir -p bin/
+          mkdir -p .github/actions/
+          cp -R modules/gdsdecomp/.github/actions/* .github/actions/
+
+
+      - name: Download GDRE_tools artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: GDRE_tools-editor-${{ matrix.platform }}
+          path: bin
+
+      - name: Download GDRE_tools template artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: GDRE_tools-template_release-${{ matrix.platform }}
+          path: bin
+    
+      - name: set permissions
+        shell: bash
+        run: |
+          chmod a+x bin/godot*
+  
       - name: Download rcedit.exe
         uses: robinraju/release-downloader@v1.5
         if: matrix.platform == 'windows'
@@ -202,16 +355,12 @@ jobs:
           include-hidden-files: true
           retention-days: 90
 
-      - name: run tests
-        run: |
-          ${{matrix.command-export}} --headless --test --force-colors "--test-case=[GDSDecomp]*"
-
   release:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: "ubuntu-20.04"
     permissions:
       contents: write
-    needs: build
+    needs: [build, export]
     steps:
       - name: Download Linux artifact
         uses: actions/download-artifact@v4
