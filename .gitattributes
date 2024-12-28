@@ -12,3 +12,4 @@ drivers/* linguist-vendored
 *.natvis eol=lf
 *.yml eol=lf
 *.md eol=lf
+*.gd eol=lf
