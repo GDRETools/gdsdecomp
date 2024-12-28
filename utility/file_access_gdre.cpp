@@ -816,7 +816,7 @@ void GDREPackedData::reset_default_file_access() {
 	// we need to check to see if the real PackedData has the GDRE packed data loaded
 	// if it does, we need to reset the default DirAccess to DirAccessPack
 	// (FileAccessPack is never set to the default for ACCESS_RESOURCES)
-	if (GDREPackedData::real_packed_data_has_pack_loaded()) {
+	if (packed_data_was_enabled) {
 		DirAccess::make_default<DirAccessPack>(DirAccess::ACCESS_RESOURCES);
 	} else {
 #if defined(WINDOWS_ENABLED)
