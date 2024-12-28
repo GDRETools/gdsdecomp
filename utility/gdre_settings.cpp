@@ -1394,7 +1394,7 @@ bool GDRESettings::is_headless() const {
 String GDRESettings::get_sys_info_string() const {
 	String OS_Name = OS::get_singleton()->get_distribution_name();
 	String OS_Version = OS::get_singleton()->get_version();
-	String adapter_name = RenderingServer::get_singleton()->get_video_adapter_name();
+	String adapter_name = RenderingServer::get_singleton() ? RenderingServer::get_singleton()->get_video_adapter_name() : "";
 	String render_driver = OS::get_singleton()->get_current_rendering_driver_name();
 	if (adapter_name.is_empty()) {
 		adapter_name = "headless";
