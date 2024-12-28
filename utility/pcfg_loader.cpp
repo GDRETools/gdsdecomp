@@ -7,6 +7,8 @@
 #include <core/config/project_settings.h>
 #include <core/templates/rb_set.h>
 
+static_assert(ProjectSettings::CONFIG_VERSION == ProjectConfigLoader::CURRENT_CONFIG_VERSION, "ProjectSettings::CONFIG_VERSION changed");
+
 Error ProjectConfigLoader::load_cfb(const String path, const uint32_t ver_major, const uint32_t ver_minor) {
 	cfb_path = path;
 	String ext = path.get_extension().to_lower();
@@ -65,6 +67,7 @@ Error ProjectConfigLoader::set_setting(String p_var, Variant value) {
 Error ProjectConfigLoader::_load_settings_binary(Ref<FileAccess> f, const String &p_path, uint32_t ver_major) {
 	Error err;
 	uint8_t hdr[4];
+	config_version = 0;
 	int bytes_read = f->get_buffer(hdr, 4);
 	if (hdr[0] != 'E' || hdr[1] != 'C' || hdr[2] != 'F' || hdr[3] != 'G') {
 		ERR_FAIL_V_MSG(ERR_FILE_CORRUPT, "Corrupted header in binary project.binary (not ECFG).");
@@ -118,7 +121,7 @@ Error ProjectConfigLoader::_load_settings_text(Ref<FileAccess> f, const String &
 	int lines = 0;
 	String error_text;
 	String section;
-	int config_version = 0;
+	config_version = 0;
 
 	while (true) {
 		assign = Variant();

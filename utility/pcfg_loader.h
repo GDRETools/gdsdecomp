@@ -40,8 +40,11 @@ class ProjectConfigLoader : public RefCounted {
 	String cfb_path = "";
 	int last_builtin_order;
 	bool loaded = false;
+	int config_version = 0;
 
 public:
+	static constexpr int CURRENT_CONFIG_VERSION = 5;
+
 	Error load_cfb(const String path, uint32_t ver_major, uint32_t ver_minor);
 	Error save_cfb(const String dir, uint32_t ver_major, uint32_t ver_minor);
 	Error _load_settings_binary(Ref<FileAccess> f, const String &p_path, uint32_t ver_major);
@@ -55,8 +58,8 @@ public:
 	Variant get_setting(String p_var, Variant default_value) const;
 	Error remove_setting(String p_var);
 	Error set_setting(String p_var, Variant value);
-	String get_cfg_path() { return cfb_path; }
-	int get_major_version() { return (int)get_setting("config_version", 0); }
+	String get_cfg_path() const { return cfb_path; }
+	int get_config_version() const { return config_version; }
 	Variant g_set(const String &p_var, const Variant &p_default, bool p_restart_if_changed = false);
 	ProjectConfigLoader();
 	~ProjectConfigLoader();
