@@ -2192,7 +2192,7 @@ Error VariantDecoderCompat::encode_variant_3(const Variant &p_variant, uint8_t *
 						_encode_string(name, buf, r_len);
 
 						int len;
-						Error err = encode_variant(obj->get(E->get().name), buf, len, p_full_objects, p_depth + 1);
+						Error err = encode_variant_3(obj->get(E->get().name), buf, len, p_full_objects, p_depth + 1);
 						ERR_FAIL_COND_V(err, err);
 						ERR_FAIL_COND_V(len % 4, ERR_BUG);
 						r_len += len;
@@ -2244,14 +2244,14 @@ Error VariantDecoderCompat::encode_variant_3(const Variant &p_variant, uint8_t *
 				*/
 				Variant *v = d.getptr(E->get());
 				int len;
-				Error err = encode_variant(v ? E->get() : Variant("[Deleted Object]"), buf, len, p_full_objects, p_depth + 1);
+				Error err = encode_variant_3(v ? E->get() : Variant("[Deleted Object]"), buf, len, p_full_objects, p_depth + 1);
 				ERR_FAIL_COND_V(err, err);
 				ERR_FAIL_COND_V(len % 4, ERR_BUG);
 				r_len += len;
 				if (buf) {
 					buf += len;
 				}
-				err = encode_variant(v ? *v : Variant(), buf, len, p_full_objects, p_depth + 1);
+				err = encode_variant_3(v ? *v : Variant(), buf, len, p_full_objects, p_depth + 1);
 				ERR_FAIL_COND_V(err, err);
 				ERR_FAIL_COND_V(len % 4, ERR_BUG);
 				r_len += len;
@@ -2273,7 +2273,7 @@ Error VariantDecoderCompat::encode_variant_3(const Variant &p_variant, uint8_t *
 
 			for (int i = 0; i < v.size(); i++) {
 				int len;
-				Error err = encode_variant(v.get(i), buf, len, p_full_objects, p_depth + 1);
+				Error err = encode_variant_3(v.get(i), buf, len, p_full_objects, p_depth + 1);
 				ERR_FAIL_COND_V(err, err);
 				ERR_FAIL_COND_V(len % 4, ERR_BUG);
 				r_len += len;
@@ -2847,12 +2847,12 @@ Error VariantDecoderCompat::encode_variant_2(const Variant &p_variant, uint8_t *
 					r_len++; //pad
 				*/
 				int len;
-				encode_variant(E->get(), buf, len);
+				encode_variant_2(E->get(), buf, len);
 				ERR_FAIL_COND_V(len % 4, ERR_BUG);
 				r_len += len;
 				if (buf)
 					buf += len;
-				encode_variant(d[E->get()], buf, len);
+				encode_variant_2(d[E->get()], buf, len);
 				ERR_FAIL_COND_V(len % 4, ERR_BUG);
 				r_len += len;
 				if (buf)
@@ -2874,7 +2874,7 @@ Error VariantDecoderCompat::encode_variant_2(const Variant &p_variant, uint8_t *
 
 			for (int i = 0; i < v.size(); i++) {
 				int len;
-				encode_variant(v.get(i), buf, len);
+				encode_variant_2(v.get(i), buf, len);
 				ERR_FAIL_COND_V(len % 4, ERR_BUG);
 				r_len += len;
 				if (buf)
