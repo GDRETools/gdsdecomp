@@ -277,11 +277,17 @@ Error GDScriptDecomp::get_script_state(const Vector<uint8_t> &p_buffer, ScriptSt
 	const uint8_t *buf = p_buffer.ptr();
 	GDSDECOMP_FAIL_COND_V_MSG(p_buffer.size() < 24 || !CHECK_GDSC_HEADER(p_buffer), ERR_INVALID_DATA, "Invalid GDScript tokenizer buffer.");
 	r_state.bytecode_version = decode_uint32(&buf[4]);
+	Error err;
 	if (r_state.bytecode_version >= GDSCRIPT_2_0_VERSION) {
-		return get_ids_consts_tokens_v2(p_buffer, r_state.identifiers, r_state.constants, r_state.tokens, r_state.lines, r_state.end_lines, r_state.columns);
+		err = get_ids_consts_tokens_v2(p_buffer, r_state.identifiers, r_state.constants, r_state.tokens, r_state.lines, r_state.end_lines, r_state.columns);
+	} else {
+		err = get_ids_consts_tokens(p_buffer, r_state.identifiers, r_state.constants, r_state.tokens, r_state.lines, r_state.columns);
+	}
+	if (err) {
+		return err;
 	}
 
-	return get_ids_consts_tokens(p_buffer, r_state.identifiers, r_state.constants, r_state.tokens, r_state.lines, r_state.columns);
+	return OK;
 }
 
 Error GDScriptDecomp::get_ids_consts_tokens(const Vector<uint8_t> &p_buffer, Vector<StringName> &identifiers, Vector<Variant> &constants, Vector<uint32_t> &tokens, VMap<uint32_t, uint32_t> &lines, VMap<uint32_t, uint32_t> &columns) {
@@ -603,19 +609,6 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 	int FUNC_MAX = get_function_count();
 	GDSDECOMP_FAIL_COND_V(version != get_bytecode_version(), ERR_INVALID_DATA);
 
-	auto get_line_func([&](int i) {
-		if (lines.has(i)) {
-			return lines[i];
-		}
-		return 0U;
-	});
-	auto get_col_func([&](int i) {
-		if (columns.has(i)) {
-			return columns[i];
-		}
-		return 0U;
-	});
-
 	//Decompile script
 	String line;
 	int indent = 0;
@@ -643,6 +636,8 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 		while (curr_line > prev_line) {
 			if (curr_token != G_TK_NEWLINE && bytecode_version < GDSCRIPT_2_0_VERSION) {
 				script_text += "\\"; // line continuation
+			} else if (bytecode_version >= GDSCRIPT_2_0_VERSION && !lines.has(i)) {
+				script_text += "\\";
 			}
 			script_text += "\n";
 			prev_line++;
@@ -663,6 +658,7 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 			}
 			prev_line_start_column = curr_column;
 		}
+		prev_token = G_TK_NEWLINE;
 	};
 
 	auto check_new_line = [&](int i) {
@@ -673,8 +669,8 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 		return false;
 	};
 
-	auto ensure_space_func = [&](bool only_if_not_newline = false) {
-		if (!line.ends_with(" ") && (!only_if_not_newline || (prev_token != G_TK_NEWLINE))) {
+	auto ensure_space_func = [&]() {
+		if (!line.ends_with(" ") && prev_token != G_TK_NEWLINE) {
 			line += " ";
 		}
 	};
@@ -767,7 +763,7 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 				line += "+ ";
 			} break;
 			case G_TK_OP_SUB: {
-				ensure_space_func(true);
+				ensure_space_func();
 				line += "- ";
 				//TODO: do not add space after unary "-"
 			} break;
@@ -780,7 +776,7 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 				line += "/ ";
 			} break;
 			case G_TK_OP_MOD: {
-				ensure_space_func(true);
+				ensure_space_func();
 				line += "% ";
 			} break;
 			case G_TK_OP_SHIFT_LEFT: {
@@ -836,19 +832,19 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 				line += "^= ";
 			} break;
 			case G_TK_OP_BIT_AND: {
-				ensure_space_func(true);
+				ensure_space_func();
 				line += "& ";
 			} break;
 			case G_TK_OP_BIT_OR: {
-				ensure_space_func(true);
+				ensure_space_func();
 				line += "| ";
 			} break;
 			case G_TK_OP_BIT_XOR: {
-				ensure_space_func(true);
+				ensure_space_func();
 				line += "^ ";
 			} break;
 			case G_TK_OP_BIT_INVERT: {
-				ensure_space_func(true);
+				ensure_space_func();
 				line += "~ ";
 			} break;
 			//case G_TK_OP_PLUS_PLUS: {
@@ -858,14 +854,14 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 			//	line += "--";
 			//} break;
 			case G_TK_CF_IF: {
-				ensure_space_func(true);
+				ensure_space_func();
 				line += "if ";
 			} break;
 			case G_TK_CF_ELIF: {
 				line += "elif ";
 			} break;
 			case G_TK_CF_ELSE: {
-				ensure_space_func(true);
+				ensure_space_func();
 				line += "else";
 				ensure_ending_space_func(i, G_TK_COLON);
 			} break;
@@ -903,7 +899,7 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 				line += "class_name ";
 			} break;
 			case G_TK_PR_EXTENDS: {
-				ensure_space_func(true);
+				ensure_space_func();
 				line += "extends ";
 			} break;
 			case G_TK_PR_IS: {
@@ -1059,37 +1055,43 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 				line += "switch ";
 			} break;
 			case G_TK_AMPERSAND_AMPERSAND: {
-				ensure_space_func(true);
+				ensure_space_func();
 				line += "&& ";
 			} break;
 			case G_TK_PIPE_PIPE: {
-				ensure_space_func(true);
+				ensure_space_func();
 				line += "|| ";
 			} break;
 			case G_TK_BANG: {
-				ensure_space_func(true);
+				ensure_space_func();
 				line += "!";
 			} break;
 			case G_TK_STAR_STAR: {
-				ensure_space_func(true);
+				ensure_space_func();
 				line += "** ";
 			} break;
 			case G_TK_STAR_STAR_EQUAL: {
+				ensure_space_func();
 				line += "**= ";
 			} break;
 			case G_TK_CF_WHEN: {
+				ensure_space_func();
 				line += "when ";
 			} break;
 			case G_TK_PR_AWAIT: {
+				ensure_space_func();
 				line += "await ";
 			} break;
 			case G_TK_PR_NAMESPACE: {
+				ensure_space_func();
 				line += "namespace ";
 			} break;
 			case G_TK_PR_SUPER: {
+				ensure_space_func();
 				line += "super ";
 			} break;
 			case G_TK_PR_TRAIT: {
+				ensure_space_func();
 				line += "trait ";
 			} break;
 			case G_TK_PERIOD_PERIOD: {
@@ -1802,32 +1804,32 @@ Ref<GDScriptDecomp> GDScriptDecomp::create_decomp_for_version(String str_ver, bo
 template <typename T>
 static int64_t continuity_tester(const Vector<T> &p_vector, const Vector<T> &p_other, String name, int pos = 0) {
 	if (p_vector.is_empty() && p_other.is_empty()) {
-		return -1;
+		// return -1;
 	}
 	if (p_vector.is_empty() && !p_other.is_empty()) {
-		WARN_PRINT(name + " first is empty");
+		// WARN_PRINT(name + " first is empty");
 		return -1;
 	}
 	if (!p_vector.is_empty() && p_other.is_empty()) {
-		WARN_PRINT(name + " second is empty");
+		// WARN_PRINT(name + " second is empty");
 		return -1;
 	}
 	if (pos == 0) {
 		if (p_vector.size() != p_other.size()) {
-			WARN_PRINT(name + " size mismatch: " + itos(p_vector.size()) + " != " + itos(p_other.size()));
+			// WARN_PRINT(name + " size mismatch: " + itos(p_vector.size()) + " != " + itos(p_other.size()));
 		}
 	}
 	if (pos >= p_vector.size() || pos >= p_other.size()) {
-		WARN_PRINT(name + " pos out of range");
+		// WARN_PRINT(name + " pos out of range");
 		return MIN(p_vector.size(), p_other.size());
 	}
 	for (int i = pos; i < p_vector.size(); i++) {
 		if (i >= p_other.size()) {
-			WARN_PRINT(name + " discontinuity at index " + itos(i));
+			// WARN_PRINT(name + " discontinuity at index " + itos(i));
 			return i;
 		}
 		if (p_vector[i] != p_other[i]) {
-			WARN_PRINT(name + " discontinuity at index " + itos(i));
+			// WARN_PRINT(name + " discontinuity at index " + itos(i));
 			return i;
 		}
 	}
@@ -2002,7 +2004,16 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 		while (discontinuity != -1) {
 			REPORT_DIFF(vformat("Discontinuity in %s at index %d", name, discontinuity));
 			if (discontinuity < lines_Size && discontinuity < new_lines_Size) {
-				REPORT_DIFF(vformat("Different %s @ %d: %d != %d", name, discontinuity, state1.lines.get_array()[discontinuity].value, state2.lines.get_array()[discontinuity].value));
+				auto pair1 = map1.get_array()[discontinuity];
+				auto pair2 = map2.get_array()[discontinuity];
+
+				auto token_at_key1 = state1.tokens.size() > pair1.key ? get_global_token(state1.tokens[pair1.key]) : G_TK_MAX;
+				auto token_at_key2 = state2.tokens.size() > pair2.key ? get_global_token(state2.tokens[pair2.key]) : G_TK_MAX;
+				auto token_name1 = token_at_key1 <= G_TK_MAX ? g_token_str[token_at_key1] : "INVALID";
+				auto token_name2 = token_at_key2 <= G_TK_MAX ? g_token_str[token_at_key2] : "INVALID";
+				auto token1_line = state1.get_token_line(pair1.key);
+				auto token2_line = state2.get_token_line(pair2.key);
+				REPORT_DIFF(vformat("Different %s @ idx %d: Token %s (line %d): %d != Token %s (line %d) :%d", name, discontinuity, token_name1, token1_line, pair1.value, token_name2, token2_line, pair2.value));
 			} else if (lines_Size != new_lines_Size) {
 				REPORT_DIFF("Different Column sizes: " + itos(lines_Size) + " != " + itos(new_lines_Size));
 				break;
