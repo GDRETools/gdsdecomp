@@ -177,7 +177,7 @@ Vector<String> glob1(const String &dirname, const String &pattern,
 	auto names = iter_directory(dirname, dironly, include_hidden);
 	Vector<String> filtered_names;
 	for (auto &n : names) {
-		if (!is_hidden(n)) {
+		if (!is_hidden(n) || include_hidden) {
 			filtered_names.push_back(n.get_file());
 		}
 	}
