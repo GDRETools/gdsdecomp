@@ -778,12 +778,79 @@ DirAccessGDRE::~DirAccessGDRE() {
 // };
 // static DirAccessType default_dir_res_create_type = UNKNOWN;
 
+#if defined(WINDOWS_ENABLED)
+#define FILE_ACCESS_OS FileAccessWindows
+#define DIR_ACCESS_OS DirAccessWindows
+#define FILE_ACCESS_OS_STR "FileAccessWindows"
+#define DIR_ACCESS_OS_STR "DirAccessWindows"
+#elif defined(ANDROID_ENABLED)
+#define FILE_ACCESS_OS FileAccessAndroid
+#define DIR_ACCESS_OS DirAccessJAndroid
+#define FILE_ACCESS_OS_STR "FileAccessAndroid"
+#define DIR_ACCESS_OS_STR "DirAccessJAndroid"
+
+#elif defined(MACOS_ENABLED)
+#define FILE_ACCESS_OS FileAccessUnix
+#define DIR_ACCESS_OS DirAccessMacOS
+#define FILE_ACCESS_OS_STR "FileAccessUnix"
+#define DIR_ACCESS_OS_STR "DirAccessMacOS"
+#elif defined(UNIX_ENABLED) // -- covers Linux, FreeBSD, Web.
+#define FILE_ACCESS_OS FileAccessUnix
+#define DIR_ACCESS_OS DirAccessUnix
+#define FILE_ACCESS_OS_STR "FileAccessUnix"
+#define DIR_ACCESS_OS_STR "DirAccessUnix"
+#else
+#error "Unknown platform"
+#endif
+
 String FileAccessGDRE::fix_path(const String &p_path) const {
 	return PathFinder::_fix_path_file_access(p_path.replace("\\", "/"));
 }
 
 String DirAccessGDRE::fix_path(const String &p_path) const {
 	return PathFinder::_fix_path_file_access(p_path);
+}
+//get_current_file_access_class
+String GDREPackedData::get_current_file_access_class(FileAccess::AccessType p_access_type) {
+	Ref<FileAccess> fa = FileAccess::create(p_access_type);
+	Ref<FILE_ACCESS_OS> fa_os = fa;
+	if (fa_os.is_valid()) {
+		return FILE_ACCESS_OS_STR;
+	}
+	Ref<FileAccessPack> fa_pack = fa;
+	if (fa_pack.is_valid()) {
+		return "FileAccessPack";
+	}
+	Ref<FileAccessGDRE> fa_gdre = fa;
+	if (fa_gdre.is_valid()) {
+		return "FileAccessGDRE";
+	}
+	return "";
+}
+
+String GDREPackedData::get_current_dir_access_class(DirAccess::AccessType p_access_type) {
+	Ref<DirAccess> da = DirAccess::create(p_access_type);
+	Ref<DIR_ACCESS_OS> da_os = da;
+	if (da_os.is_valid()) {
+		return DIR_ACCESS_OS_STR;
+	}
+	Ref<DirAccessPack> da_pack = da;
+	if (da_pack.is_valid()) {
+		return "DirAccessPack";
+	}
+	Ref<DirAccessGDRE> da_gdre = da;
+	if (da_gdre.is_valid()) {
+		return "DirAccessGDRE";
+	}
+	return "";
+}
+
+String GDREPackedData::get_os_file_access_class_name() {
+	return FILE_ACCESS_OS_STR;
+}
+
+String GDREPackedData::get_os_dir_access_class_name() {
+	return DIR_ACCESS_OS_STR;
 }
 
 Ref<DirAccess> DirAccessGDRE::_open_filesystem() {
@@ -792,65 +859,52 @@ Ref<DirAccess> DirAccessGDRE::_open_filesystem() {
 	if (path == "") {
 		path = "res://";
 	}
-#if defined(WINDOWS_ENABLED)
-	Ref<DirAccessProxy<DirAccessWindows>> dir_proxy = memnew(DirAccessProxy<DirAccessWindows>);
-#elif defined(MACOS_ENABLED)
-	Ref<DirAccessProxy<DirAccessMacOS>> dir_proxy = memnew(DirAccessProxy<DirAccessMacOS>);
-#elif defined(ANDROID_ENABLED)
-	// TODO: Handle apk expansion!!
-	Ref<DirAccessProxy<DirAccessJAndroid>> dir_proxy = memnew(DirAccessProxy<DirAccessJAndroid>);
-#else defined(UNIX_ENABLED) // -- covers OSX, Linux, FreeBSD, Web.
-	Ref<DirAccessProxy<DirAccessUnix>> dir_proxy = memnew(DirAccessProxy<DirAccessUnix>);
-#endif
+	Ref<DirAccessProxy<DIR_ACCESS_OS>> dir_proxy = memnew(DirAccessProxy<DIR_ACCESS_OS>);
 	dir_proxy->change_dir(path);
 	return dir_proxy;
 }
 
 void GDREPackedData::set_default_file_access() {
+	if (set_file_access_defaults) {
+		return;
+	}
+	if (old_dir_access_class.is_empty()) {
+		old_dir_access_class = get_current_dir_access_class(DirAccess::ACCESS_RESOURCES);
+	}
 	FileAccess::make_default<FileAccessGDRE>(FileAccess::ACCESS_RESOURCES);
 	FileAccess::make_default<FileAccessGDRE>(FileAccess::ACCESS_USERDATA); // for user:// files in the pack
 	DirAccess::make_default<DirAccessGDRE>(DirAccess::ACCESS_RESOURCES);
+	set_file_access_defaults = true;
 }
 
 void GDREPackedData::reset_default_file_access() {
+	if (!set_file_access_defaults) {
+		return;
+	}
 	// we need to check to see if the real PackedData has the GDRE packed data loaded
 	// if it does, we need to reset the default DirAccess to DirAccessPack
 	// (FileAccessPack is never set to the default for ACCESS_RESOURCES)
-	if (packed_data_was_enabled) {
+	if (old_dir_access_class == "DirAccessPack") {
 		DirAccess::make_default<DirAccessPack>(DirAccess::ACCESS_RESOURCES);
+	} else if (old_dir_access_class == DIR_ACCESS_OS_STR) {
+		DirAccess::make_default<DIR_ACCESS_OS>(DirAccess::ACCESS_RESOURCES);
 	} else {
-#if defined(WINDOWS_ENABLED)
-		DirAccess::make_default<DirAccessWindows>(DirAccess::ACCESS_RESOURCES);
-#elif defined(MACOS_ENABLED)
-		DirAccess::make_default<DirAccessMacOS>(DirAccess::ACCESS_RESOURCES);
-#elif defined(ANDROID_ENABLED)
-		// TODO: Handle apk expansion!!
-		DirAccess::make_default<DirAccessJAndroid>(DirAccess::ACCESS_RESOURCES);
-#else defined(UNIX_ENABLED) // -- covers OSX, Linux, FreeBSD, Web.
-		DirAccess::make_default<DirAccessUnix>(DirAccess::ACCESS_RESOURCES);
-#endif
+		WARN_PRINT("WARNING: reset_default_file_access: Unknown default DirAccess class, guessing...");
+		if (real_packed_data_has_pack_loaded()) { // if the real PackedData has the GDRE packed data loaded
+			DirAccess::make_default<DirAccessPack>(DirAccess::ACCESS_RESOURCES);
+		} else {
+			DirAccess::make_default<DIR_ACCESS_OS>(DirAccess::ACCESS_RESOURCES);
+		}
 	}
-#if defined(WINDOWS_ENABLED)
-	FileAccess::make_default<FileAccessWindows>(FileAccess::ACCESS_RESOURCES);
-	FileAccess::make_default<FileAccessWindows>(FileAccess::ACCESS_USERDATA);
-
-#elif defined(ANDROID_ENABLED)
-	FileAccess::make_default<FileAccessAndroid>(FileAccess::ACCESS_RESOURCES);
-	FileAccess::make_default<FileAccessAndroid>(FileAccess::ACCESS_USERDATA);
-#else
-	FileAccess::make_default<FileAccessUnix>(FileAccess::ACCESS_RESOURCES);
-	FileAccess::make_default<FileAccessUnix>(FileAccess::ACCESS_USERDATA);
-#endif
+	old_dir_access_class = "";
+	FileAccess::make_default<FILE_ACCESS_OS>(FileAccess::ACCESS_RESOURCES);
+	FileAccess::make_default<FILE_ACCESS_OS>(FileAccess::ACCESS_USERDATA);
+	set_file_access_defaults = false;
 }
 
 Ref<FileAccess> FileAccessGDRE::_open_filesystem(const String &p_path, int p_mode_flags, Error *r_error) {
-#ifdef WINDOWS_ENABLED
-	Ref<FileAccessProxy<FileAccessWindows>> file_proxy = memnew(FileAccessProxy<FileAccessWindows>);
-#elif defined(ANDROID_ENABLED)
-	Ref<FileAccessProxy<FileAccessAndroid>> file_proxy = memnew(FileAccessProxy<FileAccessAndroid>);
-#else // UNIX_ENABLED -- covers OSX, Linux, FreeBSD, Web.
-	Ref<FileAccessProxy<FileAccessUnix>> file_proxy = memnew(FileAccessProxy<FileAccessUnix>);
-#endif
+	Ref<FileAccessProxy<FILE_ACCESS_OS>> file_proxy = memnew(FileAccessProxy<FILE_ACCESS_OS>);
+
 	Error err = file_proxy->open_internal(p_path, p_mode_flags);
 	if (r_error) {
 		*r_error = err;

@@ -49,6 +49,8 @@ private:
 	static GDREPackedData *singleton;
 	bool disabled = false;
 	bool packed_data_was_enabled = false;
+	String old_dir_access_class;
+	bool set_file_access_defaults = false;
 
 	void _free_packed_dirs(PackedDir *p_dir);
 	void _get_file_paths(PackedDir *p_dir, const String &p_parent_dir, HashSet<String> &r_paths) const;
@@ -83,6 +85,10 @@ public:
 	bool has_loaded_packs();
 	String fix_res_path(const String &p_path);
 
+	static String get_current_file_access_class(FileAccess::AccessType p_access_type);
+	static String get_current_dir_access_class(DirAccess::AccessType p_access_type);
+	static String get_os_file_access_class_name();
+	static String get_os_dir_access_class_name();
 	GDREPackedData();
 	~GDREPackedData();
 };
