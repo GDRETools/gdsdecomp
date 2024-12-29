@@ -53,7 +53,7 @@ public:
 	Error save_custom(const String &p_path, const uint32_t ver_major, const uint32_t ver_minor);
 	Error _save_settings_text(const String &p_file, const RBMap<String, List<String>> &props, const uint32_t ver_major, const uint32_t ver_minor);
 	Error _save_settings_text(const String &p_file);
-	bool is_loaded() const { return loaded; };
+	bool is_loaded() const { return loaded; }
 	bool has_setting(String p_var) const;
 	Variant get_setting(String p_var, Variant default_value) const;
 	Error remove_setting(String p_var);
