@@ -13,6 +13,8 @@
 
 #include <core/version_generated.gen.h>
 #include <utility/file_access_gdre.h>
+#include <utility/import_exporter.h>
+#include <utility/pck_dumper.h>
 
 inline Error create_test_pck(const String &pck_path, const HashMap<String, String> &paths) {
 	PCKPacker pck;
@@ -147,7 +149,6 @@ TEST_CASE("[GDSDecomp] FileAccessGDRE tests") {
 	};
 
 	CHECK(create_test_pck(tmp_pck_path, files) == OK);
-	auto resource_path = ProjectSettings::get_singleton()->get_resource_path();
 
 	CHECK(!FileAccess::exists("res://test.txt"));
 	CHECK(GDREPackedData::get_current_dir_access_class(DirAccess::ACCESS_RESOURCES) == GDREPackedData::get_os_dir_access_class_name());
@@ -167,3 +168,105 @@ TEST_CASE("[GDSDecomp] FileAccessGDRE tests") {
 	gdre::rimraf(tmp_test_file);
 	gdre::rimraf(tmp_pck_path);
 }
+
+// Disabling this for now; fragile and kind of redundant.
+#if 0
+static constexpr const char *const export_presets =
+		R"([preset.0]
+
+name="Dumb"
+platform="Windows Desktop"
+runnable=true
+advanced_options=false
+dedicated_server=false
+custom_features=""
+export_filter="all_resources"
+include_filter=""
+exclude_filter=""
+export_path="test.exe"
+encryption_include_filters=""
+encryption_exclude_filters=""
+encrypt_pck=false
+encrypt_directory=false
+script_export_mode=1
+
+[preset.0.options]
+texture_format/bptc=false
+texture_format/s3tc=true
+texture_format/etc=false
+texture_format/etc2=false
+texture_format/no_bptc_fallbacks=true
+)";
+
+TEST_CASE("[GDSDecomp] uh oh") {
+	// get the path to the currently executing binary
+	String gdscript_tests_path = "modules/gdscript/tests/scripts";
+
+	auto scripts_path = GDRESettings::get_singleton()->get_cwd().path_join(gdscript_tests_path);
+	auto da = DirAccess::open(scripts_path);
+	CHECK(da.is_valid());
+	CHECK(da->dir_exists(scripts_path));
+	// copy the scripts dir to a temporary directory
+	auto temp_scripts_path = get_tmp_path().path_join("gdscripts_project");
+	CHECK(da->copy_dir(scripts_path, temp_scripts_path) == OK);
+	CHECK(store_file_as_string(temp_scripts_path.path_join("export_presets.cfg"), export_presets) == OK);
+
+	auto exec_path = OS::get_singleton()->get_executable_path();
+	auto pck_path = get_tmp_path().path_join("gdscripts.pck");
+	List<String> args = { "--headless", "-e", "--path", temp_scripts_path, "--export-pack", "Dumb", pck_path };
+	String pipe;
+	Error export_cmd_error = OS::get_singleton()->execute(exec_path, args, &pipe);
+	if (export_cmd_error) {
+		print_line(pipe);
+	}
+	CHECK(export_cmd_error == OK);
+	// split the output into lines
+	auto lines = pipe.split("\n");
+	HashSet<String> packed_files;
+	for (const auto &line : lines) {
+		// check if the line is a file path
+		String ln = line.strip_edges();
+		if (ln.begins_with("savepack:") && ln.contains("Storing File: ")) {
+			// get the file path
+			auto file = line.get_slice("Storing File: ", 1).strip_edges();
+			packed_files.insert(file);
+		}
+	}
+	auto settings = GDRESettings::get_singleton();
+	CHECK(settings->load_project({ pck_path }, false) == OK);
+	CHECK(settings->is_pack_loaded());
+	CHECK(settings->pack_has_project_config());
+	CHECK(settings->is_project_config_loaded());
+	CHECK(settings->get_pack_path() == pck_path);
+	CHECK(settings->get_ver_major() == VERSION_MAJOR);
+	CHECK(settings->get_ver_minor() == VERSION_MINOR);
+	auto decomp = GDScriptDecomp::create_decomp_for_version(vformat("%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH));
+	CHECK(decomp.is_valid());
+	CHECK(settings->get_bytecode_revision() != 0);
+	CHECK(settings->get_bytecode_revision() == decomp->get_bytecode_rev());
+	for (const auto &file : packed_files) {
+		CHECK(settings->has_res_path(file));
+	}
+	String output_dir = get_tmp_path().path_join("gdscripts_project_decompiled");
+	PckDumper dumper;
+	Vector<String> broken_files;
+	int checked_files;
+	CHECK(dumper._check_md5_all_files(broken_files, checked_files, nullptr) == OK);
+	CHECK(broken_files.size() == 0);
+	CHECK(dumper.pck_dump_to_dir(output_dir, {}) == OK);
+	HashMap<String, String> pck_files;
+	for (const auto &file : packed_files) {
+		String output_file_path = output_dir.path_join(file.trim_prefix("res://"));
+		pck_files[file] = output_file_path;
+	}
+	test_pck_files(pck_files);
+	ImportExporter import_exporter;
+	CHECK(import_exporter.export_imports(output_dir, {}) == OK);
+	auto export_report = import_exporter.get_report();
+	CHECK(export_report->get_failed().size() == 0);
+	CHECK(settings->unload_project() == OK);
+	gdre::rimraf(output_dir);
+	gdre::rimraf(pck_path);
+	gdre::rimraf(temp_scripts_path);
+}
+#endif
