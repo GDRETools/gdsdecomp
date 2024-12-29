@@ -143,6 +143,7 @@ TEST_CASE("[GDSDecomp] GDRESettings project loading") {
 }
 
 TEST_CASE("[GDSDecomp] FileAccessGDRE tests") {
+	CHECK(gdre::ensure_dir(get_tmp_path()) == OK);
 	auto tmp_pck_path = get_tmp_path().path_join("FileAccessGDRETest.pck");
 	auto tmp_test_file = get_tmp_path().path_join("test.txt");
 
@@ -202,6 +203,7 @@ texture_format/no_bptc_fallbacks=true
 )";
 
 TEST_CASE("[GDSDecomp] uh oh") {
+	CHECK(gdre::ensure_dir(get_tmp_path()) == OK);
 	// get the path to the currently executing binary
 	String gdscript_tests_path = "modules/gdscript/tests/scripts";
 
