@@ -38,6 +38,7 @@ TEST_CASE("[GDSDecomp][ResourceLoaderText] ResourceLoaderText::FORMAT_VERSION ha
 }
 
 TEST_CASE("[GDSDecomp][ResourceFormatLoaderCompatBinary] ResourceFormatLoaderCompatBinary can load a resource") {
+	CHECK(gdre::ensure_dir(get_tmp_path()) == OK);
 	ResourceFormatSaverBinaryInstance saver;
 	Ref<Resource> resource;
 	resource.instantiate();
@@ -61,6 +62,7 @@ TEST_CASE("[GDSDecomp][ResourceFormatLoaderCompatBinary] ResourceFormatLoaderCom
 }
 
 TEST_CASE("[GDSDecomp][ResourceFormatLoaderCompatText] ResourceFormatLoaderCompatBinary can load a resource") {
+	CHECK(gdre::ensure_dir(get_tmp_path()) == OK);
 	ResourceFormatSaverTextInstance saver;
 	Ref<Resource> resource;
 	resource.instantiate();

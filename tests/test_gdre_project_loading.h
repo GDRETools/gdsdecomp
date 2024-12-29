@@ -33,6 +33,7 @@ inline Error create_test_pck(const String &pck_path, const HashMap<String, Strin
 }
 
 inline Error store_file_as_string(const String &path, const String &content) {
+	ERR_FAIL_COND_V(gdre::ensure_dir(path.get_base_dir()) != OK, ERR_FILE_CANT_WRITE);
 	auto fa = FileAccess::open(path, FileAccess::WRITE);
 	ERR_FAIL_COND_V(fa.is_null(), ERR_FILE_CANT_OPEN);
 	ERR_FAIL_COND_V(!fa->store_string(content), ERR_FILE_CANT_WRITE);
@@ -71,6 +72,7 @@ TEST_CASE("[GDSDecomp] GDRESettings works") {
 
 TEST_CASE("[GDSDecomp][ProjectConfigLoader] loading example from current engine") {
 	CHECK(ProjectSettings::get_singleton());
+	CHECK(gdre::ensure_dir(get_tmp_path()) == OK);
 	auto text_project_path = get_tmp_path().path_join("project.godot");
 	ProjectSettings::get_singleton()->save_custom(text_project_path);
 	auto binary_project_path = get_tmp_path().path_join("project.binary");
@@ -107,6 +109,7 @@ TEST_CASE("[GDSDecomp][ProjectConfigLoader] loading example from current engine"
 }
 
 TEST_CASE("[GDSDecomp] GDRESettings project loading") {
+	CHECK(gdre::ensure_dir(get_tmp_path()) == OK);
 	auto tmp_pck_path = get_tmp_path().path_join("test.pck");
 	auto tmp_project_path = get_tmp_path().path_join("project.binary");
 	CHECK(ProjectSettings::get_singleton());
