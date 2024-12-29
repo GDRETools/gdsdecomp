@@ -6,21 +6,21 @@
 #include "test_common.h"
 #include "tests/test_macros.h"
 
+#include <core/io/pck_packer.h>
 #include <core/io/resource_format_binary.h>
 #include <scene/resources/resource_format_text.h>
+#include <utility/gdre_packed_source.h>
+
+#include <core/version_generated.gen.h>
 
 namespace TestEngineAsserts {
 
-TEST_CASE("[GDSDecomp] GDRESettings works") {
-	GDRESettings *settings = GDRESettings::get_singleton();
-	CHECK(settings != nullptr);
-	CHECK(settings->get_cwd() != "");
-	auto cwd = settings->get_cwd();
-	auto gdsdecomp_path = get_gdsdecomp_path();
-	// check that modules/gdsdecomp exists
-	auto da = DirAccess::open(gdsdecomp_path);
-	CHECK(da.is_valid());
-	CHECK(da->dir_exists(gdsdecomp_path));
+TEST_CASE("[GDSDecomp] Engine version major is still 4") {
+	CHECK(VERSION_MAJOR == 4);
+}
+
+TEST_CASE("[GDSDecomp][PackedData] Current PCK version hasn't changed") {
+	CHECK(PACK_FORMAT_VERSION == GDREPackedSource::CURRENT_PACK_FORMAT_VERSION);
 }
 
 TEST_CASE("[GDSDecomp][SceneState] SceneState packed version format hasn't changed") {
@@ -31,6 +31,10 @@ TEST_CASE("[GDSDecomp][SceneState] SceneState packed version format hasn't chang
 	CHECK(d.has("version"));
 	int version = d["version"];
 	CHECK(version == SceneStateInstanceGetter::CURRENT_PACKED_SCENE_VERSION);
+}
+
+TEST_CASE("[GDSDecomp][ResourceLoaderText] ResourceLoaderText::FORMAT_VERSION hasn't changed") {
+	CHECK(ResourceLoaderText::FORMAT_VERSION == ResourceLoaderCompatText::FORMAT_VERSION);
 }
 
 TEST_CASE("[GDSDecomp][ResourceFormatLoaderCompatBinary] ResourceFormatLoaderCompatBinary can load a resource") {
@@ -53,12 +57,10 @@ TEST_CASE("[GDSDecomp][ResourceFormatLoaderCompatBinary] ResourceFormatLoaderCom
 		CHECK(res_info.resource_format == "binary");
 		CHECK(res_info.type == "Resource");
 	}
-	// gdre::rimraf(temp_path);
+	gdre::rimraf(temp_path);
 }
+
 TEST_CASE("[GDSDecomp][ResourceFormatLoaderCompatText] ResourceFormatLoaderCompatBinary can load a resource") {
-	SUBCASE("Text format version hasn't changed") {
-		CHECK(ResourceLoaderText::FORMAT_VERSION == ResourceLoaderCompatText::FORMAT_VERSION);
-	}
 	ResourceFormatSaverTextInstance saver;
 	Ref<Resource> resource;
 	resource.instantiate();
@@ -75,7 +77,7 @@ TEST_CASE("[GDSDecomp][ResourceFormatLoaderCompatText] ResourceFormatLoaderCompa
 		CHECK(res_info.resource_format == "text");
 		CHECK(res_info.type == "Resource");
 	}
-	// gdre::rimraf(temp_path);
+	gdre::rimraf(temp_path);
 }
 
 } //namespace TestEngineAsserts
