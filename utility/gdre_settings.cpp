@@ -664,7 +664,7 @@ Error GDRESettings::detect_bytecode_revision() {
 		if (ver_major > 0 && ver_minor >= 0) {
 			auto decomp = GDScriptDecomp::create_decomp_for_version(current_project->version->as_text(), true);
 			ERR_FAIL_COND_V_MSG(decomp.is_null(), fail_error, "Cannot determine bytecode revision");
-			WARN_PRINT("Guessing bytecode revision from engine version: " + get_version_string() + " (rev 0x" + String::num_int64(decomp->get_bytecode_rev(), 16) + ")");
+			print_line("Guessing bytecode revision from engine version: " + get_version_string() + " (rev 0x" + String::num_int64(decomp->get_bytecode_rev(), 16) + ")");
 			current_project->bytecode_revision = decomp->get_bytecode_rev();
 			return OK;
 		}

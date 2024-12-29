@@ -3,7 +3,6 @@
 #include "../compat/resource_compat_binary.h"
 #include "../compat/resource_compat_text.h"
 
-#include "../../../../../../../../Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/array"
 #include "test_common.h"
 #include "tests/test_macros.h"
 
@@ -13,6 +12,48 @@
 #include <scene/resources/resource_format_text.h>
 
 #include <core/version_generated.gen.h>
+#include <utility/file_access_gdre.h>
+
+inline Error create_test_pck(const String &pck_path, const HashMap<String, String> &paths) {
+	PCKPacker pck;
+	Error err = pck.pck_start(pck_path, 32);
+	ERR_FAIL_COND_V(err, err);
+	for (const auto &path : paths) {
+		err = pck.add_file(path.key, path.value);
+		ERR_FAIL_COND_V(err, err);
+	}
+	err = pck.flush(false);
+	ERR_FAIL_COND_V(err, err);
+	if (!FileAccess::exists(pck_path)) {
+		return ERR_FILE_NOT_FOUND;
+	}
+	return err;
+}
+
+inline Error store_file_as_string(const String &path, const String &content) {
+	auto fa = FileAccess::open(path, FileAccess::WRITE);
+	ERR_FAIL_COND_V(fa.is_null(), ERR_FILE_CANT_OPEN);
+	ERR_FAIL_COND_V(!fa->store_string(content), ERR_FILE_CANT_WRITE);
+	fa->flush();
+	fa->close();
+	return OK;
+}
+
+inline void test_pck_files(HashMap<String, String> files) {
+	for (const auto &file : files) {
+		CHECK(FileAccess::exists(file.key));
+		auto fa = FileAccess::open(file.key, FileAccess::READ);
+		CHECK(fa.is_valid());
+		CHECK(Ref<FileAccessGDRE>(fa).is_valid());
+		auto content = fa->get_buffer(fa->get_length());
+
+		auto fa_old = FileAccess::open(file.value, FileAccess::READ);
+		CHECK(fa_old.is_valid());
+		CHECK(!Ref<FileAccessGDRE>(fa_old).is_valid());
+		auto old_content = fa_old->get_buffer(fa_old->get_length());
+		CHECK(content == old_content);
+	}
+}
 
 TEST_CASE("[GDSDecomp] GDRESettings works") {
 	GDRESettings *settings = GDRESettings::get_singleton();
@@ -52,7 +93,6 @@ TEST_CASE("[GDSDecomp][ProjectConfigLoader] loading example from current engine"
 		String engine_version = engine_features[0];
 		auto temp_project_dir = get_tmp_path().path_join("new_project");
 		CHECK(gdre::ensure_dir(temp_project_dir) == OK);
-		auto engine_feature = "engine/editor/feature/3d";
 		CHECK(loader.save_cfb(temp_project_dir, VERSION_MAJOR, VERSION_MINOR) == OK);
 		auto new_project_path = temp_project_dir.path_join("project.godot");
 		auto old_project_text = FileAccess::get_file_as_string(text_project_path);
@@ -63,45 +103,67 @@ TEST_CASE("[GDSDecomp][ProjectConfigLoader] loading example from current engine"
 	gdre::rimraf(text_project_path);
 	gdre::rimraf(binary_project_path);
 }
+
 TEST_CASE("[GDSDecomp] GDRESettings project loading") {
 	auto tmp_pck_path = get_tmp_path().path_join("test.pck");
 	auto tmp_project_path = get_tmp_path().path_join("project.binary");
-
-	auto target_project_path = "res://project.binary";
-	auto test_script_path = get_gdsdecomp_path().path_join("helpers/has_char.gd");
-	auto target_script_path = "res://helpers/has_char.gd";
-
-	PCKPacker pck;
-	pck.pck_start(tmp_pck_path, 32);
 	CHECK(ProjectSettings::get_singleton());
 	ProjectSettings::get_singleton()->save_custom(tmp_project_path);
-	pck.add_file(target_project_path, tmp_project_path);
-	pck.add_file(target_script_path, test_script_path);
-	pck.flush(true);
 
-	CHECK(FileAccess::exists(tmp_pck_path));
+	HashMap<String, String> files = {
+		{ "res://project.binary", tmp_project_path }
+	};
+	CHECK(create_test_pck(tmp_pck_path, files) == OK);
 
 	GDRESettings *settings = GDRESettings::get_singleton();
 	CHECK(settings->load_project({ tmp_pck_path }, false) == OK);
-
+	CHECK(settings->is_pack_loaded());
+	CHECK(settings->pack_has_project_config());
+	CHECK(settings->is_project_config_loaded());
 	CHECK(settings->get_pack_path() == tmp_pck_path);
 
 	CHECK(settings->get_ver_major() == VERSION_MAJOR);
 	CHECK(settings->get_ver_minor() == VERSION_MINOR);
-	CHECK(settings->get_ver_rev() == VERSION_PATCH);
-
-	SUBCASE("Detected correct bytecode revision") {
-		CHECK(settings->get_bytecode_revision() != 0);
-		auto decomp = GDScriptDecomp::create_decomp_for_version(vformat("%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH));
-		CHECK(settings->get_bytecode_revision() == decomp->get_bytecode_rev());
+	auto decomp = GDScriptDecomp::create_decomp_for_version(vformat("%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH));
+	CHECK(decomp.is_valid());
+	CHECK(settings->get_bytecode_revision() != 0);
+	CHECK(settings->get_bytecode_revision() == decomp->get_bytecode_rev());
+	for (const auto &file : files) {
+		CHECK(settings->has_res_path(file.key));
 	}
-	SUBCASE("Check if project has files") {
-		CHECK(settings->has_res_path(target_project_path));
-		CHECK(settings->has_res_path(target_script_path));
-		CHECK(FileAccess::exists(target_project_path));
-		CHECK(FileAccess::exists(target_script_path));
-	}
+	test_pck_files(files);
 	CHECK(settings->unload_project() == OK);
 	gdre::rimraf(tmp_project_path);
+	gdre::rimraf(tmp_pck_path);
+}
+
+TEST_CASE("[GDSDecomp] FileAccessGDRE tests") {
+	auto tmp_pck_path = get_tmp_path().path_join("FileAccessGDRETest.pck");
+	auto tmp_test_file = get_tmp_path().path_join("test.txt");
+
+	CHECK(store_file_as_string(tmp_test_file, "dummy") == OK);
+	HashMap<String, String> files = {
+		{ "res://test.txt", tmp_test_file }
+	};
+
+	CHECK(create_test_pck(tmp_pck_path, files) == OK);
+	auto resource_path = ProjectSettings::get_singleton()->get_resource_path();
+
+	CHECK(!FileAccess::exists("res://test.txt"));
+	CHECK(GDREPackedData::get_current_dir_access_class(DirAccess::ACCESS_RESOURCES) == GDREPackedData::get_os_dir_access_class_name());
+	CHECK(GDREPackedData::get_current_file_access_class(FileAccess::ACCESS_RESOURCES) == GDREPackedData::get_os_file_access_class_name());
+
+	auto settings = GDRESettings::get_singleton();
+	CHECK(settings->load_project({ tmp_pck_path }, false) == OK);
+	CHECK(GDREPackedData::get_current_dir_access_class(DirAccess::ACCESS_RESOURCES) == "DirAccessGDRE");
+	CHECK(GDREPackedData::get_current_file_access_class(FileAccess::ACCESS_RESOURCES) == "FileAccessGDRE");
+
+	test_pck_files(files);
+
+	CHECK(settings->unload_project() == OK);
+	CHECK(GDREPackedData::get_current_dir_access_class(DirAccess::ACCESS_RESOURCES) == GDREPackedData::get_os_dir_access_class_name());
+	CHECK(GDREPackedData::get_current_file_access_class(FileAccess::ACCESS_RESOURCES) == GDREPackedData::get_os_file_access_class_name());
+
+	gdre::rimraf(tmp_test_file);
 	gdre::rimraf(tmp_pck_path);
 }
