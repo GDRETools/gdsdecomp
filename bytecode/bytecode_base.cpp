@@ -1098,6 +1098,9 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 			case G_TK_UNDERSCORE: {
 				line += "_";
 			} break;
+			case G_TK_BACKTICK: {
+				line += "`";
+			} break;
 			case G_TK_ERROR: {
 				//skip - invalid
 			} break;
@@ -1105,6 +1108,9 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 				//skip - invalid
 			} break;
 			case G_TK_CURSOR: {
+				//skip - invalid
+			} break;
+			case G_TK_VCS_CONFLICT_MARKER: {
 				//skip - invalid
 			} break;
 			case G_TK_MAX: {
@@ -1256,6 +1262,11 @@ GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t
 		return 0U;
 	});
 
+	// reserved words can be used as class members in GDScript 2.0. Hooray.
+	auto is_gdscript20_accessor = [&](int i) {
+		return bytecode_version >= GDSCRIPT_2_0_VERSION && check_prev_token(i, tokens, G_TK_PERIOD);
+	};
+
 	for (int i = 0; i < tokens.size(); i++) {
 		r_tok_max = MAX(r_tok_max, tokens[i] & TOKEN_MASK);
 		GlobalToken curr_token = get_global_token(tokens[i]);
@@ -1271,6 +1282,9 @@ GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t
 			// Functions go like:
 			// `func <literally_fucking_anything_resembling_an_identifier_including_keywords_and_built-in_funcs>(<arguments>)`
 			case G_TK_PR_FUNCTION: {
+				if (is_gdscript20_accessor(i)) {
+					break;
+				}
 				SIZE_CHECK(2);
 				// ignore the next_token because it can be anything
 				// get the one after
@@ -1292,6 +1306,10 @@ GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t
 				}
 			} break;
 			case G_TK_PR_STATIC: {
+				if (is_gdscript20_accessor(i)) {
+					break;
+				}
+
 				SIZE_CHECK(1);
 				// STATIC requires TK_PR_FUNCTION as the next token
 				GlobalToken next_token = get_global_token(tokens[i + 1]);
@@ -1300,6 +1318,10 @@ GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t
 				}
 			} break;
 			case G_TK_PR_ENUM: { // not added until 2.1.3, but valid for all versions after
+				if (is_gdscript20_accessor(i)) {
+					break;
+				}
+
 				SIZE_CHECK(1);
 				// ENUM requires TK_IDENTIFIER or TK_CURLY_BRACKET_OPEN as the next token
 				GlobalToken next_token = get_global_token(tokens[i + 1]);
@@ -1328,7 +1350,13 @@ GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t
 				arg_count = { 1, 1 };
 				test_func = true;
 				break;
-			case G_TK_ERROR: // none of these should have made it into the bytecode
+			case G_TK_ERROR: {
+				// GDScript 2.0 happily outputs these in the bytecode upon project export if there are tokenizer errors, so
+				// we have to ignore them
+				if (bytecode_version < GDSCRIPT_2_0_VERSION) {
+					ERR_TEST_FAILED("Invalid token: " + String(g_token_str[curr_token]));
+				}
+			} break;
 			case G_TK_CURSOR:
 			case G_TK_MAX:
 				ERR_TEST_FAILED("Invalid token: " + String(g_token_str[curr_token]));
@@ -1812,35 +1840,35 @@ static int64_t continuity_tester(const VMap<K, V> &p_vector, const VMap<K, V> &p
 		return -1;
 	}
 	if (p_vector.is_empty() && !p_other.is_empty()) {
-		WARN_PRINT(name + " first is empty");
+		// WARN_PRINT(name + " first is empty");
 		return -1;
 	}
 	if (!p_vector.is_empty() && p_other.is_empty()) {
-		WARN_PRINT(name + " second is empty");
+		// WARN_PRINT(name + " second is empty");
 		return -1;
 	}
 	if (pos == 0) {
 		if (p_vector.size() != p_other.size()) {
-			WARN_PRINT(name + " size mismatch: " + itos(p_vector.size()) + " != " + itos(p_other.size()));
+			// WARN_PRINT(name + " size mismatch: " + itos(p_vector.size()) + " != " + itos(p_other.size()));
 		}
 	}
 	if (pos >= p_vector.size() || pos >= p_other.size()) {
-		WARN_PRINT(name + " pos out of range");
+		// WARN_PRINT(name + " pos out of range");
 		return MIN(p_vector.size(), p_other.size());
 	}
 	auto p_vector_arr = p_vector.get_array();
 	auto p_other_arr = p_other.get_array();
 	for (int i = pos; i < p_vector.size(); i++) {
 		if (i >= p_other.size()) {
-			WARN_PRINT(name + " discontinuity at index " + itos(i));
+			// WARN_PRINT(name + " discontinuity at index " + itos(i));
 			return i;
 		}
 		if (p_vector_arr[i].key != p_other_arr[i].key) {
-			WARN_PRINT(name + " bytecode discontinuity at index " + itos(i));
+			// WARN_PRINT(name + " bytecode discontinuity at index " + itos(i));
 			return i;
 		}
 		if (p_vector_arr[i].value != p_other_arr[i].value) {
-			WARN_PRINT(name + " bytecode discontinuity at index " + itos(i));
+			// WARN_PRINT(name + " bytecode discontinuity at index " + itos(i));
 			return i;
 		}
 	}
@@ -1862,7 +1890,7 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 #define REPORT_DIFF(x)         \
 	err = ERR_BUG;             \
 	error_message += x + "\n"; \
-	WARN_PRINT(x)
+	// WARN_PRINT(x)
 	bool is_printing_verbose;
 #ifdef DEBUG_ENABLED
 #define bl_print(...) print_line(__VA_ARGS__)
@@ -1963,40 +1991,28 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 			REPORT_DIFF("Different Token sizes: " + itos(state1.tokens.size()) + " != " + itos(state2.tokens.size()));
 		}
 	}
-	auto lines_Size = state1.lines.size();
-	auto new_lines_Size = state2.lines.size();
-	discontinuity = continuity_tester(state1.lines, state2.lines, "Lines");
-	if (discontinuity != -1) {
-		REPORT_DIFF("Discontinuity in lines at index " + itos(discontinuity));
-		if (discontinuity < lines_Size && discontinuity < new_lines_Size) {
-			REPORT_DIFF("Different Lines: " + itos(state1.lines[discontinuity]) + " != " + itos(state2.lines[discontinuity]));
-		} else {
-			REPORT_DIFF("Different Line sizes: " + itos(lines_Size) + " != " + itos(new_lines_Size));
-		}
-	}
 
-	auto columns_Size = state1.columns.size();
-	auto new_columns_Size = state2.columns.size();
-	discontinuity = continuity_tester(state1.columns, state2.columns, "Columns");
-	if (discontinuity != -1) {
-		REPORT_DIFF("Discontinuity in columns at index " + itos(discontinuity));
-		if (discontinuity < columns_Size && discontinuity < new_columns_Size) {
-			REPORT_DIFF("Different Columns: " + itos(state1.columns[discontinuity]) + " != " + itos(state2.columns[discontinuity]));
-		} else {
-			REPORT_DIFF("Different Column sizes: " + itos(columns_Size) + " != " + itos(new_columns_Size));
+	auto do_vmap_thing = [&](const String &name, const VMap<uint32_t, uint32_t> &map1, const VMap<uint32_t, uint32_t> &map2) {
+		auto lines_Size = map1.size();
+		auto new_lines_Size = map2.size();
+		discontinuity = continuity_tester(map1, map2, name);
+		if (discontinuity != -1) {
+			REPORT_DIFF(vformat("** %s DIFFER", name));
 		}
-	}
+		while (discontinuity != -1) {
+			REPORT_DIFF(vformat("Discontinuity in %s at index %d", name, discontinuity));
+			if (discontinuity < lines_Size && discontinuity < new_lines_Size) {
+				REPORT_DIFF(vformat("Different %s @ %d: %d != %d", name, discontinuity, state1.lines.get_array()[discontinuity].value, state2.lines.get_array()[discontinuity].value));
+			} else if (lines_Size != new_lines_Size) {
+				REPORT_DIFF("Different Column sizes: " + itos(lines_Size) + " != " + itos(new_lines_Size));
+				break;
+			}
+			discontinuity = continuity_tester(map1, map2, name, discontinuity + 1);
+		}
+	};
 
-	auto end_lines_size = state1.end_lines.size();
-	auto new_end_lines_size = state2.end_lines.size();
-	discontinuity = continuity_tester(state1.end_lines, state2.end_lines, "End Lines");
-	if (discontinuity != -1) {
-		REPORT_DIFF("Discontinuity in End Lines at index " + itos(discontinuity));
-		if (discontinuity < end_lines_size && discontinuity < new_end_lines_size) {
-			REPORT_DIFF("Different End Lines: " + itos(state1.end_lines[discontinuity]) + " != " + itos(state2.end_lines[discontinuity]));
-		} else {
-			REPORT_DIFF("Different End Line sizes: " + itos(end_lines_size) + " != " + itos(new_end_lines_size));
-		}
-	}
+	do_vmap_thing("Lines", state1.lines, state2.lines);
+	do_vmap_thing("Columns", state1.columns, state2.columns);
+	do_vmap_thing("End Lines", state1.end_lines, state2.end_lines);
 	return err;
 }
