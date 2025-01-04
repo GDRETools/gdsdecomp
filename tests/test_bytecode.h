@@ -167,9 +167,6 @@ inline void test_script_text(const String &script_name, const String &helper_scr
 	auto decompiled_string = decomp->get_script_text();
 	auto helper_script_text_stripped = remove_comments(helper_script_text).replace("\"\"\"", "\"").replace("'", "\"");
 	if (!helper_script_text_stripped.strip_edges().is_empty()) {
-		if (decompiled_string == "") {
-			int i = 0;
-		}
 		CHECK(decompiled_string != "");
 	}
 
