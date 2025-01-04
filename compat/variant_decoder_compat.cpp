@@ -2561,37 +2561,12 @@ Error VariantDecoderCompat::encode_variant_2(const Variant &p_variant, uint8_t *
 				else // property
 					str = np.get_subname(property_idx);
 
-				CharString utf8 = str.utf8();
-
-				int pad = 0;
-
-				if (utf8.length() % 4)
-					pad = 4 - utf8.length() % 4;
-
-				if (buf) {
-					encode_uint32(utf8.length(), buf);
-					buf += 4;
-					memcpy(buf, utf8.get_data(), utf8.length());
-					buf += pad + utf8.length();
-				}
-
-				r_len += 4 + utf8.length() + pad;
+				_encode_string(str, buf, r_len);
 			}
 
 		} break;
 		case Variant::STRING: {
-			CharString utf8 = p_variant.operator String().utf8();
-
-			if (buf) {
-				encode_uint32(utf8.length(), buf);
-				buf += 4;
-				memcpy(buf, utf8.get_data(), utf8.length());
-			}
-
-			r_len += 4 + utf8.length();
-			while (r_len % 4)
-				r_len++; //pad
-
+			_encode_string(p_variant, buf, r_len);
 		} break;
 
 		// math types
