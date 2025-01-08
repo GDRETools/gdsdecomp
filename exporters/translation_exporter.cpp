@@ -59,15 +59,15 @@ static const Vector<String> STANDARD_SUFFIXES = { "Name", "Text", "Title", "Desc
 static const char *MISSING_KEY_PREFIX = "<!MissingKey:";
 
 struct KeyWorker {
-	static constexpr int MAX_FILT_RES_STRINGS = 5000;
-	static constexpr uint64_t MAX_STAGE_TIME = 1000 * 1000;
+	static constexpr int MAX_FILT_RES_STRINGS = 500000;
+	static constexpr uint64_t MAX_STAGE_TIME = 10000000ULL * 1000ULL;
 
 	Mutex mutex;
 	HashMap<StringName, StringName> key_to_message;
 	Vector<String> resource_strings;
 	Vector<String> filtered_resource_strings;
 
-	const Ref<OptimizedTranslation> default_translation;
+	const Ref<OptimizedTranslationExtractor> default_translation;
 	const Vector<StringName> default_messages;
 	const HashSet<StringName> previous_keys_found;
 
@@ -79,7 +79,7 @@ struct KeyWorker {
 	bool keys_are_all_ascii = true;
 	bool has_common_prefix = false;
 	bool do_stage_4 = true;
-	bool do_stage_5 = false; // disabled for now, it's too slow
+	bool do_stage_5 = true; // disabled for now, it's too slow
 	std::atomic<bool> cancel = false;
 	HashSet<char32_t> punctuation;
 	size_t keys_that_are_all_upper = 0;
@@ -103,10 +103,10 @@ struct KeyWorker {
 	uint64_t start_time = OS::get_singleton()->get_ticks_usec();
 	uint64_t start_of_multithread = start_time;
 	//default_translation,  default_messages;
-	KeyWorker(const Ref<Translation> &p_default_translation,
+	KeyWorker(const Ref<OptimizedTranslation> &p_default_translation,
 			const Vector<StringName> &p_default_messages,
 			const HashSet<StringName> &p_previous_keys_found) :
-			default_translation(p_default_translation),
+			default_translation(OptimizedTranslationExtractor::create_from(p_default_translation)),
 			default_messages(p_default_messages),
 			previous_keys_found(p_previous_keys_found) {}
 
@@ -726,6 +726,7 @@ struct KeyWorker {
 	void run_stage(M p_multi_method, NM non_multi_method, Vector<VE> p_userdata, const String &stage_name) {
 		// assert that M is a method belonging to this class
 		last_completed = 0;
+		cancel = false;
 		static_assert(std::is_member_function_pointer<M>::value, "M must be a method of this class");
 		if (use_multithread) {
 			last_completed = 0;
@@ -738,11 +739,11 @@ struct KeyWorker {
 			wait_for_task(group_id, stage_name, p_userdata.size(), MAX_STAGE_TIME);
 		} else {
 			auto strt = OS::get_singleton()->get_ticks_usec();
-			for (uint32_t i = 0; i < resource_strings.size(); i++) {
-				(this->*non_multi_method)(i, resource_strings.ptrw());
-				if (i % 250 == 0 && check_for_timeout(strt, MAX_STAGE_TIME)) {
-					break;
-				}
+			for (uint32_t i = 0; i < p_userdata.size(); i++) {
+				(this->*non_multi_method)(i, p_userdata.ptrw());
+				// if (i % 250 == 0 && check_for_timeout(strt, MAX_STAGE_TIME)) {
+				// 	break;
+				// }
 			}
 		}
 		end_stage();
