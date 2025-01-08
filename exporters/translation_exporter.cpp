@@ -471,6 +471,7 @@ struct KeyWorker {
 			try_key_prefix<use_lock>(E, res_s);
 			try_num_suffix<use_lock>(E, res_s);
 		}
+		last_completed++;
 	}
 
 	template <bool use_lock>
@@ -487,6 +488,7 @@ struct KeyWorker {
 				}
 			}
 		}
+		last_completed++;
 	}
 
 	template <bool use_lock>
@@ -723,6 +725,7 @@ struct KeyWorker {
 	template <typename M, typename NM, class VE>
 	void run_stage(M p_multi_method, NM non_multi_method, Vector<VE> p_userdata, const String &stage_name) {
 		// assert that M is a method belonging to this class
+		last_completed = 0;
 		static_assert(std::is_member_function_pointer<M>::value, "M must be a method of this class");
 		if (use_multithread) {
 			last_completed = 0;
@@ -873,13 +876,14 @@ struct KeyWorker {
 					try_num_suffix<false>(prefix, suffix);
 				}
 			}
-
-			run_stage(&KeyWorker::prefix_suffix_task<true>, &KeyWorker::prefix_suffix_task<false>, filtered_resource_strings, "Stage 4");
-			// Stage 5: Combine resource strings with every other string
-			// If we're still missing keys, we try combining every string with every other string.
-			do_stage_5 = do_stage_5 && key_to_message.size() != default_messages.size() && filtered_resource_strings.size() <= MAX_FILT_RES_STRINGS;
-			if (do_stage_5) {
-				run_stage(&KeyWorker::stage_5_task<true>, &KeyWorker::stage_5_task<false>, filtered_resource_strings, "Stage 5");
+			if (filtered_resource_strings.size() <= MAX_FILT_RES_STRINGS) {
+				run_stage(&KeyWorker::prefix_suffix_task<true>, &KeyWorker::prefix_suffix_task<false>, filtered_resource_strings, "Stage 4");
+				// Stage 5: Combine resource strings with every other string
+				// If we're still missing keys, we try combining every string with every other string.
+				do_stage_5 = do_stage_5 && key_to_message.size() != default_messages.size() && filtered_resource_strings.size() <= MAX_FILT_RES_STRINGS;
+				if (do_stage_5) {
+					run_stage(&KeyWorker::stage_5_task<true>, &KeyWorker::stage_5_task<false>, filtered_resource_strings, "Stage 5");
+				}
 			}
 		}
 
