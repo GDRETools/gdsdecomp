@@ -13,6 +13,7 @@
 #include "core/string/ustring.h"
 #include "modules/regex/regex.h"
 
+#include "utility/gd_parallel_hashmap.h"
 #include <modules/gdsdecomp/utility/common.h>
 
 Error TranslationExporter::export_file(const String &out_path, const String &res_path) {
@@ -58,12 +59,27 @@ static const Vector<String> STANDARD_SUFFIXES = { "Name", "Text", "Title", "Desc
 
 static const char *MISSING_KEY_PREFIX = "<!MissingKey:";
 
+template <class K, class V>
+Vector<K> get_keys(const ParallelFlatHashMap<K, V> &map) {
+	Vector<K> ret;
+	for (const auto &E : map) {
+		ret.push_back(E.first);
+	}
+	return ret;
+}
+template <typename T>
+void update_maximum(std::atomic<T> &maximum_value, T const &value) noexcept {
+	T prev_value = maximum_value;
+	while (prev_value < value &&
+			!maximum_value.compare_exchange_weak(prev_value, value)) {
+	}
+}
 struct KeyWorker {
 	static constexpr int MAX_FILT_RES_STRINGS = 500000;
 	static constexpr uint64_t MAX_STAGE_TIME = 10000000ULL * 1000ULL;
 
 	Mutex mutex;
-	HashMap<StringName, StringName> key_to_message;
+	ParallelFlatHashMap<StringName, StringName> key_to_message;
 	Vector<String> resource_strings;
 	Vector<String> filtered_resource_strings;
 
@@ -73,31 +89,31 @@ struct KeyWorker {
 
 	Vector<StringName> keys;
 	bool use_multithread = true;
-	bool keys_have_whitespace = false;
-	bool keys_are_all_upper = true;
-	bool keys_are_all_lower = true;
-	bool keys_are_all_ascii = true;
+	std::atomic<bool> keys_have_whitespace = false;
+	std::atomic<bool> keys_are_all_upper = true;
+	std::atomic<bool> keys_are_all_lower = true;
+	std::atomic<bool> keys_are_all_ascii = true;
 	bool has_common_prefix = false;
 	bool do_stage_4 = true;
 	bool do_stage_5 = true; // disabled for now, it's too slow
 	std::atomic<bool> cancel = false;
 	HashSet<char32_t> punctuation;
-	size_t keys_that_are_all_upper = 0;
-	size_t keys_that_are_all_lower = 0;
-	size_t keys_that_are_all_ascii = 0;
-	size_t max_key_len = 0;
+	std::atomic<size_t> keys_that_are_all_upper = 0;
+	std::atomic<size_t> keys_that_are_all_lower = 0;
+	std::atomic<size_t> keys_that_are_all_ascii = 0;
+	std::atomic<size_t> max_key_len = 0;
 	String common_to_all_prefix;
 	Vector<String> common_prefixes;
 	Vector<String> common_suffixes;
-	HashSet<String> successful_suffixes;
-	HashSet<String> successful_prefixes;
+	ParallelFlatHashSet<String> successful_suffixes;
+	ParallelFlatHashSet<String> successful_prefixes;
 
 	Ref<RegEx> word_regex;
 	std::atomic<uint64_t> current_keys_found = 0;
 	Vector<uint64_t> times;
 	Vector<uint64_t> keys_found;
-	HashSet<StringName> current_stage_keys_found;
-	Vector<HashSet<StringName>> stages_keys_found;
+	ParallelFlatHashSet<StringName> current_stage_keys_found;
+	Vector<ParallelFlatHashSet<StringName>> stages_keys_found;
 	std::atomic<uint64_t> last_completed = 0;
 	// 30 seconds in msec
 	uint64_t start_time = OS::get_singleton()->get_ticks_usec();
@@ -115,7 +131,7 @@ struct KeyWorker {
 		str = str.replace("\n", "").replace(".", "").replace("…", "").replace("!", "").replace("?", "").strip_escapes().strip_edges();
 		return str;
 	}
-
+	//
 	// String guess_key_from_tr(String s) {
 	// 	static const Vector<String> prefixes = { "$$", "##", "TR_", "KEY_TEXT_" };
 	// 	String key = s;
@@ -135,7 +151,9 @@ struct KeyWorker {
 	// 	return "";
 	// }
 
-	static String find_common_prefix(const HashMap<StringName, StringName> &key_to_msg) {
+	// make this a template that can take in either a ParallelFlatHashMap or a ParallelFlatHashMap
+	//  use the is_flat_or_parallel_flat_hash_map trait
+	static String find_common_prefix(const ParallelFlatHashMap<StringName, StringName> &key_to_msg) {
 		// among all the keys in the vector, find the common prefix
 		if (key_to_msg.size() == 0) {
 			return "";
@@ -144,7 +162,7 @@ struct KeyWorker {
 		auto add_to_prefix_func = [&](int i) {
 			char32_t candidate = 0;
 			for (const auto &E : key_to_msg) {
-				auto &s = E.key;
+				auto &s = E.first;
 				if (!s.is_empty()) {
 					if (s.length() - 1 < i) {
 						return false;
@@ -157,7 +175,7 @@ struct KeyWorker {
 				return false;
 			}
 			for (const auto &E : key_to_msg) {
-				auto &s = E.key;
+				auto &s = E.first;
 				if (!s.is_empty()) {
 					if (s.length() - 1 < i || s[i] != candidate) {
 						return false;
@@ -305,11 +323,11 @@ struct KeyWorker {
 			keys_are_all_ascii = false;
 		}
 		current_stage_keys_found.insert(key);
-		max_key_len = MAX(max_key_len, key.length());
+		update_maximum(max_key_len, (size_t)key.length());
 	}
 
 	_FORCE_INLINE_ bool _set_key(const String &key, const StringName &msg) {
-		if (key_to_message.has(key)) {
+		if (key_to_message.contains(key)) {
 			return true;
 		}
 		set_key_stuff(key);
@@ -317,122 +335,95 @@ struct KeyWorker {
 		return true;
 	}
 
-	template <bool use_lock = false>
 	_FORCE_INLINE_ bool try_key(const String &key) {
 		auto msg = default_translation->get_message(key);
 		if (!msg.is_empty()) {
-			if (use_lock) {
-				MutexLock lock(mutex);
-				return _set_key(key, msg);
-			} else {
-				return _set_key(key, msg);
-			}
+			return _set_key(key, msg);
 		}
 		return false;
 	}
 
-	template <bool use_lock>
+	_FORCE_INLINE_ bool try_key(const StringName &key) {
+		auto msg = default_translation->get_message(key);
+		if (!msg.is_empty()) {
+			return _set_key(key, msg);
+		}
+		return false;
+	}
+	
+	_FORCE_INLINE_ bool try_key(const char *key) {
+		auto msg = default_translation->get_message(key);
+		if (!msg.is_empty()) {
+			return _set_key(key, msg);
+		}
+		return false;
+	}
+
 	bool try_key_prefix(const String &prefix, const String &key) {
-		if (try_key<use_lock>(prefix + key)) {
-			if (use_lock) {
-				MutexLock lock(mutex);
-				successful_prefixes.insert(prefix);
-			} else {
-				successful_prefixes.insert(prefix);
-			}
+		if (try_key(prefix + key)) {
+			successful_prefixes.insert(prefix);
 			return true;
 		}
 		for (char32_t p : punctuation) {
-			if (try_key<use_lock>(prefix + p + key)) {
-				if (use_lock) {
-					MutexLock lock(mutex);
-					successful_prefixes.insert(prefix);
-				} else {
-					successful_prefixes.insert(prefix);
-				}
+			if (try_key(prefix + p + key)) {
+				successful_prefixes.insert(prefix);
 				return true;
 			}
 		}
 		return false;
 	}
 
-	template <bool use_lock>
 	bool try_key_suffix(const String &prefix, const String &suffix) {
-		if (try_key<use_lock>(prefix + suffix)) {
-			if (use_lock) {
-				MutexLock lock(mutex);
-				successful_suffixes.insert(suffix);
-			} else {
-				successful_suffixes.insert(suffix);
-			}
+		if (try_key(prefix + suffix)) {
+			successful_suffixes.insert(suffix);
 			return true;
 		}
 		for (char32_t p : punctuation) {
-			if (try_key<use_lock>(prefix + p + suffix)) {
-				if (use_lock) {
-					MutexLock lock(mutex);
-					successful_suffixes.insert(suffix);
-				} else {
-					successful_suffixes.insert(suffix);
-				}
+			if (try_key(prefix + p + suffix)) {
+				successful_suffixes.insert(suffix);
 				return true;
 			}
 		}
 		return false;
 	}
 
-	template <bool use_lock>
 	bool try_key_suffixes(const String &prefix, const String &suffix, const String &suffix2) {
 		if (suffix.is_empty()) {
-			return try_key_suffix<use_lock>(prefix, suffix2);
+			return try_key_suffix(prefix, suffix2);
 		}
-		if (try_key_suffix<use_lock>(prefix, suffix + suffix2)) {
+		if (try_key_suffix(prefix, suffix + suffix2)) {
 			return true;
 		}
 		for (char32_t p : punctuation) {
-			if (try_key_suffix<use_lock>(prefix, suffix + p + suffix2)) {
+			if (try_key_suffix(prefix, suffix + p + suffix2)) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	template <bool use_lock>
 	bool try_key_prefix_suffix(const String &prefix, const String &key, const String &suffix) {
-		if (try_key<use_lock>(prefix + key + suffix)) {
-			if (use_lock) {
-				MutexLock lock(mutex);
-				successful_prefixes.insert(prefix);
-				successful_suffixes.insert(suffix);
-			} else {
-				successful_prefixes.insert(prefix);
-				successful_suffixes.insert(suffix);
-			}
+		if (try_key(prefix + key + suffix)) {
+			successful_prefixes.insert(prefix);
+			successful_suffixes.insert(suffix);
 			return true;
 		}
 		for (char32_t p : punctuation) {
-			if (try_key<use_lock>(prefix + p + key + p + suffix)) {
-				if (use_lock) {
-					MutexLock lock(mutex);
-					successful_prefixes.insert(prefix);
-					successful_suffixes.insert(suffix);
-				} else {
-					successful_prefixes.insert(prefix);
-					successful_suffixes.insert(suffix);
-				}
+			if (try_key(prefix + p + key + p + suffix)) {
+				successful_prefixes.insert(prefix);
+				successful_suffixes.insert(suffix);
 				return true;
 			}
 		}
 		return false;
 	}
 
-	template <bool use_lock>
 	auto try_num_suffix(const String &res_s, const String &suffix = "") {
-		bool found_num = try_key_suffixes<use_lock>(res_s, suffix, itos(1));
+		bool found_num = try_key_suffixes(res_s, suffix, itos(1));
 		if (found_num) {
-			try_key_suffixes<use_lock>(res_s, suffix, "N");
-			try_key_suffixes<use_lock>(res_s, suffix, "n");
-			try_key_suffixes<use_lock>(res_s, suffix, itos(0));
+			try_key_suffixes(res_s, suffix, "N");
+			try_key_suffixes(res_s, suffix, "n");
+			try_key_suffixes(res_s, suffix, itos(0));
 			bool found_all = true;
 			int min_num = 2;
 			int max_num = 4;
@@ -440,7 +431,7 @@ struct KeyWorker {
 			while (found_all) {
 				int numbers_found = 0;
 				for (int num = min_num; num < max_num; num++) {
-					if (try_key_suffixes<use_lock>(res_s, suffix, itos(num))) {
+					if (try_key_suffixes(res_s, suffix, itos(num))) {
 						numbers_found++;
 					}
 				}
@@ -455,26 +446,24 @@ struct KeyWorker {
 		}
 	}
 
-	template <bool use_lock>
 	void prefix_suffix_task(uint32_t i, String *res_strings) {
 		if (unlikely(cancel)) {
 			return;
 		}
 		const String &res_s = res_strings[i];
-		try_num_suffix<use_lock>(res_s);
+		try_num_suffix(res_s);
 
 		for (const auto &E : common_suffixes) {
-			try_key_suffix<use_lock>(res_s, E);
-			try_num_suffix<use_lock>(res_s, E);
+			try_key_suffix(res_s, E);
+			try_num_suffix(res_s, E);
 		}
 		for (const auto &E : common_prefixes) {
-			try_key_prefix<use_lock>(E, res_s);
-			try_num_suffix<use_lock>(E, res_s);
+			try_key_prefix(E, res_s);
+			try_num_suffix(E, res_s);
 		}
 		last_completed++;
 	}
 
-	template <bool use_lock>
 	void partial_task(uint32_t i, String *res_strings) {
 		if (unlikely(cancel)) {
 			return;
@@ -484,14 +473,13 @@ struct KeyWorker {
 			auto matches = word_regex->search_all(res_s);
 			for (const Ref<RegExMatch> match : matches) {
 				for (const String &key : match->get_strings()) {
-					try_key<use_lock>(key);
+					try_key(key);
 				}
 			}
 		}
 		last_completed++;
 	}
 
-	template <bool use_lock>
 	void stage_5_task(uint32_t i, String *res_strings) {
 		if (unlikely(cancel)) {
 			return;
@@ -500,7 +488,7 @@ struct KeyWorker {
 		auto frs_size = filtered_resource_strings.size();
 		for (uint32_t j = 0; j < frs_size; j++) {
 			const String &res_s2 = res_strings[j];
-			try_key_suffix<use_lock>(res_s, res_s2);
+			try_key_suffix(res_s, res_s2);
 		}
 		++last_completed;
 	}
@@ -800,7 +788,7 @@ struct KeyWorker {
 				word_regex->compile("\\b" + common_to_all_prefix + char_re + "+" + "\\b");
 			}
 
-			run_stage(&KeyWorker::partial_task<true>, &KeyWorker::partial_task<false>, resource_strings, "Stage 2");
+			run_stage(&KeyWorker::partial_task, &KeyWorker::partial_task, resource_strings, "Stage 2");
 		} else {
 			end_stage();
 		}
@@ -840,20 +828,20 @@ struct KeyWorker {
 
 			common_prefixes = get_sanitized_strings(STANDARD_SUFFIXES);
 			common_suffixes = get_sanitized_strings(STANDARD_SUFFIXES);
-			run_stage(&KeyWorker::prefix_suffix_task<true>, &KeyWorker::prefix_suffix_task<false>, resource_strings, "Stage 3");
+			run_stage(&KeyWorker::prefix_suffix_task, &KeyWorker::prefix_suffix_task, resource_strings, "Stage 3");
 		}
 		// Stage 4: Combine resource strings with detected prefixes and suffixes
 		// If we're still missing keys and no keys have spaces, we try combining every string with every other string
 		do_stage_4 = do_stage_4 && key_to_message.size() != default_messages.size();
 		if (do_stage_4 && key_to_message.size() != default_messages.size()) {
-			auto curr_keys = gdre::get_keys(key_to_message);
+			auto curr_keys = get_keys(key_to_message);
 			find_common_prefixes_and_suffixes(curr_keys);
 
 			Vector<String> middle_candidates;
 			extract_middles(filtered_resource_strings, middle_candidates);
 			Vector<String> str_keys;
 			for (const auto &E : key_to_message) {
-				str_keys.push_back(E.key);
+				str_keys.push_back(E.first);
 			}
 			extract_middles(str_keys, middle_candidates);
 			Vector<String> new_strings;
@@ -871,19 +859,19 @@ struct KeyWorker {
 			start_of_multithread = OS::get_singleton()->get_ticks_usec();
 			for (const auto &prefix : common_prefixes) {
 				for (const auto &suffix : common_suffixes) {
-					if (try_key_suffix<false>(prefix, suffix)) {
+					if (try_key_suffix(prefix, suffix)) {
 						successful_prefixes.insert(prefix);
 					}
-					try_num_suffix<false>(prefix, suffix);
+					try_num_suffix(prefix, suffix);
 				}
 			}
 			if (filtered_resource_strings.size() <= MAX_FILT_RES_STRINGS) {
-				run_stage(&KeyWorker::prefix_suffix_task<true>, &KeyWorker::prefix_suffix_task<false>, filtered_resource_strings, "Stage 4");
+				run_stage(&KeyWorker::prefix_suffix_task, &KeyWorker::prefix_suffix_task, filtered_resource_strings, "Stage 4");
 				// Stage 5: Combine resource strings with every other string
 				// If we're still missing keys, we try combining every string with every other string.
 				do_stage_5 = do_stage_5 && key_to_message.size() != default_messages.size() && filtered_resource_strings.size() <= MAX_FILT_RES_STRINGS;
 				if (do_stage_5) {
-					run_stage(&KeyWorker::stage_5_task<true>, &KeyWorker::stage_5_task<false>, filtered_resource_strings, "Stage 5");
+					run_stage(&KeyWorker::stage_5_task, &KeyWorker::stage_5_task, filtered_resource_strings, "Stage 5");
 				}
 			}
 		}
@@ -897,11 +885,11 @@ struct KeyWorker {
 			bool has_match = false;
 			StringName matching_key;
 			for (auto &E : key_to_message) {
-				if (E.value == msg) {
+				if (E.second == msg) {
 					has_match = true;
-					matching_key = E.key;
-					if (!keys.has(E.key)) {
-						keys.push_back(E.key);
+					matching_key = E.first;
+					if (!keys.has(E.first)) {
+						keys.push_back(E.first);
 						found = true;
 						break;
 					}
