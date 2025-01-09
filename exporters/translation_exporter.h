@@ -4,10 +4,10 @@
 class TranslationExporter : public ResourceExporter {
 	GDCLASS(TranslationExporter, ResourceExporter);
 
-	HashSet<StringName> all_keys_found;
+	HashSet<String> all_keys_found;
 
 public:
-	static constexpr float threshold = 0.15;
+	static constexpr float threshold = 0.15; // TODO: put this in the project configuration
 
 	virtual Error export_file(const String &out_path, const String &res_path) override;
 	virtual Ref<ExportReport> export_resource(const String &output_dir, Ref<ImportInfo> import_infos) override;

@@ -238,111 +238,11 @@ uint32_t OptimizedTranslationExtractor::hash_multipart(uint32_t d, const char *p
 }
 
 StringName OptimizedTranslationExtractor::get_message_multipart(const char *part1, const char *part2, const char *part3, const char *part4, const char *part5, const char *part6) const {
-	int htsize = hash_table.size();
-
-	if (htsize == 0) {
-		return StringName();
-	}
-	uint32_t h = hash_multipart(0, part1, part2, part3, part4, part5, part6);
-	const int *htr = hash_table.ptr();
-	const uint32_t *htptr = (const uint32_t *)&htr[0];
-	const int *btr = bucket_table.ptr();
-	const uint32_t *btptr = (const uint32_t *)&btr[0];
-	const uint8_t *sr = strings.ptr();
-	const char *sptr = (const char *)&sr[0];
-
-	uint32_t p = htptr[h % htsize];
-
-	if (p == 0xFFFFFFFF) {
-		return StringName(); //nothing
-	}
-
-	const Bucket &bucket = *(const Bucket *)&btptr[p];
-
-	h = hash_multipart(bucket.func, part1, part2, part3, part4, part5, part6);
-
-	int idx = -1;
-
-	for (int i = 0; i < bucket.size; i++) {
-		if (bucket.elem[i].key == h) {
-			idx = i;
-			break;
-		}
-	}
-
-	if (idx == -1) {
-		return StringName();
-	}
-
-	if (bucket.elem[idx].comp_size == bucket.elem[idx].uncomp_size) {
-		String rstr;
-		rstr.parse_utf8(&sptr[bucket.elem[idx].str_offset], bucket.elem[idx].uncomp_size);
-
-		return rstr;
-	} else {
-		CharString uncomp;
-		uncomp.resize(bucket.elem[idx].uncomp_size + 1);
-		smaz_decompress(&sptr[bucket.elem[idx].str_offset], bucket.elem[idx].comp_size, uncomp.ptrw(), bucket.elem[idx].uncomp_size);
-		String rstr;
-		rstr.parse_utf8(uncomp.get_data());
-		return rstr;
-	}
+	return get_message_multipart_str(part1, part2, part3, part4, part5, part6);
 }
 
 StringName OptimizedTranslationExtractor::get_message(const char *p_src_text, const StringName &p_context) const {
-	// p_context passed in is ignore. The use of context is not yet supported in OptimizedTranslationExtractor.
-
-	int htsize = hash_table.size();
-
-	if (htsize == 0) {
-		return StringName();
-	}
-
-	uint32_t h = hash(0, p_src_text);
-
-	const int *htr = hash_table.ptr();
-	const uint32_t *htptr = (const uint32_t *)&htr[0];
-	const int *btr = bucket_table.ptr();
-	const uint32_t *btptr = (const uint32_t *)&btr[0];
-	const uint8_t *sr = strings.ptr();
-	const char *sptr = (const char *)&sr[0];
-
-	uint32_t p = htptr[h % htsize];
-
-	if (p == 0xFFFFFFFF) {
-		return StringName(); //nothing
-	}
-
-	const Bucket &bucket = *(const Bucket *)&btptr[p];
-
-	h = hash(bucket.func, p_src_text);
-
-	int idx = -1;
-
-	for (int i = 0; i < bucket.size; i++) {
-		if (bucket.elem[i].key == h) {
-			idx = i;
-			break;
-		}
-	}
-
-	if (idx == -1) {
-		return StringName();
-	}
-
-	if (bucket.elem[idx].comp_size == bucket.elem[idx].uncomp_size) {
-		String rstr;
-		rstr.parse_utf8(&sptr[bucket.elem[idx].str_offset], bucket.elem[idx].uncomp_size);
-
-		return rstr;
-	} else {
-		CharString uncomp;
-		uncomp.resize(bucket.elem[idx].uncomp_size + 1);
-		smaz_decompress(&sptr[bucket.elem[idx].str_offset], bucket.elem[idx].comp_size, uncomp.ptrw(), bucket.elem[idx].uncomp_size);
-		String rstr;
-		rstr.parse_utf8(uncomp.get_data());
-		return rstr;
-	}
+	return get_message_str(p_src_text);
 }
 
 Vector<String> OptimizedTranslationExtractor::get_translated_message_list() const {
@@ -427,17 +327,6 @@ HashSet<uint32_t> OptimizedTranslationExtractor::get_message_hash_set() const {
 }
 
 void OptimizedTranslationExtractor::get_message_value_list(List<StringName> *r_messages) const {
-	Vector<int> hash_table;
-	Vector<int> bucket_table;
-	Vector<uint8_t> strings;
-	Variant r_ret;
-	ERR_FAIL_COND_MSG(!_get("hash_table", r_ret), "dsgad!");
-	hash_table = r_ret;
-	ERR_FAIL_COND_MSG(!_get("bucket_table", r_ret), "asdg!");
-	bucket_table = r_ret;
-	ERR_FAIL_COND_MSG(!_get("strings", r_ret), "adsg!");
-	strings = r_ret;
-
 	int htsize = hash_table.size();
 
 	if (htsize == 0) {
@@ -469,6 +358,122 @@ void OptimizedTranslationExtractor::get_message_value_list(List<StringName> *r_m
 			}
 			r_messages->push_back(rstr);
 		}
+	}
+}
+
+String OptimizedTranslationExtractor::get_message_multipart_str(const char *part1, const char *part2, const char *part3, const char *part4, const char *part5, const char *part6) const {
+	int htsize = hash_table.size();
+
+	if (htsize == 0) {
+		return StringName();
+	}
+	uint32_t h = hash_multipart(0, part1, part2, part3, part4, part5, part6);
+	const int *htr = hash_table.ptr();
+	const uint32_t *htptr = (const uint32_t *)&htr[0];
+	const int *btr = bucket_table.ptr();
+	const uint32_t *btptr = (const uint32_t *)&btr[0];
+	const uint8_t *sr = strings.ptr();
+	const char *sptr = (const char *)&sr[0];
+
+	uint32_t p = htptr[h % htsize];
+
+	if (p == 0xFFFFFFFF) {
+		return StringName(); //nothing
+	}
+
+	const Bucket &bucket = *(const Bucket *)&btptr[p];
+
+	h = hash_multipart(bucket.func, part1, part2, part3, part4, part5, part6);
+
+	int idx = -1;
+
+	for (int i = 0; i < bucket.size; i++) {
+		if (bucket.elem[i].key == h) {
+			idx = i;
+			break;
+		}
+	}
+
+	if (idx == -1) {
+		return StringName();
+	}
+
+	if (bucket.elem[idx].comp_size == bucket.elem[idx].uncomp_size) {
+		String rstr;
+		rstr.parse_utf8(&sptr[bucket.elem[idx].str_offset], bucket.elem[idx].uncomp_size);
+
+		return rstr;
+	} else {
+		CharString uncomp;
+		uncomp.resize(bucket.elem[idx].uncomp_size + 1);
+		smaz_decompress(&sptr[bucket.elem[idx].str_offset], bucket.elem[idx].comp_size, uncomp.ptrw(), bucket.elem[idx].uncomp_size);
+		String rstr;
+		rstr.parse_utf8(uncomp.get_data());
+		return rstr;
+	}
+}
+
+String OptimizedTranslationExtractor::get_message_str(const StringName &p_src_text) const {
+	return get_message_str(p_src_text.operator String().utf8().get_data());
+}
+
+String OptimizedTranslationExtractor::get_message_str(const String &p_src_text) const {
+	return get_message_str(p_src_text.utf8().get_data());
+}
+
+String OptimizedTranslationExtractor::get_message_str(const char *p_src_text) const {
+	// p_context passed in is ignore. The use of context is not yet supported in OptimizedTranslationExtractor.
+
+	int htsize = hash_table.size();
+
+	if (htsize == 0) {
+		return StringName();
+	}
+
+	uint32_t h = hash(0, p_src_text);
+
+	const int *htr = hash_table.ptr();
+	const uint32_t *htptr = (const uint32_t *)&htr[0];
+	const int *btr = bucket_table.ptr();
+	const uint32_t *btptr = (const uint32_t *)&btr[0];
+	const uint8_t *sr = strings.ptr();
+	const char *sptr = (const char *)&sr[0];
+
+	uint32_t p = htptr[h % htsize];
+
+	if (p == 0xFFFFFFFF) {
+		return StringName(); //nothing
+	}
+
+	const Bucket &bucket = *(const Bucket *)&btptr[p];
+
+	h = hash(bucket.func, p_src_text);
+
+	int idx = -1;
+
+	for (int i = 0; i < bucket.size; i++) {
+		if (bucket.elem[i].key == h) {
+			idx = i;
+			break;
+		}
+	}
+
+	if (idx == -1) {
+		return StringName();
+	}
+
+	if (bucket.elem[idx].comp_size == bucket.elem[idx].uncomp_size) {
+		String rstr;
+		rstr.parse_utf8(&sptr[bucket.elem[idx].str_offset], bucket.elem[idx].uncomp_size);
+
+		return rstr;
+	} else {
+		CharString uncomp;
+		uncomp.resize(bucket.elem[idx].uncomp_size + 1);
+		smaz_decompress(&sptr[bucket.elem[idx].str_offset], bucket.elem[idx].comp_size, uncomp.ptrw(), bucket.elem[idx].uncomp_size);
+		String rstr;
+		rstr.parse_utf8(uncomp.get_data());
+		return rstr;
 	}
 }
 

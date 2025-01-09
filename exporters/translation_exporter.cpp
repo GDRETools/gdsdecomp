@@ -47,12 +47,6 @@ Error TranslationExporter::export_file(const String &out_path, const String &res
 		return key;                               \
 	}
 
-namespace {
-StringName get_msg(Ref<Translation> default_translation, const String &key) {
-	return default_translation->get_message(key);
-}
-} //namespace
-
 static const HashSet<char32_t> ALL_PUNCTUATION = gdre::vector_to_hashset(Vector<char32_t>({ '.', '!', '?', ',', ';', ':', '(', ')', '[', ']', '{', '}', '<', '>', '/', '\\', '|', '`', '~', '@', '#', '$', '%', '^', '&', '*', '-', '_', '+', '=', '\'', '"', '\n', '\t', ' ' }));
 static const HashSet<char32_t> REMOVABLE_PUNCTUATION = HashSet<char32_t>(gdre::vector_to_hashset(Vector<char32_t>{ '.', '!', '?', ',', ';', ':', '%' }));
 static const Vector<String> STANDARD_SUFFIXES = { "Name", "Text", "Title", "Description", "Label", "Button", "Speech", "Tooltip", "Legend", "Body", "Content" };
@@ -60,10 +54,10 @@ static const Vector<String> STANDARD_SUFFIXES = { "Name", "Text", "Title", "Desc
 static const char *MISSING_KEY_PREFIX = "<!MissingKey:";
 
 template <class K, class V>
-Vector<K> get_keys(const ParallelFlatHashMap<K, V> &map) {
+Vector<K> get_keys(const HashMap<K, V> &map) {
 	Vector<K> ret;
 	for (const auto &E : map) {
-		ret.push_back(E.first);
+		ret.push_back(E.key);
 	}
 	return ret;
 }
@@ -79,17 +73,17 @@ struct KeyWorker {
 	static constexpr uint64_t MAX_STAGE_TIME = 30 * 1000ULL;
 
 	Mutex mutex;
-	ParallelFlatHashMap<StringName, StringName> key_to_message;
+	HashMap<String, String> key_to_message;
 	Vector<String> resource_strings;
 	Vector<String> filtered_resource_strings;
 	Vector<CharString> resource_strings_t;
 	Vector<CharString> filtered_resource_strings_t;
 
 	const Ref<OptimizedTranslationExtractor> default_translation;
-	const Vector<StringName> default_messages;
-	const HashSet<StringName> previous_keys_found;
+	const Vector<String> default_messages;
+	const HashSet<String> previous_keys_found;
 
-	Vector<StringName> keys;
+	Vector<String> keys;
 	bool use_multithread = true;
 	std::atomic<bool> keys_have_whitespace = false;
 	std::atomic<bool> keys_are_all_upper = true;
@@ -119,19 +113,19 @@ struct KeyWorker {
 	std::atomic<uint64_t> current_keys_found = 0;
 	Vector<uint64_t> times;
 	Vector<uint64_t> keys_found;
-	ParallelFlatHashSet<StringName> current_stage_keys_found;
-	Vector<ParallelFlatHashSet<StringName>> stages_keys_found;
+	ParallelFlatHashSet<String> current_stage_keys_found;
+	Vector<ParallelFlatHashSet<String>> stages_keys_found;
 	std::atomic<uint64_t> last_completed = 0;
 	// 30 seconds in msec
 	uint64_t start_time = OS::get_singleton()->get_ticks_usec();
 	uint64_t start_of_multithread = start_time;
 	//default_translation,  default_messages;
 	KeyWorker(const Ref<OptimizedTranslation> &p_default_translation,
-			const Vector<StringName> &p_default_messages,
-			const HashSet<StringName> &p_previous_keys_found) :
+			const HashSet<String> &p_previous_keys_found) :
 			default_translation(OptimizedTranslationExtractor::create_from(p_default_translation)),
-			default_messages(p_default_messages),
-			previous_keys_found(p_previous_keys_found) {}
+			default_messages(default_translation->get_translated_message_list()),
+			previous_keys_found(p_previous_keys_found) {
+	}
 
 	String sanitize_key(const String &s) {
 		String str = s;
@@ -139,9 +133,9 @@ struct KeyWorker {
 		return str;
 	}
 
-	// make this a template that can take in either a ParallelFlatHashMap or a ParallelFlatHashMap
+	// make this a template that can take in either a HashMap or a HashMap
 	//  use the is_flat_or_parallel_flat_hash_map trait
-	static String find_common_prefix(const ParallelFlatHashMap<StringName, StringName> &key_to_msg) {
+	static String find_common_prefix(const HashMap<String, String> &key_to_msg) {
 		// among all the keys in the vector, find the common prefix
 		if (key_to_msg.size() == 0) {
 			return "";
@@ -150,7 +144,7 @@ struct KeyWorker {
 		auto add_to_prefix_func = [&](int i) {
 			char32_t candidate = 0;
 			for (const auto &E : key_to_msg) {
-				auto &s = E.first;
+				auto &s = E.key;
 				if (!s.is_empty()) {
 					if (s.length() - 1 < i) {
 						return false;
@@ -163,7 +157,7 @@ struct KeyWorker {
 				return false;
 			}
 			for (const auto &E : key_to_msg) {
-				auto &s = E.first;
+				auto &s = E.key;
 				if (!s.is_empty()) {
 					if (s.length() - 1 < i || s[i] != candidate) {
 						return false;
@@ -193,7 +187,8 @@ struct KeyWorker {
 		}
 	};
 
-	void find_common_prefixes_and_suffixes(const Vector<StringName> &res_strings, int count_threshold = 3, bool clear = false) {
+	template <typename T>
+	void find_common_prefixes_and_suffixes(const Vector<T> &res_strings, int count_threshold = 3, bool clear = false) {
 		HashMap<String, int> prefix_counts;
 		HashMap<String, int> suffix_counts;
 
@@ -212,7 +207,7 @@ struct KeyWorker {
 			}
 		};
 
-		for (const StringName &res_s : res_strings) {
+		for (const auto &res_s : res_strings) {
 			if (res_s.is_empty()) {
 				continue;
 			}
@@ -289,7 +284,7 @@ struct KeyWorker {
 		common_suffixes.sort_custom<StringLengthCompare<true>>();
 	}
 
-	_FORCE_INLINE_ void set_key_stuff(const String &key) {
+	_FORCE_INLINE_ void _set_key_stuff(const String &key) {
 		++current_keys_found;
 		if (!keys_have_whitespace && gdre::string_has_whitespace(key)) {
 			keys_have_whitespace = true;
@@ -311,34 +306,24 @@ struct KeyWorker {
 		}
 		current_stage_keys_found.insert(key);
 		update_maximum(max_key_len, (size_t)key.length());
-		{
-			MutexLock lock(mutex);
-			gdre::get_chars_in_set(key, ALL_PUNCTUATION, punctuation);
-			for (char32_t p : punctuation) {
-				punctuation_str.insert(String::chr(p).utf8());
-			}
+		gdre::get_chars_in_set(key, ALL_PUNCTUATION, punctuation);
+		for (char32_t p : punctuation) {
+			punctuation_str.insert(String::chr(p).utf8());
 		}
 	}
 
-	_FORCE_INLINE_ bool _set_key(const String &key, const StringName &msg) {
-		if (key_to_message.contains(key)) {
+	_FORCE_INLINE_ bool _set_key(const String &key, const String &msg) {
+		MutexLock lock(mutex);
+		if (key_to_message.has(key)) {
 			return true;
 		}
-		set_key_stuff(key);
+		_set_key_stuff(key);
 		key_to_message[key] = msg;
 		return true;
 	}
 
 	_FORCE_INLINE_ bool try_key(const String &key) {
-		auto msg = default_translation->get_message(key);
-		if (!msg.is_empty()) {
-			return _set_key(key, msg);
-		}
-		return false;
-	}
-
-	_FORCE_INLINE_ bool try_key(const StringName &key) {
-		auto msg = default_translation->get_message(key);
+		auto msg = default_translation->get_message_str(key);
 		if (!msg.is_empty()) {
 			return _set_key(key, msg);
 		}
@@ -346,22 +331,37 @@ struct KeyWorker {
 	}
 
 	_FORCE_INLINE_ bool try_key(const char *key) {
-		auto msg = default_translation->get_message(key);
+		auto msg = default_translation->get_message_str(key);
 		if (!msg.is_empty()) {
 			return _set_key(key, msg);
 		}
 		return false;
 	}
 
-	String combine_string(const char *part1, const char *part2 = "", const char *part3 = "", const char *part4 = "", const char *part5 = "", const char *part6 = "") {
-		String ret = part1;
-		ret += part2;
-		ret += part3;
-		ret += part4;
-		ret += part5;
-		ret += part6;
-		return ret;
+	constexpr bool is_empty_or_null(const char *str) {
+		return !str || *str == 0;
 	}
+
+	String combine_string(const char *part1, const char *part2 = "", const char *part3 = "", const char *part4 = "", const char *part5 = "", const char *part6 = "") {
+		auto str = String::utf8(part1);
+		if (!is_empty_or_null(part2)) {
+			str += String::utf8(part2);
+		}
+		if (!is_empty_or_null(part3)) {
+			str += String::utf8(part3);
+		}
+		if (!is_empty_or_null(part4)) {
+			str += String::utf8(part4);
+		}
+		if (!is_empty_or_null(part5)) {
+			str += String::utf8(part5);
+		}
+		if (!is_empty_or_null(part6)) {
+			str += String::utf8(part6);
+		}
+		return str;
+	}
+
 	void reg_successful_prefix(const String &prefix) {
 		if (!prefix.is_empty()) {
 			successful_prefixes.insert(prefix);
@@ -375,15 +375,16 @@ struct KeyWorker {
 	}
 
 	_FORCE_INLINE_ bool try_key_multipart(const char *part1, const char *part2 = "", const char *part3 = "", const char *part4 = "", const char *part5 = "", const char *part6 = "") {
-		auto msg = default_translation->get_message_multipart(part1, part2, part3, part4, part5, part6);
+		auto msg = default_translation->get_message_multipart_str(part1, part2, part3, part4, part5, part6);
 		if (!msg.is_empty()) {
 			auto key = combine_string(part1, part2, part3, part4, part5, part6);
-			if (key_to_message.contains(key)) {
-				return true;
-			}
-			key_to_message[key] = msg;
-			current_stage_keys_found.insert(key);
-			++current_keys_found;
+			// if (key_to_message.contains(key)) {
+			// 	return true;
+			// }
+			// key_to_message[key] = msg;
+			// current_stage_keys_found.insert(key);
+			// ++current_keys_found;
+			_set_key(key, msg);
 			return true;
 		}
 		return false;
@@ -423,12 +424,12 @@ struct KeyWorker {
 			return try_key_suffix(prefix, suffix2);
 		}
 		if (try_key_multipart(prefix, suffix, suffix2)) {
-			reg_successful_suffix(String(suffix) + suffix2);
+			reg_successful_suffix(combine_string(suffix, suffix2));
 			return true;
 		}
 		for (auto p : punctuation_str) {
 			if (try_key_multipart(prefix, suffix, p.get_data(), suffix2)) {
-				reg_successful_suffix(String(suffix) + String(p.get_data()) + suffix2);
+				reg_successful_suffix(combine_string(suffix, p.get_data(), suffix2));
 				return true;
 			}
 		}
@@ -437,14 +438,14 @@ struct KeyWorker {
 
 	bool try_key_prefix_suffix(const char *prefix, const char *key, const char *suffix) {
 		if (try_key_multipart(prefix, key, suffix)) {
-			reg_successful_prefix(prefix);
-			reg_successful_suffix(suffix);
+			reg_successful_prefix(combine_string(prefix));
+			reg_successful_suffix(combine_string(suffix));
 			return true;
 		}
 		for (auto p : punctuation_str) {
 			if (try_key_multipart(prefix, p.get_data(), key, p.get_data(), suffix)) {
-				reg_successful_prefix(prefix);
-				reg_successful_suffix(suffix);
+				reg_successful_prefix(combine_string(prefix));
+				reg_successful_suffix(combine_string(suffix));
 				return true;
 			}
 		}
@@ -454,8 +455,8 @@ struct KeyWorker {
 	CharString cs_num(int64_t num) {
 		CharString ret;
 		ret.resize(32);
-		int len = snprintf(ret.ptrw(), 32, "%lld", num);
-		ret.resize(len);
+		int len = snprintf(ret.ptrw(), 31, "%lld", num);
+		ret.resize(len + 1);
 		return ret;
 	}
 
@@ -816,7 +817,7 @@ struct KeyWorker {
 		}
 		// Stage 1.5: Previous keys found
 		if (key_to_message.size() != default_messages.size()) {
-			for (const StringName &key : previous_keys_found) {
+			for (const String &key : previous_keys_found) {
 				try_key(key);
 			}
 		}
@@ -898,7 +899,7 @@ struct KeyWorker {
 			extract_middles(filtered_resource_strings, middle_candidates);
 			Vector<String> str_keys;
 			for (const auto &E : key_to_message) {
-				str_keys.push_back(E.first);
+				str_keys.push_back(E.key);
 			}
 			extract_middles(str_keys, middle_candidates);
 			Vector<String> new_strings;
@@ -943,11 +944,11 @@ struct KeyWorker {
 			bool has_match = false;
 			StringName matching_key;
 			for (auto &E : key_to_message) {
-				if (E.second == msg) {
+				if (E.value == msg) {
 					has_match = true;
-					matching_key = E.first;
-					if (!keys.has(E.first)) {
-						keys.push_back(E.first);
+					matching_key = E.key;
+					if (!keys.has(E.key)) {
+						keys.push_back(E.key);
 						found = true;
 						break;
 					}
@@ -955,8 +956,8 @@ struct KeyWorker {
 			}
 			if (!found) {
 				if (has_match) {
-					if (msg != key_to_message[matching_key]) {
-						WARN_PRINT(vformat("Found matching key '%s' for message '%s' but key is used for message '%s'", matching_key, msg, key_to_message[matching_key]));
+					if (const auto &matching_message = key_to_message[matching_key]; msg != matching_message) {
+						WARN_PRINT(vformat("Found matching key '%s' for message '%s' but key is used for message '%s'", matching_key, msg, matching_message));
 					} else {
 						print_verbose(vformat("WARNING: Found duplicate key '%s' for message '%s'", matching_key, msg));
 						keys.push_back(matching_key);
@@ -985,6 +986,7 @@ struct KeyWorker {
 				}
 			}
 		}
+		bl_debug(vformat("Total found: %d/%d", default_messages.size() - missing_keys, default_messages.size()));
 		return missing_keys;
 	}
 };
@@ -993,6 +995,7 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 	// Implementation for exporting resources related to translations
 	Error err = OK;
 	// translation files are usually imported from one CSV and converted to multiple "<LOCALE>.translation" files
+	// TODO: make this also check for the first file in GDRESettings::get_singleton()->get_project_setting("internationalization/locale/translations")
 	String default_locale = GDRESettings::get_singleton()->pack_has_project_config() && GDRESettings::get_singleton()->has_project_setting("locale/fallback")
 			? GDRESettings::get_singleton()->get_project_setting("locale/fallback")
 			: "en";
@@ -1001,11 +1004,11 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 	}
 	bl_debug("Exporting translation file " + iinfo->get_export_dest());
 	Vector<Ref<Translation>> translations;
-	Vector<Vector<StringName>> translation_messages;
+	Vector<Vector<String>> translation_messages;
 	Ref<Translation> default_translation;
-	Vector<StringName> default_messages;
+	Vector<String> default_messages;
 	String header = "key";
-	Vector<StringName> keys;
+	Vector<String> keys;
 	Ref<ExportReport> report = memnew(ExportReport(iinfo));
 	report->set_error(ERR_CANT_ACQUIRE_RESOURCE);
 	for (String path : iinfo->get_dest_files()) {
@@ -1013,22 +1016,9 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 		ERR_FAIL_COND_V_MSG(err != OK, report, "Could not load translation file " + iinfo->get_path());
 		ERR_FAIL_COND_V_MSG(!tr.is_valid(), report, "Translation file " + iinfo->get_path() + " was not valid");
 		String locale = tr->get_locale();
+		// TODO: put the default locale at the beginning
 		header += "," + locale;
-		List<StringName> message_list;
-		Vector<StringName> messages;
-		if (tr->get_class_name() == "OptimizedTranslation") {
-			Ref<OptimizedTranslation> otr = tr;
-			Ref<OptimizedTranslationExtractor> ote;
-			ote.instantiate();
-			ote->set("locale", locale);
-			ote->set("hash_table", otr->get("hash_table"));
-			ote->set("bucket_table", otr->get("bucket_table"));
-			ote->set("strings", otr->get("strings"));
-			ote->get_message_value_list(&message_list);
-			for (auto message : message_list) {
-				messages.push_back(message);
-			}
-		} else {
+		if (tr->get_class_name() != "OptimizedTranslation") {
 			// We have a real translation class, get the keys
 			if (locale.to_lower() == default_locale.to_lower()) {
 				List<StringName> key_list;
@@ -1037,12 +1027,8 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 					keys.push_back(key);
 				}
 			}
-			Dictionary msgdict = tr->get("messages");
-			Array values = msgdict.values();
-			for (int i = 0; i < values.size(); i++) {
-				messages.push_back(values[i]);
-			}
 		}
+		Vector<String> messages = tr->get_translated_message_list();
 		if (locale.to_lower() == default_locale.to_lower()) {
 			default_messages = messages;
 			default_translation = tr;
@@ -1058,7 +1044,7 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 	// We can't recover the keys from Optimized translations, we have to guess
 	int missing_keys = 0;
 	if (keys.size() == 0) {
-		KeyWorker kw(default_translation, default_messages, all_keys_found);
+		KeyWorker kw(default_translation, all_keys_found);
 		missing_keys = kw.run();
 		keys = kw.keys;
 		for (auto &key : keys) {

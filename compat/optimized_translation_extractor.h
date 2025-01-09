@@ -53,6 +53,10 @@ public:
 	StringName get_message_multipart(const char *part1, const char *part2 = nullptr, const char *part3 = nullptr, const char *part4 = nullptr, const char *part5 = nullptr, const char *part6 = nullptr) const;
 	HashSet<uint32_t> get_message_hash_set() const;
 	void get_message_value_list(List<StringName> *r_messages) const;
+	String get_message_multipart_str(const char *part1, const char *part2, const char *part3, const char *part4, const char *part5, const char *part6) const;
+	String get_message_str(const StringName &p_src_text) const;
+	String get_message_str(const String &p_src_text) const;
+	String get_message_str(const char *p_src_text) const;
 	static Ref<OptimizedTranslationExtractor> create_from(const Ref<OptimizedTranslation> &p_otr);
 	OptimizedTranslationExtractor() {}
 };
