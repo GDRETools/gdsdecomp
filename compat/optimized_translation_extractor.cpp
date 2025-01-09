@@ -217,6 +217,78 @@ StringName OptimizedTranslationExtractor::get_message(const StringName &p_src_te
 	return get_message(p_src_text.operator String().utf8().get_data(), p_context);
 }
 
+uint32_t OptimizedTranslationExtractor::hash_multipart(uint32_t d, const char *part1, const char *part2, const char *part3, const char *part4, const char *part5, const char *part6) const {
+	uint32_t h = hash(d, part1);
+	if (part2) {
+		h = hash(h, part2);
+	}
+	if (part3) {
+		h = hash(h, part3);
+	}
+	if (part4) {
+		h = hash(h, part4);
+	}
+	if (part5) {
+		h = hash(h, part5);
+	}
+	if (part6) {
+		h = hash(h, part6);
+	}
+	return h;
+}
+
+StringName OptimizedTranslationExtractor::get_message_multipart(const char *part1, const char *part2, const char *part3, const char *part4, const char *part5, const char *part6) const {
+	int htsize = hash_table.size();
+
+	if (htsize == 0) {
+		return StringName();
+	}
+	uint32_t h = hash_multipart(0, part1, part2, part3, part4, part5, part6);
+	const int *htr = hash_table.ptr();
+	const uint32_t *htptr = (const uint32_t *)&htr[0];
+	const int *btr = bucket_table.ptr();
+	const uint32_t *btptr = (const uint32_t *)&btr[0];
+	const uint8_t *sr = strings.ptr();
+	const char *sptr = (const char *)&sr[0];
+
+	uint32_t p = htptr[h % htsize];
+
+	if (p == 0xFFFFFFFF) {
+		return StringName(); //nothing
+	}
+
+	const Bucket &bucket = *(const Bucket *)&btptr[p];
+
+	h = hash_multipart(bucket.func, part1, part2, part3, part4, part5, part6);
+
+	int idx = -1;
+
+	for (int i = 0; i < bucket.size; i++) {
+		if (bucket.elem[i].key == h) {
+			idx = i;
+			break;
+		}
+	}
+
+	if (idx == -1) {
+		return StringName();
+	}
+
+	if (bucket.elem[idx].comp_size == bucket.elem[idx].uncomp_size) {
+		String rstr;
+		rstr.parse_utf8(&sptr[bucket.elem[idx].str_offset], bucket.elem[idx].uncomp_size);
+
+		return rstr;
+	} else {
+		CharString uncomp;
+		uncomp.resize(bucket.elem[idx].uncomp_size + 1);
+		smaz_decompress(&sptr[bucket.elem[idx].str_offset], bucket.elem[idx].comp_size, uncomp.ptrw(), bucket.elem[idx].uncomp_size);
+		String rstr;
+		rstr.parse_utf8(uncomp.get_data());
+		return rstr;
+	}
+}
+
 StringName OptimizedTranslationExtractor::get_message(const char *p_src_text, const StringName &p_context) const {
 	// p_context passed in is ignore. The use of context is not yet supported in OptimizedTranslationExtractor.
 
