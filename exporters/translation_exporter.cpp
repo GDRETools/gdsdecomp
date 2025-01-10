@@ -4,6 +4,7 @@
 #include "compat/resource_loader_compat.h"
 #include "exporters/export_report.h"
 #include "utility/common.h"
+#include "utility/gd_parallel_hashmap.h"
 #include "utility/gdre_settings.h"
 
 #include "core/error/error_list.h"
@@ -12,9 +13,6 @@
 #include "core/string/translation.h"
 #include "core/string/ustring.h"
 #include "modules/regex/regex.h"
-
-#include "utility/gd_parallel_hashmap.h"
-#include <modules/gdsdecomp/utility/common.h>
 
 Error TranslationExporter::export_file(const String &out_path, const String &res_path) {
 	// Implementation for exporting translation files
@@ -54,13 +52,35 @@ static const Vector<String> STANDARD_SUFFIXES = { "Name", "Text", "Title", "Desc
 static const char *MISSING_KEY_PREFIX = "<!MissingKey:";
 
 template <class K, class V>
-Vector<K> get_keys(const HashMap<K, V> &map) {
-	Vector<K> ret;
-	for (const auto &E : map) {
-		ret.push_back(E.key);
-	}
-	return ret;
+static constexpr _ALWAYS_INLINE_ const K &get_key(const KeyValue<K, V> &kv) {
+	return kv.key;
 }
+
+template <class K, class V>
+static constexpr _ALWAYS_INLINE_ const K &get_key(const std::pair<K, V> &kv) {
+	return kv.first;
+}
+
+template <class K, class V>
+static constexpr _ALWAYS_INLINE_ const V &get_value(const KeyValue<K, V> &kv) {
+	return kv.value;
+}
+
+template <class K, class V>
+static constexpr _ALWAYS_INLINE_ V &get_value(KeyValue<K, V> &kv) {
+	return kv.value;
+}
+
+template <class K, class V>
+static constexpr _ALWAYS_INLINE_ const V &get_value(const std::pair<K, V> &kv) {
+	return kv.second;
+}
+
+template <class K, class V>
+static constexpr _ALWAYS_INLINE_ V &get_value(std::pair<K, V> &kv) {
+	return kv.second;
+}
+
 template <typename T>
 void update_maximum(std::atomic<T> &maximum_value, T const &value) noexcept {
 	T prev_value = maximum_value;
@@ -68,12 +88,41 @@ void update_maximum(std::atomic<T> &maximum_value, T const &value) noexcept {
 			!maximum_value.compare_exchange_weak(prev_value, value)) {
 	}
 }
+
+template <class K, class V>
+static constexpr _ALWAYS_INLINE_ bool map_has(const HashMap<K, V> &map, const K &key) {
+	return map.has(key);
+}
+
+template <class K, class V>
+static constexpr _ALWAYS_INLINE_ bool map_has(const ParallelFlatHashMap<K, V> &map, const K &key) {
+	return map.contains(key);
+}
+
+bool map_has_str(const ParallelFlatHashMap<String, String> &map, const String &key) {
+	return map.contains(key);
+}
+
 struct KeyWorker {
 	static constexpr int MAX_FILT_RES_STRINGS = 5000;
 	static constexpr uint64_t MAX_STAGE_TIME = 30 * 1000ULL;
 
+	using KeyType = String;
+	using ValueType = String;
+	using KeyMessageMap = HashMap<KeyType, ValueType>;
+
+	Vector<KeyType> get_keys(const KeyMessageMap &map) {
+		Vector<KeyType> ret;
+		for (const auto &E : map) {
+			ret.push_back(get_key(E));
+		}
+		return ret;
+	}
+
 	Mutex mutex;
-	HashMap<String, String> key_to_message;
+	KeyMessageMap key_to_message;
+	uint64_t key_to_message_size = 0;
+	HashMap<String, int> TODO_DELETE_ME;
 	Vector<String> resource_strings;
 	Vector<String> filtered_resource_strings;
 	Vector<CharString> resource_strings_t;
@@ -135,7 +184,7 @@ struct KeyWorker {
 
 	// make this a template that can take in either a HashMap or a HashMap
 	//  use the is_flat_or_parallel_flat_hash_map trait
-	static String find_common_prefix(const HashMap<String, String> &key_to_msg) {
+	static String find_common_prefix(const KeyMessageMap &key_to_msg) {
 		// among all the keys in the vector, find the common prefix
 		if (key_to_msg.size() == 0) {
 			return "";
@@ -144,7 +193,7 @@ struct KeyWorker {
 		auto add_to_prefix_func = [&](int i) {
 			char32_t candidate = 0;
 			for (const auto &E : key_to_msg) {
-				auto &s = E.key;
+				auto &s = get_key(E);
 				if (!s.is_empty()) {
 					if (s.length() - 1 < i) {
 						return false;
@@ -157,7 +206,7 @@ struct KeyWorker {
 				return false;
 			}
 			for (const auto &E : key_to_msg) {
-				auto &s = E.key;
+				auto &s = get_key(E);
 				if (!s.is_empty()) {
 					if (s.length() - 1 < i || s[i] != candidate) {
 						return false;
@@ -269,13 +318,13 @@ struct KeyWorker {
 			}
 		}
 		for (const auto &E : prefix_counts) {
-			if (E.value >= count_threshold && !common_prefixes.has(E.key)) {
-				common_prefixes.push_back(E.key);
+			if (get_value(E) >= count_threshold && !common_prefixes.has(get_key(E))) {
+				common_prefixes.push_back(get_key(E));
 			}
 		}
 		for (const auto &E : suffix_counts) {
-			if (E.value >= count_threshold && !common_suffixes.has(E.key)) {
-				common_suffixes.push_back(E.key);
+			if (get_value(E) >= count_threshold && !common_suffixes.has(get_key(E))) {
+				common_suffixes.push_back(get_key(E));
 			}
 		}
 		// sort the prefixes and suffixes by length
@@ -314,11 +363,15 @@ struct KeyWorker {
 
 	_FORCE_INLINE_ bool _set_key(const String &key, const String &msg) {
 		MutexLock lock(mutex);
-		if (key_to_message.has(key)) {
+		if (map_has(key_to_message, key)) {
 			return true;
 		}
 		_set_key_stuff(key);
+
 		key_to_message[key] = msg;
+		for (const auto &E : TODO_DELETE_ME) {
+			DEV_ASSERT(map_has(key_to_message, get_key(E)));
+		}
 		return true;
 	}
 
@@ -363,27 +416,25 @@ struct KeyWorker {
 	}
 
 	void reg_successful_prefix(const String &prefix) {
+#ifdef DEBUG_ENABLED
 		if (!prefix.is_empty()) {
 			successful_prefixes.insert(prefix);
 		}
+#endif
 	}
 
 	void reg_successful_suffix(const String &suffix) {
+#ifdef DEBUG_ENABLED
 		if (!suffix.is_empty()) {
 			successful_suffixes.insert(suffix);
 		}
+#endif
 	}
 
 	_FORCE_INLINE_ bool try_key_multipart(const char *part1, const char *part2 = "", const char *part3 = "", const char *part4 = "", const char *part5 = "", const char *part6 = "") {
 		auto msg = default_translation->get_message_multipart_str(part1, part2, part3, part4, part5, part6);
 		if (!msg.is_empty()) {
 			auto key = combine_string(part1, part2, part3, part4, part5, part6);
-			// if (key_to_message.contains(key)) {
-			// 	return true;
-			// }
-			// key_to_message[key] = msg;
-			// current_stage_keys_found.insert(key);
-			// ++current_keys_found;
 			_set_key(key, msg);
 			return true;
 		}
@@ -899,7 +950,7 @@ struct KeyWorker {
 			extract_middles(filtered_resource_strings, middle_candidates);
 			Vector<String> str_keys;
 			for (const auto &E : key_to_message) {
-				str_keys.push_back(E.key);
+				str_keys.push_back(get_key(E));
 			}
 			extract_middles(str_keys, middle_candidates);
 			Vector<String> new_strings;
@@ -942,13 +993,15 @@ struct KeyWorker {
 			auto &msg = default_messages[i];
 			bool found = false;
 			bool has_match = false;
-			StringName matching_key;
-			for (auto &E : key_to_message) {
-				if (E.value == msg) {
+			String matching_key;
+			for (const auto &E : key_to_message) {
+				DEV_ASSERT(!get_value(E).is_empty());
+
+				if (get_value(E) == msg) {
 					has_match = true;
-					matching_key = E.key;
-					if (!keys.has(E.key)) {
-						keys.push_back(E.key);
+					matching_key = get_key(E);
+					if (!keys.has(get_key(E))) {
+						keys.push_back(get_key(E));
 						found = true;
 						break;
 					}
@@ -981,8 +1034,12 @@ struct KeyWorker {
 				bl_debug("Stage " + itos(i + 1) + " took " + itos(times[i] - times[i - 1]) + "ms, found " + itos(num_keys) + " keys");
 			}
 			if (i >= 2 && num_keys > 0) {
-				for (const auto &key : stages_keys_found[i]) {
-					bl_debug("* Key found in stage " + itos(i + 1) + ": " + key);
+				if (num_keys < 50) {
+					for (const auto &key : stages_keys_found[i]) {
+						bl_debug("* Key found in stage " + itos(i + 1) + ": " + key);
+					}
+				} else {
+					bl_debug("*** Stage " + itos(i + 1) + " found a LOT keys");
 				}
 			}
 		}
