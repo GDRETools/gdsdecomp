@@ -1,15 +1,15 @@
 #pragma once
+#include "test_common.h"
+#include "tests/test_macros.h"
+
 #include "../compat/fake_scene_state.h"
 #include "../compat/resource_compat_binary.h"
 #include "../compat/resource_compat_text.h"
-
-#include "test_common.h"
-#include "tests/test_macros.h"
+#include "../utility/gdre_packed_source.h"
 
 #include <core/io/pck_packer.h>
 #include <core/io/resource_format_binary.h>
 #include <scene/resources/resource_format_text.h>
-#include <utility/gdre_packed_source.h>
 
 #include <core/version_generated.gen.h>
 
