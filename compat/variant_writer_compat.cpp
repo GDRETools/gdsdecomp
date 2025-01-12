@@ -935,7 +935,7 @@ struct VarWriter {
 
 	template <class T>
 	static void _ALWAYS_INLINE_ write_packed_elements(const Vector<T> &data, VariantWriterCompat::StoreStringFunc p_store_string_func, void *p_store_string_ud) {
-		if constexpr (std::is_same_v<T, uint8_t> || std::is_same_v<T, int32_t> || std::is_same_v<T, int64_t>) {
+		if constexpr (std::is_same_v<T, uint8_t>) {
 			_write_packed_elements_integer(data, p_store_string_func, p_store_string_ud);
 		} else {
 			_write_packed_elements_noninteger(data, p_store_string_func, p_store_string_ud);
