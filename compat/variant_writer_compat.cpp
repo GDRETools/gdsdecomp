@@ -758,6 +758,156 @@ Error VariantParserCompat::parse_tag_assign_eof(VariantParser::Stream *p_stream,
 	}
 	return OK;
 }
+namespace {
+const static String comma_string = ", ";
+
+template <class T>
+_ALWAYS_INLINE_ String _make_element_string(const T &el) {
+	static_assert(true, "Unsupported _write_vector_element type");
+	return {};
+}
+
+#define MAKE_WRITE_PACKED_ELEMENT(type, str)                      \
+	template <>                                                   \
+	_ALWAYS_INLINE_ String _make_element_string(const type &el) { \
+		return str;                                               \
+	}
+
+MAKE_WRITE_PACKED_ELEMENT(uint8_t, itos(el));
+MAKE_WRITE_PACKED_ELEMENT(int32_t, itos(el));
+MAKE_WRITE_PACKED_ELEMENT(int64_t, itos(el));
+MAKE_WRITE_PACKED_ELEMENT(float, rtosfix(el));
+MAKE_WRITE_PACKED_ELEMENT(double, rtosfix(el));
+MAKE_WRITE_PACKED_ELEMENT(String, "\"" + el.c_escape() + "\"");
+MAKE_WRITE_PACKED_ELEMENT(Vector2, rtosfix(el.x) + ", " + rtosfix(el.y));
+MAKE_WRITE_PACKED_ELEMENT(Vector3, rtosfix(el.x) + ", " + rtosfix(el.y) + ", " + rtosfix(el.z));
+MAKE_WRITE_PACKED_ELEMENT(Vector4, rtosfix(el.x) + ", " + rtosfix(el.y) + ", " + rtosfix(el.z) + ", " + rtosfix(el.w));
+MAKE_WRITE_PACKED_ELEMENT(Color, rtosfix(el.r) + ", " + rtosfix(el.g) + ", " + rtosfix(el.b) + ", " + rtosfix(el.a));
+
+template <class T>
+void _ALWAYS_INLINE_ _write_packed_elements_noninteger(const Vector<T> &data, VariantWriterCompat::StoreStringFunc p_store_string_func, void *p_store_string_ud) {
+	int len = data.size();
+	const T *ptr = data.ptr();
+	if (len > 0) {
+		p_store_string_func(p_store_string_ud, _make_element_string(ptr[0]));
+	}
+	for (int i = 1; i < len; i++) {
+		p_store_string_func(p_store_string_ud, comma_string);
+		p_store_string_func(p_store_string_ud, _make_element_string(ptr[i]));
+	}
+}
+
+template <class T>
+constexpr _ALWAYS_INLINE_ uint64_t max_integer_str_len() {
+	// ensure that this is an integral type
+	static_assert(std::is_integral_v<T>, "Unsupported max_scalar_str_len type");
+	if constexpr (sizeof(T) == 1) {
+		// 127, 255 = 3 chars
+		return 3;
+	} else if constexpr (sizeof(T) == 2) {
+		return 5;
+	} else if constexpr (sizeof(T) == 4) { // int
+		// 2147483647, 4294967295 = 10 chars
+		return 10;
+	} else if constexpr (sizeof(T) == 8 && std::is_signed_v<T>) { // int64
+		// 9223372036854775807 = 19 chars
+		return 19;
+	} else if constexpr (sizeof(T) == 8 && std::is_unsigned_v<T>) { // uint64
+		// 18446744073709551615 = 20 chars
+		return 20;
+	} else {
+		static_assert(true, "Unsupported max_scalar_str_len type");
+	}
+	return 0;
+}
+
+uint64_t unsafe_write_num64(int64_t p_num, char32_t *c, uint64_t idx) {
+	static constexpr int base = 10;
+
+	bool sign = p_num < 0;
+
+	int64_t n = p_num;
+
+	int64_t chars = 0;
+	do {
+		n /= base;
+		chars++;
+	} while (n);
+
+	if (sign) {
+		chars++;
+	}
+	const uint64_t ret = chars;
+	// c[idx + chars] = 0;
+	n = p_num;
+	do {
+		int mod = ABS(n % base);
+		c[(--chars + idx)] = '0' + mod;
+		n /= base;
+	} while (n);
+
+	if (sign) {
+		c[idx] = '-';
+	}
+
+	return ret;
+}
+// If this fails, take out the `unlikely` part below
+static_assert(std::is_same_v<decltype(&String::resize), Error (String::*)(int)>);
+
+// significantly speeds up writing PackedByteArrays
+template <class T>
+void _ALWAYS_INLINE_ _write_packed_elements_integer(const Vector<T> &data, VariantWriterCompat::StoreStringFunc p_store_string_func, void *p_store_string_ud) {
+	int len = data.size();
+	const uint64_t str_size = len * (max_integer_str_len<T>() + 2) + 1;
+	const T *ptr = data.ptr();
+
+	// In the unlikely case that the projected size is larger than INT32_MAX
+	// (strings cannot currently be resized to be greater than that),
+	// we fall back to the slow path.
+	if (unlikely(str_size > INT32_MAX)) {
+		_write_packed_elements_noninteger(data, p_store_string_func, p_store_string_ud);
+		return;
+	}
+
+	String s;
+	s.resize(str_size);
+	auto *ptr_s = s.ptrw();
+
+	uint64_t idx = 0;
+	if (len > 0) {
+		idx += unsafe_write_num64(ptr[0], ptr_s, idx);
+	}
+	for (int i = 1; i < len; i++) {
+		ptr_s[idx++] = ',';
+		ptr_s[idx++] = ' ';
+		idx += unsafe_write_num64(ptr[i], ptr_s, idx);
+	}
+	ptr_s[idx] = 0;
+	s.resize(idx + 1);
+	p_store_string_func(p_store_string_ud, s);
+}
+
+template <class T>
+void _ALWAYS_INLINE_ write_packed_elements(const Vector<T> &data, VariantWriterCompat::StoreStringFunc p_store_string_func, void *p_store_string_ud) {
+	_write_packed_elements_noninteger(data, p_store_string_func, p_store_string_ud);
+}
+
+template <>
+void _ALWAYS_INLINE_ write_packed_elements(const Vector<uint8_t> &data, VariantWriterCompat::StoreStringFunc p_store_string_func, void *p_store_string_ud) {
+	_write_packed_elements_integer(data, p_store_string_func, p_store_string_ud);
+}
+
+template <>
+void _ALWAYS_INLINE_ write_packed_elements(const Vector<int32_t> &data, VariantWriterCompat::StoreStringFunc p_store_string_func, void *p_store_string_ud) {
+	_write_packed_elements_integer(data, p_store_string_func, p_store_string_ud);
+}
+
+template <>
+void _ALWAYS_INLINE_ write_packed_elements(const Vector<int64_t> &data, VariantWriterCompat::StoreStringFunc p_store_string_func, void *p_store_string_ud) {
+	_write_packed_elements_integer(data, p_store_string_func, p_store_string_ud);
+}
+} //namespace
 
 Error VariantWriterCompat::write_compat_v4(const Variant &p_variant, StoreStringFunc p_store_string_func, void *p_store_string_ud, EncodeResourceFunc p_encode_res_func, void *p_encode_res_ud, int p_recursion_count, bool is_pcfg, bool p_compat, bool is_script) {
 	switch (p_variant.get_type()) {
@@ -1156,14 +1306,7 @@ Error VariantWriterCompat::write_compat_v4(const Variant &p_variant, StoreString
 			p_store_string_func(p_store_string_ud, "PackedByteArray(");
 			Vector<uint8_t> data = p_variant;
 			if (p_compat) {
-				int len = data.size();
-				const uint8_t *ptr = data.ptr();
-				for (int i = 0; i < len; i++) {
-					if (i > 0) {
-						p_store_string_func(p_store_string_ud, ", ");
-					}
-					p_store_string_func(p_store_string_ud, itos(ptr[i]));
-				}
+				write_packed_elements(data, p_store_string_func, p_store_string_ud);
 			} else if (data.size() > 0) {
 				p_store_string_func(p_store_string_ud, "\"");
 				p_store_string_func(p_store_string_ud, CryptoCore::b64_encode_str(data.ptr(), data.size()));
@@ -1174,137 +1317,63 @@ Error VariantWriterCompat::write_compat_v4(const Variant &p_variant, StoreString
 		case Variant::PACKED_INT32_ARRAY: {
 			p_store_string_func(p_store_string_ud, "PackedInt32Array(");
 			Vector<int32_t> data = p_variant;
-			int32_t len = data.size();
-			const int32_t *ptr = data.ptr();
-
-			for (int32_t i = 0; i < len; i++) {
-				if (i > 0) {
-					p_store_string_func(p_store_string_ud, ", ");
-				}
-
-				p_store_string_func(p_store_string_ud, itos(ptr[i]));
-			}
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			p_store_string_func(p_store_string_ud, ")");
 		} break;
 		case Variant::PACKED_INT64_ARRAY: {
 			p_store_string_func(p_store_string_ud, "PackedInt64Array(");
 			Vector<int64_t> data = p_variant;
-			int64_t len = data.size();
-			const int64_t *ptr = data.ptr();
-
-			for (int64_t i = 0; i < len; i++) {
-				if (i > 0) {
-					p_store_string_func(p_store_string_ud, ", ");
-				}
-
-				p_store_string_func(p_store_string_ud, itos(ptr[i]));
-			}
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			p_store_string_func(p_store_string_ud, ")");
 		} break;
 		case Variant::PACKED_FLOAT32_ARRAY: {
 			p_store_string_func(p_store_string_ud, "PackedFloat32Array(");
 			Vector<float> data = p_variant;
-			int len = data.size();
-			const float *ptr = data.ptr();
-
-			for (int i = 0; i < len; i++) {
-				if (i > 0) {
-					p_store_string_func(p_store_string_ud, ", ");
-				}
-				p_store_string_func(p_store_string_ud, rtosfix(ptr[i]));
-			}
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			p_store_string_func(p_store_string_ud, ")");
 		} break;
 		case Variant::PACKED_FLOAT64_ARRAY: {
 			p_store_string_func(p_store_string_ud, "PackedFloat64Array(");
 			Vector<double> data = p_variant;
-			int len = data.size();
-			const double *ptr = data.ptr();
-
-			for (int i = 0; i < len; i++) {
-				if (i > 0) {
-					p_store_string_func(p_store_string_ud, ", ");
-				}
-				p_store_string_func(p_store_string_ud, rtosfix(ptr[i]));
-			}
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			p_store_string_func(p_store_string_ud, ")");
 		} break;
 		case Variant::PACKED_STRING_ARRAY: {
 			p_store_string_func(p_store_string_ud, "PackedStringArray(");
 			Vector<String> data = p_variant;
-			int len = data.size();
-			const String *ptr = data.ptr();
-
-			for (int i = 0; i < len; i++) {
-				if (i > 0) {
-					p_store_string_func(p_store_string_ud, ", ");
-				}
-				p_store_string_func(p_store_string_ud, "\"" + ptr[i].c_escape() + "\"");
-			}
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			p_store_string_func(p_store_string_ud, ")");
 		} break;
 		case Variant::PACKED_VECTOR2_ARRAY: {
 			p_store_string_func(p_store_string_ud, "PackedVector2Array(");
 			Vector<Vector2> data = p_variant;
-			int len = data.size();
-			const Vector2 *ptr = data.ptr();
-
-			for (int i = 0; i < len; i++) {
-				if (i > 0) {
-					p_store_string_func(p_store_string_ud, ", ");
-				}
-				p_store_string_func(p_store_string_ud, rtosfix(ptr[i].x) + ", " + rtosfix(ptr[i].y));
-			}
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			p_store_string_func(p_store_string_ud, ")");
 		} break;
 		case Variant::PACKED_VECTOR3_ARRAY: {
 			p_store_string_func(p_store_string_ud, "PackedVector3Array(");
 			Vector<Vector3> data = p_variant;
-			int len = data.size();
-			const Vector3 *ptr = data.ptr();
-
-			for (int i = 0; i < len; i++) {
-				if (i > 0) {
-					p_store_string_func(p_store_string_ud, ", ");
-				}
-				p_store_string_func(p_store_string_ud, rtosfix(ptr[i].x) + ", " + rtosfix(ptr[i].y) + ", " + rtosfix(ptr[i].z));
-			}
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			p_store_string_func(p_store_string_ud, ")");
 		} break;
 		case Variant::PACKED_COLOR_ARRAY: {
 			p_store_string_func(p_store_string_ud, "PackedColorArray(");
 			Vector<Color> data = p_variant;
-			int len = data.size();
-			const Color *ptr = data.ptr();
-
-			for (int i = 0; i < len; i++) {
-				if (i > 0) {
-					p_store_string_func(p_store_string_ud, ", ");
-				}
-				p_store_string_func(p_store_string_ud, rtosfix(ptr[i].r) + ", " + rtosfix(ptr[i].g) + ", " + rtosfix(ptr[i].b) + ", " + rtosfix(ptr[i].a));
-			}
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			p_store_string_func(p_store_string_ud, ")");
 		} break;
 		case Variant::PACKED_VECTOR4_ARRAY: {
 			p_store_string_func(p_store_string_ud, "PackedVector4Array(");
 			Vector<Vector4> data = p_variant;
-			int len = data.size();
-			const Vector4 *ptr = data.ptr();
-
-			for (int i = 0; i < len; i++) {
-				if (i > 0) {
-					p_store_string_func(p_store_string_ud, ", ");
-				}
-				p_store_string_func(p_store_string_ud, rtosfix(ptr[i].x) + ", " + rtosfix(ptr[i].y) + ", " + rtosfix(ptr[i].z) + ", " + rtosfix(ptr[i].w));
-			}
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			p_store_string_func(p_store_string_ud, ")");
 		} break;
@@ -1545,9 +1614,11 @@ Error VariantWriterCompat::write_compat(const Variant &p_variant, const uint32_t
 			p_store_string_func(p_store_string_ud, "[ ");
 			Array array = p_variant;
 			int len = array.size();
-			for (int i = 0; i < len; i++) {
-				if (i > 0)
-					p_store_string_func(p_store_string_ud, ", ");
+			if (len > 0) {
+				write_compat(array[0], ver_major, p_store_string_func, p_store_string_ud, p_encode_res_func, p_encode_res_ud, is_pcfg, p_compat, is_script);
+			}
+			for (int i = 1; i < len; i++) {
+				p_store_string_func(p_store_string_ud, ", ");
 				write_compat(array[i], ver_major, p_store_string_func, p_store_string_ud, p_encode_res_func, p_encode_res_ud, is_pcfg, p_compat, is_script);
 			}
 			p_store_string_func(p_store_string_ud, " ]");
@@ -1562,15 +1633,7 @@ Error VariantWriterCompat::write_compat(const Variant &p_variant, const uint32_t
 			}
 			String s;
 			Vector<uint8_t> data = p_variant;
-			int len = data.size();
-
-			const uint8_t *ptr = data.ptr();
-			for (int i = 0; i < len; i++) {
-				if (i > 0)
-					p_store_string_func(p_store_string_ud, ", ");
-
-				p_store_string_func(p_store_string_ud, itos(ptr[i]));
-			}
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 			if (ver_major == 2 && is_pcfg) {
 				p_store_string_func(p_store_string_ud, " ]");
 			} else {
@@ -1584,16 +1647,7 @@ Error VariantWriterCompat::write_compat(const Variant &p_variant, const uint32_t
 				p_store_string_func(p_store_string_ud, ver_major == 2 ? "IntArray( " : "PoolIntArray( ");
 			}
 			Vector<int> data = p_variant;
-			int len = data.size();
-
-			const int *ptr = data.ptr();
-
-			for (int i = 0; i < len; i++) {
-				if (i > 0)
-					p_store_string_func(p_store_string_ud, ", ");
-
-				p_store_string_func(p_store_string_ud, itos(ptr[i]));
-			}
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			if (ver_major == 2 && is_pcfg) {
 				p_store_string_func(p_store_string_ud, " ]");
@@ -1609,15 +1663,9 @@ Error VariantWriterCompat::write_compat(const Variant &p_variant, const uint32_t
 			} else {
 				p_store_string_func(p_store_string_ud, ver_major == 2 ? "FloatArray( " : "PoolRealArray( ");
 			}
+			// TODO: fix this for real_t is double builds
 			Vector<real_t> data = p_variant;
-			int len = data.size();
-			const real_t *ptr = data.ptr();
-
-			for (int i = 0; i < len; i++) {
-				if (i > 0)
-					p_store_string_func(p_store_string_ud, ", ");
-				p_store_string_func(p_store_string_ud, rtosfix(ptr[i]));
-			}
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			if (ver_major == 2 && is_pcfg) {
 				p_store_string_func(p_store_string_ud, " ]");
@@ -1634,18 +1682,7 @@ Error VariantWriterCompat::write_compat(const Variant &p_variant, const uint32_t
 				p_store_string_func(p_store_string_ud, ver_major == 2 ? "StringArray( " : "PoolStringArray( ");
 			}
 			Vector<String> data = p_variant;
-			int len = data.size();
-
-			const String *ptr = data.ptr();
-			String s;
-			// write_string("\n");
-
-			for (int i = 0; i < len; i++) {
-				if (i > 0)
-					p_store_string_func(p_store_string_ud, ", ");
-				String str = ptr[i];
-				p_store_string_func(p_store_string_ud, "\"" + str.c_escape() + "\"");
-			}
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			if (ver_major == 2 && is_pcfg) {
 				p_store_string_func(p_store_string_ud, " ]");
@@ -1659,14 +1696,7 @@ Error VariantWriterCompat::write_compat(const Variant &p_variant, const uint32_t
 
 			p_store_string_func(p_store_string_ud, ver_major == 2 ? "Vector2Array( " : "PoolVector2Array( ");
 			Vector<Vector2> data = p_variant;
-			int len = data.size();
-			const Vector2 *ptr = data.ptr();
-
-			for (int i = 0; i < len; i++) {
-				if (i > 0)
-					p_store_string_func(p_store_string_ud, ", ");
-				p_store_string_func(p_store_string_ud, rtosfix(ptr[i].x) + ", " + rtosfix(ptr[i].y));
-			}
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			p_store_string_func(p_store_string_ud, " )");
 
@@ -1675,14 +1705,7 @@ Error VariantWriterCompat::write_compat(const Variant &p_variant, const uint32_t
 
 			p_store_string_func(p_store_string_ud, ver_major == 2 ? "Vector3Array( " : "PoolVector3Array( ");
 			Vector<Vector3> data = p_variant;
-			int len = data.size();
-			const Vector3 *ptr = data.ptr();
-
-			for (int i = 0; i < len; i++) {
-				if (i > 0)
-					p_store_string_func(p_store_string_ud, ", ");
-				p_store_string_func(p_store_string_ud, rtosfix(ptr[i].x) + ", " + rtosfix(ptr[i].y) + ", " + rtosfix(ptr[i].z));
-			}
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			p_store_string_func(p_store_string_ud, " )");
 
@@ -1692,16 +1715,8 @@ Error VariantWriterCompat::write_compat(const Variant &p_variant, const uint32_t
 			p_store_string_func(p_store_string_ud, ver_major == 2 ? "ColorArray( " : "PoolColorArray( ");
 
 			Vector<Color> data = p_variant;
-			int len = data.size();
+			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
-			const Color *ptr = data.ptr();
-
-			for (int i = 0; i < len; i++) {
-				if (i > 0)
-					p_store_string_func(p_store_string_ud, ", ");
-
-				p_store_string_func(p_store_string_ud, rtosfix(ptr[i].r) + ", " + rtosfix(ptr[i].g) + ", " + rtosfix(ptr[i].b) + ", " + rtosfix(ptr[i].a));
-			}
 			p_store_string_func(p_store_string_ud, " )");
 
 		} break;
