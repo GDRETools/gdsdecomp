@@ -122,6 +122,7 @@ private:
 	void _do_import_load(uint32_t i, IInfoToken *tokens);
 	void _do_string_load(uint32_t i, StringLoadToken *tokens);
 	HashMap<ResourceUID::ID, UID_Cache> unique_ids; //unique IDs and utf8 paths (less memory used)
+	HashMap<String, Dictionary> script_cache;
 
 	uint8_t old_key[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	bool set_key = false;
@@ -150,8 +151,14 @@ private:
 	Error load_dir(const String &p_path);
 	Error unload_dir();
 	bool has_valid_version() const;
+
+	String get_loaded_pack_data_dir();
 	Error load_pack_uid_cache(bool p_reset = false);
 	Error reset_uid_cache();
+
+	Error load_pack_gdscript_cache(bool p_reset = false);
+	Error reset_gdscript_cache();
+
 	Error detect_bytecode_revision();
 
 	static constexpr bool need_correct_patch(int ver_major, int ver_minor);
@@ -179,6 +186,9 @@ public:
 	Error set_encryption_key_string(const String &key);
 	void reset_encryption_key();
 	void add_pack_info(Ref<PackInfo> packinfo);
+
+	StringName get_cached_script_class(const String &p_path);
+	StringName get_cached_script_base(const String &p_path);
 
 	Vector<String> get_file_list(const Vector<String> &filters = Vector<String>());
 	Array get_file_info_array(const Vector<String> &filters = Vector<String>());

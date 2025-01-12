@@ -534,6 +534,7 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 		err = load_dir(pck_files[0]);
 		ERR_FAIL_COND_V_MSG(err, err, "FATAL ERROR: Can't load project directory!");
 		load_pack_uid_cache();
+		load_pack_gdscript_cache();
 	} else {
 		for (auto path : pck_files) {
 			auto san_path = sanitize_home_in_path(path);
@@ -580,6 +581,7 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 				ERR_FAIL_COND_V_MSG(err, err, "Can't load project!");
 			}
 			load_pack_uid_cache();
+			load_pack_gdscript_cache();
 		}
 	}
 
@@ -600,6 +602,7 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 					ERR_FAIL_COND_V_MSG(err, err, "Can't load project!");
 				}
 				load_pack_uid_cache();
+				load_pack_gdscript_cache();
 			}
 		}
 	}
@@ -886,6 +889,7 @@ Error GDRESettings::unload_project() {
 	logger->stop_prebuffering();
 	error_encryption = false;
 	reset_uid_cache();
+	reset_gdscript_cache();
 	if (get_pack_type() == PackInfo::DIR) {
 		unload_dir();
 	}
@@ -908,6 +912,40 @@ void GDRESettings::add_pack_info(Ref<PackInfo> packinfo) {
 			WARN_PRINT("Warning: Pack version mismatch!");
 		}
 	}
+}
+
+StringName GDRESettings::get_cached_script_class(const String &p_path) {
+	if (!is_pack_loaded()) {
+		return "";
+	}
+	String path = p_path;
+	if (!script_cache.has(path) && remap_iinfo.has(path)) {
+		path = remap_iinfo[path]->get_path();
+	}
+	if (script_cache.has(path)) {
+		auto &dict = script_cache.get(path);
+		if (dict.has("class")) {
+			return dict["class"];
+		}
+	}
+	return "";
+}
+
+StringName GDRESettings::get_cached_script_base(const String &p_path) {
+	if (!is_pack_loaded()) {
+		return "";
+	}
+	String path = p_path;
+	if (!script_cache.has(path) && remap_iinfo.has(path)) {
+		path = remap_iinfo[path]->get_path();
+	}
+	if (script_cache.has(p_path)) {
+		auto &dict = script_cache[p_path];
+		if (dict.has("base")) {
+			return dict["base"];
+		}
+	}
+	return "";
 }
 // PackedSource doesn't pass back useful error information when loading packs,
 // this is a hack so that we can tell if it was an encryption error.
@@ -1442,21 +1480,29 @@ bool GDRESettings::has_file(const String &p_path) {
 	return GDREPackedData::get_singleton()->has_path(p_path);
 }
 
+String GDRESettings::get_loaded_pack_data_dir() {
+	String data_dir = "res://.godot";
+	if (is_project_config_loaded()) {
+		// if this is set, we want to load the cache from the hidden directory
+		return current_project->pcfg->get_setting(
+					   "application/config/use_hidden_project_data_directory",
+					   true)
+				? data_dir
+				: "res://godot";
+	}
+	// else...
+	if (!DirAccess::exists(data_dir) && DirAccess::exists("res://godot")) {
+		return "res://godot";
+	}
+
+	return data_dir;
+}
+
 Error GDRESettings::load_pack_uid_cache(bool p_reset) {
 	if (!is_pack_loaded()) {
 		return ERR_UNAVAILABLE;
 	}
-	String cache_file = "res://.godot/uid_cache.bin";
-	//"application/config/use_hidden_project_data_directory"
-	if (is_project_config_loaded()) {
-		// if this is set, we want to load the cache from the hidden directory
-		cache_file = current_project->pcfg->get_setting("application/config/use_hidden_project_data_directory", true) ? cache_file : "res://godot/uid_cache.bin";
-	} else {
-		// check if res://.godot/uid_cache.bin exists
-		if (!FileAccess::exists(cache_file)) {
-			cache_file = "res://godot/uid_cache.bin";
-		}
-	}
+	String cache_file = get_loaded_pack_data_dir().path_join("uid_cache.bin");
 	if (!FileAccess::exists(cache_file)) {
 		return ERR_FILE_NOT_FOUND;
 	}
@@ -1504,6 +1550,41 @@ Error GDRESettings::reset_uid_cache() {
 	unique_ids.clear();
 	ResourceUID::get_singleton()->clear();
 	return ResourceUID::get_singleton()->load_from_cache(true);
+}
+
+Error GDRESettings::load_pack_gdscript_cache(bool p_reset) {
+	if (!is_pack_loaded()) {
+		return ERR_UNAVAILABLE;
+	}
+
+	auto cache_file = get_loaded_pack_data_dir().path_join("global_script_class_cache.cfg");
+	if (!FileAccess::exists(cache_file)) {
+		return ERR_FILE_NOT_FOUND;
+	}
+	Array global_class_list;
+	Ref<ConfigFile> cf;
+	cf.instantiate();
+	if (cf->load(cache_file) == OK) {
+		global_class_list = cf->get_value("", "list", Array());
+	} else {
+		return ERR_FILE_CANT_READ;
+	}
+
+	if (p_reset) {
+		reset_gdscript_cache();
+	}
+	for (int i = 0; i < global_class_list.size(); i++) {
+		Dictionary d = global_class_list[i];
+		String path = d["path"];
+		// path = path.simplify_path();
+		script_cache[path] = d;
+	}
+	return OK;
+}
+
+Error GDRESettings::reset_gdscript_cache() {
+	script_cache.clear();
+	return OK;
 }
 
 void GDRESettings::_do_import_load(uint32_t i, IInfoToken *tokens) {

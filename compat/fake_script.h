@@ -134,10 +134,10 @@ public:
 	virtual bool can_instantiate() const override { return false; }
 
 	virtual Ref<Script> get_base_script() const override { return nullptr; } //for script inheritance
-	virtual StringName get_global_name() const override { return {}; }
-	virtual bool inherits_script(const Ref<Script> &p_script) const override { return false; }
+	virtual StringName get_global_name() const override;
+	virtual bool inherits_script(const Ref<Script> &p_script) const override;
 
-	virtual StringName get_instance_base_type() const override { return {}; } // this may not work in all scripts, will return empty if so
+	virtual StringName get_instance_base_type() const override;
 	virtual ScriptInstance *instance_create(Object *p_this) override { return nullptr; }
 	virtual PlaceHolderScriptInstance *placeholder_instance_create(Object *p_this) override { return nullptr; }
 	virtual bool instance_has(const Object *p_this) const override { return false; }

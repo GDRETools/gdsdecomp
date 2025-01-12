@@ -331,6 +331,26 @@ void FakeEmbeddedScript::_get_property_list(List<PropertyInfo> *p_list) const {
 	}
 }
 
+StringName FakeEmbeddedScript::get_global_name() const {
+	auto path = get_path();
+	if (path.is_empty() || !path.is_resource_file()) {
+		return "";
+	}
+	return GDRESettings::get_singleton()->get_cached_script_class(path);
+}
+
+bool FakeEmbeddedScript::inherits_script(const Ref<Script> &p_script) const {
+	return true;
+}
+
+StringName FakeEmbeddedScript::get_instance_base_type() const {
+	auto path = get_path();
+	if (path.is_empty() || !path.is_resource_file()) {
+		return "";
+	}
+	return GDRESettings::get_singleton()->get_cached_script_base(path);
+}
+
 bool FakeEmbeddedScript::has_source_code() const {
 	return properties.has("script/source");
 }
