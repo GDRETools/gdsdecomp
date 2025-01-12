@@ -827,14 +827,8 @@ struct VarWriter {
 		}
 		return num_scientific(p_value);
 	}
-	template <class T>
-	static _ALWAYS_INLINE_ String _make_element_string(const T &el) {
-		static_assert(true, "Unsupported _write_vector_element type");
-		return {};
-	}
 
 #define MAKE_WRITE_PACKED_ELEMENT(type, str)                             \
-	template <>                                                          \
 	static _ALWAYS_INLINE_ String _make_element_string(const type &el) { \
 		return str;                                                      \
 	}
