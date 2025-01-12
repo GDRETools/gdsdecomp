@@ -789,17 +789,19 @@ struct VarWriter {
 	static String rtosfix(double p_value) {
 		if (p_value == 0.0) {
 			return "0"; //avoid negative zero (-0) being written, which may annoy git, svn, etc. for changes when they don't exist.
-		} else if (isnan(p_value)) {
-			return "nan";
-		} else if (isinf(p_value)) {
-			if (p_value > 0) {
-				return "inf";
-			} else {
-				return "inf_neg";
-			}
-		} else {
-			return num_scientific(p_value);
 		}
+		if constexpr (ver_major > 2) {
+			if (isnan(p_value)) {
+				return "nan";
+			} else if (isinf(p_value)) {
+				if (p_value > 0) {
+					return "inf";
+				} else {
+					return "inf_neg";
+				}
+			}
+		}
+		return num_scientific(p_value);
 	}
 	template <class T>
 	static _ALWAYS_INLINE_ String _make_element_string(const T &el) {
@@ -1414,8 +1416,10 @@ Error VarWriter<ver_major, is_pcfg, is_script>::write_compat_v2_v3(const Variant
 		} break;
 		case Variant::FLOAT: { // "REAL" in v2 and v3
 			String s = rtosfix(p_variant.operator double());
-			if (s.find(".") == -1 && s.find("e") == -1)
-				s += ".0";
+			if (s != "-inf" && s != "inf" && s != "inf_neg" && s != "nan") {
+				if (s.find(".") == -1 && s.find("e") == -1)
+					s += ".0";
+			}
 			p_store_string_func(p_store_string_ud, s);
 		} break;
 		case Variant::STRING: {
