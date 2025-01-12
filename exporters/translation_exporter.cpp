@@ -104,7 +104,7 @@ bool map_has_str(const ParallelFlatHashMap<String, String> &map, const String &k
 }
 
 struct KeyWorker {
-	static constexpr int MAX_FILT_RES_STRINGS = 5000;
+	static constexpr int MAX_FILT_RES_STRINGS = 8000;
 	static constexpr uint64_t MAX_STAGE_TIME = 30 * 1000ULL;
 
 	using KeyType = String;
@@ -121,11 +121,8 @@ struct KeyWorker {
 
 	Mutex mutex;
 	KeyMessageMap key_to_message;
-	uint64_t key_to_message_size = 0;
-	HashMap<String, int> TODO_DELETE_ME;
 	Vector<String> resource_strings;
 	Vector<String> filtered_resource_strings;
-	Vector<CharString> resource_strings_t;
 	Vector<CharString> filtered_resource_strings_t;
 
 	const Ref<OptimizedTranslationExtractor> default_translation;
@@ -369,9 +366,6 @@ struct KeyWorker {
 		_set_key_stuff(key);
 
 		key_to_message[key] = msg;
-		for (const auto &E : TODO_DELETE_ME) {
-			DEV_ASSERT(map_has(key_to_message, get_key(E)));
-		}
 		return true;
 	}
 
