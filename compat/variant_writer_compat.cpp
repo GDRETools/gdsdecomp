@@ -3,6 +3,8 @@
 
 #include "compat/resource_loader_compat.h"
 #include "core/object/script_language.h"
+
+#include "external/grisu2/grisu2.h"
 #include "image_parser_v2.h"
 #include "input_event_parser_v2.h"
 
@@ -750,55 +752,62 @@ static constexpr _ALWAYS_INLINE_ uint64_t max_integer_str_len() {
 template <int ver_major, bool is_pcfg, bool is_script>
 struct VarWriter {
 	static String num_scientific(double p_num) {
-		if (Math::is_nan(p_num)) {
+		if (Math::is_nan(p_num) || Math::is_inf(p_num)) {
+			return String::num(p_num, 0);
+		}
+		char buffer[256];
+		char *last = grisu2::to_chars(buffer, p_num);
+		*last = 0;
+		return buffer;
+	}
+
+	static String num_scientific(float p_num) {
+		if (Math::is_nan(p_num) || Math::is_inf(p_num)) {
+			return String::num(p_num, 0);
+		}
+		char buffer[256];
+		char *last = grisu2::to_chars(buffer, p_num);
+		*last = 0;
+		return buffer;
+	}
+
+	static String rtosfix(float p_value) {
+		if (p_value == 0.0) {
+			return "0"; // Avoid negative zero (-0) being written, which may annoy git, svn, etc. for changes when they don't exist.
+		}
+		if (isnan(p_value)) {
 			return "nan";
 		}
-
-		if (Math::is_inf(p_num)) {
-			if (signbit(p_num)) {
-				return "-inf";
+		if (isinf(p_value)) {
+			if (p_value < 0) {
+				if constexpr (ver_major > 2) {
+					return "inf_neg";
+				} else {
+					return "-inf";
+				}
 			} else {
 				return "inf";
 			}
 		}
-
-		char buf[256];
-
-#if defined(__GNUC__) || defined(_MSC_VER)
-
-#if defined(__MINGW32__) && defined(_TWO_DIGIT_EXPONENT) && !defined(_UCRT)
-		// MinGW requires _set_output_format() to conform to C99 output for printf
-		unsigned int old_exponent_format = _set_output_format(_TWO_DIGIT_EXPONENT);
-#endif
-		// TODO: remove this when the PR about precision is merged
-		snprintf(buf, 256, "%.16lg", p_num);
-
-#if defined(__MINGW32__) && defined(_TWO_DIGIT_EXPONENT) && !defined(_UCRT)
-		_set_output_format(old_exponent_format);
-#endif
-
-#else
-		sprintf(buf, "%.16lg", p_num);
-#endif
-
-		buf[255] = 0;
-
-		return buf;
+		return num_scientific(p_value);
 	}
 
 	static String rtosfix(double p_value) {
 		if (p_value == 0.0) {
 			return "0"; //avoid negative zero (-0) being written, which may annoy git, svn, etc. for changes when they don't exist.
 		}
-		if constexpr (ver_major > 2) {
-			if (isnan(p_value)) {
-				return "nan";
-			} else if (isinf(p_value)) {
-				if (p_value > 0) {
-					return "inf";
-				} else {
+		if (isnan(p_value)) {
+			return "nan";
+		}
+		if (isinf(p_value)) {
+			if (p_value < 0) {
+				if constexpr (ver_major > 2) {
 					return "inf_neg";
+				} else {
+					return "-inf";
 				}
+			} else {
+				return "inf";
 			}
 		}
 		return num_scientific(p_value);
