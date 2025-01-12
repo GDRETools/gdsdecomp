@@ -707,6 +707,21 @@ Error VariantParserCompat::parse_tag_assign_eof(VariantParser::Stream *p_stream,
 	}
 	return OK;
 }
+
+Error VariantParserCompat::parse(Stream *p_stream, Variant &r_ret, String &r_err_str, int &r_err_line, ResourceParser *p_res_parser) {
+	Token token;
+	Error err = get_token(p_stream, token, r_err_line, r_err_str);
+	if (err) {
+		return err;
+	}
+
+	if (token.type == TK_EOF) {
+		return ERR_FILE_EOF;
+	}
+
+	return parse_value(token, r_ret, p_stream, r_err_line, r_err_str, p_res_parser);
+}
+
 namespace {
 const static String comma_string = ", ";
 
