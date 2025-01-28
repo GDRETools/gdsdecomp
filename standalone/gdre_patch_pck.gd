@@ -18,9 +18,10 @@ var REPORT_DIALOG = null
 var SELECT_PCK_DIALOG: FileDialog = null
 var FILTER: LineEdit = null
 var FILES_TEXT: Label = null
-var PATCH_FILE_TREE: Tree = null
+var PATCH_FILE_TREE: GDREFileTree = null
 var PATCH_FILE_DIALOG: FileDialog = null
 var PATCH_FILE_MAPPING_DIALOG: FileDialog = null
+var PATCH_FOLDER_MAPPING_DIALOG: FileDialog = null
 
 var DROP_FOLDERS_CONFIRMATION_DIALOG: Window = null
 var DROP_FOLDERS_LIST_A: Tree = null
@@ -56,6 +57,9 @@ func _on_patch_tree_button_clicked(item: TreeItem, _column: int, id: int, mouse_
 		return
 	match id:
 		PatchTreeButton.SELECT:
+			if (not GDRESettings.is_pack_loaded()):
+				popup_error_box("Load a pack first!", "Error")
+				return
 			button_clicked_item = item
 			PATCH_FILE_MAPPING_DIALOG.current_file = item.get_text(0).get_file()
 			PATCH_FILE_MAPPING_DIALOG.popup_centered()
@@ -90,6 +94,30 @@ func register_dropped_files():
 		print("Error: failed to connect window to files_dropped signal")
 		print("Type: " + self.get_class())
 		print("name: " + str(self.get_name()))
+
+
+
+func _on_select_patch_folder_mapping_dialog_canceled() -> void:
+	_tmp_selected_files.clear()
+
+func _on_select_patch_folder_mapping_dialog_dir_selected(dir: String) -> void:
+	# dir is the absolute path to the selected directory
+	# _tmp_selected_files is a list of files that were dropped
+	for item in _tmp_selected_files:
+		item.set_text(1, dir.path_join(item.get_text(0).get_file()))
+	_tmp_selected_files.clear()
+
+var _tmp_selected_files: Array = []
+
+
+func map_all_to_folder(selected_items: Array):
+	if (not GDRESettings.is_pack_loaded()):
+		popup_error_box("Load a pack first!", "Error")
+		return
+	_tmp_selected_files.clear()
+	_tmp_selected_files = selected_items
+	PATCH_FOLDER_MAPPING_DIALOG.popup_centered()
+
 # MUST CALL set_root_window() first!!!
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -102,6 +130,7 @@ func _ready():
 	PATCH_FILE_TREE = $Control/PatchFileTree
 	PATCH_FILE_DIALOG = $SelectPatchFilesDialog
 	PATCH_FILE_MAPPING_DIALOG = $SelectPatchMappingDialog
+	PATCH_FOLDER_MAPPING_DIALOG = $SelectPatchFolderMappingDialog
 	DROP_FOLDERS_CONFIRMATION_DIALOG = $DropFoldersConfirmation
 	DROP_FOLDERS_LIST_A = $DropFoldersConfirmation/Control/ItemListA
 	DROP_FOLDERS_LIST_B = $DropFoldersConfirmation/Control/ItemListB
@@ -111,6 +140,7 @@ func _ready():
 	DROP_FOLDERS_LIST_A.set_column_title(1, "Mapping")
 	DROP_FOLDERS_LIST_B.set_column_title(0, "File")
 	DROP_FOLDERS_LIST_B.set_column_title(1, "Mapping")
+
 	if isHiDPI:
 		# get_viewport().size *= 2.0
 		# get_viewport().content_scale_factor = 2.0
@@ -125,6 +155,9 @@ func _ready():
 	PATCH_FILE_TREE.connect("button_clicked", self._on_patch_tree_button_clicked)
 	PATCH_FILE_TREE.set_column_title(0, "File")
 	PATCH_FILE_TREE.set_column_title(1, "Mapping")
+	PATCH_FILE_TREE.set_column_custom_minimum_width(1, 0)
+	PATCH_FILE_TREE.set_column_expand(1, true)
+	PATCH_FILE_TREE.add_custom_right_click_item("Map to Folder...", self.map_all_to_folder)
 	register_dropped_files()
 	# TODO: remove this
 	# var test_bin = "/Users/nikita/Workspace/godot-ws/godot-test-bins/demo_platformer.pck"
@@ -150,6 +183,10 @@ func add_project(paths: PackedStringArray) -> int:
 	PATCH_FILE_MAPPING_DIALOG.current_dir = ""
 	PATCH_FILE_MAPPING_DIALOG.set_access(FileDialog.ACCESS_RESOURCES)
 	PATCH_FILE_MAPPING_DIALOG.current_dir = "res://"
+	PATCH_FOLDER_MAPPING_DIALOG.set_access(FileDialog.ACCESS_FILESYSTEM)
+	PATCH_FOLDER_MAPPING_DIALOG.current_dir = ""
+	PATCH_FOLDER_MAPPING_DIALOG.set_access(FileDialog.ACCESS_RESOURCES)
+	PATCH_FOLDER_MAPPING_DIALOG.current_dir = "res://"
 	VERSION_TEXT.text = GDRESettings.get_version_string()
 	var arr: Array = GDRESettings.get_file_info_array()
 	FILES_TEXT.text = str(arr.size())
@@ -157,9 +194,7 @@ func add_project(paths: PackedStringArray) -> int:
 	return OK
 
 func clear_patch_files():
-	PATCH_FILE_TREE.clear()
-	# create a dummy root node (this is a flat tree, and scene tree has root nodes as not visible)
-	PATCH_FILE_TREE.create_item()
+	PATCH_FILE_TREE._clear()
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(_delta):
@@ -179,10 +214,11 @@ func clear_selected_pack():
 func add_patch_files(map: Dictionary[String, String]) -> void:
 	if (not PATCH_FILE_TREE.get_root()):
 		PATCH_FILE_TREE.create_item()
+	var root = PATCH_FILE_TREE.get_root()
 	for key in map.keys():
 		if not map[key].is_empty() and map[key].is_relative_path():
 			map[key] = "res://" + map[key]
-		var item = PATCH_FILE_TREE.create_item()
+		var item = PATCH_FILE_TREE.create_file_item(root, key, key, file_icon, -1, "", map[key])
 		item.set_cell_mode(0, TreeItem.CELL_MODE_STRING)
 		item.set_cell_mode(1, TreeItem.CELL_MODE_STRING)
 		item.set_text_direction(0, Control.TextDirection.TEXT_DIRECTION_RTL)
@@ -193,6 +229,7 @@ func add_patch_files(map: Dictionary[String, String]) -> void:
 		item.set_icon(1, file_broken)
 		item.add_button(1, select_button, PatchTreeButton.SELECT)
 		item.add_button(1, delete_button, PatchTreeButton.DELETE)
+		item.set_editable(0, false)
 		item.set_editable(1, true)
 	_validate()
 

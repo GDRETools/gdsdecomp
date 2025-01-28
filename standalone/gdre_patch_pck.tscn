@@ -64,7 +64,6 @@ grow_vertical = 2
 column_titles_visible = true
 select_mode = 2
 script = ExtResource("3_aruht")
-check_mode = false
 columnMap = Dictionary[int, int]({
 0: 0
 })
@@ -176,6 +175,18 @@ column_titles_visible = true
 hide_folding = true
 enable_recursive_folding = false
 hide_root = true
+select_mode = 2
+script = ExtResource("3_aruht")
+show_copy_paths_in_right_click_menu = false
+check_mode = false
+flat_mode = true
+editable_only_when_checkbox_clicked = false
+columnMap = Dictionary[int, int]({
+0: 0,
+2: 1
+})
+infoColumnName = "Mapping"
+metadata/_custom_type_script = ExtResource("3_aruht")
 
 [node name="SelectPatchFiles" type="Button" parent="Control"]
 layout_mode = 1
@@ -306,6 +317,12 @@ offset_right = 747.0
 offset_bottom = 64.0
 text = "\"Relative from...\" mapping"
 
+[node name="SelectPatchFolderMappingDialog" type="FileDialog" parent="."]
+auto_translate_mode = 1
+title = "Select folder to map files to..."
+file_mode = 2
+root_subfolder = "res://"
+
 [connection signal="file_selected" from="SelectPckDialog" to="." method="_on_select_pck_dialog_file_selected"]
 [connection signal="files_selected" from="SelectPatchFilesDialog" to="." method="_on_select_patch_files_dialog_files_selected"]
 [connection signal="file_selected" from="SelectPatchMappingDialog" to="." method="_on_select_patch_mapping_dialog_file_selected"]
@@ -321,3 +338,6 @@ text = "\"Relative from...\" mapping"
 [connection signal="confirmed" from="DropFoldersConfirmation" to="." method="_on_drop_folders_confirmation_close_requested"]
 [connection signal="pressed" from="DropFoldersConfirmation/Control/SelectA" to="." method="_on_select_a_pressed"]
 [connection signal="pressed" from="DropFoldersConfirmation/Control/SelectB" to="." method="_on_select_b_pressed"]
+[connection signal="canceled" from="SelectPatchFolderMappingDialog" to="." method="_on_select_patch_folder_mapping_dialog_canceled"]
+[connection signal="close_requested" from="SelectPatchFolderMappingDialog" to="." method="_on_select_patch_folder_mapping_dialog_canceled"]
+[connection signal="dir_selected" from="SelectPatchFolderMappingDialog" to="." method="_on_select_patch_folder_mapping_dialog_dir_selected"]
