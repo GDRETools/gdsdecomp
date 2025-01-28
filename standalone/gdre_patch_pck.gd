@@ -22,6 +22,7 @@ var PATCH_FILE_TREE: GDREFileTree = null
 var PATCH_FILE_DIALOG: FileDialog = null
 var PATCH_FILE_MAPPING_DIALOG: FileDialog = null
 var PATCH_FOLDER_MAPPING_DIALOG: FileDialog = null
+var MAP_SELECTED_ITEMS_BUTTON: Button = null
 
 var DROP_FOLDERS_CONFIRMATION_DIALOG: Window = null
 var DROP_FOLDERS_LIST_A: Tree = null
@@ -114,6 +115,9 @@ func map_all_to_folder(selected_items: Array):
 	if (not GDRESettings.is_pack_loaded()):
 		popup_error_box("Load a pack first!", "Error")
 		return
+	if (selected_items.is_empty()):
+		popup_error_box("Select items to map!", "Error")
+		return
 	_tmp_selected_files.clear()
 	_tmp_selected_files = selected_items
 	PATCH_FOLDER_MAPPING_DIALOG.popup_centered()
@@ -131,11 +135,13 @@ func _ready():
 	PATCH_FILE_DIALOG = $SelectPatchFilesDialog
 	PATCH_FILE_MAPPING_DIALOG = $SelectPatchMappingDialog
 	PATCH_FOLDER_MAPPING_DIALOG = $SelectPatchFolderMappingDialog
+	MAP_SELECTED_ITEMS_BUTTON = $Control/PatchButtonHBox/MapButton
 	DROP_FOLDERS_CONFIRMATION_DIALOG = $DropFoldersConfirmation
 	DROP_FOLDERS_LIST_A = $DropFoldersConfirmation/Control/ItemListA
 	DROP_FOLDERS_LIST_B = $DropFoldersConfirmation/Control/ItemListB
 	DROP_FOLDERS_LABEL_A = $DropFoldersConfirmation/Control/LabelA
 	DROP_FOLDERS_LABEL_B = $DropFoldersConfirmation/Control/LabelB
+
 	DROP_FOLDERS_LIST_A.set_column_title(0, "File")
 	DROP_FOLDERS_LIST_A.set_column_title(1, "Mapping")
 	DROP_FOLDERS_LIST_B.set_column_title(0, "File")
@@ -159,6 +165,7 @@ func _ready():
 	PATCH_FILE_TREE.set_column_expand(1, true)
 	PATCH_FILE_TREE.add_custom_right_click_item("Map to Folder...", self.map_all_to_folder)
 	register_dropped_files()
+	_validate()
 	# TODO: remove this
 	# var test_bin = "/Users/nikita/Workspace/godot-ws/godot-test-bins/demo_platformer.pck"
 	# _on_select_pck_dialog_file_selected(test_bin)
@@ -243,7 +250,7 @@ func _on_select_pck_dialog_file_selected(path: String) -> void:
 
 func _on_filter_text_changed(new_text: String) -> void:
 	FILE_TREE.filter(new_text)
-	pass # Replace with function body.
+	pass 
 
 func _on_check_all_pressed() -> void:
 	FILE_TREE.check_all_shown(true)
@@ -297,6 +304,15 @@ func clear_error_from_item(item: TreeItem) -> void:
 	item.set_icon(1, file_ok)
 	item.set_tooltip_text(1, String())
 
+func _validate_map_button():
+	var pack_loaded = GDRESettings.is_pack_loaded()
+	for item in PATCH_FILE_TREE.get_root().get_children():
+		item.set_button_disabled(1, PatchTreeButton.SELECT, not pack_loaded)
+	if (!pack_loaded or PATCH_FILE_TREE.get_highlighted_items().is_empty()):
+		MAP_SELECTED_ITEMS_BUTTON.disabled = true
+	else:
+		MAP_SELECTED_ITEMS_BUTTON.disabled = false
+
 func _validate():
 	# if (not PATCH_FILE_TREE.get_root() or PATCH_FILE_TREE.get_root().get_children().size() == 0):
 	# 	self.get_ok_button().disabled = true
@@ -327,7 +343,7 @@ func _validate():
 			clear_error_from_item(item)
 		item = item.get_next()
 
-
+	_validate_map_button()
 
 	if (!pack_loaded or not error_messages.is_empty()):
 		self.get_ok_button().disabled = true
@@ -448,9 +464,27 @@ func _on_select_a_pressed() -> void:
 	DROP_FOLDERS_CONFIRMATION_DIALOG.hide()
 	# get all the items from the list
 	add_patch_files(get_drop_folders_list_map(DROP_FOLDERS_LIST_A))
-	pass # Replace with function body.
 
 func _on_select_b_pressed() -> void:
 	DROP_FOLDERS_CONFIRMATION_DIALOG.hide()
 	add_patch_files(get_drop_folders_list_map(DROP_FOLDERS_LIST_B))
-	pass # Replace with function body.
+
+
+func _on_map_button_pressed() -> void:
+	map_all_to_folder(PATCH_FILE_TREE.get_highlighted_items())
+
+
+func _on_patch_file_tree_cell_selected() -> void:
+	_validate_map_button()
+
+
+func _on_patch_file_tree_item_selected() -> void:
+	_validate_map_button() 
+
+
+func _on_patch_file_tree_nothing_selected() -> void:
+	_validate_map_button() 
+
+
+func _on_patch_file_tree_item_edited() -> void:
+	_validate()
