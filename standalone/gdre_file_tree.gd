@@ -1,34 +1,5 @@
 class_name GDREFileTree
 extends Tree
-
-var FILTER_DELAY = 0.25
-var LARGE_PCK = 5000
-var prev_filter_string: String = ""
-var timer: SceneTreeTimer = null
-@export var file_icon: Texture2D = preload("res://gdre_icons/gdre_File.svg")
-@export var file_ok: Texture2D = preload("res://gdre_icons/gdre_FileOk.svg")
-@export var file_broken: Texture2D = preload("res://gdre_icons/gdre_FileBroken.svg")
-@export var folder_icon: Texture2D = get_theme_icon("folder", "FileDialog")
-# @export var editable_only_when_checkbox_clicked: bool = true
-# make setters for the export
-@export var editable_only_when_checkbox_clicked: bool = true:
-	set(val):
-		editable_only_when_checkbox_clicked = val
-		GodotREEditorStandalone.tree_set_edit_checkbox_cell_only_when_checkbox_is_pressed(self, editable_only_when_checkbox_clicked)
-	get:
-		return editable_only_when_checkbox_clicked
-@export var right_click_outline_color: Color = Color(0.8, 0.8, 0.8, 0.9)
-
-# var isHiDPI = DisplayServer.screen_get_dpi() >= 240
-var isHiDPI = false
-var root: TreeItem = null
-var userroot: TreeItem = null
-var num_files:int = 0
-var num_broken:int = 0
-var num_malformed:int = 0
-var items: Dictionary[String, TreeItem] = {}
-var right_click_menu: PopupMenu = null
-var right_clicked_item: TreeItem = null
 enum SortType {
 	SORT_NAME_ASCENDING,
 	SORT_NAME_DESCENDING,
@@ -38,11 +9,85 @@ enum SortType {
 	SORT_REVERSE_INFO,
 }
 
-enum {
-	COLUMN_NAME,
-	COLUMN_SIZE,
-	COLUMN_INFO,
+enum ColType {
+	NAME,
+	SIZE,
+	INFO,
 }
+
+@export var file_icon: Texture2D = preload("res://gdre_icons/gdre_File.svg")
+@export var file_ok: Texture2D = preload("res://gdre_icons/gdre_FileOk.svg")
+@export var file_broken: Texture2D = preload("res://gdre_icons/gdre_FileBroken.svg")
+@export var folder_icon: Texture2D = get_theme_icon("folder", "FileDialog")
+# @export var editable_only_when_checkbox_clicked: bool = true
+# make setters for the export
+
+@export var show_copy_paths_in_right_click_menu: bool = true
+# Enables a check mark on the first column of the tree.
+@export var check_mode: bool = true:
+	set(val):
+		check_mode = val
+		if val:
+			GodotREEditorStandalone.tree_set_edit_checkbox_cell_only_when_checkbox_is_pressed(self, editable_only_when_checkbox_clicked)
+		else:
+			GodotREEditorStandalone.tree_set_edit_checkbox_cell_only_when_checkbox_is_pressed(self, false)
+	get:
+		return check_mode
+
+@export var flat_mode: bool = false
+@export var editable_only_when_checkbox_clicked: bool = true:
+	set(val):
+		editable_only_when_checkbox_clicked = val
+		GodotREEditorStandalone.tree_set_edit_checkbox_cell_only_when_checkbox_is_pressed(self, editable_only_when_checkbox_clicked)
+	get:
+		return editable_only_when_checkbox_clicked
+@export var right_click_outline_color: Color = Color(0.8, 0.8, 0.8, 0.9)
+
+func set_column_map_cache(val: Dictionary):
+	assert(val.has(ColType.NAME), "Column map must have a mapping for Name!")
+	_name_col = val.get(ColType.NAME, -1)
+	_size_col = val.get(ColType.SIZE, -1)
+	_info_col = val.get(ColType.INFO, -1)
+	_size_col_exists = _size_col != -1
+	_info_col_exists = _info_col != -1
+	columns = val.size()
+
+@export var columnMap: Dictionary[ColType, int] = { ColType.NAME: 0, ColType.SIZE: 1}: 
+	set(val):
+		set_column_map_cache(val)
+		columnMap = val
+	get:
+		return columnMap
+
+@export var nameColumnName: String = "File Name"
+@export var sizeColumnName: String = "Size"
+@export var infoColumnName: String = "Info"
+		
+# cached column positions for performance reasons
+var _name_col = 0
+var _size_col = -1
+var _info_col = -1
+var _size_col_exists = false
+var _info_col_exists = false
+
+var FILTER_DELAY = 0.25
+var LARGE_PCK = 5000
+var prev_filter_string: String = ""
+var timer: SceneTreeTimer = null
+
+# var isHiDPI = DisplayServer.screen_get_dpi() >= 240
+var isHiDPI = false
+var root: TreeItem = null
+var userroot: TreeItem = null
+var num_files:int = 0
+var num_broken:int = 0
+var num_malformed:int = 0
+var right_click_menu: PopupMenu = null
+var right_clicked_item: TreeItem = null
+
+var custom_right_click_map: Dictionary[int, String] = {}
+var custom_right_click_items: Dictionary[String, Callable] = {}
+
 
 enum {
 	POPUP_COPY_PATHS,
@@ -51,7 +96,9 @@ enum {
 	POPUP_SEPERATOR,
 	POPUP_FOLD_ALL,
 	POPUP_UNFOLD_ALL,
+	POPUP_CUSTOM_SEPERATOR,
 }
+var last_open_id = POPUP_CUSTOM_SEPERATOR + 1
 var current_sort = SortType.SORT_NAME_ASCENDING
 
 func get_highlighted_items() -> Array:
@@ -67,20 +114,6 @@ func get_highlighted_items() -> Array:
 			highlighted_items.append(item)
 	return highlighted_items
 
-func _propagate_check(item: TreeItem, checked: bool, check_visible_ignore_folders: bool = false):
-	if (check_visible_ignore_folders and (not item.is_visible_in_tree())):
-		return
-	if (not check_visible_ignore_folders or item.get_icon(0) != folder_icon):
-		item.set_checked(0, checked)
-	var it: TreeItem = item.get_first_child()
-	while (it):
-		_propagate_check(it, checked, check_visible_ignore_folders)
-		it = it.get_next()
-
-func _on_item_edited():
-	var item = self.get_edited()
-	var checked = item.is_checked(0)
-	_propagate_check(item, checked)
 
 func check_if_multiple_items_are_highlighted():
 	if (select_mode == SELECT_MULTI):
@@ -89,6 +122,26 @@ func check_if_multiple_items_are_highlighted():
 		if (item):
 			return true
 	return false
+
+
+func item_is_folder(item: TreeItem) -> bool:
+	return item.get_icon(_name_col) == folder_icon
+
+func items_has_folder(items: Array) -> bool:
+	for item in items:
+		if item_is_folder(item):
+			return true
+	return false
+
+
+# Right click stuff
+
+
+func add_custom_right_click_item(text: String, callable: Callable):
+	var id = last_open_id
+	last_open_id += 1
+	custom_right_click_map[id] = text
+	custom_right_click_items[text] = callable
 
 func _on_gui_input(input:InputEvent):
 	if input is InputEventMouseButton:
@@ -100,14 +153,33 @@ func _on_gui_input(input:InputEvent):
 			else:
 				_on_custom_item_clicked(input.button_index)
 
-func item_is_folder(item: TreeItem) -> bool:
-	return item.get_icon(0) == folder_icon
 
-func items_has_folder(items: Array) -> bool:
-	for item in items:
-		if item_is_folder(item):
-			return true
-	return false
+func _on_custom_item_clicked(mouse_button: MouseButton):
+	if (mouse_button == MOUSE_BUTTON_RIGHT):
+		_on_item_right_clicked()
+
+func _on_item_right_clicked():
+	var plural = false
+	var check_name = "Item"
+	var has_folder = false
+
+	clear_right_click_state()
+	var selected_items = get_highlighted_items()
+	right_clicked_item = self.get_item_at_position(get_local_mouse_position())
+	if (not right_clicked_item_is_selected(selected_items)):
+		set_right_clicked_outline_color(false)
+		if right_clicked_item and item_is_folder(right_clicked_item):
+			has_folder = true
+	else:
+		check_name = "Selected"
+		if items_has_folder(selected_items):
+			has_folder = true
+		if (selected_items.size() > 1):
+			plural = true
+	pop_right_menu_items(check_name, plural, has_folder)
+	right_click_menu.position = DisplayServer.mouse_get_position()
+	right_click_menu.visible = true
+
 
 func right_clicked_item_is_selected(selected_items: Array = []) -> bool:
 	if not selected_items:
@@ -120,46 +192,12 @@ func right_clicked_item_is_selected(selected_items: Array = []) -> bool:
 func set_right_clicked_outline_color(clear_bg: bool = false):
 	if not right_clicked_item:
 		return
-	for i in range(0, columns):
+	for i in range(_name_col, columns):
 		if not clear_bg:
 			right_clicked_item.set_custom_bg_color(i, self.right_click_outline_color, true)
 		else:
 			right_clicked_item.set_custom_bg_color(i, Color(0,0,0,0), true)
 
-func _on_custom_item_clicked(mouse_button: MouseButton):
-	if (mouse_button == MOUSE_BUTTON_RIGHT):
-		clear_right_click_state()
-		var selected_items = get_highlighted_items()
-		var has_folder = false
-		right_clicked_item = self.get_item_at_position(get_local_mouse_position())
-		if (not right_clicked_item_is_selected(selected_items)):
-			right_click_menu.set_item_text(POPUP_COPY_PATHS, "Copy path")
-			right_click_menu.set_item_text(POPUP_UNCHECK_ALL, "Uncheck item")
-			right_click_menu.set_item_text(POPUP_CHECK_ALL, "Check item")
-			set_right_clicked_outline_color(false)
-			if right_clicked_item and item_is_folder(right_clicked_item):
-				has_folder = true
-		else:
-			if items_has_folder(selected_items):
-				has_folder = true
-			if (selected_items.size() > 1):
-				right_click_menu.set_item_text(POPUP_COPY_PATHS, "Copy paths")
-				right_click_menu.set_item_text(POPUP_UNCHECK_ALL, "Uncheck selected")
-				right_click_menu.set_item_text(POPUP_CHECK_ALL, "Check selected")
-			else:
-				right_click_menu.set_item_text(POPUP_COPY_PATHS, "Copy path")
-				right_click_menu.set_item_text(POPUP_UNCHECK_ALL, "Uncheck selected")
-				right_click_menu.set_item_text(POPUP_CHECK_ALL, "Check selected")
-
-		if (has_folder):
-			right_click_menu.set_item_disabled(POPUP_FOLD_ALL, false)
-			right_click_menu.set_item_disabled(POPUP_UNFOLD_ALL, false)
-		else:
-			right_click_menu.set_item_disabled(POPUP_FOLD_ALL, true)
-			right_click_menu.set_item_disabled(POPUP_UNFOLD_ALL, true)
-
-		right_click_menu.position = DisplayServer.mouse_get_position()
-		right_click_menu.visible = true
 
 func clear_right_click_state():
 	set_right_clicked_outline_color(true)
@@ -189,22 +227,76 @@ func _on_right_click_id(id):
 		POPUP_UNFOLD_ALL:
 			for item in selected_items:
 				set_fold_all(item, false, true)
+		_:
+			if custom_right_click_map.has(id):
+				var text = custom_right_click_map.get(id)
+				if custom_right_click_items.has(text):
+					var callable = custom_right_click_items.get(text)
+					callable.call(selected_items)
 
 func _on_right_click_visibility_changed():
 	if not right_click_menu.visible:
 		set_right_clicked_outline_color(true)
 
+func pop_right_menu_items(check_name: String = "Item", plural: bool = false, has_folder: bool = false):
+	right_click_menu.clear(true)
+	right_click_menu.reset_size()
+	if self.show_copy_paths_in_right_click_menu:
+		right_click_menu.add_item("Copy path" + ("s" if plural else ""), POPUP_COPY_PATHS)
+	if self.check_mode:
+		right_click_menu.add_item("Check " + check_name, POPUP_CHECK_ALL)
+		right_click_menu.add_item("Uncheck " + check_name, POPUP_UNCHECK_ALL)
+	if not self.flat_mode:
+		# check if the right_click_menu has no items yet
+		if right_click_menu.get_item_count() != 0:
+			right_click_menu.add_separator("", POPUP_SEPERATOR)
+		right_click_menu.add_item("Fold all", POPUP_FOLD_ALL)
+		right_click_menu.add_item("Unfold all", POPUP_UNFOLD_ALL)
+		if (has_folder):
+			right_click_menu.set_item_disabled(POPUP_FOLD_ALL, false)
+			right_click_menu.set_item_disabled(POPUP_UNFOLD_ALL, false)
+		else:
+			right_click_menu.set_item_disabled(POPUP_FOLD_ALL, true)
+			right_click_menu.set_item_disabled(POPUP_UNFOLD_ALL, true)
+	if custom_right_click_map.size() > 0:
+		if right_click_menu.get_item_count() != 0:
+			right_click_menu.add_separator("", POPUP_CUSTOM_SEPERATOR)
+		for id in custom_right_click_map.keys():
+			var text = custom_right_click_map.get(id)
+			right_click_menu.add_item(text, id)
+
+# ** CHECK PROPAGATION
+
+func _propagate_check(item: TreeItem, checked: bool, check_visible_ignore_folders: bool = false):
+	if (check_visible_ignore_folders and (not item.is_visible_in_tree())):
+		return
+	if (not check_visible_ignore_folders or not item_is_folder(item)):
+		item.set_checked(_name_col, checked)
+	var it: TreeItem = item.get_first_child()
+	while (it):
+		_propagate_check(it, checked, check_visible_ignore_folders)
+		it = it.get_next()
+
+func _on_item_edited():
+	if check_mode:
+		var item = self.get_edited()
+		var checked = item.is_checked(_name_col)
+		_propagate_check(item, checked)
+
+
+
+# ** SORTING
 
 func cmp_item_folders(a: TreeItem, b: TreeItem, descending_name_sort: bool) -> int:
-	var a_is_folder = a.get_icon(0) == folder_icon
-	var b_is_folder = b.get_icon(0) == folder_icon
+	var a_is_folder = item_is_folder(a)
+	var b_is_folder = item_is_folder(b)
 	if (a_is_folder and !b_is_folder):
 		return 1 if not descending_name_sort else -1
 	if (!a_is_folder and b_is_folder):
 		return -1 if not descending_name_sort else 1
 	if (descending_name_sort):
-		return a.get_text(0).filenocasecmp_to(b.get_text(0))
-	return b.get_text(0).filenocasecmp_to(a.get_text(0))
+		return a.get_text(_name_col).filenocasecmp_to(b.get_text(_name_col))
+	return b.get_text(_name_col).filenocasecmp_to(a.get_text(_name_col))
 
 func sort_tree(item:TreeItem, recursive: bool = true):
 	var it: TreeItem = item.get_first_child()
@@ -227,61 +319,60 @@ func sort_tree(item:TreeItem, recursive: bool = true):
 			)
 		SortType.SORT_SIZE_DESCENDING:
 			arr.sort_custom(func(a: TreeItem, b: TreeItem) -> bool:
-				var a_size = a.get_metadata(1)
-				var b_size = b.get_metadata(1)
+				var a_size = a.get_metadata(_size_col)
+				var b_size = b.get_metadata(_size_col)
 				if (a_size == b_size):
 					return cmp_item_folders(a, b, true) > 0
 				return a_size > b_size
 			)
 		SortType.SORT_SIZE_ASCENDING:
 			arr.sort_custom(func(a: TreeItem, b: TreeItem) -> bool:
-				var a_size = (a.get_metadata(1))
-				var b_size = (b.get_metadata(1))
+				var a_size = (a.get_metadata(_size_col))
+				var b_size = (b.get_metadata(_size_col))
 				if (a_size == b_size):
 					return cmp_item_folders(a, b, false) > 0
 				return a_size < b_size
 			)
 		SortType.SORT_INFO:
 			arr.sort_custom(func(a: TreeItem, b: TreeItem) -> bool:
-				return a.get_text(2).filenocasecmp_to(b.get_text(2)) > 0
+				return a.get_text(_info_col).filenocasecmp_to(b.get_text(_info_col)) > 0
 			)
 		SortType.SORT_REVERSE_INFO:
 			arr.sort_custom(func(a: TreeItem, b: TreeItem) -> bool:
-				return a.get_text(2).filenocasecmp_to(b.get_text(2)) < 0
+				return a.get_text(_info_col).filenocasecmp_to(b.get_text(_info_col)) < 0
 			)
 	var names: PackedStringArray = []
 	for i in range(arr.size()):
-		names.push_back(arr[i].get_text(0))
+		names.push_back(arr[i].get_text(_name_col))
 	
 	arr[0].move_before(arr[1])
 	for i in range(1, arr.size()):
 		arr[i].move_after(arr[i - 1])
 
 func sort_entire_tree():
-	self.set_column_title(COLUMN_NAME, "File name")
 	match(current_sort):
 		SortType.SORT_NAME_ASCENDING:
-			self.set_column_title(COLUMN_NAME, "File name ▲")
+			self.set_column_title(_name_col, nameColumnName + " ▲")
 		SortType.SORT_NAME_DESCENDING:
-			self.set_column_title(COLUMN_NAME, "File name ▼")
+			self.set_column_title(_name_col, nameColumnName + " ▼")
 		_:
-			self.set_column_title(COLUMN_NAME, "File name")
-	if (columns >= 2):
+			self.set_column_title(_name_col, nameColumnName)
+	if (_size_col_exists):
 		match(current_sort):
 			SortType.SORT_SIZE_DESCENDING:
-				self.set_column_title(COLUMN_SIZE, "Size ▼")
+				self.set_column_title(_size_col, sizeColumnName + " ▼")
 			SortType.SORT_SIZE_ASCENDING:
-				self.set_column_title(COLUMN_SIZE, "Size ▲")
+				self.set_column_title(_size_col, sizeColumnName + " ▲")
 			_:
-				self.set_column_title(COLUMN_SIZE, "Size")
-	if (columns >= 3):
+				self.set_column_title(_size_col, sizeColumnName)
+	if (_info_col_exists):
 		match(current_sort):
 			SortType.SORT_INFO:
-				self.set_column_title(COLUMN_INFO, "Info ▲")
+				self.set_column_title(_info_col, infoColumnName + " ▲")
 			SortType.SORT_REVERSE_INFO:
-				self.set_column_title(COLUMN_INFO, "Info ▼")
+				self.set_column_title(_info_col, infoColumnName + " ▼")
 			_:
-				self.set_column_title(COLUMN_INFO, "Info")
+				self.set_column_title(_info_col, infoColumnName)
 	sort_tree(root)
 	if (userroot):
 		sort_tree(userroot)
@@ -289,15 +380,14 @@ func sort_entire_tree():
 
 func _on_column_title_clicked(column: int, mouse_button_index: int):
 	if (mouse_button_index == MOUSE_BUTTON_LEFT):
-		match(column):
-			COLUMN_NAME:
-				current_sort = SortType.SORT_NAME_ASCENDING if current_sort != SortType.SORT_NAME_ASCENDING else SortType.SORT_NAME_DESCENDING
-			COLUMN_SIZE:
-				current_sort = SortType.SORT_SIZE_DESCENDING if current_sort != SortType.SORT_SIZE_DESCENDING else SortType.SORT_SIZE_ASCENDING
-			COLUMN_INFO:
-				current_sort = SortType.SORT_INFO if current_sort != SortType.SORT_INFO else SortType.SORT_REVERSE_INFO
-			_:
-				return
+		if column == _name_col:
+			current_sort = SortType.SORT_NAME_ASCENDING if current_sort != SortType.SORT_NAME_ASCENDING else SortType.SORT_NAME_DESCENDING
+		elif column == _size_col:
+			current_sort = SortType.SORT_SIZE_DESCENDING if current_sort != SortType.SORT_SIZE_DESCENDING else SortType.SORT_SIZE_ASCENDING
+		elif column == _info_col:
+			current_sort = SortType.SORT_INFO if current_sort != SortType.SORT_INFO else SortType.SORT_REVERSE_INFO
+		else:
+			return
 		sort_entire_tree()
 
 func _on_empty_clicked(_mouse_pos, mouse_button: MouseButton):
@@ -305,60 +395,26 @@ func _on_empty_clicked(_mouse_pos, mouse_button: MouseButton):
 		self.deselect_all()
 
 func _get_path(item: TreeItem) -> String:
-	var path = item.get_metadata(0)
-	if (path.is_empty()):
-		path = item.get_text(0)
+	var path = item.get_metadata(_name_col)
+	if (not self.flat_mode and path.is_empty()):
+		path = item.get_text(_name_col)
 		item = item.get_parent()
 		while (item):
-			var item_name: String = item.get_text(0)
-			if (item_name.begins_with("user://") or item_name.begins_with("res://")):
+			var item_name: String = item.get_text(_name_col)
+			item = item.get_parent()
+			if (item == null):
 				path = item_name + path
 				break
 			path = item_name + "/" + path
-			item = item.get_parent()
 	return path
 
 
-func _ready():
-	var file_list: Tree = self
-	right_click_menu = PopupMenu.new()
-	right_click_menu.add_item("Copy path", POPUP_COPY_PATHS)
-	right_click_menu.add_item("Check", POPUP_CHECK_ALL)
-	right_click_menu.add_item("Uncheck", POPUP_UNCHECK_ALL)
-	right_click_menu.add_separator("", POPUP_SEPERATOR)
-	right_click_menu.add_item("Fold all", POPUP_FOLD_ALL)
-	right_click_menu.add_item("Unfold all", POPUP_UNFOLD_ALL)
 
-	right_click_menu.visible = false
-	right_click_menu.connect("id_pressed", self._on_right_click_id)
-	right_click_menu.connect("visibility_changed", self._on_right_click_visibility_changed)
-	add_child(right_click_menu)
-	# get the number of columns set
-	var num_columns = file_list.columns
-	if num_columns <= 0:
-		print("No columns set in the Tree")
-		return
-	self.connect("gui_input", self._on_gui_input)
-	self.connect("empty_clicked", self._on_empty_clicked)
-	#column_title_clicked( column: int, mouse_button_index: int )
-	self.connect("column_title_clicked", self._on_column_title_clicked)
-	file_list.set_column_title(0, "File name")
-	file_list.set_column_expand(0, true)
-	if (num_columns >= 2):
-		file_list.set_column_title(1, "Size")
-		file_list.set_column_expand(1, false)
-		file_list.set_column_custom_minimum_width(1, 120)
-		file_list.add_theme_constant_override("draw_relationship_lines", 1)
-	elif (num_columns >= 3):
-		file_list.set_column_title(2, "Info")
-		file_list.set_column_custom_minimum_width(2, 120)
-		file_list.set_column_expand(2, false)
-	file_list.connect("item_edited", self._on_item_edited)
-
+# folding
 func set_fold_all_children(item: TreeItem, collapsed: bool = true, recursive: bool = false):
 	var it: TreeItem = item.get_first_child()
 	while (it):
-		if (it.get_icon(0) == folder_icon):
+		if (not item_is_folder(it)):
 			it.collapsed = collapsed
 		if (recursive):
 			set_fold_all_children(it, collapsed, recursive)
@@ -368,25 +424,57 @@ func set_fold_all(item: TreeItem, collapsed: bool = true, recursive: bool = fals
 	set_fold_all_children(item, collapsed, recursive)
 	item.collapsed = collapsed
 
-func add_files(infos: Array, skipped_md5_check: bool = false):
+
+
+# creating and adding items
+
+func create_file_item(p_parent_item: TreeItem, p_fullname: String, p_name: String, p_icon: Texture2D, p_size: int = -1, p_error: String = "", p_info: String = "", p_idx: int = -1) -> TreeItem:
+	var item: TreeItem = self.create_item(p_parent_item, p_idx)
+	if check_mode:
+		item.set_cell_mode(_name_col, TreeItem.CELL_MODE_CHECK)
+		item.set_checked(_name_col, true)
+	item.set_editable(_name_col, true)
+	item.set_icon(_name_col, p_icon)
+	item.set_text(_name_col, p_name)
+	item.set_metadata(_name_col, p_fullname)
+	if _size_col_exists:
+		if p_size > -1:
+			if (p_size < (1024)):
+				item.set_text(_size_col, String.num_int64(p_size) + " B")
+			elif (p_size < (1024 * 1024)):
+				item.set_text(_size_col, String.num(float(p_size) / 1024, 2) + " KiB")
+			elif (p_size < (1024 * 1024 * 1024)):
+				item.set_text(_size_col, String.num(float(p_size) / (1024 * 1024), 2) + " MiB")
+			else:
+				item.set_text(_size_col, String.num(float(p_size) / (1024 * 1024 * 1024), 2) + " GiB")
+		else:
+			p_size = 0
+		item.set_metadata(_size_col, p_size)
+		item.set_tooltip_text(_size_col, p_error);
+	if _info_col_exists:
+		item.set_text(_info_col, p_info);
+	return item
+
+func add_files_from_packed_infos(infos: Array, skipped_md5_check: bool = false):
 	# reverse alphabetical order, we want to put directories at the front in alpha order
 
 	# infos.sort_custom(func(a, b) -> bool:
 	# 	return a.get_path().filenocasecmp_to(b.get_path()) <= 0
 	# )
 	for file in infos:
-		_add_file(file, skipped_md5_check)
+		_add_file_from_packed_info(file, skipped_md5_check)
 	# collapse all the first level directories
 	sort_entire_tree()
 	set_fold_all_children(root, true, true)
 
-func _add_file(info: PackedFileInfo, skipped_md5_check: bool = false):
+func _add_file_from_packed_info(info: PackedFileInfo, skipped_md5_check: bool = false):
 	num_files += 1
 	var file_size = info.get_size()
 	var path = info.get_path()
 	var is_malformed = info.is_malformed()
 	var is_verified = info.is_checksum_validated()
 	var has_md5 = info.has_md5()
+	var p_info = "Encrypted" if info.is_encrypted() else ""
 	var icon = file_icon
 	var errstr = ""
 	if is_malformed:
@@ -402,97 +490,65 @@ func _add_file(info: PackedFileInfo, skipped_md5_check: bool = false):
 		errstr = "Checksum mismatch"
 		num_broken += 1
 	var item
-	if ("user://" in path):
-		if userroot == null:
-			userroot = self.create_item(root)
-			userroot.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
-			userroot.set_checked(0, true)
-			userroot.set_editable(0, true)
-			userroot.set_icon(0, folder_icon)
-			userroot.set_text(0, "user://")
-			userroot.set_metadata(0, String())
-		item = add_file_to_item(userroot, path, path.replace("user://", ""), file_size, icon, errstr, false)
-	else:
-		item = add_file_to_item(root, path, path.replace("res://", ""), file_size, icon, errstr, false)
-	items[path] = item
-	if (items.size() > LARGE_PCK):
-		FILTER_DELAY = 0.5
-	
 
-func _clear():
-	if (userroot != null):
-		userroot.clear()
-		userroot = null
-	items.clear()
-	self.clear()
-	num_files = 0
-	num_broken = 0
-	num_malformed = 0
-	root = self.create_item()
-	root.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
-	root.set_checked(0, true)
-	root.set_editable(0, true)
-	root.set_icon(0, folder_icon)
-	root.set_text(0, "res://")
-	root.set_metadata(0, String())
-	
+	add_file_tree_item(path, icon, file_size, errstr, p_info)
+	if (num_files > LARGE_PCK):
+		FILTER_DELAY = 0.5
+
+func add_file_tree_item(path: String, icon: Texture2D, file_size: int = -1, errstr: String = "", p_info: String = ""):
+	var root_name = root.get_text(_name_col) if root else ""
+	if not flat_mode:
+		if ("user://" in path):
+			if userroot == null:
+				userroot = create_root_item("user://", root)
+			return add_file_to_item_node_mode(userroot, path, path.replace("user://", ""), icon, file_size, errstr, p_info)
+		else:
+			return add_file_to_item_node_mode(root, path, path.replace(root_name, ""), icon, file_size, errstr, p_info)
+	return create_file_item(root, path, path, icon, file_size, errstr, p_info)
+
+
+func create_root_item(root_name: String, root_item: TreeItem = null) -> TreeItem:
+	var item: TreeItem = self.create_item(root_item)
+	if check_mode:
+		item.set_cell_mode(_name_col, TreeItem.CELL_MODE_CHECK)
+		item.set_checked(_name_col, true)
+	item.set_editable(_name_col, true)
+	item.set_icon(_name_col, folder_icon)
+	item.set_text(_name_col, root_name)
+	item.set_metadata(_name_col, String())
+	if _size_col_exists:
+		item.set_metadata(_size_col, 0)
+	return item
+
 func get_first_index_of_non_folder_child(p_item: TreeItem):
 	var it: TreeItem = p_item.get_first_child()
 	while (it):
-		if (it.get_icon(0) != folder_icon):
+		if (not item_is_folder(it)):
 			return it.get_index()
 		it = it.get_next()
 	return -1
-	
-func add_file_to_item(p_item: TreeItem, p_fullname: String, p_name: String, p_size: int, p_icon: Texture2D,  p_error: String, p_enc: bool):
+
+func add_file_to_item_node_mode(p_item: TreeItem, p_fullname: String, p_name: String, p_icon: Texture2D, p_size: int,  p_error: String, p_info: String):
 	var pp: int = p_name.find("/")
 	if (pp == -1):
-		# Add file
-		var item: TreeItem = self.create_item(p_item);
-		item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK);
-		item.set_checked(0, true);
-		item.set_editable(0, true);
-		item.set_icon(0, p_icon)
-		item.set_text(0, p_name)
-		item.set_metadata(0, p_fullname)
-		item.set_tooltip_text(0, p_error);
-		if columns >= 2:
-			if (p_size < (1024)):
-				item.set_text(1, String.num_int64(p_size) + " B");
-			elif (p_size < (1024 * 1024)):
-				item.set_text(1, String.num(float(p_size) / 1024, 2) + " KiB");
-			elif (p_size < (1024 * 1024 * 1024)):
-				item.set_text(1, String.num(float(p_size) / (1024 * 1024), 2) + " MiB");
-			else:
-				item.set_text(1, String.num(float(p_size) / (1024 * 1024 * 1024), 2) + " GiB");
-			item.set_metadata(1, p_size)
-			item.set_tooltip_text(1, p_error);
-		if columns >= 3:
-			item.set_text(2, "Encrypted" if p_enc else "");
-		return item
+		return create_file_item(p_item, p_fullname, p_name, p_icon, p_size, p_error, p_info);
 	else:
-		var fld_name: String = p_name.substr(0, pp);
+		var fld_name: String = p_name.substr(_name_col, pp);
 		var path: String = p_name.substr(pp + 1, p_name.length());
 		# Add folder if any
 		var it: TreeItem = p_item.get_first_child();
 		while (it) :
-			if (it.get_text(0) == fld_name) :
-				return add_file_to_item(it, p_fullname, path, p_size, p_icon, p_error, false);
+			if (it.get_text(_name_col) == fld_name) :
+				return add_file_to_item_node_mode(it, p_fullname, path, p_icon, p_size, p_error, p_info);
 			it = it.get_next()
 		
-		var item:TreeItem = self.create_item(p_item, get_first_index_of_non_folder_child(p_item)) # directories at the front
-		item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
-		item.set_checked(0, true)
-		item.set_editable(0, true)
-		item.set_icon(0, folder_icon)
-		item.set_text(0, fld_name)
-		item.set_metadata(0, String())
-		if columns >= 2:
-			item.set_metadata(1, 0)
-		return add_file_to_item(item, p_fullname, path, p_size, p_icon, p_error, false);
+		var folder_item:TreeItem = create_file_item(p_item, "", fld_name, folder_icon, -1, "", "", get_first_index_of_non_folder_child(p_item))
+		return add_file_to_item_node_mode(folder_item, p_fullname, path, p_icon, p_size, p_error, p_info);
+
+# filtering
 
 func _filter_item(filter_str: String, item: TreeItem, is_glob: bool, clear_filter: bool):
-	if (item.get_icon(0) == folder_icon): # directory
+	if (item_is_folder(item)): # directory
 		var one_item_visible = false
 		var it: TreeItem = item.get_first_child()
 		while (it):
@@ -504,7 +560,7 @@ func _filter_item(filter_str: String, item: TreeItem, is_glob: bool, clear_filte
 		if (not clear_filter and one_item_visible and item.collapsed):
 			item.collapsed = false
 		return one_item_visible
-	var path: String = item.get_metadata(0)
+	var path: String = item.get_metadata(_name_col)
 	if clear_filter:
 		item.visible = true
 		return true
@@ -549,27 +605,75 @@ func check_all_shown(checked: bool):
 			_propagate_check(it, checked, true)
 			it = it.get_next()
 
-func _get_selected_files(p_item: TreeItem):
+
+func get_checked_files() -> PackedStringArray:
+	var arr: PackedStringArray = _get_checked_files(root)
+	if (userroot != null):
+		arr.append_array(_get_checked_files(userroot))
+	return arr
+
+func _get_checked_files(p_item: TreeItem):
 	var arr: PackedStringArray = []
 	var it: TreeItem = p_item
-	var p_name: String = it.get_metadata(0)
-	if (it.is_checked(0) and !p_name.is_empty()):
+	var p_name: String = it.get_metadata(_name_col)
+	if (it.is_checked(_name_col) and !p_name.is_empty()):
 		arr.append(p_name)
 	it = p_item.get_first_child();
 	while (it):
-		arr.append_array(_get_selected_files(it))
+		arr.append_array(_get_checked_files(it))
 		it = it.get_next()
 	return arr
-	
-func get_checked_files() -> PackedStringArray:
-	var arr: PackedStringArray = _get_selected_files(root)
+
+
+
+func _clear():
 	if (userroot != null):
-		arr.append_array(_get_selected_files(userroot))
-	return arr
+		userroot.clear()
+		userroot = null
+	self.clear()
+	num_files = 0
+	num_broken = 0
+	num_malformed = 0
+	var root_name = "res://" if not self.flat_mode else ""
+	root = create_root_item(root_name)
+
+# Node overrides
+
+func _ready():
+	if self.flat_mode:
+		self.hide_root = true
+	_clear()
+	right_click_menu = PopupMenu.new()
+	pop_right_menu_items()
+	right_click_menu.visible = false
+	right_click_menu.connect("id_pressed", self._on_right_click_id)
+	right_click_menu.connect("visibility_changed", self._on_right_click_visibility_changed)
+	
+	add_child(right_click_menu)
+	set_column_map_cache(columnMap)
+	if self.columns <= 0:
+		print("No columns set in the Tree")
+		return
+	self.connect("gui_input", self._on_gui_input)
+	self.connect("empty_clicked", self._on_empty_clicked)
+	self.connect("column_title_clicked", self._on_column_title_clicked)
+	self.set_column_title(_name_col, nameColumnName)
+	self.set_column_expand(_name_col, true)
+	self.add_theme_constant_override("draw_relationship_lines", 1)
+	if (_size_col_exists):
+		self.set_column_title(_size_col, sizeColumnName)
+		self.set_column_expand(_size_col, false)
+		self.set_column_custom_minimum_width(_size_col, 120)
+	elif (_info_col_exists):
+		self.set_column_title(_info_col, infoColumnName)
+		self.set_column_custom_minimum_width(_info_col, 120)
+		self.set_column_expand(_info_col, false)
+	self.connect("item_edited", self._on_item_edited)
 
 func _init():
-	var arrow = get_theme_icon("arrow", "Tree")
-	GodotREEditorStandalone.tree_set_edit_checkbox_cell_only_when_checkbox_is_pressed(self, editable_only_when_checkbox_clicked)
+	# var arrow = get_theme_icon("arrow", "Tree")
+	if check_mode:
+		GodotREEditorStandalone.tree_set_edit_checkbox_cell_only_when_checkbox_is_pressed(self, editable_only_when_checkbox_clicked)
 	pass
 
 

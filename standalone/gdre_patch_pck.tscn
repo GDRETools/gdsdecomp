@@ -64,6 +64,10 @@ grow_vertical = 2
 column_titles_visible = true
 select_mode = 2
 script = ExtResource("3_aruht")
+check_mode = false
+columnMap = Dictionary[int, int]({
+0: 0
+})
 metadata/_custom_type_script = ExtResource("3_aruht")
 
 [node name="VersionLabel" type="Label" parent="Control"]

@@ -8,6 +8,7 @@ extends ColorRect
 	set(val):
 		if val:
 			indicatorBGColor = _get_indicator_color(backgroundColor)
+		autoSetIndicatorBGColor = val
 	get:
 		return autoSetIndicatorBGColor
 @export var indicatorLineColor: Color = Color("c8c9cb")

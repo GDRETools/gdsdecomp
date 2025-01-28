@@ -99,7 +99,7 @@ func add_project(paths: PackedStringArray) -> int:
 		err = OK
 	VERSION_TEXT.text = GDRESettings.get_version_string()
 	var arr: Array = GDRESettings.get_file_info_array()
-	FILE_TREE.add_files(arr, skipped)
+	FILE_TREE.add_files_from_packed_infos(arr, skipped)
 	INFO_TEXT.text = "Total files: " + String.num_int64(FILE_TREE.num_files)# + 
 	if FILE_TREE.num_broken > 0 or FILE_TREE.num_malformed > 0:
 		INFO_TEXT.text += "   Broken files: " + String.num_int64(FILE_TREE.num_broken) + "    Malformed paths: " + String.num_int64(FILE_TREE.num_malformed)
