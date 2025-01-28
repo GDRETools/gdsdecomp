@@ -22,6 +22,11 @@ var PATCH_FILE_TREE: Tree = null
 var PATCH_FILE_DIALOG: FileDialog = null
 var PATCH_FILE_MAPPING_DIALOG: FileDialog = null
 
+var DROP_FOLDERS_CONFIRMATION_DIALOG: Window = null
+var DROP_FOLDERS_LIST_A: Tree = null
+var DROP_FOLDERS_LIST_B: Tree = null
+var DROP_FOLDERS_LABEL_A: Label = null
+var DROP_FOLDERS_LABEL_B: Label = null
 var button_clicked_item: TreeItem = null
 # var isHiDPI = DisplayServer.screen_get_dpi() >= 240
 var root: TreeItem = null
@@ -42,21 +47,11 @@ enum PatchTreeButton{
 
 
 
-func handle_patch_tree_item_edited(item: TreeItem):
-	var text = item.get_text(1)
-	if not text.is_empty():
-		item.set_icon(1, file_ok)
-	else:
-		item.set_icon(1, file_broken)
-	_validate()
-
-
 func _on_patch_tree_item_edited():
-	var item = PATCH_FILE_TREE.get_edited()
-	handle_patch_tree_item_edited(item)
+	_validate()
 	pass
 
-func _on_patch_tree_button_clicked(item: TreeItem, column: int, id: int, mouse_button_index: int):
+func _on_patch_tree_button_clicked(item: TreeItem, _column: int, id: int, mouse_button_index: int):
 	if (mouse_button_index != MOUSE_BUTTON_LEFT):
 		return
 	match id:
@@ -68,6 +63,7 @@ func _on_patch_tree_button_clicked(item: TreeItem, column: int, id: int, mouse_b
 			if (button_clicked_item == item):
 				button_clicked_item = null
 			PATCH_FILE_TREE.get_root().remove_child(item)
+			_validate()
 			
 			pass
 	pass
@@ -106,6 +102,15 @@ func _ready():
 	PATCH_FILE_TREE = $Control/PatchFileTree
 	PATCH_FILE_DIALOG = $SelectPatchFilesDialog
 	PATCH_FILE_MAPPING_DIALOG = $SelectPatchMappingDialog
+	DROP_FOLDERS_CONFIRMATION_DIALOG = $DropFoldersConfirmation
+	DROP_FOLDERS_LIST_A = $DropFoldersConfirmation/Control/ItemListA
+	DROP_FOLDERS_LIST_B = $DropFoldersConfirmation/Control/ItemListB
+	DROP_FOLDERS_LABEL_A = $DropFoldersConfirmation/Control/LabelA
+	DROP_FOLDERS_LABEL_B = $DropFoldersConfirmation/Control/LabelB
+	DROP_FOLDERS_LIST_A.set_column_title(0, "File")
+	DROP_FOLDERS_LIST_A.set_column_title(1, "Mapping")
+	DROP_FOLDERS_LIST_B.set_column_title(0, "File")
+	DROP_FOLDERS_LIST_B.set_column_title(1, "Mapping")
 	if isHiDPI:
 		# get_viewport().size *= 2.0
 		# get_viewport().content_scale_factor = 2.0
@@ -170,6 +175,27 @@ func clear_selected_pack():
 		GDRESettings.unload_project()
 
 
+
+func add_patch_files(map: Dictionary[String, String]) -> void:
+	if (not PATCH_FILE_TREE.get_root()):
+		PATCH_FILE_TREE.create_item()
+	for key in map.keys():
+		if not map[key].is_empty() and map[key].is_relative_path():
+			map[key] = "res://" + map[key]
+		var item = PATCH_FILE_TREE.create_item()
+		item.set_cell_mode(0, TreeItem.CELL_MODE_STRING)
+		item.set_cell_mode(1, TreeItem.CELL_MODE_STRING)
+		item.set_text_direction(0, Control.TextDirection.TEXT_DIRECTION_RTL)
+		item.set_structured_text_bidi_override(0, TextServer.STRUCTURED_TEXT_FILE)
+		item.set_text(0, key)
+		item.set_text(1, map[key])
+		item.set_icon(0, file_icon)
+		item.set_icon(1, file_broken)
+		item.add_button(1, select_button, PatchTreeButton.SELECT)
+		item.add_button(1, delete_button, PatchTreeButton.DELETE)
+		item.set_editable(1, true)
+	_validate()
+
 func _on_select_pck_button_pressed() -> void:
 	SELECT_PCK_DIALOG.popup_centered()
 
@@ -190,28 +216,19 @@ func _on_uncheck_all_pressed() -> void:
 	FILE_TREE.check_all_shown(false)
 
 func _on_select_patch_files_dialog_files_selected(paths: PackedStringArray) -> void:
+	var map: Dictionary[String, String] = {}
+	var folders: PackedStringArray = []
+	var files: PackedStringArray = []
 	for path in paths:
-		#TreeCellMode
-		if (not PATCH_FILE_TREE.get_root()):
-			PATCH_FILE_TREE.create_item()
-		var item = PATCH_FILE_TREE.create_item()
-		item.set_cell_mode(0, TreeItem.CELL_MODE_STRING)
-		item.set_cell_mode(1, TreeItem.CELL_MODE_STRING)
-		#item.set_icon(0, file_icon)
-		#item.set_text_alignment(0, HORIZONTAL_ALIGNMENT_RIGHT)
-		#item.set_text_overrun_behavior(0, TextServer.OVERRUN_TRIM_WORD_ELLIPSIS)
-		#var drive = path.get_slice("/", 0)
-		item.set_text_direction(0, Control.TextDirection.TEXT_DIRECTION_RTL)
-		item.set_structured_text_bidi_override(0, TextServer.STRUCTURED_TEXT_FILE)
-		item.set_text(0, path)
-		item.set_icon(1, file_broken)
-		item.set_text_direction(1, Control.TextDirection.TEXT_DIRECTION_RTL)
-		item.set_structured_text_bidi_override(1, TextServer.STRUCTURED_TEXT_FILE)
-		item.add_button(1, select_button, PatchTreeButton.SELECT)
-		item.add_button(1, delete_button, PatchTreeButton.DELETE)
-		
-		# item.set_custom_as_button(1, true)
-		item.set_editable(1, true)
+		if DirAccess.dir_exists_absolute(path):
+			folders.append(path)
+		else:
+			files.append(path)
+		map[path] = "res://" + path.get_file()
+	if folders.size() > 0:
+		_on_patch_folders_dropped(folders, files)
+	else:
+		add_patch_files(map)
 
 func _on_select_patch_files_pressed() -> void:
 	PATCH_FILE_DIALOG.popup_centered()
@@ -219,27 +236,66 @@ func _on_select_patch_files_pressed() -> void:
 func _on_select_patch_mapping_dialog_file_selected(path: String) -> void:
 	if button_clicked_item:
 		button_clicked_item.set_text(1, path)
-		handle_patch_tree_item_edited(button_clicked_item)
 		button_clicked_item = null
+		_validate()
+
 
 
 func _on_patch_clear_button_pressed() -> void:
 	clear_patch_files()
 	_validate()
-	
+
+func add_error_to_item(item: TreeItem, message) -> void:
+	item.set_icon(1, file_broken)
+	var err_msg = item.get_tooltip_text(1)
+	if not err_msg.is_empty():
+		if err_msg.contains(message):
+			return
+		err_msg += "\nERROR: " + err_msg
+	else:
+		err_msg = "ERROR: " + message
+	item.set_tooltip_text(1, err_msg)
+
+func clear_error_from_item(item: TreeItem) -> void:
+	item.set_icon(1, file_ok)
+	item.set_tooltip_text(1, String())
+
 func _validate():
-	if (!GDRESettings.is_pack_loaded()):
-		self.get_ok_button().disabled = true
-		return false
-	if (not PATCH_FILE_TREE.get_root() or PATCH_FILE_TREE.get_root().get_children().size() == 0):
-		self.get_ok_button().disabled = true
-		return false
+	# if (not PATCH_FILE_TREE.get_root() or PATCH_FILE_TREE.get_root().get_children().size() == 0):
+	# 	self.get_ok_button().disabled = true
+	# 	return false
+	var reverse_map: Dictionary[String, Array] = {}
 	var item = PATCH_FILE_TREE.get_root().get_first_child()
+	var error_messages:PackedStringArray = []
+	var pack_loaded = GDRESettings.is_pack_loaded()
 	while (item):
+		var messages: PackedStringArray = []
 		if (item.get_text(1).is_empty()):
-			self.get_ok_button().disabled = true
-			return false
+			messages.append("Item has empty mapping")
+		elif pack_loaded and DirAccess.dir_exists_absolute(item.get_text(1)):
+			messages.append("Item is mapped to a directory in the source pack")
+		if reverse_map.has(item.get_text(1)):
+			messages.append("Item has duplicate mapping")
+			for dupe_item in reverse_map[item.get_text(1)]:
+				add_error_to_item(dupe_item, "Item has duplicate mapping")
+			reverse_map[item.get_text(1)].append(item)
+		else:
+			reverse_map[item.get_text(1)] = [item]
+		if not messages.is_empty():
+			add_error_to_item(item, "\n".join(messages))
+			for messsage in messages:
+				if not error_messages.has(messsage):
+					error_messages.append(messsage)
+		else:
+			clear_error_from_item(item)
 		item = item.get_next()
+
+
+
+	if (!pack_loaded or not error_messages.is_empty()):
+		self.get_ok_button().disabled = true
+		return false
+
 	self.get_ok_button().disabled = false
 	return true
 
@@ -282,3 +338,82 @@ func _on_save_pck_dialog_file_selected(path: String) -> void:
 		if not (reverse_map.has(file) or reverse_map.has(file.trim_prefix("res://"))):
 			file_map[file] = file
 	emit_signal("do_patch_pck", path, file_map)
+
+
+func add_item_to_drop_list(list: Tree, file: String, file_path: String, mapping: String) -> void:
+	var item = list.create_item()
+	item.set_text(0, file)
+	item.set_icon(0, file_icon)
+	item.set_text(1, mapping)
+	item.set_metadata(0, file_path)
+	item.set_editable(0, false)
+	item.set_editable(1, false)
+
+func _on_patch_folders_dropped(folder_paths: PackedStringArray, other_file_paths: PackedStringArray):
+	DROP_FOLDERS_LIST_A.clear()
+	DROP_FOLDERS_LIST_B.clear()
+	# invisible roots for the lists
+	DROP_FOLDERS_LIST_A.create_item()
+	DROP_FOLDERS_LIST_B.create_item()
+	
+	var error_messages: PackedStringArray = []
+	var empty_folders: PackedStringArray = []
+	var added_files = false
+	for path in folder_paths:
+		var files = Glob.rglob(path.path_join("**/*"), true)
+		if (files.is_empty()):
+			empty_folders.append(path)
+			continue
+		# patch list A is for relative to; i.e. /path/to/folder/file.png -> res://file.png
+		# patch list B is for relative from; i.e. /path/to/folder/file.png -> res://folder/file.png
+		var folder = path.get_file()
+		for file_path in files:
+			if GDREGlobals.banned_files.has(file_path.get_file()):
+				continue
+			added_files = true
+			var file = file_path.trim_prefix(path).trim_prefix("/")
+			var path_a = "res://" + file
+			var path_b = "res://" + folder.path_join(file)
+			add_item_to_drop_list(DROP_FOLDERS_LIST_A, file, file_path, path_a)
+			add_item_to_drop_list(DROP_FOLDERS_LIST_B, file, file_path, path_b)
+
+	for path in other_file_paths:
+		if GDREGlobals.banned_files.has(path.get_file()):
+			continue
+		added_files = true
+		var file = path.get_file()
+		var mapping = "res://" + file
+		add_item_to_drop_list(DROP_FOLDERS_LIST_A, file, path, mapping)
+		add_item_to_drop_list(DROP_FOLDERS_LIST_B, file, path, mapping)
+	
+
+	# show the confirmation dialog
+	if added_files:
+		DROP_FOLDERS_CONFIRMATION_DIALOG.popup_centered()
+		DROP_FOLDERS_CONFIRMATION_DIALOG.grab_focus()
+	if not empty_folders.is_empty():
+		for path in empty_folders:
+			error_messages.append(path + ": Folder is empty")
+		popup_error_box("\n".join(error_messages), "Error")
+
+func _on_drop_folders_confirmation_close_requested() -> void:
+	DROP_FOLDERS_CONFIRMATION_DIALOG.hide()
+
+func get_drop_folders_list_map(list: Tree) -> Dictionary[String, String]:
+	var item = list.get_root().get_first_child()
+	var map: Dictionary[String, String] = {}
+	while (item):
+		map[item.get_metadata(0)] = item.get_text(1)
+		item = item.get_next()
+	return map
+
+func _on_select_a_pressed() -> void:
+	DROP_FOLDERS_CONFIRMATION_DIALOG.hide()
+	# get all the items from the list
+	add_patch_files(get_drop_folders_list_map(DROP_FOLDERS_LIST_A))
+	pass # Replace with function body.
+
+func _on_select_b_pressed() -> void:
+	DROP_FOLDERS_CONFIRMATION_DIALOG.hide()
+	add_patch_files(get_drop_folders_list_map(DROP_FOLDERS_LIST_B))
+	pass # Replace with function body.

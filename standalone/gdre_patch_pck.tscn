@@ -8,7 +8,7 @@
 
 [node name="GdrePatchPck" type="AcceptDialog"]
 title = "Patch PCK"
-position = Vector2i(0, 36)
+position = Vector2i(0, 24)
 size = Vector2i(1500, 648)
 visible = true
 theme = ExtResource("1_up5g3")
@@ -48,8 +48,8 @@ anchor_right = 0.804
 anchor_bottom = 0.79
 offset_left = 8.0
 offset_top = 8.0
-offset_right = 1492.0
-offset_bottom = 599.0
+offset_right = 286.0
+offset_bottom = 87.08
 
 [node name="FileTree" type="Tree" parent="Control"]
 layout_mode = 1
@@ -166,7 +166,7 @@ anchor_left = 0.5
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 14.0
-offset_top = 88.0
+offset_top = 94.0
 columns = 2
 column_titles_visible = true
 hide_folding = true
@@ -208,6 +208,100 @@ offset_bottom = 80.0
 grow_horizontal = 0
 text = "Clear"
 
+[node name="DropFoldersConfirmation" type="AcceptDialog" parent="."]
+title = "Select Mapping"
+position = Vector2i(0, 24)
+size = Vector2i(1000, 600)
+theme = ExtResource("1_up5g3")
+ok_button_text = "Cancel"
+dialog_hide_on_ok = false
+
+[node name="Control" type="Control" parent="DropFoldersConfirmation"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -49.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_up5g3")
+
+[node name="ItemListA" type="Tree" parent="DropFoldersConfirmation/Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 72.0
+offset_right = -6.0
+offset_bottom = -11.0
+grow_vertical = 2
+columns = 2
+column_titles_visible = true
+hide_root = true
+
+[node name="ItemListB" type="Tree" parent="DropFoldersConfirmation/Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.5
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = 72.0
+offset_right = -12.0
+offset_bottom = -11.0
+columns = 2
+column_titles_visible = true
+hide_root = true
+
+[node name="SelectA" type="Button" parent="DropFoldersConfirmation/Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.25
+anchor_top = 1.0
+anchor_right = 0.25
+anchor_bottom = 1.0
+offset_left = -123.0
+offset_top = 9.0
+offset_right = 123.0
+offset_bottom = 40.0
+grow_horizontal = 2
+text = "Select \"Relative To...\" Mapping"
+
+[node name="SelectB" type="Button" parent="DropFoldersConfirmation/Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.742
+anchor_top = 1.0
+anchor_right = 0.742
+anchor_bottom = 1.0
+offset_left = -134.128
+offset_top = 10.0
+offset_right = 133.872
+offset_bottom = 41.0
+grow_horizontal = 2
+text = "Select \"Relative From...\" Mapping
+"
+
+[node name="LabelA" type="Label" parent="DropFoldersConfirmation/Control"]
+layout_mode = 0
+offset_left = 11.0
+offset_top = 33.0
+offset_right = 100.0
+offset_bottom = 64.0
+text = "\"Relative to...\" mapping"
+
+[node name="LabelB" type="Label" parent="DropFoldersConfirmation/Control"]
+layout_mode = 0
+offset_left = 502.0
+offset_top = 33.0
+offset_right = 747.0
+offset_bottom = 64.0
+text = "\"Relative from...\" mapping"
+
 [connection signal="file_selected" from="SelectPckDialog" to="." method="_on_select_pck_dialog_file_selected"]
 [connection signal="files_selected" from="SelectPatchFilesDialog" to="." method="_on_select_patch_files_dialog_files_selected"]
 [connection signal="file_selected" from="SelectPatchMappingDialog" to="." method="_on_select_patch_mapping_dialog_file_selected"]
@@ -218,3 +312,8 @@ text = "Clear"
 [connection signal="pressed" from="Control/Check" to="." method="_on_check_all_pressed"]
 [connection signal="pressed" from="Control/SelectPatchFiles" to="." method="_on_select_patch_files_pressed"]
 [connection signal="pressed" from="Control/PatchClearButton" to="." method="_on_patch_clear_button_pressed"]
+[connection signal="canceled" from="DropFoldersConfirmation" to="." method="_on_drop_folders_confirmation_close_requested"]
+[connection signal="close_requested" from="DropFoldersConfirmation" to="." method="_on_drop_folders_confirmation_close_requested"]
+[connection signal="confirmed" from="DropFoldersConfirmation" to="." method="_on_drop_folders_confirmation_close_requested"]
+[connection signal="pressed" from="DropFoldersConfirmation/Control/SelectA" to="." method="_on_select_a_pressed"]
+[connection signal="pressed" from="DropFoldersConfirmation/Control/SelectB" to="." method="_on_select_b_pressed"]
