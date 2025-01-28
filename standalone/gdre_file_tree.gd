@@ -144,6 +144,28 @@ func add_custom_right_click_item(text: String, callable: Callable):
 	custom_right_click_items[text] = callable
 
 func _on_gui_input(input:InputEvent):
+	if input is InputEventKey:
+		if input.is_command_or_control_pressed() and input.pressed:
+			match(input.keycode):
+				KEY_A:
+					for item in root.get_children():
+						for i in range(columns):
+							item.select(i)
+				KEY_C:
+					var selected_items = get_highlighted_items()
+					var rows = []
+					
+					for item in selected_items:
+						var arr = []
+						for col in range(columns):
+							if item.is_selected(col):
+								arr.append(item.get_text(col))
+						rows.append(arr)
+					var clipboard = ""
+					for i in range(rows.size()):
+						rows[i] = "\t".join(rows[i])
+					clipboard = "\n".join(rows)
+					DisplayServer.clipboard_set(clipboard)
 	if input is InputEventMouseButton:
 		var item = self.get_item_at_position(get_local_mouse_position())
 		if (item):
