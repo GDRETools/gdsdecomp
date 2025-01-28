@@ -19,6 +19,7 @@ enum ColType {
 @export var file_ok: Texture2D = preload("res://gdre_icons/gdre_FileOk.svg")
 @export var file_broken: Texture2D = preload("res://gdre_icons/gdre_FileBroken.svg")
 @export var folder_icon: Texture2D = get_theme_icon("folder", "FileDialog")
+@export var root_name: String = "res://"
 # @export var editable_only_when_checkbox_clicked: bool = true
 # make setters for the export
 
@@ -31,10 +32,50 @@ enum ColType {
 			GodotREEditorStandalone.tree_set_edit_checkbox_cell_only_when_checkbox_is_pressed(self, editable_only_when_checkbox_clicked)
 		else:
 			GodotREEditorStandalone.tree_set_edit_checkbox_cell_only_when_checkbox_is_pressed(self, false)
+		var items = get_all_file_items() + get_all_folder_items()
+		if items.is_empty():
+			return
+		for item in items:
+			if not check_mode:
+				item.set_cell_mode(_name_col, TreeItem.CELL_MODE_CHECK)
+			else:
+				item.set_cell_mode(_name_col, TreeItem.CELL_MODE_STRING)
 	get:
 		return check_mode
 
-@export var flat_mode: bool = false
+@export var flat_mode: bool = false:
+	set(val):
+		flat_mode = val
+		if flat_mode:
+			self.hide_root = true
+
+		else:
+			self.hide_root = false
+		if not root:
+			return
+		root.set_text(_name_col, root_name if not flat_mode else "")
+		var items = get_all_file_items()
+		if items.is_empty():
+			return
+		for item in items:
+			var size = item.get_metadata(_size_col) if _size_col_exists else -1
+			var info = item.get_text(_info_col) if _info_col_exists else ""
+			var error_str = ""
+			if item.get_icon(_name_col) == file_broken:
+				error_str = item.get_tooltip_text(_name_col)
+			add_file_tree_item(item.get_metadata(_name_col), item.get_icon(_name_col), size or -1, error_str, info)
+			item.get_parent().remove_child(item)
+		if flat_mode:
+			for item in get_all_folder_items(get_root()):
+				item.get_parent().remove_child(item)
+				items.append(item)
+		for item in items:
+			if item:
+				item.free()
+		sort_entire_tree()
+
+	get:
+		return flat_mode
 @export var editable_only_when_checkbox_clicked: bool = true:
 	set(val):
 		editable_only_when_checkbox_clicked = val
@@ -175,6 +216,30 @@ func _on_gui_input(input:InputEvent):
 			else:
 				_on_custom_item_clicked(input.button_index)
 
+func get_all_file_items(item = get_root()) -> Array:
+	if not item:
+		return []
+	var items = []
+	var it: TreeItem = item.get_first_child()
+	while (it):
+		if item_is_folder(it):
+			items.append_array(get_all_file_items(it))
+		else:
+			items.append(it)
+		it = it.get_next()
+	return items
+
+func get_all_folder_items(item = get_root()) -> Array:
+	if not item:
+		return []
+	var items = []
+	var it: TreeItem = item.get_first_child()
+	while (it):
+		if item_is_folder(it):
+			items.append(it)
+		items.append_array(get_all_folder_items(it))
+		it = it.get_next()
+	return items
 
 func _on_custom_item_clicked(mouse_button: MouseButton):
 	if (mouse_button == MOUSE_BUTTON_RIGHT):
@@ -656,8 +721,7 @@ func _clear():
 	num_files = 0
 	num_broken = 0
 	num_malformed = 0
-	var root_name = "res://" if not self.flat_mode else ""
-	root = create_root_item(root_name)
+	root = create_root_item(root_name if not self.flat_mode else "")
 
 # Node overrides
 
