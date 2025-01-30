@@ -1,72 +1,10 @@
-[gd_scene load_steps=13 format=3 uid="uid://bjevsw5r631f1"]
+[gd_scene load_steps=6 format=3 uid="uid://bjevsw5r631f1"]
 
 [ext_resource type="Theme" uid="uid://crq1fwn0ajw7b" path="res://gdre_theme.tres" id="1_crn14"]
 [ext_resource type="Script" uid="uid://dnjt5hkgucm3" path="res://gdre_resource_preview.gd" id="1_tgfma"]
 [ext_resource type="Texture2D" uid="uid://b3l2iqhf34x5c" path="res://gdre_icons/gdre_LogoBig.svg" id="3_gp5ss"]
 [ext_resource type="PackedScene" uid="uid://cuifra52kkek" path="res://gdre_media_player.tscn" id="4_crn14"]
-[ext_resource type="CodeHighlighter" uid="uid://bgbfmyk1q82jx" path="res://gdre_code_highlighter.tres" id="4_gp5ss"]
-[ext_resource type="CodeHighlighter" uid="uid://br7sbxeuwb4fu" path="res://gdre_gdresource_highlighter.tres" id="4_x0kdu"]
-[ext_resource type="Texture2D" uid="uid://70wmkccoq7gp" path="res://gdre_icons/gdre_GuiTabMenuHl.svg" id="6_coejo"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xbi33"]
-content_margin_left = 6.0
-content_margin_top = 4.0
-content_margin_right = 6.0
-content_margin_bottom = 4.0
-bg_color = Color(0.147059, 0.173529, 0.232353, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.411765, 0.611765, 0.909804, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_c15al"]
-content_margin_left = 6.0
-content_margin_top = 4.0
-content_margin_right = 6.0
-content_margin_bottom = 4.0
-bg_color = Color(0.176471, 0.208235, 0.278824, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.137255, 0.161961, 0.216863, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ylkc0"]
-content_margin_left = 6.0
-content_margin_top = 4.0
-content_margin_right = 6.0
-content_margin_bottom = 4.0
-bg_color = Color(0.147059, 0.173529, 0.232353, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.397059, 0.423529, 0.482353, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lseom"]
-content_margin_left = 6.0
-content_margin_top = 4.0
-content_margin_right = 6.0
-content_margin_bottom = 4.0
-bg_color = Color(0.147059, 0.173529, 0.232353, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.411765, 0.611765, 0.909804, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_akfwn"]
-content_margin_left = 6.0
-content_margin_top = 4.0
-content_margin_right = 6.0
-content_margin_bottom = 4.0
-bg_color = Color(0.147059, 0.173529, 0.232353, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.234977, 0.269988, 0.347677, 1)
+[ext_resource type="PackedScene" uid="uid://ckg8dycpxer5o" path="res://gdre_text_editor.tscn" id="5_1bufa"]
 
 [node name="GdreResourcePreview" type="Control"]
 layout_mode = 3
@@ -85,7 +23,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-split_offset = 200
+split_offset = 220
 
 [node name="ResourceView" type="Control" parent="VBoxContainer"]
 layout_mode = 2
@@ -135,194 +73,15 @@ Memory: 1024 B"
 visible = false
 layout_mode = 1
 
-[node name="TextView" type="Control" parent="VBoxContainer/ResourceView"]
+[node name="TextView" parent="VBoxContainer/ResourceView" instance=ExtResource("5_1bufa")]
 visible = false
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
 
-[node name="TextResourceViewer" type="CodeEdit" parent="VBoxContainer/ResourceView/TextView"]
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme = ExtResource("1_crn14")
-text = "[gd_scene load_steps=14 format=3 uid=\"uid://bv7816js3kr4k\"] 
-
-[ext_resource type=\"Theme\" uid=\"uid://crq1fwn0ajw7b\" path=\"res://gdre_theme.tres\" id=\"1_bucmk\"]
-[ext_resource type=\"Script\" uid=\"uid://cww2hw50p8q3i\" path=\"res://gdre_file_tree.gd\" id=\"2_02dmf\"]
-[ext_resource type=\"Script\" uid=\"uid://bga3f1eshrdxt\" path=\"res://gdre_recover.gd\" id=\"2_edjtc\"]
-[ext_resource type=\"Texture2D\" uid=\"uid://byablbp3l8foe\" path=\"res://gdre_icons/gdre_Search.svg\" id=\"3_i5ujv\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_avhe5\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_p7bby\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_47yxm\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_1bn3y\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_3os3m\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_jbkrx\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_au50u\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_y2b6b\"]
-
-[sub_resource type=\"ButtonGroup\" id=\"ButtonGroup_bvmre\"]
-
-[node name=\"GdreRecover\" type=\"AcceptDialog\"]
-position = Vector2i(0, 36)
-size = Vector2i(1152, 648)
-visible = true
-theme = ExtResource(\"1_bucmk\")
-ok_button_text = \"Extract\"   
-script = ExtResource(\"2_edjtc\") 
-"
-editable = false
-scroll_smooth = true
-syntax_highlighter = ExtResource("4_x0kdu")
-highlight_all_occurrences = true
-highlight_current_line = true
-delimiter_comments = Array[String]([";"])
-auto_brace_completion_enabled = true
-
-[node name="CodeViewer" type="CodeEdit" parent="VBoxContainer/ResourceView/TextView"]
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme = ExtResource("1_crn14")
-text = "@tool # this is a tool 
-class_name FOO
-extends Node  
-func thingy():
-	var foo = 1
-    var bl = true
-	var bar = \"var\"
-	var baz: Color = Color(0.1,0.2,0.3)
-	var far: float = baz.r
-	var string_name: StringName = &\"haldo\"
-	var barf: NodePath = ^\"farts/lmao\"
-# this is a really long comment that is going to wrap around the text box!
-	lerp()
-	pass  
-#  haldodelimiter_comments"
-editable = false
-wrap_mode = 1
-syntax_highlighter = ExtResource("4_gp5ss")
-highlight_all_occurrences = true
-highlight_current_line = true
-draw_control_chars = true
-draw_tabs = true
-draw_spaces = true
-gutters_draw_line_numbers = true
-delimiter_comments = Array[String](["#"])
-
-[node name="TextViewer" type="CodeEdit" parent="VBoxContainer/ResourceView/TextView"]
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme = ExtResource("1_crn14")
-text = "[gd_scene load_steps=14 format=3 uid=\"uid://bv7816js3kr4k\"] 
-
-[ext_resource type=\"Theme\" uid=\"uid://crq1fwn0ajw7b\" path=\"res://gdre_theme.tres\" id=\"1_bucmk\"]
-[ext_resource type=\"Script\" uid=\"uid://cww2hw50p8q3i\" path=\"res://gdre_file_tree.gd\" id=\"2_02dmf\"]
-[ext_resource type=\"Script\" uid=\"uid://bga3f1eshrdxt\" path=\"res://gdre_recover.gd\" id=\"2_edjtc\"]
-[ext_resource type=\"Texture2D\" uid=\"uid://byablbp3l8foe\" path=\"res://gdre_icons/gdre_Search.svg\" id=\"3_i5ujv\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_avhe5\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_p7bby\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_47yxm\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_1bn3y\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_3os3m\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_jbkrx\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_au50u\"]
-
-[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_y2b6b\"]
-
-[sub_resource type=\"ButtonGroup\" id=\"ButtonGroup_bvmre\"]
-
-[node name=\"GdreRecover\" type=\"AcceptDialog\"]
-position = Vector2i(0, 36)
-size = Vector2i(1152, 648)
-visible = true
-theme = ExtResource(\"1_bucmk\")
-ok_button_text = \"Extract\"   
-script = ExtResource(\"2_edjtc\") 
-"
-editable = false
-scroll_smooth = true
-highlight_all_occurrences = true
-highlight_current_line = true
-delimiter_comments = Array[String]([";"])
-auto_brace_completion_enabled = true
-
-[node name="CodeOptsBox" type="Control" parent="VBoxContainer/ResourceView/TextView"]
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -39.0
-offset_top = 6.0
-offset_right = -12.0
-offset_bottom = 33.0
-grow_horizontal = 0
-
-[node name="Panel" type="Button" parent="VBoxContainer/ResourceView/TextView/CodeOptsBox"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_styles/focus = SubResource("StyleBoxFlat_xbi33")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_c15al")
-theme_override_styles/hover = SubResource("StyleBoxFlat_ylkc0")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_lseom")
-theme_override_styles/normal = SubResource("StyleBoxFlat_akfwn")
-
-[node name="CodeViewerOptions" type="MenuButton" parent="VBoxContainer/ResourceView/TextView/CodeOptsBox"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -0.5
-offset_right = 0.5
-grow_horizontal = 2
-grow_vertical = 2
-theme_type_variation = &"FlatMenuButton"
-icon = ExtResource("6_coejo")
-item_count = 1
-popup/item_0/text = "Word Wrap"
-popup/item_0/checkable = 1
-popup/item_0/id = 0
-
-[node name="Control" type="Control" parent="VBoxContainer"]
+[node name="ResourceInfoContainer" type="Control" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="ResourceInfo" type="RichTextLabel" parent="VBoxContainer/Control"]
+[node name="ResourceInfo" type="RichTextLabel" parent="VBoxContainer/ResourceInfoContainer"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -330,3 +89,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 bbcode_enabled = true
+text = "[b]Path:[/b] res://foo.gdc
+[b]Type:[/b] GDScript
+[b]Format:[/b] script_bytecode"
+
+[connection signal="drag_ended" from="VBoxContainer" to="." method="_on_v_box_container_drag_ended"]
+[connection signal="drag_started" from="VBoxContainer" to="." method="_on_v_box_container_drag_started"]

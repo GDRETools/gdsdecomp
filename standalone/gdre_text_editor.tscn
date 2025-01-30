@@ -1,0 +1,175 @@
+[gd_scene load_steps=10 format=3 uid="uid://ckg8dycpxer5o"]
+
+[ext_resource type="Script" uid="uid://d3gw3xp1peanv" path="res://gdre_text_editor.gd" id="1_7prjp"]
+[ext_resource type="Theme" uid="uid://crq1fwn0ajw7b" path="res://gdre_theme.tres" id="1_e6ei0"]
+[ext_resource type="Texture2D" uid="uid://70wmkccoq7gp" path="res://gdre_icons/gdre_GuiTabMenuHl.svg" id="2_7prjp"]
+[ext_resource type="CodeHighlighter" uid="uid://bgbfmyk1q82jx" path="res://gdre_code_highlighter.tres" id="3_lr7u0"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xbi33"]
+content_margin_left = 6.0
+content_margin_top = 4.0
+content_margin_right = 6.0
+content_margin_bottom = 4.0
+bg_color = Color(0.147059, 0.173529, 0.232353, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.411765, 0.611765, 0.909804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_c15al"]
+content_margin_left = 6.0
+content_margin_top = 4.0
+content_margin_right = 6.0
+content_margin_bottom = 4.0
+bg_color = Color(0.176471, 0.208235, 0.278824, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.137255, 0.161961, 0.216863, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ylkc0"]
+content_margin_left = 6.0
+content_margin_top = 4.0
+content_margin_right = 6.0
+content_margin_bottom = 4.0
+bg_color = Color(0.147059, 0.173529, 0.232353, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.397059, 0.423529, 0.482353, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lseom"]
+content_margin_left = 6.0
+content_margin_top = 4.0
+content_margin_right = 6.0
+content_margin_bottom = 4.0
+bg_color = Color(0.147059, 0.173529, 0.232353, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.411765, 0.611765, 0.909804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_akfwn"]
+content_margin_left = 6.0
+content_margin_top = 4.0
+content_margin_right = 6.0
+content_margin_bottom = 4.0
+bg_color = Color(0.147059, 0.173529, 0.232353, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.234977, 0.269988, 0.347677, 1)
+
+[node name="TextView" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_7prjp")
+
+[node name="CodeViewer" type="CodeEdit" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_e6ei0")
+text = "@tool # this is a tool 
+class_name FOO
+extends Node  
+@export var string_prop: String = \"haldo\"
+func thingy():
+	var foo = 1
+	var bl = true
+	var bar = \"var\"
+	var baz: Color = Color(0.1,0.2,0.3)
+	var far: float = baz.r
+	var string_name: StringName = &\"haldo\"
+	var barf: NodePath = ^\"farts/lmao\"
+	$Cam / Camera2D.drag_margin_left = margin
+	$Cam / Camera2D.drag_margin_right = margin
+	var node_id = $Path/To/Node
+	var node_id_2 = $Path/To/\"A\"/Node/With/\"Some Spaces\"/In/It.thing()
+# this is a really long comment that is going to wrap around the text box!
+	lerp()
+	pass  
+#  haldodelimiter_comments
+# NOTE: This is a note
+# BUG: This is a warning
+# ALERT: this is a critical"
+placeholder_text = "@tool # this is a tool 
+class_name FOO
+extends Node  
+@export var string_prop: String = \"haldo\"
+func thingy():
+	var foo = 1
+	var bl = true
+	var bar = \"var\"
+	var baz: Color = Color(0.1,0.2,0.3)
+	var far: float = baz.r
+	var string_name: StringName = &\"haldo\"
+	var barf: NodePath = ^\"farts/lmao\"
+	var node_id = $Path/To/Node
+	var node_id_2 = $Path/To/\"A\"/Node/With/\"Some Spaces\"/In/It
+# this is a really long comment that is going to wrap around the text box!
+	$Cam / Camera2D.drag_margin_left = margin
+	$Cam / Camera2D.drag_margin_right = margin
+	lerp()
+	pass  
+#  haldodelimiter_comments"
+editable = false
+wrap_mode = 1
+syntax_highlighter = ExtResource("3_lr7u0")
+highlight_all_occurrences = true
+highlight_current_line = true
+draw_control_chars = true
+draw_tabs = true
+draw_spaces = true
+gutters_draw_line_numbers = true
+delimiter_comments = Array[String](["#"])
+auto_brace_completion_highlight_matching = true
+
+[node name="CodeOptsBox" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -39.0
+offset_top = 6.0
+offset_right = -12.0
+offset_bottom = 33.0
+grow_horizontal = 0
+
+[node name="Panel" type="Button" parent="CodeOptsBox"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/focus = SubResource("StyleBoxFlat_xbi33")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_c15al")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ylkc0")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_lseom")
+theme_override_styles/normal = SubResource("StyleBoxFlat_akfwn")
+
+[node name="CodeViewerOptions" type="MenuButton" parent="CodeOptsBox"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -0.5
+offset_right = 0.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"FlatMenuButton"
+icon = ExtResource("2_7prjp")
+icon_alignment = 1
