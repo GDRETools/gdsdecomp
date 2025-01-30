@@ -261,7 +261,7 @@ func _ready():
 	RESOURCE_INFO.minimum_size_changed.connect(self.reset_resource_info_size)
 	var min_size = RESOURCE_INFO.get_minimum_size()
 	self.connect("resized", self._on_resized)
-	previous_size = Vector2(0, self.size.y / 2 - VBOX_CONTAINER.split_offset)
+	previous_size = Vector2(0, 100)
 	$VBoxContainer/ResourceInfoContainer.custom_minimum_size = previous_size
 	#_on_resized()
 	# TODO: remove me
@@ -279,17 +279,9 @@ func _on_v_box_container_drag_started() -> void:
 
 func _on_v_box_container_drag_ended() -> void:
 	previous_size = $VBoxContainer/ResourceInfoContainer.size
-	$VBoxContainer/ResourceInfoContainer.custom_minimum_size = $VBoxContainer/ResourceInfoContainer.size
+	$VBoxContainer/ResourceInfoContainer.custom_minimum_size = Vector2(0, previous_size.y)
 
 
 func _on_resized() -> void:
-	var current_size = self.size
-	var curr_y_middle: float = current_size.y / 2.0
-	
-	var new_y: float =  curr_y_middle - previous_size.y
-	print("Current size: ", current_size)
-	print("Current resource info size: ", previous_size)
-	print("Current y middle: ", curr_y_middle)
-	print("New y: ", new_y)
-	VBOX_CONTAINER.split_offset = new_y
+	VBOX_CONTAINER.split_offset = self.size.y / 2.0 - previous_size.y
 	pass # Replace with function body.
