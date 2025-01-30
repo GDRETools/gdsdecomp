@@ -622,7 +622,7 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 		return OK;
 	}
 
-	if (!has_valid_version()) {
+	if (!has_valid_version() || current_project->suspect_version) {
 		// We need to get the version from the binary resources.
 		err = get_version_from_bin_resources();
 		// this is a catastrophic failure, unload the pack
@@ -917,6 +917,7 @@ void GDRESettings::add_pack_info(Ref<PackInfo> packinfo) {
 		current_project->version = packinfo->version;
 		current_project->pack_file = packinfo->pack_file;
 		current_project->type = packinfo->type;
+		current_project->suspect_version = packinfo->suspect_version;
 	} else {
 		if (!current_project->version->eq(packinfo->version)) {
 			WARN_PRINT("Warning: Pack version mismatch!");

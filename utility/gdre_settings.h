@@ -51,10 +51,11 @@ public:
 		PackType type = PCK;
 		Ref<ProjectConfigLoader> pcfg;
 		bool encrypted = false;
+		bool suspect_version = false;
 
 	public:
 		void init(
-				String f, Ref<GodotVer> godot_ver, uint32_t fver, uint32_t flags, uint64_t base, uint32_t count, PackType tp, bool p_encrypted = false) {
+				String f, Ref<GodotVer> godot_ver, uint32_t fver, uint32_t flags, uint64_t base, uint32_t count, PackType tp, bool p_encrypted = false, bool p_suspect_version = false) {
 			pack_file = f;
 			// copy the version, or set it to null if it's invalid
 			if (godot_ver.is_valid() && godot_ver->is_valid_semver()) {
@@ -67,6 +68,7 @@ public:
 			type = tp;
 			pcfg.instantiate();
 			encrypted = p_encrypted;
+			suspect_version = p_suspect_version;
 		}
 		bool has_unknown_version() {
 			return !version.is_valid() || !version->is_valid_semver();
@@ -86,6 +88,7 @@ public:
 		uint32_t get_file_count() const { return file_count; }
 		PackType get_type() const { return type; }
 		bool is_encrypted() const { return encrypted; }
+		bool has_suspect_version() const { return suspect_version; }
 
 	protected:
 		static void _bind_methods() {
@@ -97,6 +100,7 @@ public:
 			ClassDB::bind_method(D_METHOD("get_file_count"), &PackInfo::get_file_count);
 			ClassDB::bind_method(D_METHOD("get_type"), &PackInfo::get_type);
 			ClassDB::bind_method(D_METHOD("is_encrypted"), &PackInfo::is_encrypted);
+			ClassDB::bind_method(D_METHOD("has_suspect_version"), &PackInfo::has_suspect_version);
 			BIND_ENUM_CONSTANT(PCK);
 			BIND_ENUM_CONSTANT(APK);
 			BIND_ENUM_CONSTANT(ZIP);
@@ -116,6 +120,7 @@ public:
 		PackInfo::PackType type = PackInfo::PCK;
 		String pack_file;
 		int bytecode_revision = 0;
+		bool suspect_version = false;
 		ProjectInfo() {
 			pcfg.instantiate();
 		}
