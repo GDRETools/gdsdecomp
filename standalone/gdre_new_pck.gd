@@ -128,17 +128,6 @@ func close():
 func cancel_extract():
 	close()
 
-func open_subwindow(window: Window):
-	window.set_transient(true)
-	window.set_exclusive(true)
-	window.popup_centered()
-	window.set_unparent_when_invisible(true)
-
-func close_subwindow(window: Window):
-	window.hide()
-	window.set_exclusive(false)
-	window.set_transient(false)
-
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(_delta):
 	pass

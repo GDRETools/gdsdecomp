@@ -164,18 +164,6 @@ var _last_path: String = ""
 func _on_dialog_close():
 	extract_and_recover(_last_path)
 
-func open_subwindow(window: Window):
-	window.set_transient(true)
-	window.set_exclusive(true)
-	window.popup_centered()
-	window.set_unparent_when_invisible(true)
-
-func close_subwindow(window: Window):
-	window.hide()
-	window.set_exclusive(false)
-	window.set_transient(false)
-
-
 func open_extract_dir_dialog(path:String = ""):
 	#var pck_path = path if !path.is_empty() else GDRESettings.get_pack_path().get_base_dir()
 	

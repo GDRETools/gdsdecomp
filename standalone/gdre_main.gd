@@ -206,7 +206,7 @@ func close_subwindow(window: Window):
 
 
 func open_about_window():
-	open_subwindow($LegalNoticeWindow)
+	$LegalNoticeWindow.popup_centered()
 
 func open_setenc_window():
 	$SetEncryptionKeyWindow.popup_centered()
