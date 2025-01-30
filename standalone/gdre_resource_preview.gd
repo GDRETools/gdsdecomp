@@ -60,6 +60,7 @@ func reset():
 	MEDIA_PLAYER.visible = false
 	MEDIA_PLAYER.reset()
 	TEXT_VIEW.visible = false
+	TEXT_VIEW.reset()
 	TEXTURE_VIEW.visible = false
 	TEXTURE_INFO.text = ""
 	TEXTURE_RECT.texture = null
@@ -242,11 +243,6 @@ func _on_gdre_resource_preview_visibility_changed() -> void:
 		MEDIA_PLAYER.stop()
 	pass # Replace with function body.
 
-func reset_resource_info_size():
-	# get the minimum size of the resource info label with all the text it has
-	var min_size = RESOURCE_INFO.get_minimum_size()
-	var size = 0
-
 func _ready():
 	TEXT_VIEW = $VBoxContainer/ResourceView/TextView
 	MEDIA_PLAYER = $VBoxContainer/ResourceView/MediaPlayer
@@ -258,11 +254,11 @@ func _ready():
 	RESOURCE_INFO = $VBoxContainer/ResourceInfoContainer/ResourceInfo
 	# reset()
 	self.connect("visibility_changed", self._on_gdre_resource_preview_visibility_changed)
-	RESOURCE_INFO.minimum_size_changed.connect(self.reset_resource_info_size)
+	# RESOURCE_INFO.minimum_size_changed.connect(self.reset_resource_info_size)
 	var min_size = RESOURCE_INFO.get_minimum_size()
-	self.connect("resized", self._on_resized)
-	previous_size = Vector2(0, 100)
-	$VBoxContainer/ResourceInfoContainer.custom_minimum_size = previous_size
+	# self.connect("resized", self._on_resized)
+	# previous_size = Vector2(0, 100)
+	# $VBoxContainer/ResourceInfoContainer.custom_minimum_size = previous_size
 	#_on_resized()
 	# TODO: remove me
 	#load_resource("res://gdre_file_tree.gd")
@@ -273,15 +269,17 @@ func _ready():
 
 
 func _on_v_box_container_drag_started() -> void:
-	$VBoxContainer/ResourceInfoContainer.custom_minimum_size = Vector2(0,0)
-	previous_size = $VBoxContainer/ResourceInfoContainer.size
+	pass
+	# $VBoxContainer/ResourceInfoContainer.custom_minimum_size = Vector2(0,0)
+	# previous_size = $VBoxContainer/ResourceInfoContainer.size
 
 
 func _on_v_box_container_drag_ended() -> void:
-	previous_size = $VBoxContainer/ResourceInfoContainer.size
-	$VBoxContainer/ResourceInfoContainer.custom_minimum_size = Vector2(0, previous_size.y)
+	pass
+	# previous_size = $VBoxContainer/ResourceInfoContainer.size
+	# $VBoxContainer/ResourceInfoContainer.custom_minimum_size = Vector2(0, previous_size.y)
 
 
 func _on_resized() -> void:
-	VBOX_CONTAINER.split_offset = self.size.y / 2.0 - previous_size.y
+	# VBOX_CONTAINER.split_offset = self.size.y / 2.0 - previous_size.y
 	pass # Replace with function body.

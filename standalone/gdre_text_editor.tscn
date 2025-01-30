@@ -105,26 +105,6 @@ func thingy():
 # NOTE: This is a note
 # BUG: This is a warning
 # ALERT: this is a critical"
-placeholder_text = "@tool # this is a tool 
-class_name FOO
-extends Node  
-@export var string_prop: String = \"haldo\"
-func thingy():
-	var foo = 1
-	var bl = true
-	var bar = \"var\"
-	var baz: Color = Color(0.1,0.2,0.3)
-	var far: float = baz.r
-	var string_name: StringName = &\"haldo\"
-	var barf: NodePath = ^\"farts/lmao\"
-	var node_id = $Path/To/Node
-	var node_id_2 = $Path/To/\"A\"/Node/With/\"Some Spaces\"/In/It
-# this is a really long comment that is going to wrap around the text box!
-	$Cam / Camera2D.drag_margin_left = margin
-	$Cam / Camera2D.drag_margin_right = margin
-	lerp()
-	pass  
-#  haldodelimiter_comments"
 editable = false
 wrap_mode = 1
 syntax_highlighter = ExtResource("3_lr7u0")

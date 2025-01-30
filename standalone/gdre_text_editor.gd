@@ -13,7 +13,6 @@ var word_wrap_popup_id: int = 0
 @export var editable: bool = false:
 	set(val):
 		CODE_VIEWER.editable = val
-		CODE_VIEWER.readonly = not val
 	get:
 		return CODE_VIEWER.editable
 @export var gdscript_highlighter: CodeHighlighter = preload("res://gdre_code_highlighter.tres"):
@@ -41,8 +40,15 @@ var word_wrap_popup_id: int = 0
 
 
 func reset():
-	CODE_VIEWER.text = ""
+	pass
 
+func set_viewer_text(text: String):
+	# This is a workaround for a bug in CodeEdit where setting the text property throws errors when wrapping is enabled
+	if CODE_VIEWER.wrap_mode == TextEdit.LINE_WRAPPING_BOUNDARY:
+		CODE_VIEWER.wrap_mode = TextEdit.LINE_WRAPPING_NONE
+		CODE_VIEWER.text = ""
+		CODE_VIEWER.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	CODE_VIEWER.text = text
 
 func load_code(path):
 	var code_text = ""
@@ -54,27 +60,27 @@ func load_code(path):
 			return false
 		code_text = code.get_source_code()
 	set_code_viewer_props()
-	CODE_VIEWER.text = code_text
+	set_viewer_text(code_text)
 	return true
 
 func load_gdshader(path):
 	set_shader_viewer_props()
-	CODE_VIEWER.text = FileAccess.get_file_as_string(path)
+	set_viewer_text(FileAccess.get_file_as_string(path))
 	return true
 
-func load_text_resource(path):	
+func load_text_resource(path):
 	set_resource_viewer_props()
-	CODE_VIEWER.text = FileAccess.get_file_as_string(path)
+	set_viewer_text(FileAccess.get_file_as_string(path))
 	return true
 
 func load_text(path):
 	set_text_viewer_props()
-	CODE_VIEWER.text = FileAccess.get_file_as_string(path)
+	set_viewer_text(FileAccess.get_file_as_string(path))
 	return true
 
 func load_text_string(text):
 	set_text_viewer_props()
-	CODE_VIEWER.text = text
+	set_viewer_text(text)
 	return true
 
 func set_shader_viewer_props():
