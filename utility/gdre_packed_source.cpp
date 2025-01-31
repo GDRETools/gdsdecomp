@@ -6,7 +6,7 @@
 
 static_assert(PACK_FORMAT_VERSION == GDREPackedSource::CURRENT_PACK_FORMAT_VERSION, "Pack format version changed.");
 
-bool seek_after_magic_unix(Ref<FileAccess> f) {
+bool GDREPackedSource::seek_after_magic_unix(Ref<FileAccess> f) {
 	f->seek(0);
 	uint32_t magic = f->get_32();
 	if (magic != 0x464c457f) { // 0x7F + "ELF"
@@ -15,25 +15,22 @@ bool seek_after_magic_unix(Ref<FileAccess> f) {
 	return true;
 }
 
-uint64_t get_offset_unix(const String &p_path) {
-	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
-
+bool GDREPackedSource::get_pck_section_info_unix(Ref<FileAccess> f, GDREPackedSource::EXEPCKInfo &info) {
 	if (f.is_null()) {
-		return 0;
+		return false;
 	}
-
 	// Read and check ELF magic number.
 	if (!seek_after_magic_unix(f)) {
-		return 0;
+		return false;
 	}
-
+	info.type = EXEPCKInfo::ELF;
 	// Read program architecture bits from class field.
-	int bits = f->get_8() * 32;
+	info.section_bit_size = f->get_8() * 32;
 
 	// Get info about the section header table.
 	int64_t section_table_pos;
 	int64_t section_header_size;
-	if (bits == 32) {
+	if (info.section_bit_size == 32) {
 		section_header_size = 40;
 		f->seek(0x20);
 		section_table_pos = f->get_32();
@@ -56,7 +53,7 @@ uint64_t get_offset_unix(const String &p_path) {
 		// Read strings data size and offset.
 		int64_t string_data_pos;
 		int64_t string_data_size;
-		if (bits == 32) {
+		if (info.section_bit_size == 32) {
 			f->seek(f->get_position() + 0x10);
 			string_data_pos = f->get_32();
 			string_data_size = f->get_32();
@@ -70,37 +67,43 @@ uint64_t get_offset_unix(const String &p_path) {
 		f->seek(string_data_pos);
 		strings = (uint8_t *)memalloc(string_data_size);
 		if (!strings) {
-			return 0;
+			return false;
 		}
 		f->get_buffer(strings, string_data_size);
 	}
 
 	// Search for the "pck" section.
-	int64_t off = 0;
+	bool found = false;
 	for (int i = 0; i < num_sections; ++i) {
 		int64_t section_header_pos = section_table_pos + i * section_header_size;
 		f->seek(section_header_pos);
 
 		uint32_t name_offset = f->get_32();
 		if (strcmp((char *)strings + name_offset, "pck") == 0) {
-			if (bits == 32) {
+			info.pck_section_header_pos = section_header_pos;
+			if (info.section_bit_size == 32) {
 				f->seek(section_header_pos + 0x10);
-				off = f->get_32();
+				info.pck_embed_off = f->get_32();
+				info.pck_embed_size = f->get_32();
 			} else { // 64
 				f->seek(section_header_pos + 0x18);
-				off = f->get_64();
+				info.pck_embed_off = f->get_64();
+				info.pck_embed_size = f->get_64();
 			}
+			found = true;
 			break;
 		}
 	}
 	memfree(strings);
-	return off;
+	return found;
 }
 
-bool seek_after_magic_windows(Ref<FileAccess> f) {
+bool GDREPackedSource::seek_after_magic_windows(Ref<FileAccess> f) {
 	f->seek(0x3c);
 	uint32_t pe_pos = f->get_32();
-
+	if (pe_pos > f->get_length()) {
+		return false;
+	}
 	f->seek(pe_pos);
 	uint32_t magic = f->get_32();
 	if (magic != 0x00004550) {
@@ -109,16 +112,15 @@ bool seek_after_magic_windows(Ref<FileAccess> f) {
 	return true;
 }
 
-uint64_t get_offset_windows(const String &p_path) {
-	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
+bool GDREPackedSource::get_pck_section_info_windows(Ref<FileAccess> f, GDREPackedSource::EXEPCKInfo &r_info) {
 	if (f.is_null()) {
-		return 0;
+		return false;
 	}
 	// Process header.
 	if (!seek_after_magic_windows(f)) {
-		return 0;
+		return false;
 	}
-
+	r_info.type = EXEPCKInfo::PE;
 	int num_sections;
 	{
 		int64_t header_pos = f->get_position();
@@ -134,7 +136,7 @@ uint64_t get_offset_windows(const String &p_path) {
 	int64_t section_table_pos = f->get_position();
 
 	// Search for the "pck" section.
-	int64_t off = 0;
+	bool found = false;
 	for (int i = 0; i < num_sections; ++i) {
 		int64_t section_header_pos = section_table_pos + i * 40;
 		f->seek(section_header_pos);
@@ -144,15 +146,20 @@ uint64_t get_offset_windows(const String &p_path) {
 		section_name[8] = '\0';
 
 		if (strcmp((char *)section_name, "pck") == 0) {
+			found = true;
+			r_info.pck_section_header_pos = section_header_pos;
+			f->seek(section_header_pos + 16);
+			r_info.pck_embed_size = f->get_32();
 			f->seek(section_header_pos + 20);
-			off = f->get_32();
+			r_info.pck_embed_off = f->get_32();
+
 			break;
 		}
 	}
-	return off;
+	return found;
 }
 
-bool is_executable(const String &p_path) {
+bool GDREPackedSource::is_executable(const String &p_path) {
 	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
 	ERR_FAIL_COND_V(f.is_null(), false);
 	String extension = p_path.get_extension().to_lower();
@@ -162,48 +169,98 @@ bool is_executable(const String &p_path) {
 	return seek_after_magic_unix(f);
 }
 
-bool seek_offset_from_exe(Ref<FileAccess> f, const String &p_path) {
+bool GDREPackedSource::_get_exe_embedded_pck_info(Ref<FileAccess> f, const String &p_path, EXEPCKInfo &r_info) {
 	bool pck_header_found = false;
 	uint32_t magic = 0;
 	if (f.is_null()) {
 		return false;
 	}
-	int64_t pck_off = p_path.get_extension().to_lower() == "exe" ? get_offset_windows(p_path) : get_offset_unix(p_path);
-	if (pck_off != 0) {
+
+	pck_header_found = p_path.get_extension().to_lower() == "exe" ? get_pck_section_info_windows(f, r_info) : get_pck_section_info_unix(f, r_info);
+	if (pck_header_found && r_info.pck_embed_off != 0) {
+		r_info.pck_actual_off = r_info.pck_embed_off;
 		// Search for the header, in case PCK start and section have different alignment.
 		for (int i = 0; i < 8; i++) {
-			f->seek(pck_off);
+			f->seek(r_info.pck_actual_off);
+
 			magic = f->get_32();
 			if (magic == PACK_HEADER_MAGIC) {
-#ifdef DEBUG_ENABLED
-				print_verbose("PCK header found in executable pck section, loading from offset 0x" + String::num_int64(pck_off - 4, 16));
-#endif
+				uint64_t ret_pos = f->get_position();
+				uint64_t magic_pos = ret_pos - 4;
+				f->seek(r_info.pck_embed_off + r_info.pck_embed_size - 4);
+				if (f->get_32() == PACK_HEADER_MAGIC) {
+					f->seek(r_info.pck_embed_off + r_info.pck_embed_size - 12);
+					r_info.pck_actual_size = f->get_64();
+				} else {
+					WARN_PRINT("PCK header not found at the end of the embed section.");
+					r_info.pck_actual_size = r_info.pck_embed_size - i;
+				}
+				f->seek(ret_pos);
 				return true;
 			}
-			pck_off++;
+			r_info.pck_actual_off++;
 		}
 	}
 
 	// Search for the header at the end of file - self contained executable.
-	if (!pck_header_found) {
+	{
 		f->seek_end();
 		f->seek(f->get_position() - 4);
 		magic = f->get_32();
 
 		if (magic == PACK_HEADER_MAGIC) {
 			f->seek(f->get_position() - 12);
-			uint64_t ds = f->get_64();
-			f->seek(f->get_position() - ds - 8);
+			r_info.pck_actual_size = f->get_64();
+			r_info.pck_embed_size = r_info.pck_actual_size + 12; // pck_size + magic at the end
+			f->seek(f->get_position() - r_info.pck_actual_size - 8);
+			r_info.pck_embed_off = f->get_position();
+			r_info.pck_actual_off = r_info.pck_embed_off;
 			magic = f->get_32();
 			if (magic == PACK_HEADER_MAGIC) {
-#ifdef DEBUG_ENABLED
-				print_verbose("PCK header found at the end of executable, loading from offset 0x" + String::num_int64(f->get_position() - 4, 16));
-#endif
 				return true;
 			}
 		}
 	}
+	r_info.pck_actual_off = 0;
+	r_info.pck_actual_size = 0;
 	return false;
+}
+
+bool GDREPackedSource::seek_offset_from_exe(Ref<FileAccess> f, const String &p_path) {
+	EXEPCKInfo info;
+	auto ret = _get_exe_embedded_pck_info(f, p_path, info);
+#ifdef DEBUG_ENABLED
+	if (ret) {
+		if (info.pck_section_header_pos == 0) {
+			print_verbose("PCK header found at the end of executable, loading from offset 0x" + String::num_int64(info.pck_actual_off, 16));
+		} else {
+			print_verbose("PCK header found from pck section, loading from offset 0x" + String::num_int64(info.pck_actual_off, 16));
+		}
+		print_verbose("PCK embed offset: " + String::num_int64(info.pck_embed_off, 16));
+		print_verbose("PCK embed size: " + itos(info.pck_embed_size));
+		print_verbose("PCK actual offset: " + String::num_int64(info.pck_actual_off, 16));
+		print_verbose("PCK actual size: " + itos(info.pck_actual_size));
+	} else {
+		print_verbose("Embedded PCK not found in executable.");
+	}
+#endif
+	return ret;
+}
+
+bool GDREPackedSource::get_exe_embedded_pck_info(const String &p_path, GDREPackedSource::EXEPCKInfo &r_info) {
+	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
+	auto ret = _get_exe_embedded_pck_info(f, p_path, r_info);
+#ifdef DEBUG_ENABLED
+	if (ret) {
+		print_verbose("PCK embed offset: " + String::num_int64(r_info.pck_embed_off, 16));
+		print_verbose("PCK embed size: " + itos(r_info.pck_embed_size));
+		print_verbose("PCK actual offset: " + String::num_int64(r_info.pck_actual_off, 16));
+		print_verbose("PCK actual size: " + itos(r_info.pck_actual_size));
+	} else {
+		print_verbose("Embedded PCK not found in executable.");
+	}
+#endif
+	return ret;
 }
 
 bool GDREPackedSource::is_embeddable_executable(const String &p_path) {
