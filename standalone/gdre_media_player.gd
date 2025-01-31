@@ -201,12 +201,14 @@ func is_audio(path) -> bool:
 	return !is_video(path)
 
 
+func is_non_resource_smp(ext, p_type = ""):
+	return (ext == "wav" || ext == "ogg" || ext == "mp3")
+
 func load_media(path):
 	if is_video(path):
 		return load_video(path)
 	return load_sample(path)
 	
-
 func load_video(path):
 	var video_stream: VideoStream = ResourceCompatLoader.real_load(path, "", ResourceFormatLoader.CACHE_MODE_IGNORE_DEEP)
 	if (video_stream == null):
@@ -225,7 +227,17 @@ func load_video(path):
 
 
 func load_sample(path):
-	var audio_stream: AudioStream = ResourceCompatLoader.real_load(path, "", ResourceFormatLoader.CACHE_MODE_IGNORE_DEEP)
+	var audio_stream: AudioStream = null
+	var ext = path.get_extension().to_lower()
+	if not is_non_resource_smp(ext):
+		audio_stream = ResourceCompatLoader.real_load(path, "", ResourceFormatLoader.CACHE_MODE_IGNORE_DEEP)
+	else:
+		if ext == "wav":
+			audio_stream = AudioStreamWAV.load_from_file(path)
+		elif ext == "ogg":
+			audio_stream = AudioStreamOggVorbis.load_from_file(path)
+		elif ext == "mp3":
+			audio_stream = AudioStreamMP3.load_from_file(path)
 	if (audio_stream == null):
 		return false
 	reset()
