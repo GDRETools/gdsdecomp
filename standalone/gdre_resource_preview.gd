@@ -70,7 +70,10 @@ func reset():
 var previous_size = Vector2(0, 0)
 
 func load_texture(path):
-	TEXTURE_RECT.texture = ResourceCompatLoader.real_load(path, "", ResourceFormatLoader.CACHE_MODE_IGNORE_DEEP)
+	if is_image(path.get_extension().to_lower()):
+		TEXTURE_RECT.texture = ImageTexture.create_from_image(Image.load_from_file(path))
+	else:
+		TEXTURE_RECT.texture = ResourceCompatLoader.real_load(path, "", ResourceFormatLoader.CACHE_MODE_IGNORE_DEEP)
 	if (TEXTURE_RECT.texture == null):
 		return false
 	TEXTURE_RECT.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -210,9 +213,13 @@ func is_text_resource(ext, p_type = ""):
 
 func is_ini_like(ext, p_type = ""):
 	return ext == "cfg" || ext == "remap" || ext == "import" || ext == "gdextension" || ext == "gdnative" || ext == "godot"
+	
+
+func is_non_resource_smp(ext, p_type = ""):
+	return (ext == "wav" || ext == "ogg" || ext == "mp3")
 
 func is_sample(ext, p_type = ""):
-	if (ext == "oggstr" || ext == "mp3str" || ext == "oggvorbisstr" || ext == "sample" || ext == "wav" || ext == "ogg" || ext == "mp3"):
+	if (ext == "oggstr" || ext == "mp3str" || ext == "oggvorbisstr" || ext == "sample" || ext == "smp" || is_non_resource_smp(ext, p_type)):
 		return true
 	return false
 
