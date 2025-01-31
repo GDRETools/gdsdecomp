@@ -1,5 +1,7 @@
 #include "pck_creator.h"
+
 #include "core/error/error_list.h"
+#include "gdre_packed_source.h"
 #include "gdre_settings.h"
 
 #include "core/io/dir_access.h"
@@ -10,6 +12,7 @@
 
 #include <core/io/file_access_encrypted.h>
 #include <editor/gdre_editor.h>
+#include <scene/resources/surface_tool.h>
 
 void PckCreator::reset() {
 	files_to_pck.clear();
@@ -37,7 +40,7 @@ Error PckCreator::wait_for_task(WorkerThreadPool::GroupID group_task, const Vect
 			if (cancel) {
 				cancelled = true;
 				WorkerThreadPool::get_singleton()->wait_for_group_task_completion(group_task);
-				return ERR_PRINTER_ON_FIRE;
+				return ERR_SKIP;
 			}
 		}
 	}
@@ -254,8 +257,8 @@ Error PckCreator::_add_files(
 				files_to_pck.ptrw(),
 				files_to_pck.size(), -1, true, SNAME("PckCreator::_do_process_folder"));
 		err = wait_for_task(group_task, keys, pr);
-		if (err == ERR_PRINTER_ON_FIRE) {
-			return ERR_PRINTER_ON_FIRE;
+		if (err == ERR_SKIP) {
+			return ERR_SKIP;
 		}
 	} else {
 		for (size_t i = 0; i < files_to_pck.size(); i++) {
@@ -324,8 +327,8 @@ Error PckCreator::finish_pck() {
 	} else {
 		error = _create_after_process(nullptr, error_string);
 	}
-	ERR_FAIL_COND_V_MSG(error, error, "Error creating pck: " + error_string);
-	return OK;
+	ERR_FAIL_COND_V_MSG(error && error != ERR_PRINTER_ON_FIRE, error, "Error creating pck: " + error_string);
+	return error;
 }
 
 Error PckCreator::_create_after_process(EditorProgressGDDC *pr, String &error_string) {
@@ -335,26 +338,28 @@ Error PckCreator::_create_after_process(EditorProgressGDDC *pr, String &error_st
 	broken_cnt = 0;
 	uint64_t start_time = OS::get_singleton()->get_ticks_msec();
 
+	auto temp_path = pck_path;
 	if (embed && get_exe_to_embed().is_empty()) {
 		error_string = "No executable to embed!";
 		return ERR_FILE_NOT_FOUND;
 	}
 
-	if (!embed && FileAccess::exists(pck_path)) {
-		// remove it
-		auto da = DirAccess::create_for_path(pck_path);
-		if (da.is_valid()) {
-			da->remove(pck_path);
-		}
+	// create a tmp file if the pck file already exists
+	if (FileAccess::exists(pck_path) || exe_to_embed.simplify_path() == pck_path.simplify_path()) {
+		temp_path = pck_path + ".tmp";
 	}
-	Ref<FileAccess> f = FileAccess::open(pck_path, FileAccess::WRITE);
+
+	Ref<FileAccess> f = FileAccess::open(temp_path, FileAccess::WRITE);
 	if (f.is_null()) {
-		error_string = ("Error opening PCK file: ") + pck_path;
+		error_string = ("Error opening PCK file: ") + temp_path;
 		return ERR_FILE_CANT_WRITE;
 	}
 	int64_t embedded_start = 0;
 	int64_t embedded_size = 0;
 
+	GDREPackedSource::EXEPCKInfo exe_pck_info;
+	int64_t absolute_exe_end = 0;
+	bool has_pck_already = false;
 	if (embed) {
 		// append to exe
 
@@ -368,17 +373,14 @@ Error PckCreator::_create_after_process(EditorProgressGDDC *pr, String &error_st
 		}
 
 		fs->seek_end();
-		fs->seek(fs->get_position() - 4);
-		int32_t magic = fs->get_32();
-		if (magic == 0x43504447) {
-			// exe already have embedded pck
-			fs->seek(fs->get_position() - 12);
-			uint64_t ds = f->get_64();
-			fs->seek(fs->get_position() - ds - 8);
+		absolute_exe_end = fs->get_position();
+		int64_t exe_end;
+		if (GDREPackedSource::get_exe_embedded_pck_info(exe_to_embed, exe_pck_info)) {
+			has_pck_already = true;
+			exe_end = exe_pck_info.pck_embed_off;
 		} else {
-			fs->seek_end();
+			exe_end = absolute_exe_end;
 		}
-		int64_t exe_end = fs->get_position();
 		fs->seek(0);
 		// copy executable data
 		for (size_t i = 0; i < exe_end; i++) {
@@ -572,147 +574,55 @@ Error PckCreator::_create_after_process(EditorProgressGDDC *pr, String &error_st
 		f->store_64(pck_size);
 		f->store_32(0x43504447); //GDPC
 
-		embedded_size = f->get_position() - embedded_start;
+		uint64_t current_eof = f->get_position();
+		embedded_size = current_eof - embedded_start;
 
 		// fixup headers
-		pr->step("Exec header fix...", files_to_pck.size() + 2, true);
-		f->seek(0);
-		int16_t exe1_magic = f->get_16();
-		int16_t exe2_magic = f->get_16();
-		if (exe1_magic == 0x5A4D) {
-			//windows (pe) - copy from "platform/windows/export/export.cpp"
-			f->seek(0x3c);
-			uint32_t pe_pos = f->get_32();
-
-			f->seek(pe_pos);
-			uint32_t magic = f->get_32();
-			if (magic != 0x00004550) {
-				error_string = "Invalid PE magic";
-				files_to_pck.clear();
-				return ERR_INVALID_DATA;
-			}
-
-			// Process header
-			int64_t num_sections;
-			{
-				int64_t header_pos = f->get_position();
-
-				f->seek(header_pos + 2);
-				num_sections = f->get_16();
-				f->seek(header_pos + 16);
-				uint16_t opt_header_size = f->get_16();
-
-				// Skip rest of header + optional header to go to the section headers
-				f->seek(f->get_position() + 2 + opt_header_size);
-			}
-
-			// Search for the "pck" section
-			int64_t section_table_pos = f->get_position();
-
-			for (int64_t i = 0; i < num_sections; ++i) {
-				int64_t section_header_pos = section_table_pos + i * 40;
-				f->seek(section_header_pos);
-
-				uint8_t section_name[9];
-				f->get_buffer(section_name, 8);
-				section_name[8] = '\0';
-
-				if (strcmp((char *)section_name, "pck") == 0) {
-					// "pck" section found, let's patch!
-
-					// Set virtual size to a little to avoid it taking memory (zero would give issues)
-					f->seek(section_header_pos + 8);
-					f->store_32(8);
-
-					f->seek(section_header_pos + 16);
-					f->store_32(embedded_size);
-					f->seek(section_header_pos + 20);
+		if (pr)
+			pr->step("Exec header fix...", files_to_pck.size() + 2, true);
+		if (exe_pck_info.pck_section_header_pos != 0) {
+			if (exe_pck_info.type == GDREPackedSource::EXEPCKInfo::PE) {
+				// Set virtual size to a little to avoid it taking memory (zero would give issues)
+				f->seek(exe_pck_info.pck_section_header_pos + 8);
+				f->store_32(8);
+				f->seek(exe_pck_info.pck_section_header_pos + 16);
+				f->store_32(embedded_size);
+				f->seek(exe_pck_info.pck_section_header_pos + 20);
+				f->store_32(embedded_start);
+			} else if ((exe_pck_info.type == GDREPackedSource::EXEPCKInfo::ELF)) {
+				if (exe_pck_info.section_bit_size == 32) {
+					f->seek(exe_pck_info.pck_section_header_pos + 0x10);
 					f->store_32(embedded_start);
-
-					break;
-				}
-			}
-		} else if ((exe1_magic == 0x457F) && (exe2_magic == 0x467C)) {
-			// linux (elf) - copy from "platform/x11/export/export.cpp"
-			// Read program architecture bits from class field
-			int64_t bits = f->get_8() * 32;
-
-			if (bits == 32 && embedded_size >= 0x100000000) {
-				error_string = "32-bit executables cannot have embedded data >= 4 GiB";
-				files_to_pck.clear();
-				return ERR_INVALID_DATA;
-			}
-
-			// Get info about the section header table
-			int64_t section_table_pos;
-			int64_t section_header_size;
-			if (bits == 32) {
-				section_header_size = 40;
-				f->seek(0x20);
-				section_table_pos = f->get_32();
-				f->seek(0x30);
-			} else { // 64
-				section_header_size = 64;
-				f->seek(0x28);
-				section_table_pos = f->get_64();
-				f->seek(0x3c);
-			}
-			int64_t num_sections = f->get_16();
-			int64_t string_section_idx = f->get_16();
-
-			// Load the strings table
-			uint8_t *strings;
-			{
-				// Jump to the strings section header
-				f->seek(section_table_pos + string_section_idx * section_header_size);
-
-				// Read strings data size and offset
-				int64_t string_data_pos;
-				int64_t string_data_size;
-				if (bits == 32) {
-					f->seek(f->get_position() + 0x10);
-					string_data_pos = f->get_32();
-					string_data_size = f->get_32();
+					f->store_32(embedded_size);
 				} else { // 64
-					f->seek(f->get_position() + 0x18);
-					string_data_pos = f->get_64();
-					string_data_size = f->get_64();
-				}
-
-				// Read strings data
-				f->seek(string_data_pos);
-				strings = (uint8_t *)memalloc(string_data_size);
-				if (!strings) {
-					error_string = "Out of memory";
-					files_to_pck.clear();
-					return ERR_OUT_OF_MEMORY;
-				}
-				f->get_buffer(strings, string_data_size);
-			}
-
-			// Search for the "pck" section
-			for (int64_t i = 0; i < num_sections; ++i) {
-				int64_t section_header_pos = section_table_pos + i * section_header_size;
-				f->seek(section_header_pos);
-
-				uint32_t name_offset = f->get_32();
-				if (strcmp((char *)strings + name_offset, "pck") == 0) {
-					// "pck" section found, let's patch!
-
-					if (bits == 32) {
-						f->seek(section_header_pos + 0x10);
-						f->store_32(embedded_start);
-						f->store_32(embedded_size);
-					} else { // 64
-						f->seek(section_header_pos + 0x18);
-						f->store_64(embedded_start);
-						f->store_64(embedded_size);
-					}
-
-					break;
+					f->seek(exe_pck_info.pck_section_header_pos + 0x18);
+					f->store_64(embedded_start);
+					f->store_64(embedded_size);
 				}
 			}
-			memfree(strings);
+		}
+		// in case there is data at the end?
+		if (absolute_exe_end > exe_pck_info.pck_embed_off + exe_pck_info.pck_embed_size) {
+			WARN_PRINT("There is data at the end of the executable past the pck, this data will be lost!");
+		}
+	}
+	if (temp_path != pck_path) {
+		if (GDRESettings::get_singleton()->is_pack_loaded()) {
+			// refusing to remove the original file while a pack is loaded
+			error_string = temp_path;
+			return ERR_PRINTER_ON_FIRE;
+		}
+		// rename temp file to final file
+		auto da = DirAccess::open(pck_path.get_base_dir());
+		if (da.is_null()) {
+			error_string = "Error opening directory for renaming: " + pck_path.get_base_dir();
+			return ERR_FILE_CANT_OPEN;
+		}
+		da->remove(pck_path.get_file());
+		Error err = da->rename(temp_path.get_file(), pck_path.get_file());
+		if (err != OK) {
+			error_string = "Error renaming PCK file: " + pck_path;
+			return err;
 		}
 	}
 	bl_print("PCK write took " + itos(OS::get_singleton()->get_ticks_msec() - start_time) + "ms");

@@ -23,6 +23,7 @@ var PATCH_FILE_DIALOG: FileDialog = null
 var PATCH_FILE_MAPPING_DIALOG: FileDialog = null
 var PATCH_FOLDER_MAPPING_DIALOG: FileDialog = null
 var MAP_SELECTED_ITEMS_BUTTON: Button = null
+var EMBED_CHECKBOX: CheckBox = null
 
 var DROP_FOLDERS_CONFIRMATION_DIALOG: Window = null
 var DROP_FOLDERS_LIST_A: Tree = null
@@ -141,6 +142,8 @@ func _ready():
 	DROP_FOLDERS_LIST_B = $DropFoldersConfirmation/Control/ItemListB
 	DROP_FOLDERS_LABEL_A = $DropFoldersConfirmation/Control/LabelA
 	DROP_FOLDERS_LABEL_B = $DropFoldersConfirmation/Control/LabelB
+	EMBED_CHECKBOX = $Control/EmbedCheckBox
+	$SavePckDialog.current_dir = OS.get_system_dir(OS.SYSTEM_DIR_DESKTOP)
 
 	DROP_FOLDERS_LIST_A.set_column_title(0, "File")
 	DROP_FOLDERS_LIST_A.set_column_title(1, "Mapping")
@@ -313,6 +316,9 @@ func _validate_map_button():
 	else:
 		MAP_SELECTED_ITEMS_BUTTON.disabled = false
 
+func should_embed() -> bool:
+	return not EMBED_CHECKBOX.disabled and EMBED_CHECKBOX.is_pressed()
+
 func _validate():
 	# if (not PATCH_FILE_TREE.get_root() or PATCH_FILE_TREE.get_root().get_children().size() == 0):
 	# 	self.get_ok_button().disabled = true
@@ -344,7 +350,11 @@ func _validate():
 		item = item.get_next()
 
 	_validate_map_button()
-
+	if pack_loaded and GDRESettings.get_pack_type() == PackInfo.EXE:
+		EMBED_CHECKBOX.disabled = false
+	else:
+		EMBED_CHECKBOX.disabled = true
+		
 	if (!pack_loaded or not error_messages.is_empty()):
 		self.get_ok_button().disabled = true
 		return false
@@ -372,6 +382,17 @@ func cancelled():
 	close()
 
 func confirm():
+	# get the name of the pck
+	var text = SELECTED_PCK.text.get_file().get_basename() + "_patched"
+	if should_embed():
+		var ext = SELECTED_PCK.text.get_extension();
+		$SavePckDialog.filename_filter = "*.exe,*.bin,*.32,*.64,*.arm64,*.arm32;Self contained executable files"
+		if not ext.is_empty():
+			text = text + "." + ext
+	else:
+		$SavePckDialog.filename_filter = "*.pck;PCK files"
+		text = text + ".pck"
+	$SavePckDialog.current_file = text
 	$SavePckDialog.popup_centered()
 	
 func _on_save_pck_dialog_file_selected(path: String) -> void:

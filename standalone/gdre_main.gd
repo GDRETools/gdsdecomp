@@ -694,10 +694,11 @@ var CREATE_OPTS_NOTES = """Create PCK Options:
 """
 
 var PATCH_OPTS_NOTES = """Patch PCK Options:
---output=<OUTPUT_PCK>                    The output PCK file to create
+--output=<OUTPUT_PCK/EXE>                The output PCK file to create
 --patch-file=<SRC_FILE>=<DEST_FILE>      The file to patch the PCK with (e.g. "/path/to/file.gd=res://file.gd") (can be repeated)
 --include=<GLOB>                         Only include files from original PCK matching the glob pattern (can be repeated)
 --exclude=<GLOB>                         Exclude files from original PCK matching the glob pattern (can be repeated)
+--embed=<EXE_TO_EMBED>                   The executable to embed the patched PCK into
 --key=<KEY>                              64-character hex string to decrypt/encrypt the PCK with
 """
 
@@ -1347,7 +1348,7 @@ func handle_cli(args: PackedStringArray) -> bool:
 	elif not pck_create_dir.is_empty():
 		create_pck(output_dir, pck_create_dir, pck_version, pck_engine_version, includes, excludes, enc_key, embed_pck)
 	elif not pck_patch_pck.is_empty():
-		patch_pck(pck_patch_pck, output_dir, patch_map, includes, excludes, enc_key)
+		patch_pck(pck_patch_pck, output_dir, patch_map, includes, excludes, enc_key, embed_pck)
 		GDRESettings.unload_project()
 	elif set_setting:
 		return false # don't quit
@@ -1356,14 +1357,12 @@ func handle_cli(args: PackedStringArray) -> bool:
 		print("ERROR: invalid option! Must specify one of " + ", ".join(MAIN_COMMANDS))
 	return true
 
-func _start_patch_pck(dest_pck: String, pack_info: PackInfo):
+func _start_patch_pck(dest_pck: String, pack_info: PackInfo, embed_pck: String = ""):
 	var engine_version: GodotVer = pack_info.get_version()
 	var encrypted = pack_info.is_encrypted()
 	var embed = false
-	var embed_src = ""
-	if pack_info.get_type() == 4: # EXE; TODO: FIX ENUM NOT BINDING CORRECTLY
+	if not embed_pck.is_empty():
 		embed = true
-		embed_src = pack_info.get_path()
 	var pck_creator = PckCreator.new()
 	pck_creator.start_pck(dest_pck, 
 							pack_info.get_fmt_version(),
@@ -1372,10 +1371,10 @@ func _start_patch_pck(dest_pck: String, pack_info: PackInfo):
 							engine_version.patch,
 							encrypted,
 							embed,
-							embed_src)
+							embed_pck)
 	return pck_creator
 
-func patch_pck(src_file: String, dest_pck:String, patch_file_map: Dictionary, includes: PackedStringArray = [], excludes: PackedStringArray = [], enc_key: String = ""):
+func patch_pck(src_file: String, dest_pck:String, patch_file_map: Dictionary, includes: PackedStringArray = [], excludes: PackedStringArray = [], enc_key: String = "", embed_pck: String = ""):
 	if (src_file.is_empty()):
 		print_usage()
 		print("Error: --pck-patch is required")
@@ -1413,13 +1412,22 @@ func patch_pck(src_file: String, dest_pck:String, patch_file_map: Dictionary, in
 		if (pck_file.is_relative_path()):
 			pck_file = "res://" + pck_file
 		patch_file_map[pck_file] = pck_file
-	var pck_patcher = _start_patch_pck(dest_pck, pack_infos[0])
+	var pck_patcher = _start_patch_pck(dest_pck, pack_infos[0], embed_pck)
 	pck_patcher.set_multi_thread(false)
 	var err = pck_patcher.add_files(patch_file_map)
 	if (err != OK):
 		print("Error: failed to add files to patch PCK: " + pck_patcher.get_error_message())
 		return "Error: failed to add files to patch PCK: " + pck_patcher.get_error_message()
 	err = pck_patcher.finish_pck()
+	GDRESettings.unload_project()
+	if err == ERR_PRINTER_ON_FIRE: # rename file
+		var tmp_path = pck_patcher.get_error_message()
+		err = DirAccess.remove_absolute(dest_pck)
+		if (err != OK):
+			print("Error: failed to remove existing PCK: " + pck_patcher.get_error_message())
+			return "Error: failed to remove existing PCK: " + pck_patcher.get_error_message()
+		err = DirAccess.rename_absolute(tmp_path, dest_pck)
+
 	if (err != OK):
 		print("Error: failed to write patching PCK:" + pck_patcher.get_error_message())
 		return "Error: failed to finish patching PCK:" + pck_patcher.get_error_message()
@@ -1428,6 +1436,7 @@ func patch_pck(src_file: String, dest_pck:String, patch_file_map: Dictionary, in
 
 
 func _on_gdre_patch_pck_do_patch_pck(dest_pck: String, file_map: Dictionary[String, String]) -> void:
+	var should_embed = PATCH_PCK_DIALOG.should_embed()
 	PATCH_PCK_DIALOG.hide_win()
 	var pack_infos = GDRESettings.get_pack_info_list()
 	if (pack_infos.is_empty()):
@@ -1438,17 +1447,25 @@ func _on_gdre_patch_pck_do_patch_pck(dest_pck: String, file_map: Dictionary[Stri
 		GDRESettings.unload_project()
 		GDREChildDialog.popup_box(self, ERROR_DIALOG, "Error: multiple PCK files found, cannot patch", "Error")
 		return
-	var pck_creator = _start_patch_pck(dest_pck, pack_infos[0])
+	var embed_pck = ""
+	if (pack_infos[0].get_type() == 4 and should_embed):
+		embed_pck = pack_infos[0].get_pack_file()
+	var pck_creator = _start_patch_pck(dest_pck, pack_infos[0], embed_pck)
 	var err = pck_creator.add_files(file_map)
 	if (err != OK):
 		GDRESettings.unload_project()
 		GDREChildDialog.popup_box(self, ERROR_DIALOG, "Error: failed to add files to PCK:\n" + pck_creator.get_error_message(), "Error")
 		return
 	err = pck_creator.finish_pck()
+	GDRESettings.unload_project()
+	if err == ERR_PRINTER_ON_FIRE: # rename file
+		var tmp_path = pck_creator.get_error_message()
+		err = DirAccess.remove_absolute(dest_pck)
+		if (err != OK):
+			GDREChildDialog.popup_box(self, ERROR_DIALOG, "Error: failed to remove existing PCK:\n" + dest_pck, "Error")
+		err = DirAccess.rename_absolute(tmp_path, dest_pck)
 	if (err != OK):
-		GDRESettings.unload_project()
 		GDREChildDialog.popup_box(self, ERROR_DIALOG, "Error: failed to write PCK:\n" + pck_creator.get_error_message(), "Error")
 		return
-	GDRESettings.unload_project()
 	GDREChildDialog.popup_box(self, ERROR_DIALOG, "PCK patching complete", "Success")
 	pass # Replace with function body.

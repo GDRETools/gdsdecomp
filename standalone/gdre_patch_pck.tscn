@@ -113,7 +113,7 @@ offset_bottom = 38.0
 layout_mode = 1
 anchors_preset = -1
 anchor_right = 0.5
-offset_left = 255.0
+offset_left = 273.0
 offset_top = 58.0
 offset_right = -12.0
 offset_bottom = 89.0
@@ -147,19 +147,19 @@ text = "0"
 
 [node name="Uncheck" type="Button" parent="Control"]
 layout_mode = 0
-offset_left = 166.0
-offset_top = 56.0
-offset_right = 245.0
-offset_bottom = 87.0
+offset_left = 184.0
+offset_top = 58.0
+offset_right = 263.0
+offset_bottom = 89.0
 tooltip_text = "Unchecks all shown files"
 text = "Uncheck"
 
 [node name="Check" type="Button" parent="Control"]
 layout_mode = 0
-offset_left = 71.0
-offset_top = 56.0
-offset_right = 150.0
-offset_bottom = 87.0
+offset_left = 97.0
+offset_top = 58.0
+offset_right = 176.0
+offset_bottom = 89.0
 tooltip_text = "Checks all shown files"
 text = "Check"
 
@@ -228,6 +228,19 @@ text = "Select Files..."
 [node name="PatchClearButton" type="Button" parent="Control/PatchButtonHBox"]
 layout_mode = 2
 text = "Clear"
+
+[node name="EmbedCheckBox" type="CheckBox" parent="Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -144.0
+offset_top = 10.0
+offset_right = -62.0
+offset_bottom = 41.0
+text = "Embed"
 
 [node name="DropFoldersConfirmation" type="AcceptDialog" parent="."]
 title = "Select Mapping"
@@ -325,7 +338,8 @@ text = "\"Relative from...\" mapping"
 
 [node name="SelectPatchFolderMappingDialog" type="FileDialog" parent="."]
 auto_translate_mode = 1
-title = "Select folder to map files to..."
+title = "Open a Directory"
+ok_button_text = "Select Current Folder"
 file_mode = 2
 root_subfolder = "res://"
 
