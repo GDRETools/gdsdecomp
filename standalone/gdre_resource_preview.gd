@@ -104,11 +104,7 @@ func load_resource(path: String) -> void:
 	var ext = path.get_extension().to_lower()
 	var error_opening = false
 	var not_supported = false
-	if (is_text(ext)):
-		TEXT_VIEW.load_text(path)
-		TEXT_VIEW.visible = true
-		return
-	elif (is_shader(ext)):
+	if (is_shader(ext)):
 		TEXT_VIEW.load_gdshader(path)
 		TEXT_VIEW.visible = true
 	elif (is_code(ext)):
@@ -171,6 +167,11 @@ func load_resource(path: String) -> void:
 			var da = DirAccess.open(tmp_dir)
 			if da:
 				da.remove(temp_path)
+
+	elif (is_text(ext) or is_content_text(path)):
+		TEXT_VIEW.load_text(path)
+		TEXT_VIEW.visible = true
+		return
 	else:
 		not_supported = true
 	if (not_supported):
@@ -191,7 +192,17 @@ func load_resource(path: String) -> void:
 	# if (res_info.size() == 0):
 	# 	return
 
-
+func is_content_text(path):
+	# load up the first 8000 bytes, check if there are any null bytes
+	var file = FileAccess.open(path, FileAccess.READ)
+	if not file:
+		return false
+	var data = file.get_buffer(8000)
+	if data.find(0) != -1:
+		return false
+	if GDRECommon.detect_utf8(data):
+		return true
+	return false
 	
 func is_shader(ext, p_type = ""):
 	if (ext == "shader" || ext == "gdshader"):
