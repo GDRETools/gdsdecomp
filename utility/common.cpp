@@ -545,6 +545,28 @@ String gdre::remove_whitespace(const String &s) {
 	return ret;
 }
 
+Vector<String> gdre::_split_multichar(const String &s, const Vector<String> &splitters, bool allow_empty, int maxsplit) {
+	HashSet<char32_t> splitter_chars;
+	for (int i = 0; i < splitters.size(); i++) {
+		if (splitters[i].length() > 1) {
+			ERR_FAIL_V_MSG(Vector<String>(), "split_multichar only supports single-character splitters.");
+		}
+		splitter_chars.insert(splitters[i][0]);
+	}
+	return split_multichar(s, splitter_chars, allow_empty, maxsplit);
+}
+
+Vector<String> gdre::_rsplit_multichar(const String &s, const Vector<String> &splitters, bool allow_empty, int maxsplit) {
+	HashSet<char32_t> splitter_chars;
+	for (int i = 0; i < splitters.size(); i++) {
+		if (splitters[i].length() > 1) {
+			ERR_FAIL_V_MSG(Vector<String>(), "rsplit_multichar only supports single-character splitters.");
+		}
+		splitter_chars.insert(splitters[i][0]);
+	}
+	return rsplit_multichar(s, splitter_chars, allow_empty, maxsplit);
+}
+
 Vector<String> gdre::split_multichar(const String &s, const HashSet<char32_t> &splitters, bool allow_empty, int maxsplit) {
 	Vector<String> ret;
 	String current;
@@ -616,4 +638,197 @@ bool gdre::string_is_ascii(const String &s) {
 		}
 	}
 	return true;
+}
+
+bool gdre::detect_utf8(const PackedByteArray &p_utf8_buf) {
+	int cstr_size = 0;
+	int str_size = 0;
+	const char *p_utf8 = (const char *)p_utf8_buf.ptr();
+	int p_len = p_utf8_buf.size();
+	if (p_len == 0) {
+		return true; // empty string
+	}
+	/* HANDLE BOM (Byte Order Mark) */
+	if (p_len < 0 || p_len >= 3) {
+		bool has_bom = uint8_t(p_utf8[0]) == 0xef && uint8_t(p_utf8[1]) == 0xbb && uint8_t(p_utf8[2]) == 0xbf;
+		if (has_bom) {
+			//8-bit encoding, byte order has no meaning in UTF-8, just skip it
+			if (p_len >= 0) {
+				p_len -= 3;
+			}
+			p_utf8 += 3;
+		}
+	}
+
+	{
+		const char *ptrtmp = p_utf8;
+		const char *ptrtmp_limit = p_len >= 0 ? &p_utf8[p_len] : nullptr;
+		int skip = 0;
+		uint8_t c_start = 0;
+		while (ptrtmp != ptrtmp_limit && *ptrtmp) {
+#if CHAR_MIN == 0
+			uint8_t c = *ptrtmp;
+#else
+			uint8_t c = *ptrtmp >= 0 ? *ptrtmp : uint8_t(256 + *ptrtmp);
+#endif
+
+			if (skip == 0) {
+				/* Determine the number of characters in sequence */
+				if ((c & 0x80) == 0) {
+					skip = 0;
+				} else if ((c & 0xe0) == 0xc0) {
+					skip = 1;
+				} else if ((c & 0xf0) == 0xe0) {
+					skip = 2;
+				} else if ((c & 0xf8) == 0xf0) {
+					skip = 3;
+				} else if ((c & 0xfc) == 0xf8) {
+					skip = 4;
+				} else if ((c & 0xfe) == 0xfc) {
+					skip = 5;
+				} else {
+					skip = 0;
+					// print_unicode_error(vformat("Invalid UTF-8 leading byte (%x)", c), true);
+					// decode_failed = true;
+					return false;
+				}
+				c_start = c;
+
+				if (skip == 1 && (c & 0x1e) == 0) {
+					// print_unicode_error(vformat("Overlong encoding (%x ...)", c));
+					// decode_error = true;
+					return false;
+				}
+				str_size++;
+			} else {
+				if ((c_start == 0xe0 && skip == 2 && c < 0xa0) || (c_start == 0xf0 && skip == 3 && c < 0x90) || (c_start == 0xf8 && skip == 4 && c < 0x88) || (c_start == 0xfc && skip == 5 && c < 0x84)) {
+					// print_unicode_error(vformat("Overlong encoding (%x %x ...)", c_start, c));
+					// decode_error = true;
+					return false;
+				}
+				if (c < 0x80 || c > 0xbf) {
+					// print_unicode_error(vformat("Invalid UTF-8 continuation byte (%x ... %x ...)", c_start, c), true);
+					// decode_failed = true;
+					return false;
+
+					// skip = 0;
+				} else {
+					--skip;
+				}
+			}
+
+			cstr_size++;
+			ptrtmp++;
+		}
+		// not checking for last sequence because we pass in incomplete bytes
+		// if (skip) {
+		// print_unicode_error(vformat("Missing %d UTF-8 continuation byte(s)", skip), true);
+		// decode_failed = true;
+		// return false;
+		// }
+	}
+
+	if (str_size == 0) {
+		// clear();
+		return true; // empty string
+	}
+
+	// resize(str_size + 1);
+	// char32_t *dst = ptrw();
+	// dst[str_size] = 0;
+
+	int skip = 0;
+	uint32_t unichar = 0;
+	while (cstr_size) {
+#if CHAR_MIN == 0
+		uint8_t c = *p_utf8;
+#else
+		uint8_t c = *p_utf8 >= 0 ? *p_utf8 : uint8_t(256 + *p_utf8);
+#endif
+
+		if (skip == 0) {
+			/* Determine the number of characters in sequence */
+			if ((c & 0x80) == 0) {
+				// *(dst++) = c;
+				unichar = 0;
+				skip = 0;
+			} else if ((c & 0xe0) == 0xc0) {
+				unichar = (0xff >> 3) & c;
+				skip = 1;
+			} else if ((c & 0xf0) == 0xe0) {
+				unichar = (0xff >> 4) & c;
+				skip = 2;
+			} else if ((c & 0xf8) == 0xf0) {
+				unichar = (0xff >> 5) & c;
+				skip = 3;
+			} else if ((c & 0xfc) == 0xf8) {
+				unichar = (0xff >> 6) & c;
+				skip = 4;
+			} else if ((c & 0xfe) == 0xfc) {
+				unichar = (0xff >> 7) & c;
+				skip = 5;
+			} else {
+				// *(dst++) = _replacement_char;
+				// unichar = 0;
+				// skip = 0;
+				return false;
+			}
+		} else {
+			if (c < 0x80 || c > 0xbf) {
+				// *(dst++) = _replacement_char;
+				skip = 0;
+			} else {
+				unichar = (unichar << 6) | (c & 0x3f);
+				--skip;
+				if (skip == 0) {
+					if (unichar == 0) {
+						return false;
+						// print_unicode_error("NUL character", true);
+						// decode_failed = true;
+						// unichar = _replacement_char;
+					} else if ((unichar & 0xfffff800) == 0xd800) {
+						return false;
+
+						// print_unicode_error(vformat("Unpaired surrogate (%x)", unichar), true);
+						// decode_failed = true;
+						// unichar = _replacement_char;
+					} else if (unichar > 0x10ffff) {
+						return false;
+
+						// print_unicode_error(vformat("Invalid unicode codepoint (%x)", unichar), true);
+						// decode_failed = true;
+						// unichar = _replacement_char;
+					}
+					// *(dst++) = unichar;
+				}
+			}
+		}
+
+		cstr_size--;
+		p_utf8++;
+	}
+	if (skip) {
+		// return false;
+		// *(dst++) = 0x20;
+	}
+
+	return true;
+}
+void GDRECommon::_bind_methods() {
+	//	ClassDB::bind_static_method("GLTFCamera", D_METHOD("from_node", "camera_node"), &GLTFCamera::from_node);
+
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_recursive_dir_list", "dir", "wildcards", "absolute", "rel"), &gdre::get_recursive_dir_list);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("ensure_dir", "dir"), &gdre::ensure_dir);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("save_image_as_tga", "path", "img"), &gdre::save_image_as_tga);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("save_image_as_webp", "path", "img", "lossy"), &gdre::save_image_as_webp);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("save_image_as_jpeg", "path", "img"), &gdre::save_image_as_jpeg);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_md5", "dir", "ignore_code_signature"), &gdre::get_md5);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_md5_for_dir", "dir", "ignore_code_signature"), &gdre::get_md5_for_dir);
+	// string_has_whitespace, string_is_ascii, detect_utf8, remove_chars, remove_whitespace, split_multichar, rsplit_multichar, has_chars_in_set, get_chars_in_set
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("string_has_whitespace", "str"), &gdre::string_has_whitespace);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("string_is_ascii", "str"), &gdre::string_is_ascii);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("detect_utf8", "utf8_buf"), &gdre::detect_utf8);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("remove_whitespace", "str"), &gdre::remove_whitespace);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("split_multichar", "str", "splitters", "allow_empty", "maxsplit"), &gdre::_split_multichar);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("rsplit_multichar", "str", "splitters", "allow_empty", "maxsplit"), &gdre::_rsplit_multichar);
 }

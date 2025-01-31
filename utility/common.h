@@ -2,6 +2,8 @@
 #include "core/templates/hash_set.h"
 #include "core/variant/variant.h"
 
+#include <core/object/class_db.h>
+#include <core/object/object.h>
 #include <core/variant/typed_array.h>
 #include <core/variant/typed_dictionary.h>
 
@@ -172,11 +174,25 @@ String remove_chars(const String &s, const HashSet<char32_t> &chars);
 String remove_chars(const String &s, const Vector<char32_t> &chars);
 String remove_whitespace(const String &s);
 
+Vector<String> _split_multichar(const String &s, const Vector<String> &splitters, bool allow_empty = true,
+		int maxsplit = 0);
+Vector<String> _rsplit_multichar(const String &s, const Vector<String> &splitters, bool allow_empty = true,
+		int maxsplit = 0);
+
 Vector<String> split_multichar(const String &s, const HashSet<char32_t> &splitters, bool allow_empty = true,
 		int maxsplit = 0);
 Vector<String> rsplit_multichar(const String &s, const HashSet<char32_t> &splitters, bool allow_empty = true,
 		int maxsplit = 0);
+
+bool detect_utf8(const PackedByteArray &p_utf8_buf);
 } // namespace gdre
+
+class GDRECommon : public Object {
+	GDCLASS(GDRECommon, Object);
+
+protected:
+	static void _bind_methods();
+};
 
 #define GDRE_ERR_DECOMPRESS_OR_FAIL(img)                                      \
 	{                                                                         \

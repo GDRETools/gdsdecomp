@@ -32,6 +32,7 @@
 #include "exporters/scene_exporter.h"
 #include "exporters/texture_exporter.h"
 #include "exporters/translation_exporter.h"
+#include "utility/common.h"
 #include "utility/gdre_settings.h"
 #include "utility/glob.h"
 #include "utility/godotver.h"
@@ -293,6 +294,8 @@ void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
 	ClassDB::register_class<ScriptDecompDialog>();
 	ClassDB::register_class<GDREAudioStreamPreviewGenerator>();
 	ClassDB::register_class<GDREAudioStreamPreview>();
+
+	ClassDB::register_class<GDRECommon>();
 	gdre_singleton = memnew(GDRESettings);
 	Engine::get_singleton()->add_singleton(Engine::Singleton("GDRESettings", GDRESettings::get_singleton()));
 	audio_stream_preview_generator = memnew(GDREAudioStreamPreviewGenerator);
