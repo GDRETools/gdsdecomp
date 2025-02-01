@@ -67,7 +67,7 @@ func reset():
 	RESOURCE_INFO.text = ""
 
 
-var previous_size = Vector2(0, 0)
+var previous_res_info_size = Vector2(0, 0)
 
 func load_texture(path):
 	if is_image(path.get_extension().to_lower()):
@@ -97,7 +97,7 @@ func pop_resource_info(path: String):
 		var format = info["format_type"]
 		RESOURCE_INFO.text = RESOURCE_INFO_TEXT_FORMAT % [path, type, format]
 	else:
-		RESOURCE_INFO.text = "Path: " + path
+		RESOURCE_INFO.text = "[b]Path:[/b] " + path
 
 func load_resource(path: String) -> void:
 	reset()
@@ -254,6 +254,15 @@ func is_image(ext, p_type = ""):
 		return true
 	return false
 
+func get_currently_visible_view() -> Control:
+	if TEXT_VIEW.visible:
+		return TEXT_VIEW
+	elif MEDIA_PLAYER.visible:
+		return MEDIA_PLAYER
+	elif TEXTURE_VIEW.visible:
+		return TEXTURE_VIEW
+	return null
+
 
 func _on_gdre_resource_preview_visibility_changed() -> void:
 	if not self.is_visible_in_tree():
@@ -273,10 +282,9 @@ func _ready():
 	# reset()
 	self.connect("visibility_changed", self._on_gdre_resource_preview_visibility_changed)
 	# RESOURCE_INFO.minimum_size_changed.connect(self.reset_resource_info_size)
-	var min_size = RESOURCE_INFO.get_minimum_size()
-	# self.connect("resized", self._on_resized)
-	# previous_size = Vector2(0, 100)
-	# $VBoxContainer/ResourceInfoContainer.custom_minimum_size = previous_size
+	self.connect("resized", self._on_resized)
+	previous_res_info_size = Vector2(0, 100)
+	$VBoxContainer/ResourceInfoContainer.custom_minimum_size = previous_res_info_size
 	#_on_resized()
 	# TODO: remove me
 	#load_resource("res://gdre_file_tree.gd")
@@ -288,16 +296,21 @@ func _ready():
 
 func _on_v_box_container_drag_started() -> void:
 	pass
-	# $VBoxContainer/ResourceInfoContainer.custom_minimum_size = Vector2(0,0)
-	# previous_size = $VBoxContainer/ResourceInfoContainer.size
+	$VBoxContainer/ResourceInfoContainer.custom_minimum_size = Vector2(0,0)
+	previous_res_info_size = $VBoxContainer/ResourceInfoContainer.size
 
 
 func _on_v_box_container_drag_ended() -> void:
 	pass
-	# previous_size = $VBoxContainer/ResourceInfoContainer.size
-	# $VBoxContainer/ResourceInfoContainer.custom_minimum_size = Vector2(0, previous_size.y)
+	previous_res_info_size = $VBoxContainer/ResourceInfoContainer.size
+	$VBoxContainer/ResourceInfoContainer.custom_minimum_size = Vector2(0, previous_res_info_size.y)
 
 
 func _on_resized() -> void:
-	# VBOX_CONTAINER.split_offset = self.size.y / 2.0 - previous_size.y
+	# get the current size of the currently visible view so that it stays the same when we set the split_offset
+	var current_view = get_currently_visible_view()
+	var current_view_size = current_view.size if current_view else Vector2(0, 0)
+	VBOX_CONTAINER.split_offset = self.size.y / 2.0 - previous_res_info_size.y
+	if current_view:
+		current_view.size = current_view_size
 	pass # Replace with function body.

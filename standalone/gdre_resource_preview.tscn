@@ -89,9 +89,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 bbcode_enabled = true
-text = "[b]Path:[/b] res://foo.gdc
-[b]Type:[/b] GDScript
-[b]Format:[/b] script_bytecode"
+text = "[b]Path:[/b]
+[b]Type:[/b]
+[b]Format:[/b]"
 
 [connection signal="drag_ended" from="VBoxContainer" to="." method="_on_v_box_container_drag_ended"]
 [connection signal="drag_started" from="VBoxContainer" to="." method="_on_v_box_container_drag_started"]
