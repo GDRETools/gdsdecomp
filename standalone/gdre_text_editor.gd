@@ -66,6 +66,8 @@ func set_viewer_text(text: String):
 	else:
 		enable_word_wrap_option()
 	CODE_VIEWER.text = text
+	CODE_VIEWER.scroll_vertical = 0
+	CODE_VIEWER.scroll_horizontal = 0
 
 func load_code(path):
 	var code_text = ""
