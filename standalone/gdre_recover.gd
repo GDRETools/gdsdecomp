@@ -89,7 +89,7 @@ func _ready():
 
 
 
-	load_test()
+	# load_test() 
 
 func add_project(paths: PackedStringArray) -> int:
 	if GDRESettings.is_pack_loaded():
