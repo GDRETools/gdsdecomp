@@ -9,6 +9,8 @@ var TEXT_VIEW: Control = null
 var show_tabs_popup_id: int = 0
 var show_spaces_popup_id: int = 0
 var word_wrap_popup_id: int = 0
+var text_size_plus_id: int = 0
+var text_size_minus_id: int = 0
 
 @export var editable: bool = false:
 	set(val):
@@ -159,19 +161,56 @@ func _on_code_viewer_options_pressed(id) -> void:
 		CODE_VIEWER.draw_spaces = not CODE_VIEWER.draw_spaces
 	elif (id == word_wrap_popup_id): # Word-wrap
 		CODE_VIEWER.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY if CODE_VIEWER.wrap_mode == TextEdit.LINE_WRAPPING_NONE else TextEdit.LINE_WRAPPING_NONE
+	elif (id == text_size_plus_id): # Zoom in
+		zoom_in()
+	elif (id == text_size_minus_id): # Zoom out
+		zoom_out()
 	pass # Replace with function body.
 
+func gen_short_cut(keys, ctrl_pressed = false, alt_pressed = false) -> Shortcut:
+	var shortcut = Shortcut.new()
+	var events = []
+	if not (keys is Array):
+		keys = [keys]
+	for key in keys:
+		var event = InputEventKey.new()
+		event.keycode = key
+		event.ctrl_pressed = ctrl_pressed
+		event.command_or_control_autoremap = ctrl_pressed
+		event.alt_pressed = alt_pressed
+		events.append(event)
+	shortcut.events = events
+	return shortcut
+
+func add_item_with_shortcut(menu: PopupMenu, id, text: String, shortcut: Shortcut = null, checkable: bool = false):
+	if shortcut == null:
+		menu.add_item(text, id)
+	else:
+		menu.add_shortcut(shortcut, id)
+		menu.set_item_text(menu.get_item_index(id), text)
+	if checkable:
+		menu.set_item_as_checkable(menu.get_item_index(id), true)
+
 func _add_items_to_popup_menu(menu: PopupMenu):
-	menu.add_item("Show Tabs", show_tabs_popup_id)
-	menu.set_item_as_checkable(menu.get_item_index(show_tabs_popup_id), true)
-	menu.add_item("Show Spaces", show_spaces_popup_id)
-	menu.set_item_as_checkable(menu.get_item_index(show_spaces_popup_id), true)
-	menu.add_item("Word Wrap", word_wrap_popup_id)
-	menu.set_item_as_checkable(menu.get_item_index(word_wrap_popup_id), true)
+	add_item_with_shortcut(menu, show_tabs_popup_id, "Show Tabs", null, true)
+	add_item_with_shortcut(menu, show_spaces_popup_id, "Show Spaces", null, true)
+	add_item_with_shortcut(menu, word_wrap_popup_id, "Word Wrap", gen_short_cut(KEY_Z, false, true), true)
+	menu.add_separator()
+	add_item_with_shortcut(menu, text_size_plus_id, "Zoom In", gen_short_cut([KEY_EQUAL, KEY_PLUS], true))
+	add_item_with_shortcut(menu, text_size_minus_id, "Zoom Out", gen_short_cut(KEY_MINUS, true))
+
 	_on_code_viewer_options_pressed(-1)
 	menu.connect("id_pressed", self._on_code_viewer_options_pressed)
 	menu.connect("about_to_popup", self.reset_popup_menu.bind(menu))
 	reset_popup_menu(menu)
+
+func zoom_in():
+	var font_size = CODE_VIEWER.theme.get_theme_item(Theme.DATA_TYPE_FONT_SIZE, "font_size", "TextEdit")
+	CODE_VIEWER.theme.set_theme_item(Theme.DATA_TYPE_FONT_SIZE, "font_size", "TextEdit", font_size + 1)
+
+func zoom_out():
+	var font_size = CODE_VIEWER.theme.get_theme_item(Theme.DATA_TYPE_FONT_SIZE, "font_size", "TextEdit")
+	CODE_VIEWER.theme.set_theme_item(Theme.DATA_TYPE_FONT_SIZE, "font_size", "TextEdit", font_size - 1)
 
 
 func _ready():
@@ -185,9 +224,9 @@ func _ready():
 	show_tabs_popup_id = idx + 1
 	show_spaces_popup_id = idx + 2
 	word_wrap_popup_id = idx + 3
+	text_size_plus_id = idx + 5
+	text_size_minus_id = idx + 6
 	_add_items_to_popup_menu(menu)
 	CODE_VIWER_OPTIONS_POPUP = CODE_VIWER_OPTIONS.get_popup()
 	_add_items_to_popup_menu(CODE_VIWER_OPTIONS_POPUP)
-	# reset()
-	# CODE_VIWER_OPTIONS_POPUP.connect("id_pressed", self._on_code_viewer_options_pressed)
 	set_code_viewer_props()
