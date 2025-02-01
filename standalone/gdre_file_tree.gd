@@ -27,6 +27,8 @@ enum ColType {
 # Enables a check mark on the first column of the tree.
 @export var check_mode: bool = true:
 	set(val):
+		if check_mode == val:
+			return
 		check_mode = val
 		if val:
 			GodotREEditorStandalone.tree_set_edit_checkbox_cell_only_when_checkbox_is_pressed(self, editable_only_when_checkbox_clicked)
@@ -501,10 +503,10 @@ func _get_path(item: TreeItem) -> String:
 func set_fold_all_children(item: TreeItem, collapsed: bool = true, recursive: bool = false):
 	var it: TreeItem = item.get_first_child()
 	while (it):
-		if (not item_is_folder(it)):
+		if (item_is_folder(it)):
 			it.collapsed = collapsed
-		if (recursive):
-			set_fold_all_children(it, collapsed, recursive)
+			if (recursive):
+				set_fold_all_children(it, collapsed, recursive)
 		it = it.get_next()
 
 func set_fold_all(item: TreeItem, collapsed: bool = true, recursive: bool = false):
