@@ -26,7 +26,7 @@
 
 [node name="GdreRecover" type="AcceptDialog"]
 title = "Project Recovery"
-position = Vector2i(0, 36)
+position = Vector2i(0, 24)
 size = Vector2i(1152, 648)
 visible = true
 theme = ExtResource("1_ljbdy")
@@ -229,6 +229,7 @@ offset_left = -207.912
 offset_top = 8.0
 offset_right = 0.0878906
 offset_bottom = 47.0
+toggle_mode = true
 text = "Show Resource Preview..."
 
 [node name="GdreResourcePreview" parent="HSplitContainer" instance=ExtResource("5_ljbdy")]
@@ -241,5 +242,5 @@ layout_mode = 2
 [connection signal="pressed" from="HSplitContainer/Control/Uncheck" to="." method="_on_uncheck_all_pressed"]
 [connection signal="pressed" from="HSplitContainer/Control/Check" to="." method="_on_check_all_pressed"]
 [connection signal="pressed" from="HSplitContainer/Control/DirectoryButton" to="." method="_on_directory_button_pressed"]
-[connection signal="pressed" from="HSplitContainer/Control/ShowResourcePreview" to="." method="_on_show_resource_preview_pressed"]
+[connection signal="toggled" from="HSplitContainer/Control/ShowResourcePreview" to="." method="_on_show_resource_preview_toggled"]
 [connection signal="visibility_changed" from="HSplitContainer/GdreResourcePreview" to="." method="_on_gdre_resource_preview_visibility_changed"]

@@ -252,9 +252,9 @@ func _on_file_tree_item_selected() -> void:
 
 
 
-func _on_show_resource_preview_pressed() -> void:
+func _on_show_resource_preview_toggled(toggled_on: bool) -> void:
 	var size = RECOVER_WINDOW.size
-	if not RESOURCE_PREVIEW.is_visible_in_tree():
+	if toggled_on:
 		RESOURCE_PREVIEW.visible = true
 		# get the current size of the window
 		# set the split offset to 66% of the window size
