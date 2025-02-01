@@ -48,6 +48,21 @@ func set_viewer_text(text: String):
 		CODE_VIEWER.wrap_mode = TextEdit.LINE_WRAPPING_NONE
 		CODE_VIEWER.text = ""
 		CODE_VIEWER.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+		# detect whether or not we should force-disable wrapping
+	var prev_line = text.find("\n")
+	var next_line = text.find("\n", prev_line + 1)
+	var disabled = false
+	while next_line != -1:
+		if (next_line - prev_line) > 4000: # greater than 4000 characters really chugs the editor when wrapping
+			CODE_VIEWER.wrap_mode = TextEdit.LINE_WRAPPING_NONE
+			disabled = true
+			break
+		prev_line = next_line
+		next_line = text.find("\n", prev_line + 1)
+	if disabled:
+		disable_word_wrap_option()
+	else:
+		enable_word_wrap_option()
 	CODE_VIEWER.text = text
 
 func load_code(path):
@@ -129,6 +144,13 @@ func reset_popup_menu(menu: PopupMenu) -> void:
 	menu.set_item_checked(menu.get_item_index(show_spaces_popup_id),  CODE_VIEWER.draw_spaces)
 	menu.set_item_checked(menu.get_item_index(word_wrap_popup_id),  CODE_VIEWER.wrap_mode == TextEdit.LINE_WRAPPING_BOUNDARY)
 
+func disable_word_wrap_option():
+	CODE_VIEWER.get_menu().set_item_disabled(CODE_VIEWER.get_menu().get_item_index(word_wrap_popup_id), true)
+	CODE_VIWER_OPTIONS_POPUP.set_item_disabled(CODE_VIWER_OPTIONS_POPUP.get_item_index(word_wrap_popup_id), true)
+
+func enable_word_wrap_option():
+	CODE_VIEWER.get_menu().set_item_disabled(CODE_VIEWER.get_menu().get_item_index(word_wrap_popup_id), false)
+	CODE_VIWER_OPTIONS_POPUP.set_item_disabled(CODE_VIWER_OPTIONS_POPUP.get_item_index(word_wrap_popup_id), false)
 
 func _on_code_viewer_options_pressed(id) -> void:
 	if (id == show_tabs_popup_id): # show tabs
