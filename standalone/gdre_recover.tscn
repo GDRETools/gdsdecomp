@@ -27,7 +27,7 @@
 [node name="GdreRecover" type="AcceptDialog"]
 title = "Project Recovery"
 position = Vector2i(0, 24)
-size = Vector2i(1152, 648)
+size = Vector2i(1400, 800)
 visible = true
 theme = ExtResource("1_ljbdy")
 ok_button_text = "Extract"

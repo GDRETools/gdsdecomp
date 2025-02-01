@@ -41,6 +41,17 @@ func _on_item_edited():
 	var checked = item.is_checked(0)
 	_propagate_check(item, checked)
 
+func show_win():
+	# get the screen size
+	var safe_area: Rect2i = DisplayServer.get_display_safe_area()
+	var new_size = Vector2(safe_area.size.x - 100, safe_area.size.y - 100)
+	self.size = new_size
+	var center = (safe_area.position + self.size / 2)
+	self.set_position(center)
+	SHOW_PREVIEW_BUTTON.set_pressed_no_signal(true)
+	SHOW_PREVIEW_BUTTON.toggled.emit(true)
+	self.popup_centered()
+
 # MUST CALL set_root_window() first!!!
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -68,14 +79,17 @@ func _ready():
 		RECOVER_WINDOW.size *= 2.0
 
 	clear()
-	
+	SHOW_PREVIEW_BUTTON.set_pressed_no_signal(true)
+	SHOW_PREVIEW_BUTTON.toggled.emit(true)
+
 	var file_list: Tree = FILE_TREE
 	file_list.connect("item_edited", self._on_item_edited)
 	setup_extract_dir_dialog()
 	DIRECTORY.text = DESKTOP_DIR
 
 
-	# load_test()
+
+	load_test()
 
 func add_project(paths: PackedStringArray) -> int:
 	if GDRESettings.is_pack_loaded():
@@ -253,12 +267,11 @@ func _on_file_tree_item_selected() -> void:
 
 
 func _on_show_resource_preview_toggled(toggled_on: bool) -> void:
-	var size = RECOVER_WINDOW.size
 	if toggled_on:
 		RESOURCE_PREVIEW.visible = true
 		# get the current size of the window
 		# set the split offset to 66% of the window size
-		HSPLIT_CONTAINER.set_split_offset(size.x * 0.66)
+		HSPLIT_CONTAINER.set_split_offset(self.size.x * 0.50)
 		SHOW_PREVIEW_BUTTON.text = "Hide Resource Preview"
 		_on_file_tree_item_selected()
 	else:
