@@ -147,6 +147,7 @@ offset_bottom = 217.0
 placeholder_text = "*.gd,*.tres, etc."
 
 [node name="DotLabel1" type="Label" parent="Control"]
+layout_mode = 0
 offset_left = 102.0
 offset_top = 264.0
 offset_right = 115.0
@@ -154,6 +155,7 @@ offset_bottom = 321.0
 text = "."
 
 [node name="DotLabel2" type="Label" parent="Control"]
+layout_mode = 0
 offset_left = 211.0
 offset_top = 264.0
 offset_right = 224.0
@@ -236,6 +238,7 @@ offset_left = 15.0
 offset_top = 395.0
 offset_right = 577.0
 offset_bottom = 426.0
+placeholder_text = "(Optional)"
 
 [node name="Save" type="Button" parent="Control"]
 visible = false

@@ -183,6 +183,12 @@ func _on_save_pressed() -> void:
 
 func _on_save_dialog_file_selected(path: String) -> void:
 	SAVE_DIALOG.hide()
+	# remove extra extension that macos adds
+	var ext = path.get_extension()
+	var dot_ext = "." + ext
+	if (path.ends_with(dot_ext + dot_ext)):
+		path = path.trim_prefix(dot_ext + dot_ext) + dot_ext
+		
 	emit_signal("save_pck_requested", path)
 	# var creator = PckCreator.new()
 	# creator.encrypt = ENCRYPT.is_pressed()
