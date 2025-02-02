@@ -287,7 +287,7 @@ GDREProgressDialog::GDREProgressDialog() {
 	cancel = memnew(Button);
 	cancel_hb->add_spacer();
 	cancel_hb->add_child(cancel);
-	cancel->set_text(TTR("Cancel"));
+	cancel->set_text(RTR("Cancel"));
 	cancel_hb->add_spacer();
 	cancel->connect(SceneStringName(pressed), callable_mp(this, &GDREProgressDialog::_cancel_pressed));
 }

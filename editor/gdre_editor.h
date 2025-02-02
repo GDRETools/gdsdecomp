@@ -77,7 +77,7 @@ private:
 #else
 	Node *editor;
 #endif
-	ProgressDialog *pdialog_singleton = nullptr;
+	GDREProgressDialog *pdialog_singleton = nullptr;
 
 	Control *ne_parent = nullptr;
 	Dictionary icons;

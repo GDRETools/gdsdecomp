@@ -158,7 +158,7 @@ GodotREEditor::GodotREEditor(EditorNode *p_editor) {
 GodotREEditor::GodotREEditor(Control *p_control, HBoxContainer *p_menu) {
 	singleton = this;
 	ne_parent = p_control;
-	pdialog_singleton = memnew(ProgressDialog);
+	pdialog_singleton = memnew(GDREProgressDialog);
 	p_control->add_child(pdialog_singleton);
 
 	init_gui(p_control, p_menu, true);
