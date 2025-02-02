@@ -82,15 +82,21 @@ offset_left = 15.0
 offset_top = 82.0
 offset_right = 577.0
 offset_bottom = 113.0
-text = "PCK version (\"0\" - Godot <=2.x; \"1\" - Godot 3.x; \"2\" - Godot 4.x"
+text = "PCK version"
 
-[node name="Version" type="LineEdit" parent="Control"]
+[node name="Version" type="OptionButton" parent="Control"]
 layout_mode = 0
 offset_left = 15.0
 offset_top = 117.0
 offset_right = 174.0
 offset_bottom = 148.0
-text = "2"
+item_count = 3
+popup/item_0/text = "0 (Godot 1.x, 2.x)"
+popup/item_0/id = 0
+popup/item_1/text = "1 (Godot 3.x)"
+popup/item_1/id = 1
+popup/item_2/text = "2 (Godot 4.x)"
+popup/item_2/id = 2
 
 [node name="EncryptionLabel" type="Label" parent="Control"]
 layout_mode = 0
@@ -140,13 +146,27 @@ offset_right = 702.0
 offset_bottom = 217.0
 placeholder_text = "*.gd,*.tres, etc."
 
+[node name="DotLabel1" type="Label" parent="Control"]
+offset_left = 102.0
+offset_top = 264.0
+offset_right = 115.0
+offset_bottom = 321.0
+text = "."
+
+[node name="DotLabel2" type="Label" parent="Control"]
+offset_left = 211.0
+offset_top = 264.0
+offset_right = 224.0
+offset_bottom = 295.0
+text = "."
+
 [node name="EngineVersionLabel" type="Label" parent="Control"]
 layout_mode = 0
 offset_left = 15.0
 offset_top = 222.0
-offset_right = 469.0
+offset_right = 491.0
 offset_bottom = 279.0
-text = "Godot engine version (\"Major\", \"Minor\", \"Patch\")
+text = "Reported Godot engine version (<minor>.<major>.<patch>)
 "
 
 [node name="VerMajor" type="SpinBox" parent="Control"]
@@ -208,7 +228,7 @@ offset_left = 15.0
 offset_top = 363.0
 offset_right = 468.0
 offset_bottom = 394.0
-text = "Extra tag:"
+text = "Watermark text"
 
 [node name="ExtraTag" type="LineEdit" parent="Control"]
 layout_mode = 0
@@ -216,8 +236,6 @@ offset_left = 15.0
 offset_top = 395.0
 offset_right = 577.0
 offset_bottom = 426.0
-text = "Created with GDRE Tools <VERSION>"
-placeholder_text = "*.gd,*.tres, etc."
 
 [node name="Save" type="Button" parent="Control"]
 visible = false
@@ -253,7 +271,6 @@ scroll_active = false
 [connection signal="text_changed" from="Control/Directory" to="." method="_verify"]
 [connection signal="text_submitted" from="Control/Directory" to="." method="_verify"]
 [connection signal="pressed" from="Control/DirectorySelect" to="." method="_on_directory_select_pressed"]
-[connection signal="text_changed" from="Control/Version" to="." method="_verify"]
 [connection signal="toggled" from="Control/Encrypt" to="." method="_verify"]
 [connection signal="text_changed" from="Control/EmbedSource" to="." method="_verify"]
 [connection signal="pressed" from="Control/EmbedSourceSelect" to="." method="_on_embed_source_select_pressed"]

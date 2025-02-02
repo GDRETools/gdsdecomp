@@ -21,7 +21,7 @@ var EMBED_SOURCE: LineEdit = null
 var VER_MAJOR: SpinBox = null
 var VER_MINOR: SpinBox = null
 var VER_PATCH: SpinBox = null
-var VERSION: LineEdit = null
+var VERSION: OptionButton = null
 var EXTRA_TAG: LineEdit = null
 var INCLUDES: LineEdit = null
 var EXCLUDES: LineEdit = null
@@ -70,7 +70,7 @@ func instance_things():
 	SAVE_DIALOG = $SaveDialog
 	DIRECTORY_DIALOG.current_dir = DESKTOP_DIR
 	EMBED_SOURCE_DIALOG.current_dir = DESKTOP_DIR
-	VERSION.text = str(PCK_VERSION_DEFAULT)
+	VERSION.select(PCK_VERSION_DEFAULT)
 	VER_MAJOR.value = DEFAULT_VER_MAJOR
 	VER_MINOR.value = DEFAULT_VER_MINOR
 	VER_PATCH.value = DEFAULT_VER_PATCH
@@ -136,8 +136,6 @@ func _verify(_val = null) -> void:
 	var errors: PackedStringArray = []
 	if DIRECTORY.text.is_empty():
 		errors.append("Directory is not selected")
-	if VERSION.text.is_empty():
-		errors.append("Version is empty")
 	if EMBED.is_pressed() and EMBED_SOURCE.text.is_empty():
 		errors.append("Embed source is empty")
 	if errors.size() > 0:

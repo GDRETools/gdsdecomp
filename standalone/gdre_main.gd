@@ -101,7 +101,7 @@ func split_args(args: String, splitter = ",") -> PackedStringArray:
 
 func _on_new_pck_selected(pck_path: String):
 	NEW_PCK_DIALOG.hide_win()
-	var pck_version = NEW_PCK_DIALOG.VERSION.text
+	var pck_version = NEW_PCK_DIALOG.VERSION.selected
 	var major = NEW_PCK_DIALOG.VER_MAJOR.value
 	var minor = NEW_PCK_DIALOG.VER_MINOR.value
 	var ver_rev = NEW_PCK_DIALOG.VER_PATCH.value
