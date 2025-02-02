@@ -1448,6 +1448,54 @@ bool GDRESettings::is_headless() const {
 	return headless;
 }
 
+float GDRESettings::get_auto_display_scale() const {
+#ifdef LINUXBSD_ENABLED
+	if (DisplayServer::get_singleton()->get_name() == "Wayland") {
+		float main_window_scale = DisplayServer::get_singleton()->screen_get_scale(DisplayServer::SCREEN_OF_MAIN_WINDOW);
+
+		if (DisplayServer::get_singleton()->get_screen_count() == 1 || Math::fract(main_window_scale) != 0) {
+			// If we have a single screen or the screen of the window is fractional, all
+			// bets are off. At this point, let's just return the current's window scale,
+			// which is special-cased to the scale of `SCREEN_OF_MAIN_WINDOW`.
+			return main_window_scale;
+		}
+
+		// If the above branch didn't fire, fractional scaling isn't going to work
+		// properly anyways (we're need the ability to change the UI scale at runtime).
+		// At this point it's more convenient to "supersample" like we do with other
+		// platforms, hoping that the user is only using integer-scaled screens.
+		return DisplayServer::get_singleton()->screen_get_max_scale();
+	}
+#endif
+
+#if defined(MACOS_ENABLED) || defined(ANDROID_ENABLED)
+	return DisplayServer::get_singleton()->screen_get_max_scale();
+#else
+	const int screen = DisplayServer::get_singleton()->window_get_current_screen();
+
+	if (DisplayServer::get_singleton()->screen_get_size(screen) == Vector2i()) {
+		// Invalid screen size, skip.
+		return 1.0;
+	}
+
+	// Use the smallest dimension to use a correct display scale on portrait displays.
+	const int smallest_dimension = MIN(DisplayServer::get_singleton()->screen_get_size(screen).x, DisplayServer::get_singleton()->screen_get_size(screen).y);
+	if (DisplayServer::get_singleton()->screen_get_dpi(screen) >= 192 && smallest_dimension >= 1400) {
+		// hiDPI display.
+		return 2.0;
+	} else if (smallest_dimension >= 1700) {
+		// Likely a hiDPI display, but we aren't certain due to the returned DPI.
+		// Use an intermediate scale to handle this situation.
+		return 1.5;
+	} else if (smallest_dimension <= 800) {
+		// Small loDPI display. Use a smaller display scale so that editor elements fit more easily.
+		// Icons won't look great, but this is better than having editor elements overflow from its window.
+		return 0.75;
+	}
+	return 1.0;
+#endif
+}
+
 String GDRESettings::get_sys_info_string() const {
 	String OS_Name = OS::get_singleton()->get_distribution_name();
 	String OS_Version = OS::get_singleton()->get_version();
@@ -2012,7 +2060,7 @@ void GDRESettings::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("has_setting", "p_setting"), &GDRESettings::has_setting);
 	ClassDB::bind_method(D_METHOD("get_setting", "p_setting", "p_default_value"), &GDRESettings::get_setting, DEFVAL(Variant()));
 	ClassDB::bind_method(D_METHOD("get_errors"), &GDRESettings::get_errors);
-	// ClassDB::bind_method(D_METHOD("get_auto_display_scale"), &GDRESettings::get_auto_display_scale);
+	ClassDB::bind_method(D_METHOD("get_auto_display_scale"), &GDRESettings::get_auto_display_scale);
 	ADD_SIGNAL(MethodInfo("write_log_message", PropertyInfo(Variant::STRING, "message")));
 }
 
