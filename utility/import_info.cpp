@@ -167,6 +167,14 @@ Ref<ImportInfo> ImportInfo::copy(const Ref<ImportInfo> &p_iinfo) {
 			((Ref<ImportInfoRemap>)r_iinfo)->dest_files = ((Ref<ImportInfoRemap>)p_iinfo)->dest_files;
 			((Ref<ImportInfoRemap>)r_iinfo)->importer = ((Ref<ImportInfoRemap>)p_iinfo)->importer;
 			break;
+		case IInfoType::GDEXT:
+			r_iinfo = Ref<ImportInfo>(memnew(ImportInfoGDExt));
+			((Ref<ImportInfoGDExt>)r_iinfo)->type = ((Ref<ImportInfoGDExt>)p_iinfo)->type;
+			((Ref<ImportInfoGDExt>)r_iinfo)->source_file = ((Ref<ImportInfoGDExt>)p_iinfo)->source_file;
+			((Ref<ImportInfoGDExt>)r_iinfo)->src_md5 = ((Ref<ImportInfoGDExt>)p_iinfo)->src_md5;
+			((Ref<ImportInfoGDExt>)r_iinfo)->dest_files = ((Ref<ImportInfoGDExt>)p_iinfo)->dest_files;
+			((Ref<ImportInfoGDExt>)r_iinfo)->importer = ((Ref<ImportInfoGDExt>)p_iinfo)->importer;
+			((Ref<ImportInfoGDExt>)r_iinfo)->cf = copy_config_file(((Ref<ImportInfoGDExt>)p_iinfo)->cf);
 		default:
 			break;
 	}
