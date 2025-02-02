@@ -129,25 +129,35 @@ func load_test():
 
 
 func extract_and_recover(output_dir: String):
-	GDRESettings.open_log_file(output_dir)
+	if not EXTRACT_ONLY.is_pressed():
+		GDRESettings.open_log_file(output_dir)
 	var log_path = GDRESettings.get_log_file_path()
+	GDRESettings.get_errors()
 	var report_str = "Log file written to " + log_path
 	report_str += "\nPlease include this file when reporting an issue!\n\n"
 	var pck_dumper = PckDumper.new()
 	var files_to_extract = FILE_TREE.get_checked_files()
 	var err = pck_dumper.pck_dump_to_dir(output_dir, files_to_extract)
-	if (err):
-		popup_error_box("Error: Could not extract files!!", "Error")
+	if (err == ERR_SKIP):
+		return
+	if (err != OK):
+		popup_box(POPUP_PARENT_WINDOW, ERROR_DIALOG, "Could not extract files:\n" + "".join(GDRESettings.get_errors()), "Error")
 		return
 	# check if ExtractOnly is pressed
 	if (EXTRACT_ONLY.is_pressed()):
-		report_str += "Total files extracted: " + String.num(files_to_extract.size()) + "\n"
-		popup_error_box(report_str, "Info")
+		report_str = "Total files extracted: " + String.num(files_to_extract.size()) + "\n"
+		popup_box(POPUP_PARENT_WINDOW, ERROR_DIALOG, report_str, "Info")
 		# GDRESettings.unload_pack()
 		return
+	GDRESettings.get_errors()
 	# otherwise, continue to recover
 	var import_exporter = ImportExporter.new()
-	import_exporter.export_imports(output_dir, files_to_extract)
+	err = import_exporter.export_imports(output_dir, files_to_extract)
+	if (err == ERR_SKIP):
+		return
+	if (err != OK):
+		popup_box(POPUP_PARENT_WINDOW, ERROR_DIALOG, "Could not recover files:\n" + "".join(GDRESettings.get_errors()), "Error")
+		return
 	var report = import_exporter.get_report()
 	GDRESettings.close_log_file()
 	REPORT_DIALOG = gdre_export_report.instantiate()
