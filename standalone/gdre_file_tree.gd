@@ -631,7 +631,7 @@ func add_file_to_item_node_mode(p_item: TreeItem, p_fullname: String, p_name: St
 				return add_file_to_item_node_mode(it, p_fullname, path, p_icon, p_size, p_error, p_info);
 			it = it.get_next()
 		
-		var folder_item:TreeItem = create_file_item(p_item, "", fld_name, folder_icon, -1, "", "", get_first_index_of_non_folder_child(p_item))
+		var folder_item:TreeItem = create_file_item(p_item, "", fld_name, folder_icon, -1, "", "")
 		return add_file_to_item_node_mode(folder_item, p_fullname, path, p_icon, p_size, p_error, p_info);
 
 # filtering
