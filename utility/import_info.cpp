@@ -228,7 +228,7 @@ ImportInfoGDExt::ImportInfoGDExt() :
 }
 
 Error ImportInfo::get_resource_info(const String &p_path, ResourceInfo &res_info) {
-	Error err;
+	Error err = OK;
 	if (!FileAccess::exists(p_path)) {
 		return ERR_FILE_NOT_FOUND;
 	}
