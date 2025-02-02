@@ -172,6 +172,9 @@ Error PckDumper::pck_dump_to_dir(const String &dir, const Vector<String> &files_
 }
 
 void PckDumper::_do_extract(uint32_t i, ExtractToken *tokens) {
+	if (unlikely(cancelled)) {
+		return;
+	}
 	auto &file = tokens[i].file;
 	auto &dir = tokens[i].output_dir;
 	Error err = OK;
