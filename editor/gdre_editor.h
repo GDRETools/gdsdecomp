@@ -196,7 +196,7 @@ class GodotREEditorStandalone : public Control {
 	static GodotREEditorStandalone *singleton;
 	GodotREEditor *editor_ctx = nullptr;
 	HBoxContainer *menu_hb = nullptr;
-	ProgressDialog *progress_dialog = nullptr;
+	GDREProgressDialog *progress_dialog = nullptr;
 
 protected:
 	void _notification(int p_notification);

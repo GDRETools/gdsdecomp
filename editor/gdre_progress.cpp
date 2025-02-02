@@ -1,65 +1,197 @@
+/**************************************************************************/
+/*  progress_dialog.cpp                                                   */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
+
 #include "gdre_progress.h"
 
-#include "core/string/ustring.h"
-#ifdef TOOLS_ENABLED
-#include "editor/editor_node.h"
-#include "editor/progress_dialog.h"
-#endif
-#ifndef TOOLS_ENABLED
-#include "core/object/message_queue.h"
 #include "core/os/os.h"
-#include "editor/gdre_editor.h"
+#include "gdre_editor.h"
 #include "main/main.h"
-#include "scene/gui/label.h"
-#include "scene/resources/style_box.h"
+#include "servers/display_server.h"
 
-#define EDSCALE 1.0
+#include <utility/gdre_settings.h>
+#ifdef TOOLS_ENABLED
+#include "editor/editor_interface.h"
+#endif
+void GDREBackgroundProgress::_add_task(const String &p_task, const String &p_label, int p_steps) {
+	_THREAD_SAFE_METHOD_
+	ERR_FAIL_COND_MSG(tasks.has(p_task), "Task '" + p_task + "' already exists.");
+	GDREBackgroundProgress::Task t;
+	t.hb = memnew(HBoxContainer);
+	Label *l = memnew(Label);
+	l->set_text(p_label + " ");
+	t.hb->add_child(l);
+	t.progress = memnew(ProgressBar);
+	t.progress->set_max(p_steps);
+	t.progress->set_value(p_steps);
+	Control *ec = memnew(Control);
+	ec->set_h_size_flags(SIZE_EXPAND_FILL);
+	ec->set_v_size_flags(SIZE_EXPAND_FILL);
+	t.progress->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
+	ec->add_child(t.progress);
+	ec->set_custom_minimum_size(Size2(80, 5) * GDRESettings::get_singleton()->get_auto_display_scale());
+	t.hb->add_child(ec);
 
-ProgressDialog *ProgressDialog::singleton = nullptr;
+	add_child(t.hb);
 
-void ProgressDialog::_notification(int p_what) {
-	if (p_what == NOTIFICATION_VISIBILITY_CHANGED) {
-		if (!is_visible()) {
-			Node *p = get_parent();
-			if (p) {
-				p->remove_child(this);
-			}
+	tasks[p_task] = t;
+}
+
+void GDREBackgroundProgress::_update() {
+	_THREAD_SAFE_METHOD_
+
+	for (const KeyValue<String, int> &E : updates) {
+		if (tasks.has(E.key)) {
+			_task_step(E.key, E.value);
 		}
+	}
+
+	updates.clear();
+}
+
+void GDREBackgroundProgress::_task_step(const String &p_task, int p_step) {
+	_THREAD_SAFE_METHOD_
+
+	ERR_FAIL_COND(!tasks.has(p_task));
+
+	Task &t = tasks[p_task];
+	if (p_step < 0) {
+		t.progress->set_value(t.progress->get_value() + 1);
+	} else {
+		t.progress->set_value(p_step);
 	}
 }
 
-void ProgressDialog::_popup() {
-	Size2 ms = main->get_combined_minimum_size();
-	ms.width = MAX(500 * EDSCALE, ms.width);
+void GDREBackgroundProgress::_end_task(const String &p_task) {
+	_THREAD_SAFE_METHOD_
 
-	Ref<StyleBox> style = get_theme_stylebox("panel", "PopupMenu");
+	ERR_FAIL_COND(!tasks.has(p_task));
+	Task &t = tasks[p_task];
+
+	memdelete(t.hb);
+	tasks.erase(p_task);
+}
+
+void GDREBackgroundProgress::add_task(const String &p_task, const String &p_label, int p_steps) {
+	callable_mp(this, &GDREBackgroundProgress::_add_task).call_deferred(p_task, p_label, p_steps);
+}
+
+void GDREBackgroundProgress::task_step(const String &p_task, int p_step) {
+	//this code is weird, but it prevents deadlock.
+	bool no_updates = true;
+	{
+		_THREAD_SAFE_METHOD_
+		no_updates = updates.is_empty();
+	}
+
+	if (no_updates) {
+		callable_mp(this, &GDREBackgroundProgress::_update).call_deferred();
+	}
+
+	{
+		_THREAD_SAFE_METHOD_
+		updates[p_task] = p_step;
+	}
+}
+
+void GDREBackgroundProgress::end_task(const String &p_task) {
+	callable_mp(this, &GDREBackgroundProgress::_end_task).call_deferred(p_task);
+}
+
+////////////////////////////////////////////////
+
+GDREProgressDialog *GDREProgressDialog::singleton = nullptr;
+
+void GDREProgressDialog::_update_ui() {
+	// Run main loop for two frames.
+	if (is_inside_tree()) {
+		DisplayServer::get_singleton()->process_events();
+		Main::iteration();
+	}
+}
+
+void GDREProgressDialog::_popup() {
+	Size2 ms = main->get_combined_minimum_size();
+	ms.width = MAX(500 * GDRESettings::get_singleton()->get_auto_display_scale(), ms.width);
+
+	Ref<StyleBox> style = main->get_theme_stylebox(SceneStringName(panel), SNAME("PopupMenu"));
 	ms += style->get_minimum_size();
+
 	main->set_offset(SIDE_LEFT, style->get_margin(SIDE_LEFT));
 	main->set_offset(SIDE_RIGHT, -style->get_margin(SIDE_RIGHT));
 	main->set_offset(SIDE_TOP, style->get_margin(SIDE_TOP));
 	main->set_offset(SIDE_BOTTOM, -style->get_margin(SIDE_BOTTOM));
-
-	auto *ed = GodotREEditor::get_singleton();
-	if (ed && !is_inside_tree()) {
-		Window *w = ed->get_window();
-		while (w && w->get_exclusive_child()) {
-			w = w->get_exclusive_child();
+	if (is_inside_tree()) {
+		Rect2i adjust = _popup_adjust_rect();
+		if (adjust != Rect2i()) {
+			set_position(adjust.position);
+			set_size(adjust.size);
 		}
-		if (w && w != this) {
-			w->add_child(this);
-			popup_centered(ms);
+		popup_centered(ms);
+	} else {
+		for (Window *window : host_windows) {
+			if (window->has_focus()) {
+				if (!is_inside_tree()) {
+					popup_exclusive_centered(window, ms);
+				} else if (get_parent() != window) {
+					reparent(window);
+					popup_centered(ms);
+				}
+				return;
+			}
+		}
+		// No host window found, use main window.
+		if (GodotREEditorStandalone::get_singleton()) {
+			if (!is_inside_tree()) {
+				popup_exclusive_centered(GodotREEditorStandalone::get_singleton(), ms);
+			} else {
+				reparent(GodotREEditorStandalone::get_singleton()->get_parent_window());
+				popup_centered(ms);
+			}
+		} else {
+#ifdef TOOLS_ENABLED
+			EditorInterface::get_singleton()->popup_dialog_centered(this, ms);
+#endif
 		}
 	}
+	set_process_input(true);
+	grab_focus();
 }
 
-void ProgressDialog::add_task(const String &p_task, const String &p_label, int p_steps, bool p_can_cancel) {
+void GDREProgressDialog::add_task(const String &p_task, const String &p_label, int p_steps, bool p_can_cancel) {
 	if (MessageQueue::get_singleton()->is_flushing()) {
 		ERR_PRINT("Do not use progress dialog (task) while flushing the message queue or using call_deferred()!");
 		return;
 	}
 
 	ERR_FAIL_COND_MSG(tasks.has(p_task), "Task '" + p_task + "' already exists.");
-	ProgressDialog::Task t;
+	GDREProgressDialog::Task t;
 	t.vb = memnew(VBoxContainer);
 	VBoxContainer *vb2 = memnew(VBoxContainer);
 	t.vb->add_margin_child(p_label, vb2);
@@ -84,19 +216,19 @@ void ProgressDialog::add_task(const String &p_task, const String &p_label, int p
 	if (p_can_cancel) {
 		cancel->grab_focus();
 	}
+	_update_ui();
 }
 
-bool ProgressDialog::task_step(const String &p_task, const String &p_state, int p_step, bool p_force_redraw) {
+bool GDREProgressDialog::task_step(const String &p_task, const String &p_state, int p_step, bool p_force_redraw) {
 	ERR_FAIL_COND_V(!tasks.has(p_task), canceled);
 
+	Task &t = tasks[p_task];
 	if (!p_force_redraw) {
 		uint64_t tus = OS::get_singleton()->get_ticks_usec();
-		if (tus - last_progress_tick < 200000) { //200ms
+		if (tus - t.last_progress_tick < 200000) { //200ms
 			return canceled;
 		}
 	}
-
-	Task &t = tasks[p_task];
 	if (p_step < 0) {
 		t.progress->set_value(t.progress->get_value() + 1);
 	} else {
@@ -104,16 +236,13 @@ bool ProgressDialog::task_step(const String &p_task, const String &p_state, int 
 	}
 
 	t.state->set_text(p_state);
-	last_progress_tick = OS::get_singleton()->get_ticks_usec();
-	DisplayServer::get_singleton()->process_events();
+	t.last_progress_tick = OS::get_singleton()->get_ticks_usec();
+	_update_ui();
 
-#ifndef ANDROID_ENABLED
-	Main::iteration(); // this will not work on a lot of platforms, so it's only meant for the editor
-#endif
 	return canceled;
 }
 
-void ProgressDialog::end_task(const String &p_task) {
+void GDREProgressDialog::end_task(const String &p_task) {
 	ERR_FAIL_COND(!tasks.has(p_task));
 	Task &t = tasks[p_task];
 
@@ -127,20 +256,30 @@ void ProgressDialog::end_task(const String &p_task) {
 	}
 }
 
-void ProgressDialog::_cancel_pressed() {
+void GDREProgressDialog::add_host_window(Window *p_window) {
+	ERR_FAIL_NULL(p_window);
+	if (!host_windows.has(p_window)) {
+		host_windows.push_back(p_window);
+	}
+}
+
+void GDREProgressDialog::remove_host_window(Window *p_window) {
+	ERR_FAIL_NULL(p_window);
+	if (host_windows.has(p_window)) {
+		host_windows.erase(p_window);
+	}
+}
+
+void GDREProgressDialog::_cancel_pressed() {
 	canceled = true;
 }
 
-void ProgressDialog::_bind_methods() {
-}
-
-ProgressDialog::ProgressDialog() {
+GDREProgressDialog::GDREProgressDialog() {
 	main = memnew(VBoxContainer);
 	add_child(main);
 	main->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
 	set_exclusive(true);
 	set_flag(Window::FLAG_POPUP, false);
-	last_progress_tick = 0;
 	singleton = this;
 	cancel_hb = memnew(HBoxContainer);
 	main->add_child(cancel_hb);
@@ -148,20 +287,12 @@ ProgressDialog::ProgressDialog() {
 	cancel = memnew(Button);
 	cancel_hb->add_spacer();
 	cancel_hb->add_child(cancel);
-	cancel->set_text(RTR("Cancel"));
+	cancel->set_text(TTR("Cancel"));
 	cancel_hb->add_spacer();
-	cancel->connect("pressed", callable_mp(this, &ProgressDialog::_cancel_pressed));
+	cancel->connect(SceneStringName(pressed), callable_mp(this, &GDREProgressDialog::_cancel_pressed));
 }
 
-#endif
-
 bool EditorProgressGDDC::step(const String &p_state, int p_step, bool p_force_refresh) {
-#ifdef TOOLS_ENABLED
-	if (EditorNode::get_singleton() && ep != nullptr) {
-		return ep->step(p_state, p_step, p_force_refresh);
-		//return EditorNode::progress_task_step(task, p_state, p_step, p_force_refresh);
-	}
-#endif
 	if (progress_dialog) {
 		return progress_dialog->task_step(task, p_state, p_step, p_force_refresh);
 	}
@@ -169,39 +300,17 @@ bool EditorProgressGDDC::step(const String &p_state, int p_step, bool p_force_re
 }
 
 EditorProgressGDDC::EditorProgressGDDC(Node *p_parent, const String &p_task, const String &p_label, int p_amount, bool p_can_cancel) {
-#ifdef TOOLS_ENABLED
-	if (EditorNode::get_singleton()) {
-		progress_dialog = NULL;
-		ep = memnew(EditorProgress(p_task, p_label, p_amount, p_can_cancel));
-		//EditorNode::progress_add_task(p_task, p_label, p_amount, p_can_cancel);
-		progress_dialog = progress_dialog->get_singleton();
-		if (progress_dialog) {
-			progress_dialog->popup_centered();
-		}
-
-		task = p_task;
-		return;
-	}
-	ep = nullptr;
-#endif
-	progress_dialog = ProgressDialog::get_singleton();
+	progress_dialog = GDREProgressDialog::get_singleton();
 	if (progress_dialog) {
-		if (!progress_dialog->is_inside_tree() && p_parent) {
-			p_parent->add_child(progress_dialog);
+		if (p_parent) {
+			progress_dialog->add_host_window(p_parent->get_window());
 		}
 		progress_dialog->add_task(p_task, p_label, p_amount, p_can_cancel);
-		progress_dialog->popup_centered();
 	}
 	task = p_task;
 }
 
 EditorProgressGDDC::~EditorProgressGDDC() {
-#ifdef TOOLS_ENABLED
-	if (ep) {
-		memdelete(ep);
-		return;
-	}
-#endif
 	// if no EditorNode...
 	if (progress_dialog) {
 		progress_dialog->end_task(task);

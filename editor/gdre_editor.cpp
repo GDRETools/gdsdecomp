@@ -1372,8 +1372,8 @@ void GodotREEditorStandalone::_bind_methods() {
 
 GodotREEditorStandalone::GodotREEditorStandalone() {
 	singleton = this;
-	progress_dialog = memnew(ProgressDialog);
-
+	progress_dialog = memnew(GDREProgressDialog);
+	add_child(progress_dialog);
 	// menu_hb = memnew(HBoxContainer);
 	// add_child(menu_hb);
 	// if (GodotREEditor::get_singleton() == nullptr) {
@@ -1387,5 +1387,9 @@ GodotREEditorStandalone::GodotREEditorStandalone() {
 }
 
 GodotREEditorStandalone::~GodotREEditorStandalone() {
+	if (progress_dialog) {
+		progress_dialog->queue_free();
+	}
+	singleton = nullptr;
 	// editor_ctx = NULL;
 }
