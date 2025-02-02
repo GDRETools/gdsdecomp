@@ -107,15 +107,15 @@ int ImportInfo::get_import_loss_type() const {
 Ref<ConfigFile> copy_config_file(Ref<ConfigFile> p_cf) {
 	Ref<ConfigFile> r_cf;
 	r_cf.instantiate();
-	List<String> *sections = memnew(List<String>);
+	List<String> sections;
 	//	String sections_string;
-	p_cf->get_sections(sections);
+	p_cf->get_sections(&sections);
 	// from bottom to top, because set_value() inserts new sections at top
-	for (auto E = sections->back(); E; E = E->prev()) {
+	for (auto E = sections.back(); E; E = E->prev()) {
 		String section = E->get();
-		List<String> *section_keys = memnew(List<String>);
-		p_cf->get_section_keys(section, section_keys);
-		for (auto F = section_keys->front(); F; F = F->next()) {
+		List<String> section_keys;
+		p_cf->get_section_keys(section, &section_keys);
+		for (auto F = section_keys.front(); F; F = F->next()) {
 			String key = F->get();
 			r_cf->set_value(section, key, p_cf->get_value(section, key));
 		}
@@ -131,9 +131,9 @@ Ref<ResourceImportMetadatav2> copy_imd_v2(Ref<ResourceImportMetadatav2> p_cf) {
 	for (int i = 0; i < src_count; i++) {
 		r_imd->add_source(p_cf->get_source_path(i), p_cf->get_source_md5(i));
 	}
-	List<String> *r_options = memnew(List<String>);
-	p_cf->get_options(r_options);
-	for (auto E = r_options->front(); E; E = E->next()) {
+	List<String> r_options;
+	p_cf->get_options(&r_options);
+	for (auto E = r_options.front(); E; E = E->next()) {
 		r_imd->set_option(E->get(), p_cf->get_option(E->get()));
 	}
 	return r_imd;
