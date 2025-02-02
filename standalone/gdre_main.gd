@@ -369,18 +369,26 @@ var timeout: SceneTreeTimer = null
 var buffer: PackedStringArray = []
 
 func _on_cooldown():
+	var new_text = "".join(buffer)
+	buffer.clear()
+	if not new_text.is_empty():
+		$log_window.text += new_text
+		$log_window.scroll_to_line($log_window.get_line_count() - 1)
 	_cooldown = false
 
 func _on_re_editor_standalone_write_log_message(message):
+	if timeout:
+		timeout.time_left = 0.02
 	if _cooldown:
 		buffer.append(message)
 		return
-	_cooldown = true
-	if timeout:
-		timeout.timeout.disconnect(self._on_cooldown)
-	timeout = get_tree().create_timer(0.01)
+	timeout = get_tree().create_timer(0.02)
 	timeout.timeout.connect(self._on_cooldown)
-	$log_window.text += "".join(buffer) + message
+
+	_cooldown = true
+	var new_text = "".join(buffer) + message
+	buffer.clear()
+	$log_window.text += new_text
 	$log_window.scroll_to_line($log_window.get_line_count() - 1)
 	buffer.clear()
 
