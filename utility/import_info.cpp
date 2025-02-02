@@ -55,7 +55,7 @@ int ImportInfo::get_import_loss_type() const {
 		return LOSSLESS;
 	}
 	if (!is_import()) {
-		return UNKNOWN;
+		return BASE;
 	}
 	String ext = source_file.get_extension();
 	bool has_compress_param = params.has("compress/mode") && params["compress/mode"].is_num();
@@ -102,7 +102,7 @@ int ImportInfo::get_import_loss_type() const {
 	}
 
 	// We can't say for sure
-	return UNKNOWN;
+	return BASE;
 }
 
 Ref<ConfigFile> copy_config_file(Ref<ConfigFile> p_cf) {
@@ -852,6 +852,9 @@ Error ImportInfoModern::save_md5_file(const String &output_dir) {
 
 void ImportInfo::_bind_methods() {
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("load_from_file", "path", "ver_major", "ver_minor"), &ImportInfo::load_from_file, DEFVAL(0), DEFVAL(0));
+
+	ClassDB::bind_method(D_METHOD("get_iitype"), &ImportInfo::get_iitype);
+
 	ClassDB::bind_method(D_METHOD("get_ver_major"), &ImportInfo::get_ver_major);
 	ClassDB::bind_method(D_METHOD("get_ver_minor"), &ImportInfo::get_ver_minor);
 
@@ -920,6 +923,19 @@ void ImportInfo::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("as_text", "full"), &ImportInfo::as_text, DEFVAL(true));
 
 	ClassDB::bind_method(D_METHOD("save_to", "p_path"), &ImportInfo::save_to);
+
+	BIND_ENUM_CONSTANT(LossType::UNKNOWN);
+	BIND_ENUM_CONSTANT(LossType::LOSSLESS);
+	BIND_ENUM_CONSTANT(LossType::STORED_LOSSY);
+	BIND_ENUM_CONSTANT(LossType::IMPORTED_LOSSY);
+	BIND_ENUM_CONSTANT(LossType::STORED_AND_IMPORTED_LOSSY);
+
+	BIND_ENUM_CONSTANT(IInfoType::BASE);
+	BIND_ENUM_CONSTANT(IInfoType::V2);
+	BIND_ENUM_CONSTANT(IInfoType::MODERN);
+	BIND_ENUM_CONSTANT(IInfoType::DUMMY);
+	BIND_ENUM_CONSTANT(IInfoType::REMAP);
+	BIND_ENUM_CONSTANT(IInfoType::GDEXT);
 }
 
 void ImportInfoModern::_bind_methods() {

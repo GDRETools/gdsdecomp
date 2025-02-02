@@ -385,5 +385,5 @@ public:
 };
 
 VARIANT_ENUM_CAST(ImportInfo::LossType);
-
+VARIANT_ENUM_CAST(ImportInfo::IInfoType);
 #endif
