@@ -1,6 +1,7 @@
 #include "import_info.h"
 #include "compat/resource_compat_binary.h"
 #include "compat/resource_loader_compat.h"
+#include "core/error/error_list.h"
 #include "core/extension/gdextension.h"
 #include "core/extension/gdextension_library_loader.h"
 #include "gdre_settings.h"
@@ -228,6 +229,12 @@ ImportInfoGDExt::ImportInfoGDExt() :
 
 Error ImportInfo::get_resource_info(const String &p_path, ResourceInfo &res_info) {
 	Error err;
+	if (!FileAccess::exists(p_path)) {
+		return ERR_FILE_NOT_FOUND;
+	}
+	if (!ResourceCompatLoader::handles_resource(p_path)) {
+		return ERR_UNAVAILABLE;
+	}
 	res_info = ResourceCompatLoader::get_resource_info(p_path, "", &err);
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Could not load resource info from " + p_path);
 	return OK;
@@ -240,7 +247,8 @@ Ref<ImportInfo> ImportInfo::load_from_file(const String &p_path, int ver_major, 
 		iinfo = Ref<ImportInfo>(memnew(ImportInfoModern));
 		err = iinfo->_load(p_path);
 		if (ver_major == 0 && err == OK) {
-			ResourceInfo res_info = ResourceCompatLoader::get_resource_info(iinfo->get_path(), "", &err);
+			ResourceInfo res_info;
+			err = ImportInfo::get_resource_info(p_path, res_info);
 			if (err) {
 				WARN_PRINT("ImportInfo: Version major not specified and could not load binary resource file!");
 				err = OK;
@@ -525,7 +533,8 @@ Error ImportInfoModern::_load(const String &p_path) {
 
 Error ImportInfoDummy::_load(const String &p_path) {
 	Error err;
-	ResourceInfo res_info = ResourceCompatLoader::get_resource_info(p_path, "", &err);
+	ResourceInfo res_info;
+	err = ImportInfo::get_resource_info(p_path, res_info);
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Could not load resource " + p_path);
 	preferred_import_path = p_path;
 	source_file = "";
@@ -558,11 +567,15 @@ Error ImportInfoRemap::_load(const String &p_path) {
 	}
 	preferred_import_path = cf->get_value("remap", "path", "");
 	const String src_ext = source_file.get_extension().to_lower();
-	ResourceInfo res_info = ResourceCompatLoader::get_resource_info(preferred_import_path, "", &err);
-	if (err) {
-		cf = Ref<ConfigFile>();
+	ResourceInfo res_info;
+	err = ImportInfo::get_resource_info(preferred_import_path, res_info);
+	if (err == ERR_UNAVAILABLE) {
+		print_line("WARNING: Can't load resource info from remap path " + preferred_import_path + "...");
+	} else if (err == ERR_FILE_NOT_FOUND) {
+		print_line("WARNING: Remap path " + preferred_import_path + " does not exist...");
+	} else {
+		ERR_FAIL_COND_V_MSG(err != OK, err, "Could not load resource info from remap path " + preferred_import_path);
 	}
-	ERR_FAIL_COND_V_MSG(err != OK, err, "Could not load " + preferred_import_path);
 	type = res_info.type;
 	ver_major = res_info.ver_major;
 	ver_minor = res_info.ver_minor;
@@ -582,7 +595,8 @@ Error ImportInfoRemap::_load(const String &p_path) {
 
 Error ImportInfov2::_load(const String &p_path) {
 	Error err;
-	ResourceInfo res_info = ResourceCompatLoader::get_resource_info(p_path, "", &err);
+	ResourceInfo res_info;
+	err = ImportInfo::get_resource_info(preferred_import_path, res_info);
 	if (err) {
 		ERR_FAIL_V_MSG(err, "Could not load resource info from " + p_path);
 	}

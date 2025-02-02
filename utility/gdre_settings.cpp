@@ -1630,6 +1630,15 @@ Error GDRESettings::reset_gdscript_cache() {
 
 void GDRESettings::_do_import_load(uint32_t i, IInfoToken *tokens) {
 	tokens[i].info = ImportInfo::load_from_file(tokens[i].path, tokens[i].ver_major, tokens[i].ver_minor);
+	if (tokens[i].info.is_null()) {
+		tokens[i].err = ERR_FILE_CANT_OPEN;
+	} else {
+		if (tokens[i].info->get_iitype() == ImportInfo::REMAP) {
+			if (!FileAccess::exists(tokens[i].info->get_path())) {
+				tokens[i].err = ERR_FILE_MISSING_DEPENDENCIES;
+			}
+		}
+	}
 }
 
 Error GDRESettings::load_import_files() {
@@ -1648,7 +1657,7 @@ Error GDRESettings::load_import_files() {
 	if (_ver_major == 0) {
 		_ver_major = get_ver_major_from_dir();
 	}
-	if (_ver_major == 2) {
+	if (_ver_major <= 2) {
 		List<String> extensions;
 		ResourceCompatLoader::get_base_extensions(&extensions, 2);
 		Vector<String> v2wildcards;
@@ -1679,63 +1688,33 @@ Error GDRESettings::load_import_files() {
 			continue;
 		}
 		if (tokens[i].info->get_iitype() == ImportInfo::REMAP) {
-			remap_iinfo.insert(tokens[i].path, tokens[i].info);
+			if (tokens[i].err == ERR_FILE_MISSING_DEPENDENCIES) {
+				WARN_PRINT(vformat("Remapped path does not exist: %s -> %s", tokens[i].info->get_source_file(), tokens[i].info->get_path()));
+			} else if (tokens[i].err) {
+				WARN_PRINT("Can't load remap file: " + resource_files[i] + " (" + itos(tokens[i].err) + ")");
+				continue;
+			} else {
+				remap_iinfo.insert(tokens[i].path, tokens[i].info);
+			}
 		}
 		import_files.push_back(tokens[i].info);
 	}
 	return OK;
 }
 
-Error GDRESettings::_load_import_file(const String &p_path, bool should_load_md5) {
+Error GDRESettings::load_import_file(const String &p_path) {
 	Ref<ImportInfo> i_info = ImportInfo::load_from_file(p_path, get_ver_major(), get_ver_minor());
 	ERR_FAIL_COND_V_MSG(i_info.is_null(), ERR_FILE_CANT_OPEN, "Failed to load import file " + p_path);
 
 	import_files.push_back(i_info);
-	// get source md5 from md5 file
-	if (should_load_md5) {
-		String src = i_info->get_dest_files()[0];
-		// only files under the ".import" or ".godot" paths will have md5 files
-		if (src.begins_with("res://.godot") || src.begins_with("res://.import")) {
-			// sound.wav-<pathmd5>.smp -> sound.wav-<pathmd5>.md5
-			String md5 = src.get_basename() + ".md5";
-			while (true) {
-				if (GDREPackedData::get_singleton()->has_path(md5)) {
-					break;
-				}
-
-				// image.png-<pathmd5>.s3tc.stex -> image.png-<pathmd5>.md5
-				if (md5 != md5.get_basename()) {
-					md5 = md5.get_basename();
-					continue;
-				}
-				// we didn't find it
-				md5 = "";
-				break;
-			}
-			if (!md5.is_empty()) {
-				Ref<FileAccess> file = FileAccess::open(md5, FileAccess::READ);
-				ERR_FAIL_COND_V_MSG(file.is_null(), ERR_PRINTER_ON_FIRE, "Failed to load md5 file associated with import");
-				String text = file->get_line();
-				while (!text.begins_with("source") && !file->eof_reached()) {
-					text = file->get_line();
-				}
-				if (!text.begins_with("source") || text.split("=").size() < 2) {
-					WARN_PRINT("md5 file does not have source md5 info!");
-					return ERR_PRINTER_ON_FIRE;
-				}
-				text = text.split("=")[1].strip_edges().replace("\"", "");
-				if (!text.is_valid_hex_number(false)) {
-					WARN_PRINT("source md5 hash is not valid!");
-					return ERR_PRINTER_ON_FIRE;
-				}
-				i_info->set_source_md5(text);
-			}
+	if (i_info->get_iitype() == ImportInfo::REMAP) {
+		if (!FileAccess::exists(i_info->get_path())) {
+			print_line(vformat("Remapped path does not exist: %s -> %s", i_info->get_source_file(), i_info->get_path()));
+			return ERR_FILE_MISSING_DEPENDENCIES;
 		}
+		remap_iinfo.insert(p_path, i_info);
 	}
 	return OK;
-}
-Error GDRESettings::load_import_file(const String &p_path) {
-	return _load_import_file(p_path, false);
 }
 
 Ref<ImportInfo> GDRESettings::get_import_info_by_source(const String &p_path) {

@@ -145,8 +145,9 @@ private:
 	struct IInfoToken {
 		String path;
 		Ref<ImportInfo> info;
-		int ver_major;
-		int ver_minor;
+		int ver_major = 0;
+		int ver_minor = 0;
+		Error err = OK;
 	};
 
 	struct StringLoadToken {
@@ -186,7 +187,6 @@ private:
 	bool check_if_dir_is_v3();
 	bool check_if_dir_is_v2();
 	int get_ver_major_from_dir();
-	Error _load_import_file(const String &p_path, bool should_load_md5);
 	Error load_dir(const String &p_path);
 	Error unload_dir();
 	bool has_valid_version() const;
