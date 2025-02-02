@@ -123,7 +123,7 @@ func _on_new_pck_selected(pck_path: String):
 	creator.ver_major = major
 	creator.ver_minor = minor
 	creator.ver_rev = ver_rev
-	creator.pack_version = pck_version.to_int()
+	creator.pack_version = pck_version
 	creator.watermark = extra_tag
 	creator.encrypt = NEW_PCK_DIALOG.ENCRYPT.is_pressed()
 	var err = creator.pck_create(pck_path, directory, includes, excludes)
@@ -363,10 +363,26 @@ func _on_PCKMenu_item_selected(index):
 			launch_new_pck_window()
 		PckMenuID.PATCH_PCK:
 			launch_patch_pck_window()
-	
+
+var _cooldown = false
+var timeout: SceneTreeTimer = null
+var buffer: PackedStringArray = []
+
+func _on_cooldown():
+	_cooldown = false
+
 func _on_re_editor_standalone_write_log_message(message):
-	$log_window.text += message
+	if _cooldown:
+		buffer.append(message)
+		return
+	_cooldown = true
+	if timeout:
+		timeout.timeout.disconnect(self._on_cooldown)
+	timeout = get_tree().create_timer(0.01)
+	timeout.timeout.connect(self._on_cooldown)
+	$log_window.text += "".join(buffer) + message
 	$log_window.scroll_to_line($log_window.get_line_count() - 1)
+	buffer.clear()
 
 func register_dropped_files():
 	pass
