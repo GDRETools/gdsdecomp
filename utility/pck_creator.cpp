@@ -327,7 +327,7 @@ Error PckCreator::finish_pck() {
 	} else {
 		error = _create_after_process(nullptr, error_string);
 	}
-	ERR_FAIL_COND_V_MSG(error && error != ERR_PRINTER_ON_FIRE, error, "Error creating pck: " + error_string);
+	ERR_FAIL_COND_V_MSG(error && error != ERR_SKIP && error != ERR_PRINTER_ON_FIRE, error, "Error creating pck: " + error_string);
 	return error;
 }
 

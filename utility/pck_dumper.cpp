@@ -72,7 +72,7 @@ Error PckDumper::wait_for_task(WorkerThreadPool::GroupID group_task, const Vecto
 			if (cancel) {
 				cancelled = true;
 				WorkerThreadPool::get_singleton()->wait_for_group_task_completion(group_task);
-				return ERR_PRINTER_ON_FIRE;
+				return ERR_SKIP;
 			}
 		}
 	}
@@ -125,7 +125,7 @@ Error PckDumper::_check_md5_all_files(Vector<String> &broken_files, int &checked
 					last_progress_upd = OS::get_singleton()->get_ticks_usec();
 					bool cancel = pr->step(files[i]->path, i, true);
 					if (cancel) {
-						err = ERR_PRINTER_ON_FIRE;
+						err = ERR_SKIP;
 					}
 				}
 			}
@@ -145,7 +145,7 @@ Error PckDumper::_check_md5_all_files(Vector<String> &broken_files, int &checked
 			checked_files++;
 		}
 	}
-	if (err == ERR_PRINTER_ON_FIRE) {
+	if (err == ERR_SKIP) {
 		print_error("Verification cancelled!\n");
 	} else if (err) {
 		print_error("At least one error was detected while verifying files in pack!\n");
@@ -290,7 +290,7 @@ Error PckDumper::_pck_dump_to_dir(
 					last_progress_upd = OS::get_singleton()->get_ticks_usec();
 					bool cancel = pr->step(files.get(i)->get_path(), i, true);
 					if (cancel) {
-						return ERR_PRINTER_ON_FIRE;
+						return ERR_SKIP;
 					}
 				}
 			}

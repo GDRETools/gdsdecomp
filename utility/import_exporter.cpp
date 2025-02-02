@@ -301,7 +301,7 @@ Error ImportExporter::_export_imports(const String &p_out_dir, const Vector<Stri
 	}
 	if (pr) {
 		if (pr->step("Exporting resources...", 0, true)) {
-			return ERR_PRINTER_ON_FIRE;
+			return ERR_SKIP;
 		}
 	}
 	HashMap<String, Ref<ResourceExporter>> exporter_map;
@@ -384,7 +384,7 @@ Error ImportExporter::_export_imports(const String &p_out_dir, const Vector<Stri
 				if (cancel) {
 					cancelled = true;
 					WorkerThreadPool::get_singleton()->wait_for_group_task_completion(group_task);
-					return ERR_PRINTER_ON_FIRE;
+					return ERR_SKIP;
 				}
 			}
 		}
@@ -398,7 +398,7 @@ Error ImportExporter::_export_imports(const String &p_out_dir, const Vector<Stri
 			if (OS::get_singleton()->get_ticks_usec() - last_progress_upd > 10000) {
 				last_progress_upd = OS::get_singleton()->get_ticks_usec();
 				if (pr->step(token.iinfo->get_path(), num_multithreaded_tokens + i, false)) {
-					return ERR_PRINTER_ON_FIRE;
+					return ERR_SKIP;
 				}
 			}
 		}
