@@ -61,7 +61,7 @@ jobs:
             bin: ./bin/godot.windows.editor.x86_64.exe
 
           - name: "🐧 Linux Editor"
-            os: "ubuntu-24.04"
+            os: "ubuntu-22.04"
             id: linux-editor
             platform: linux
             target: editor
@@ -79,7 +79,7 @@ jobs:
           #   bin: ./bin/godot.linuxbsd.editor.x86_64.san
 
           - name: "🐧 Linux Template Release"
-            os: "ubuntu-24.04"
+            os: "ubuntu-22.04"
             id: linux-template
             platform: linux
             target: template_release
