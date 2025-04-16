@@ -37,6 +37,9 @@
 #include "scene/gui/popup.h"
 #include "scene/gui/progress_bar.h"
 
+#include <utility/gd_parallel_hashmap.h>
+#include <utility/gd_parallel_queue.h>
+
 class GDREBackgroundProgress : public HBoxContainer {
 	GDCLASS(GDREBackgroundProgress, HBoxContainer);
 
@@ -66,46 +69,80 @@ public:
 
 class GDREProgressDialog : public PopupPanel {
 	GDCLASS(GDREProgressDialog, PopupPanel);
+
+	struct Step {
+		String state;
+		int step = 0;
+	};
 	struct Task {
 		String task;
+		String label;
+		int steps = -1;
+		bool can_cancel = false;
+		bool indeterminate = false;
+
+		bool initialized = false;
+		Step current_step;
+		bool force_next_redraw = false;
 		VBoxContainer *vb = nullptr;
 		ProgressBar *progress = nullptr;
 		Label *state = nullptr;
 		uint64_t last_progress_tick = 0;
+		void init(VBoxContainer *main);
+		void set_step(const String &p_state, int p_step = -1, bool p_force_redraw = true);
+		bool should_redraw(uint64_t curr_time_us) const;
+		bool update();
 	};
 	HBoxContainer *cancel_hb = nullptr;
 	Button *cancel = nullptr;
 
-	HashMap<String, Task> tasks;
+	StaticParallelQueue<String, 256> queued_removals;
+	using TaskMap = ParallelFlatHashMap<String, Task>;
+	TaskMap tasks;
+
 	VBoxContainer *main = nullptr;
 
 	LocalVector<Window *> host_windows;
 
 	static GDREProgressDialog *singleton;
 	void _popup();
+	void _post_add_task(bool p_can_cancel);
+	bool _process_removals();
 
 	void _cancel_pressed();
 
 	void _update_ui();
-	bool canceled = false;
+	std::atomic<bool> canceled = false;
+	bool is_safe_to_redraw();
+
+protected:
+	void _notification(int p_what);
 
 public:
 	static GDREProgressDialog *get_singleton() { return singleton; }
 	void add_task(const String &p_task, const String &p_label, int p_steps, bool p_can_cancel = false);
 	bool task_step(const String &p_task, const String &p_state, int p_step = -1, bool p_force_redraw = true);
+	void main_thread_update();
 	void end_task(const String &p_task);
 
 	void add_host_window(Window *p_window);
 	void remove_host_window(Window *p_window);
 
 	GDREProgressDialog();
-	~GDREProgressDialog();
 };
 
-struct EditorProgressGDDC {
+struct EditorProgressGDDC : public RefCounted {
+	GDCLASS(EditorProgressGDDC, RefCounted);
+
+protected:
+	static Ref<EditorProgressGDDC> create(Node *p_parent, const String &p_task, const String &p_label, int p_amount, bool p_can_cancel = false);
+	static void _bind_methods();
+
+public:
 	String task;
-	GDREProgressDialog *progress_dialog;
+	String get_task();
 	bool step(const String &p_state, int p_step = -1, bool p_force_refresh = true);
+	EditorProgressGDDC();
 	EditorProgressGDDC(Node *p_parent, const String &p_task, const String &p_label, int p_amount, bool p_can_cancel = false);
 	~EditorProgressGDDC();
 };

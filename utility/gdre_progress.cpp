@@ -35,12 +35,12 @@
 #include "servers/display_server.h"
 #include "utility/gdre_standalone.h"
 
+#include <utility/gd_parallel_queue.h>
 #include <utility/gdre_settings.h>
 #ifdef TOOLS_ENABLED
 #include "editor/editor_interface.h"
 #include "editor/editor_node.h"
 #endif
-
 void GDREBackgroundProgress::_add_task(const String &p_task, const String &p_label, int p_steps) {
 	_THREAD_SAFE_METHOD_
 	ERR_FAIL_COND_MSG(tasks.has(p_task), "Task '" + p_task + "' already exists.");
@@ -138,6 +138,67 @@ void GDREProgressDialog::_update_ui() {
 	}
 }
 
+void GDREProgressDialog::_notification(int p_what) {
+	if (p_what == NOTIFICATION_PROCESS) {
+		main_thread_update();
+	}
+}
+
+void GDREProgressDialog::Task::init(VBoxContainer *main) {
+	ERR_FAIL_COND(vb);
+	vb = memnew(VBoxContainer);
+	VBoxContainer *vb2 = memnew(VBoxContainer);
+	vb->add_margin_child(label, vb2);
+	progress = memnew(ProgressBar);
+	if (indeterminate) {
+		steps = 1;
+		progress->set_indeterminate(true);
+	}
+	progress->set_max(steps);
+	progress->set_value(steps);
+	vb2->add_child(progress);
+	state = memnew(Label);
+	state->set_clip_text(true);
+	vb2->add_child(state);
+	main->add_child(vb);
+	initialized = true;
+}
+
+void GDREProgressDialog::Task::set_step(const String &p_state, int p_step, bool p_force_redraw) {
+	current_step.state = p_state;
+	if (p_step == -1) {
+		current_step.step++;
+	} else {
+		current_step.step = p_step;
+	}
+	force_next_redraw = force_next_redraw || p_force_redraw;
+}
+
+bool GDREProgressDialog::Task::should_redraw(uint64_t curr_time_us) const {
+	return force_next_redraw || curr_time_us - last_progress_tick >= 200000;
+}
+
+bool GDREProgressDialog::Task::update() {
+	ERR_FAIL_COND_V(!initialized, false);
+	if (!should_redraw(OS::get_singleton()->get_ticks_usec())) {
+		return false;
+	}
+	bool was_forced = force_next_redraw;
+	force_next_redraw = false;
+	if (!vb) {
+		return false;
+	}
+	if (!indeterminate) {
+		if (!was_forced && state->get_text() == current_step.state && progress->get_value() == current_step.step) {
+			return false;
+		}
+		progress->set_value(current_step.step);
+	}
+	state->set_text(current_step.state);
+	last_progress_tick = OS::get_singleton()->get_ticks_usec();
+	return true;
+}
+
 void GDREProgressDialog::_popup() {
 	Size2 ms = main->get_combined_minimum_size();
 	ms.width = MAX(500 * GDRESettings::get_singleton()->get_auto_display_scale(), ms.width);
@@ -186,34 +247,13 @@ void GDREProgressDialog::_popup() {
 	grab_focus();
 }
 
-void GDREProgressDialog::add_task(const String &p_task, const String &p_label, int p_steps, bool p_can_cancel) {
-	if (MessageQueue::get_singleton()->is_flushing()) {
-		ERR_PRINT("Do not use progress dialog (task) while flushing the message queue or using call_deferred()!");
-		return;
-	}
-
-	ERR_FAIL_COND_MSG(tasks.has(p_task), "Task '" + p_task + "' already exists.");
-	GDREProgressDialog::Task t;
-	t.vb = memnew(VBoxContainer);
-	VBoxContainer *vb2 = memnew(VBoxContainer);
-	t.vb->add_margin_child(p_label, vb2);
-	t.progress = memnew(ProgressBar);
-	t.progress->set_max(p_steps);
-	t.progress->set_value(p_steps);
-	vb2->add_child(t.progress);
-	t.state = memnew(Label);
-	t.state->set_clip_text(true);
-	vb2->add_child(t.state);
-	main->add_child(t.vb);
-
-	tasks[p_task] = t;
+void GDREProgressDialog::_post_add_task(bool p_can_cancel) {
 	if (p_can_cancel) {
 		cancel_hb->show();
 	} else {
 		cancel_hb->hide();
 	}
 	cancel_hb->move_to_front();
-	canceled = false;
 	_popup();
 	if (p_can_cancel) {
 		cancel->grab_focus();
@@ -221,40 +261,91 @@ void GDREProgressDialog::add_task(const String &p_task, const String &p_label, i
 	_update_ui();
 }
 
+bool GDREProgressDialog::is_safe_to_redraw() {
+	return Thread::is_main_thread() && !MessageQueue::get_singleton()->is_flushing();
+}
+
+void GDREProgressDialog::add_task(const String &p_task, const String &p_label, int p_steps, bool p_can_cancel) {
+	ERR_FAIL_COND_MSG(tasks.contains(p_task), "Task '" + p_task + "' already exists.");
+	Task t = { p_task, p_label, p_steps, p_can_cancel, p_steps == -1 };
+	tasks.try_emplace_l(p_task, [=](TaskMap::value_type &v) {}, t);
+	canceled = false;
+	if (!is_safe_to_redraw()) {
+		return;
+	}
+
+	main_thread_update();
+}
+
 bool GDREProgressDialog::task_step(const String &p_task, const String &p_state, int p_step, bool p_force_redraw) {
-	ERR_FAIL_COND_V(!tasks.has(p_task), canceled);
-
-	Task &t = tasks[p_task];
-	if (!p_force_redraw) {
-		uint64_t tus = OS::get_singleton()->get_ticks_usec();
-		if (tus - t.last_progress_tick < 200000) { //200ms
-			return canceled;
+	ERR_FAIL_COND_V(!tasks.contains(p_task), canceled);
+	bool is_main_thread = is_safe_to_redraw();
+	bool do_update = false;
+	tasks.if_contains(p_task, [&](TaskMap::value_type &t) {
+		t.second.set_step(p_state, p_step, p_force_redraw);
+		if (is_main_thread) {
+			do_update = t.second.should_redraw(OS::get_singleton()->get_ticks_usec());
 		}
+	});
+	if (do_update) {
+		main_thread_update();
 	}
-	if (p_step < 0) {
-		t.progress->set_value(t.progress->get_value() + 1);
-	} else {
-		t.progress->set_value(p_step);
-	}
-
-	t.state->set_text(p_state);
-	t.last_progress_tick = OS::get_singleton()->get_ticks_usec();
-	_update_ui();
 
 	return canceled;
 }
 
+bool GDREProgressDialog::_process_removals() {
+	String p_task;
+	bool has_deletions = false;
+	while (queued_removals.try_pop(p_task)) {
+		bool has = tasks.if_contains(p_task, [](TaskMap::value_type &t) {
+			if (t.second.vb) {
+				memdelete(t.second.vb);
+				t.second.vb = nullptr;
+			}
+		});
+		if (has) {
+			tasks.erase(p_task);
+			has_deletions = true;
+		}
+	}
+	return has_deletions;
+}
+
 void GDREProgressDialog::end_task(const String &p_task) {
-	ERR_FAIL_COND(!tasks.has(p_task));
-	Task &t = tasks[p_task];
+	ERR_FAIL_COND(!tasks.contains(p_task));
+	queued_removals.try_push(p_task);
+	if (!is_safe_to_redraw()) {
+		return;
+	}
+	main_thread_update();
+}
 
-	memdelete(t.vb);
-	tasks.erase(p_task);
-
-	if (tasks.is_empty()) {
-		hide();
-	} else {
-		_popup();
+void GDREProgressDialog::main_thread_update() {
+	bool should_update = _process_removals();
+	bool p_can_cancel = false;
+	bool initialized = false;
+	uint64_t size = 0;
+	tasks.for_each_m([&](TaskMap::value_type &E) {
+		Task &t = E.second;
+		if (!t.initialized) {
+			initialized = true;
+			t.init(main);
+		}
+		if (t.update()) {
+			should_update = true;
+		}
+		p_can_cancel = p_can_cancel || t.can_cancel;
+		size++;
+	});
+	if (should_update || initialized) {
+		if (size == 0) {
+			hide();
+		} else if (initialized) {
+			_post_add_task(p_can_cancel);
+		} else {
+			_update_ui();
+		}
 	}
 }
 
@@ -292,15 +383,25 @@ GDREProgressDialog::GDREProgressDialog() {
 	cancel->set_text(RTR("Cancel"));
 	cancel_hb->add_spacer();
 	cancel->connect(SceneStringName(pressed), callable_mp(this, &GDREProgressDialog::_cancel_pressed));
+	set_process(true);
 }
 
-GDREProgressDialog::~GDREProgressDialog() {
-	singleton = nullptr;
+String EditorProgressGDDC::get_task() {
+	return task;
 }
 
+Ref<EditorProgressGDDC> EditorProgressGDDC::create(Node *p_parent, const String &p_task, const String &p_label, int p_amount, bool p_can_cancel) {
+	return memnew(EditorProgressGDDC(nullptr, p_task, p_label, p_amount, p_can_cancel));
+}
+
+void EditorProgressGDDC::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("step", "state", "step", "force_refresh"), &EditorProgressGDDC::step, DEFVAL(-1), DEFVAL(true));
+	ClassDB::bind_method(D_METHOD("get_task"), &EditorProgressGDDC::get_task);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("create", "parent", "task", "label", "amount", "can_cancel"), &EditorProgressGDDC::create, DEFVAL(false));
+}
 bool EditorProgressGDDC::step(const String &p_state, int p_step, bool p_force_refresh) {
-	if (progress_dialog) {
-		return progress_dialog->task_step(task, p_state, p_step, p_force_refresh);
+	if (GDREProgressDialog::get_singleton()) {
+		return GDREProgressDialog::get_singleton()->task_step(task, p_state, p_step, p_force_refresh);
 	} else {
 #ifdef TOOLS_ENABLED
 		if (Thread::is_main_thread()) {
@@ -313,14 +414,13 @@ bool EditorProgressGDDC::step(const String &p_state, int p_step, bool p_force_re
 	}
 	return false;
 }
-
+EditorProgressGDDC::EditorProgressGDDC() {}
 EditorProgressGDDC::EditorProgressGDDC(Node *p_parent, const String &p_task, const String &p_label, int p_amount, bool p_can_cancel) {
-	progress_dialog = GDREProgressDialog::get_singleton();
-	if (progress_dialog) {
+	if (GDREProgressDialog::get_singleton()) {
 		if (p_parent) {
-			progress_dialog->add_host_window(p_parent->get_window());
+			GDREProgressDialog::get_singleton()->add_host_window(p_parent->get_window());
 		}
-		progress_dialog->add_task(p_task, p_label, p_amount, p_can_cancel);
+		GDREProgressDialog::get_singleton()->add_task(p_task, p_label, p_amount, p_can_cancel);
 	} else {
 #ifdef TOOLS_ENABLED
 		if (Thread::is_main_thread()) {
@@ -335,8 +435,8 @@ EditorProgressGDDC::EditorProgressGDDC(Node *p_parent, const String &p_task, con
 
 EditorProgressGDDC::~EditorProgressGDDC() {
 	// if no EditorNode...
-	if (progress_dialog) {
-		progress_dialog->end_task(task);
+	if (GDREProgressDialog::get_singleton()) {
+		GDREProgressDialog::get_singleton()->end_task(task);
 	} else {
 #ifdef TOOLS_ENABLED
 		if (Thread::is_main_thread()) {
