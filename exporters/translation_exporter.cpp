@@ -165,6 +165,7 @@ struct KeyWorker {
 	// 30 seconds in msec
 	uint64_t start_time = OS::get_singleton()->get_ticks_usec();
 	uint64_t start_of_multithread = start_time;
+	String path;
 	//default_translation,  default_messages;
 	KeyWorker(const Ref<OptimizedTranslation> &p_default_translation,
 			const HashSet<String> &p_previous_keys_found) :
@@ -842,11 +843,25 @@ struct KeyWorker {
 		}
 	}
 
+	void stage_1() {
+		for (uint32_t i = 0; i < resource_strings.size(); i++) {
+			const String &key = resource_strings[i];
+			try_key(key);
+		}
+		// Stage 1.5: Previous keys found
+		if (key_to_message.size() != default_messages.size()) {
+			for (const String &key : previous_keys_found) {
+				try_key(key);
+			}
+		}
+	}
+
 	uint64_t run() {
 		cancel = false;
 		uint64_t missing_keys = 0;
 		HashSet<String> res_strings;
 		start_time = OS::get_singleton()->get_ticks_msec();
+		auto progress = EditorProgressGDDC::create(nullptr, "TranslationExporter - " + path, "Exporting translation " + path + "...", -1, true);
 
 		// Stage 1: Unmodified resource strings
 		// We need to load all the resource strings in all resources to find the keys
@@ -1095,6 +1110,7 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 	int missing_keys = 0;
 	if (keys.size() == 0) {
 		KeyWorker kw(default_translation, all_keys_found);
+		kw.path = iinfo->get_path();
 		missing_keys = kw.run();
 		keys = kw.keys;
 		for (auto &key : keys) {

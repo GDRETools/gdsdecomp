@@ -400,6 +400,9 @@ void EditorProgressGDDC::_bind_methods() {
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("create", "parent", "task", "label", "amount", "can_cancel"), &EditorProgressGDDC::create, DEFVAL(false));
 }
 bool EditorProgressGDDC::step(const String &p_state, int p_step, bool p_force_refresh) {
+	if (GDRESettings::get_singleton() && GDRESettings::get_singleton()->is_headless()) {
+		return false;
+	}
 	if (GDREProgressDialog::get_singleton()) {
 		return GDREProgressDialog::get_singleton()->task_step(task, p_state, p_step, p_force_refresh);
 	} else {
@@ -415,7 +418,13 @@ bool EditorProgressGDDC::step(const String &p_state, int p_step, bool p_force_re
 	return false;
 }
 EditorProgressGDDC::EditorProgressGDDC() {}
+EditorProgressGDDC::EditorProgressGDDC(const String &p_task, const String &p_label, int p_amount, bool p_can_cancel) :
+		EditorProgressGDDC(nullptr, p_task, p_label, p_amount, p_can_cancel) {}
 EditorProgressGDDC::EditorProgressGDDC(Node *p_parent, const String &p_task, const String &p_label, int p_amount, bool p_can_cancel) {
+	task = p_task;
+	if (GDRESettings::get_singleton() && GDRESettings::get_singleton()->is_headless()) {
+		return;
+	}
 	if (GDREProgressDialog::get_singleton()) {
 		if (p_parent) {
 			GDREProgressDialog::get_singleton()->add_host_window(p_parent->get_window());
@@ -430,12 +439,13 @@ EditorProgressGDDC::EditorProgressGDDC(Node *p_parent, const String &p_task, con
 		}
 #endif
 	}
-	task = p_task;
 }
 
 EditorProgressGDDC::~EditorProgressGDDC() {
 	// if no EditorNode...
-	if (GDREProgressDialog::get_singleton()) {
+	if (GDRESettings::get_singleton() && GDRESettings::get_singleton()->is_headless()) {
+		// do nothing
+	} else if (GDREProgressDialog::get_singleton()) {
 		GDREProgressDialog::get_singleton()->end_task(task);
 	} else {
 #ifdef TOOLS_ENABLED

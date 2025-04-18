@@ -33,11 +33,14 @@ class PckDumper : public RefCounted {
 protected:
 	static void _bind_methods();
 
+	String get_file_description(int64_t i, Ref<PackedFileInfo> *userdata);
+	String get_extract_token_description(int64_t i, ExtractToken *userdata);
+
 public:
 	Error check_md5_all_files();
-	Error _check_md5_all_files(Vector<String> &broken_files, int &checked_files, EditorProgressGDDC *pr);
+	Error _check_md5_all_files(Vector<String> &broken_files, int &checked_files);
 
-	Error _pck_dump_to_dir(const String &dir, const Vector<String> &files_to_extract, EditorProgressGDDC *pr, String &error_string);
+	Error _pck_dump_to_dir(const String &dir, const Vector<String> &files_to_extract, String &error_string);
 	Error pck_dump_to_dir(const String &dir, const Vector<String> &files_to_extract);
 
 	void set_multi_thread(bool multi_thread) { opt_multi_thread = multi_thread; }

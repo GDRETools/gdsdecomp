@@ -43,6 +43,7 @@
 #include "utility/packed_file_info.h"
 #include "utility/pck_creator.h"
 #include "utility/pck_dumper.h"
+#include "utility/task_manager.h"
 
 #include "module_etc_decompress/register_types.h"
 
@@ -55,6 +56,7 @@ void gdsdecomp_init_callback() {
 
 static GDRESettings *gdre_singleton = nullptr;
 static GDREAudioStreamPreviewGenerator *audio_stream_preview_generator = nullptr;
+static TaskManager *task_manager = nullptr;
 // TODO: move this to its own thing
 static Ref<ResourceFormatLoaderCompatText> text_loader = nullptr;
 static Ref<ResourceFormatLoaderCompatBinary> binary_loader = nullptr;
@@ -304,10 +306,13 @@ void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
 
 	ClassDB::register_class<GDRECommon>();
 	ClassDB::register_class<TextDiff>();
+	ClassDB::register_class<TaskManager>();
 	gdre_singleton = memnew(GDRESettings);
 	Engine::get_singleton()->add_singleton(Engine::Singleton("GDRESettings", GDRESettings::get_singleton()));
 	audio_stream_preview_generator = memnew(GDREAudioStreamPreviewGenerator);
 	Engine::get_singleton()->add_singleton(Engine::Singleton("GDREAudioStreamPreviewGenerator", GDREAudioStreamPreviewGenerator::get_singleton()));
+	task_manager = memnew(TaskManager);
+	Engine::get_singleton()->add_singleton(Engine::Singleton("TaskManager", TaskManager::get_singleton()));
 #ifdef TOOLS_ENABLED
 	EditorNode::add_init_callback(&gdsdecomp_init_callback);
 #endif
@@ -327,6 +332,10 @@ void uninitialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
 	if (audio_stream_preview_generator) {
 		memdelete(audio_stream_preview_generator);
 		audio_stream_preview_generator = nullptr;
+	}
+	if (task_manager) {
+		memdelete(task_manager);
+		task_manager = nullptr;
 	}
 	free_ver_regex();
 }

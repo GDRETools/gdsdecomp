@@ -67,6 +67,7 @@ class PckCreator : public RefCounted {
 
 protected:
 	static void _bind_methods();
+	String get_file_description(int64_t i, File *userdata);
 
 public:
 	static Vector<String> get_files_to_pack(const String &p_dir, const Vector<String> &include_filters, const Vector<String> &exclude_filters);

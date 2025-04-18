@@ -135,14 +135,15 @@ struct EditorProgressGDDC : public RefCounted {
 	GDCLASS(EditorProgressGDDC, RefCounted);
 
 protected:
-	static Ref<EditorProgressGDDC> create(Node *p_parent, const String &p_task, const String &p_label, int p_amount, bool p_can_cancel = false);
 	static void _bind_methods();
 
 public:
+	static Ref<EditorProgressGDDC> create(Node *p_parent, const String &p_task, const String &p_label, int p_amount, bool p_can_cancel = false);
 	String task;
 	String get_task();
 	bool step(const String &p_state, int p_step = -1, bool p_force_refresh = true);
 	EditorProgressGDDC();
+	EditorProgressGDDC(const String &p_task, const String &p_label, int p_amount, bool p_can_cancel = false);
 	EditorProgressGDDC(Node *p_parent, const String &p_task, const String &p_label, int p_amount, bool p_can_cancel = false);
 	~EditorProgressGDDC();
 };

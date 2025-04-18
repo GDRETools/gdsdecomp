@@ -326,7 +326,7 @@ String gdre::get_md5_for_dir(const String &dir, bool ignore_code_signature) {
 	return FileAccess::get_multiple_md5(files);
 }
 
-Error gdre::wget_sync(const String &p_url, Vector<uint8_t> &response, int retries) {
+Error gdre::wget_sync(const String &p_url, Vector<uint8_t> &response, int retries, float *p_progress) {
 	Ref<HTTPClientTCP> client;
 	client.instantiate();
 	client->set_blocking_mode(true);
@@ -356,6 +356,7 @@ Error gdre::wget_sync(const String &p_url, Vector<uint8_t> &response, int retrie
 	List<String> response_headers;
 	int redirections = 0;
 	int response_code = 0;
+	int response_body_length = 0;
 	auto _handle_response = [&]() -> Error {
 		if (!client->has_response()) {
 			return ERR_CANT_OPEN;
@@ -422,9 +423,23 @@ Error gdre::wget_sync(const String &p_url, Vector<uint8_t> &response, int retrie
 					if (err != OK) {
 						return _retry();
 					}
+					response_body_length = client->get_response_body_length();
+					if (!client->is_response_chunked() && response_body_length == 0) {
+						break;
+					}
 				} else {
-					client->poll();
+					err = client->poll();
+					// while (err != OK) {
+					// 	retries--;
+					// 	if (retries <= 0) {
+					// 		return err;
+					// 	}
+					// 	err = client->poll();
+					// }
 					response.append_array(client->read_response_body_chunk());
+					if (p_progress) {
+						*p_progress = float(response.size()) / float(response_body_length);
+					}
 				}
 				break;
 			}
@@ -448,9 +463,9 @@ Error gdre::wget_sync(const String &p_url, Vector<uint8_t> &response, int retrie
 	return OK;
 }
 
-Error gdre::download_file_sync(const String &p_url, const String &output_path) {
+Error gdre::download_file_sync(const String &p_url, const String &output_path, float *p_progress) {
 	Vector<uint8_t> response;
-	Error err = wget_sync(p_url, response);
+	Error err = wget_sync(p_url, response, 5, p_progress);
 	if (err) {
 		return err;
 	}

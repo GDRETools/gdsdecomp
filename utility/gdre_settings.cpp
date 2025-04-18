@@ -18,6 +18,7 @@
 #include "utility/gdre_packed_source.h"
 #include "utility/gdre_version.gen.h"
 #include "utility/import_info.h"
+#include "utility/task_manager.h"
 
 #include "core/config/project_settings.h"
 #include "core/io/json.h"
@@ -1895,6 +1896,10 @@ void GDRESettings::_do_string_load(uint32_t i, StringLoadToken *tokens) {
 	gdre::get_strings_from_variant(res, tokens[i].strings, tokens[i].engine_version);
 }
 
+String GDRESettings::get_string_load_token_description(uint32_t i, StringLoadToken *p_userdata) {
+	return p_userdata[i].path;
+}
+
 void GDRESettings::load_all_resource_strings() {
 	if (!is_pack_loaded()) {
 		return;
@@ -1924,13 +1929,17 @@ void GDRESettings::load_all_resource_strings() {
 		tokens.write[i].engine_version = get_version_string();
 	}
 	print_line("Loading resource strings, this may take a while!!");
-	auto group_task = WorkerThreadPool::get_singleton()->add_template_group_task(
+	auto group_task = TaskManager::get_singleton()->add_group_task(
 			this,
 			&GDRESettings::_do_string_load,
 			tokens.ptrw(),
-			tokens.size(), -1, true, SNAME("GDRESettings::load_all_resource_strings"));
-
-	WorkerThreadPool::get_singleton()->wait_for_group_task_completion(group_task);
+			tokens.size(),
+			&GDRESettings::get_string_load_token_description,
+			"GDRESettings::load_all_resource_strings", RTR("Loading resource strings..."), true, -1, true);
+	Error err = TaskManager::get_singleton()->wait_for_group_task_completion(group_task);
+	if (err != OK) {
+		WARN_PRINT("Failed to load resource strings!");
+	}
 	print_line("Resource strings loaded!");
 	for (int i = 0; i < tokens.size(); i++) {
 		if (tokens[i].err != OK) {
