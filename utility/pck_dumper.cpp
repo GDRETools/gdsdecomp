@@ -9,6 +9,7 @@
 #include "utility/packed_file_info.h"
 
 #include <utility/gdre_standalone.h>
+#include <utility/task_manager.h>
 
 const static Vector<uint8_t> empty_md5 = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -25,19 +26,14 @@ bool PckDumper::_pck_file_check_md5(Ref<PackedFileInfo> &file) {
 Error PckDumper::check_md5_all_files() {
 	Vector<String> f;
 	int ch = 0;
-	if (!GDRESettings::get_singleton()->is_headless()) {
-		EditorProgressGDDC pr{ GodotREEditorStandalone::get_singleton(), "pck_dump_to_dir", "Reading PCK archive, click cancel to skip MD5 checking...", static_cast<int>(GDRESettings::get_singleton()->get_file_count()), true };
-		return _check_md5_all_files(f, ch, &pr);
-	}
-
-	return _check_md5_all_files(f, ch, nullptr);
+	return _check_md5_all_files(f, ch);
 }
 
 void PckDumper::_do_md5_check(uint32_t i, Ref<PackedFileInfo> *tokens) {
 	// Taken care of in the main thread
-	if (unlikely(cancelled)) {
-		return;
-	}
+	// if (unlikely(cancelled)) {
+	// 	return;
+	// }
 	if (tokens[i]->get_md5() == empty_md5) {
 		skipped_cnt++;
 	} else {
@@ -47,7 +43,7 @@ void PckDumper::_do_md5_check(uint32_t i, Ref<PackedFileInfo> *tokens) {
 			broken_cnt++;
 		}
 	}
-	last_completed++;
+	// last_completed++;
 }
 
 void PckDumper::reset() {
@@ -82,10 +78,10 @@ Error PckDumper::wait_for_task(WorkerThreadPool::GroupID group_task, const Vecto
 	return OK;
 }
 
-Error PckDumper::_check_md5_all_files(Vector<String> &broken_files, int &checked_files, EditorProgressGDDC *pr) {
+Error PckDumper::_check_md5_all_files(Vector<String> &broken_files, int &checked_files) {
 	reset();
 	auto ext = GDRESettings::get_singleton()->get_pack_type();
-	uint64_t last_progress_upd = OS::get_singleton()->get_ticks_usec();
+	// uint64_t last_progress_upd = OS::get_singleton()->get_ticks_usec();
 
 	if (ext != GDRESettings::PackInfo::PCK && ext != GDRESettings::PackInfo::EXE) {
 		print_verbose("Not a pack file, skipping MD5 check...");
@@ -94,57 +90,46 @@ Error PckDumper::_check_md5_all_files(Vector<String> &broken_files, int &checked
 	Error err = OK;
 	auto files = GDRESettings::get_singleton()->get_file_info_list();
 	int skipped_files = 0;
+	String task_desc = RTR("Reading PCK archive, click cancel to skip MD5 checking...");
 	if (opt_multi_thread) {
 		Vector<String> paths_to_check;
-		if (pr) {
-			pr->step("Checking MD5 for all files...", 0, true);
-			for (const auto &file : files) {
-				paths_to_check.push_back(file->get_path());
-			}
-		}
-		WorkerThreadPool::GroupID group_task = WorkerThreadPool::get_singleton()->add_template_group_task(
+
+		// WorkerThreadPool::GroupID group_task = WorkerThreadPool::get_singleton()->add_template_group_task(
+		// 		this,
+		// 		&PckDumper::_do_md5_check,
+		// 		files.ptrw(),
+		// 		files.size(), -1, true, SNAME("PckDumper::_check_md5_all_files"));
+		WorkerThreadPool::GroupID group_task = TaskManager::get_singleton()->add_group_task(
 				this,
 				&PckDumper::_do_md5_check,
 				files.ptrw(),
-				files.size(), -1, true, SNAME("PckDumper::_check_md5_all_files"));
-		err = wait_for_task(group_task, paths_to_check, pr);
-		checked_files = last_completed + 1 - skipped_cnt;
-		skipped_files = skipped_cnt;
-		if (broken_cnt > 0) {
-			err = ERR_BUG;
-			for (int i = 0; i < files.size(); i++) {
-				if (files[i]->get_md5() != empty_md5 && !files[i]->md5_passed) {
-					broken_files.push_back(files[i]->get_path());
-				}
-			}
-		}
+				files.size(),
+				&PckDumper::get_file_description,
+				"PckDumper::_check_md5_all_files",
+				task_desc, true, -1, true);
+		err = TaskManager::get_singleton()->wait_for_group_task_completion(group_task);
 	} else {
+		err = TaskManager::get_singleton()->run_singlethreaded_task(
+				this,
+				&PckDumper::_do_md5_check,
+				files.ptrw(),
+				files.size(),
+				&PckDumper::get_file_description,
+				"PckDumper::_check_md5_all_files",
+				task_desc, true);
+	}
+	checked_files = last_completed + 1 - skipped_cnt;
+	skipped_files = skipped_cnt;
+	if (broken_cnt > 0) {
+		err = ERR_BUG;
 		for (int i = 0; i < files.size(); i++) {
-			if (pr) {
-				if (OS::get_singleton()->get_ticks_usec() - last_progress_upd > 20000) {
-					last_progress_upd = OS::get_singleton()->get_ticks_usec();
-					bool cancel = pr->step(files[i]->path, i, true);
-					if (cancel) {
-						err = ERR_SKIP;
-					}
-				}
-			}
-			if (files[i]->get_md5() == empty_md5) {
-				print_verbose("Skipping MD5 check for " + files[i]->path + " (no MD5 hash found)");
-				skipped_files++;
-				continue;
-			}
-			files.write[i]->set_md5_match(_pck_file_check_md5(files.write[i]));
-			if (files[i]->md5_passed) {
-				print_verbose("Verified " + files[i]->path);
-			} else {
+			if (files[i]->get_md5() != empty_md5 && !files[i]->md5_passed) {
 				print_error("Checksum failed for " + files[i]->path);
-				broken_files.push_back(files[i]->path);
-				err = ERR_BUG;
+				broken_files.push_back(files[i]->get_path());
 			}
-			checked_files++;
 		}
 	}
+
 	if (err == ERR_SKIP) {
 		print_error("Verification cancelled!\n");
 	} else if (err) {
@@ -163,18 +148,10 @@ Error PckDumper::_check_md5_all_files(Vector<String> &broken_files, int &checked
 }
 Error PckDumper::pck_dump_to_dir(const String &dir, const Vector<String> &files_to_extract = Vector<String>()) {
 	String t;
-	if (!GDRESettings::get_singleton()->is_headless()) {
-		EditorProgressGDDC pr{ GodotREEditorStandalone::get_singleton(), "pck_dump_to_dir", "Extracting files...",
-			static_cast<int>(files_to_extract.is_empty() ? GDRESettings::get_singleton()->get_file_count() : files_to_extract.size()), true };
-		return _pck_dump_to_dir(dir, files_to_extract, &pr, t);
-	}
-	return _pck_dump_to_dir(dir, files_to_extract, nullptr, t);
+	return _pck_dump_to_dir(dir, files_to_extract, t);
 }
 
 void PckDumper::_do_extract(uint32_t i, ExtractToken *tokens) {
-	if (unlikely(cancelled)) {
-		return;
-	}
 	auto &file = tokens[i].file;
 	auto &dir = tokens[i].output_dir;
 	Error err = OK;
@@ -219,8 +196,8 @@ void PckDumper::_do_extract(uint32_t i, ExtractToken *tokens) {
 Error PckDumper::_pck_dump_to_dir(
 		const String &dir,
 		const Vector<String> &files_to_extract,
-		EditorProgressGDDC *pr,
 		String &error_string) {
+	last_completed = -1;
 	ERR_FAIL_COND_V_MSG(!GDRESettings::get_singleton()->is_pack_loaded(), ERR_DOES_NOT_EXIST,
 			"Pack not loaded!");
 	reset();
@@ -234,92 +211,62 @@ Error PckDumper::_pck_dump_to_dir(
 	}
 	int files_extracted = 0;
 	Error err;
+	Vector<ExtractToken> tokens;
+	Vector<String> paths_to_extract;
+	int actual = 0;
+	HashSet<String> files_to_extract_set = gdre::vector_to_hashset(files_to_extract);
+	for (int i = 0; i < files.size(); i++) {
+		if (!files_to_extract_set.is_empty() && !files_to_extract_set.has(files.get(i)->get_path())) {
+			continue;
+		}
+		actual++;
+		tokens.push_back({ files.get(i), dir, OK });
+	}
+	tokens.resize(actual);
+
 	if (opt_multi_thread) {
-		Vector<ExtractToken> tokens;
-		Vector<String> paths_to_extract;
-		int actual = 0;
-		HashSet<String> files_to_extract_set;
-		for (const String &f : files_to_extract) {
-			files_to_extract_set.insert(f);
-		}
-		for (int i = 0; i < files.size(); i++) {
-			if (!files_to_extract_set.is_empty() && !files_to_extract_set.has(files.get(i)->get_path())) {
-				continue;
-			}
-			actual++;
-			if (pr) {
-				paths_to_extract.push_back(files.get(i)->get_path());
-			}
-			tokens.push_back({ files.get(i), dir, OK });
-		}
-		tokens.resize(actual);
-		paths_to_extract.resize(actual);
-		WorkerThreadPool::GroupID group_task = WorkerThreadPool::get_singleton()->add_template_group_task(
+		WorkerThreadPool::GroupID group_task = TaskManager::get_singleton()->add_group_task(
 				this,
 				&PckDumper::_do_extract,
 				tokens.ptrw(),
-				tokens.size(), -1, true, SNAME("PckDumper::_pck_dump_to_dir"));
-		err = wait_for_task(group_task, paths_to_extract, pr);
-		files_extracted = last_completed + 1;
-		if (broken_cnt > 0) {
-			err = ERR_BUG;
-			for (int i = 0; i < tokens.size(); i++) {
-				if (tokens[i].err != OK) {
-					String err_type;
-					if (tokens[i].err == ERR_FILE_CANT_OPEN) {
-						err_type = "FileAccess error";
-					} else if (tokens[i].err == ERR_CANT_CREATE) {
-						err_type = "FileCreate error";
-					} else if (tokens[i].err == ERR_FILE_CANT_WRITE) {
-						err_type = "FileWrite error";
-					} else {
-						err_type = "Unknown error";
-					}
-					error_string += tokens[i].file->get_path() + "(" + err_type + ")\n";
-				}
-			}
-		}
+				tokens.size(),
+				&PckDumper::get_extract_token_description,
+				"PckDumper::_pck_dump_to_dir",
+				RTR("Extracting files..."),
+				true,
+				-1,
+				true);
+		err = TaskManager::get_singleton()->wait_for_group_task_completion(group_task);
 	} else {
-		for (int i = 0; i < files.size(); i++) {
-			if (files_to_extract.size() && !files_to_extract.has(files.get(i)->get_path())) {
-				continue;
-			}
-
-			if (pr) {
-				if (OS::get_singleton()->get_ticks_usec() - last_progress_upd > 20000) {
-					last_progress_upd = OS::get_singleton()->get_ticks_usec();
-					bool cancel = pr->step(files.get(i)->get_path(), i, true);
-					if (cancel) {
-						return ERR_SKIP;
-					}
+		err = TaskManager::get_singleton()->run_singlethreaded_task(this,
+				&PckDumper::_do_extract,
+				tokens.ptrw(),
+				tokens.size(),
+				&PckDumper::get_extract_token_description,
+				"PckDumper::_pck_dump_to_dir",
+				RTR("Extracting files..."),
+				true);
+	}
+	files_extracted = last_completed + 1;
+	if (broken_cnt > 0) {
+		err = ERR_BUG;
+		for (int i = 0; i < tokens.size(); i++) {
+			if (tokens[i].err != OK) {
+				String err_type;
+				if (tokens[i].err == ERR_FILE_CANT_OPEN) {
+					err_type = "FileAccess error";
+				} else if (tokens[i].err == ERR_CANT_CREATE) {
+					err_type = "FileCreate error";
+				} else if (tokens[i].err == ERR_FILE_CANT_WRITE) {
+					err_type = "FileWrite error";
+				} else {
+					err_type = "Unknown error";
 				}
+				error_string += tokens[i].file->get_path() + "(" + err_type + ")\n";
 			}
-			Ref<FileAccess> pck_f = FileAccess::open(files.get(i)->get_path(), FileAccess::READ, &err);
-			if (pck_f.is_null()) {
-				error_string += files.get(i)->get_path() + " (FileAccess error)\n";
-				continue;
-			}
-			String target_name = dir.path_join(files.get(i)->get_path().replace("res://", ""));
-			gdre::ensure_dir(target_name.get_base_dir());
-			Ref<FileAccess> fa = FileAccess::open(target_name, FileAccess::WRITE);
-			if (fa.is_null()) {
-				error_string += files.get(i)->get_path() + " (FileWrite error)\n";
-				continue;
-			}
-
-			int64_t rq_size = files.get(i)->get_size();
-			uint8_t buf[16384];
-			while (rq_size > 0) {
-				int got = pck_f->get_buffer(buf, MIN(16384, rq_size));
-				fa->store_buffer(buf, got);
-				rq_size -= 16384;
-			}
-			fa->flush();
-			files_extracted++;
 			if (files.get(i)->is_malformed() && files.get(i)->get_raw_path() != files.get(i)->get_path()) {
 				print_line("Warning: " + files.get(i)->get_raw_path() + " is a malformed path!\nSaving to " + files.get(i)->get_path() + " instead.");
 			}
-			print_verbose("Extracted " + target_name);
 		}
 	}
 
@@ -331,6 +278,17 @@ Error PckDumper::_pck_dump_to_dir(
 		//show_warning(RTR("No errors detected."), RTR("Read PCK"), RTR("The operation completed successfully!"));
 	}
 	return OK;
+}
+
+String PckDumper::get_file_description(int64_t p_index, Ref<PackedFileInfo> *p_userdata) {
+	if (p_index < 0) {
+		return "Extracting files...";
+	}
+	return p_userdata[p_index]->get_path();
+}
+
+String PckDumper::get_extract_token_description(int64_t p_index, ExtractToken *p_userdata) {
+	return p_userdata[p_index].file->get_path();
 }
 
 void PckDumper::_bind_methods() {

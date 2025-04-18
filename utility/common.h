@@ -20,8 +20,8 @@ Error decompress_image(const Ref<Image> &img);
 String get_md5(const String &dir, bool ignore_code_signature = false);
 String get_md5_for_dir(const String &dir, bool ignore_code_signature = false);
 Error unzip_file_to_dir(const String &zip_path, const String &output_dir);
-Error wget_sync(const String &p_url, Vector<uint8_t> &response, int retries = 5);
-Error download_file_sync(const String &url, const String &output_path);
+Error wget_sync(const String &p_url, Vector<uint8_t> &response, int retries = 5, float *p_progress = nullptr);
+Error download_file_sync(const String &url, const String &output_path, float *p_progress = nullptr);
 Error rimraf(const String &dir);
 bool dir_is_empty(const String &dir);
 template <class T>

@@ -331,6 +331,10 @@ Error PckCreator::finish_pck() {
 	return error;
 }
 
+String PckCreator::get_file_description(int64_t i, File *userdata) {
+	return userdata[i].src_path;
+}
+
 Error PckCreator::_create_after_process(EditorProgressGDDC *pr, String &error_string) {
 	cancelled = false;
 	last_completed = -1;

@@ -734,9 +734,9 @@ void GodotREEditor::_pck_select_request(const Vector<String> &p_paths) {
 		return;
 	}
 	pck_file_selection->set_visible(false);
-	EditorProgressGDDC *pr = memnew(EditorProgressGDDC(ne_parent, "re_read_pck_md5",
-			RTR("Reading PCK archive, click cancel to skip MD5 checking..."),
-			GDRESettings::get_singleton()->get_file_count(), true));
+	// EditorProgressGDDC *pr = memnew(EditorProgressGDDC(ne_parent, "re_read_pck_md5",
+	// 		RTR("Reading PCK archive, click cancel to skip MD5 checking..."),
+	// 		GDRESettings::get_singleton()->get_file_count(), true));
 
 	Ref<PckDumper> pckdump;
 	pckdump.instantiate();
@@ -744,8 +744,8 @@ void GodotREEditor::_pck_select_request(const Vector<String> &p_paths) {
 	int files_checked = 0;
 	int files_broken = 0;
 
-	err = pckdump->_check_md5_all_files(broken_files, files_checked, pr);
-	memdelete(pr);
+	err = pckdump->_check_md5_all_files(broken_files, files_checked);
+	// memdelete(pr);
 	// canceled
 	bool p_check_md5 = true;
 	pck_dialog->set_version(GDRESettings::get_singleton()->get_version_string());
@@ -825,20 +825,20 @@ void GodotREEditor::_pck_extract_files_process() {
 	String failed_files;
 	pck_dialog->set_visible(false);
 	ovd->set_visible(false);
-	EditorProgressGDDC *pr = memnew(EditorProgressGDDC(ne_parent, "re_ext_pck", RTR("Extracting files..."), files.size(), true));
+	// EditorProgressGDDC *pr = memnew(EditorProgressGDDC(ne_parent, "re_ext_pck", RTR("Extracting files..."), files.size(), true));
 	Ref<PckDumper> pckdumper;
 	pckdumper.instantiate();
-	Error err = pckdumper->_pck_dump_to_dir(dir, files, pr, failed_files);
+	Error err = pckdumper->_pck_dump_to_dir(dir, files, failed_files);
 	Ref<ImportExporter> ie;
 
 	if (is_full_recovery && !err) {
-		memdelete(pr);
+		// memdelete(pr);
 		ie.instantiate();
-		pr = memnew(EditorProgressGDDC(ne_parent, "re_ext_pck_res", RTR("Exporting resources..."), GDRESettings::get_singleton()->get_import_files().size(), true));
+		EditorProgressGDDC *pr = memnew(EditorProgressGDDC(ne_parent, "re_ext_pck_res", RTR("Exporting resources..."), GDRESettings::get_singleton()->get_import_files().size(), true));
 		String error_string;
 		err = ie->_export_imports(dir, files, pr, error_string);
 	}
-	memdelete(pr);
+	// memdelete(pr);
 	pck_file = String();
 	String log_path = GDRESettings::get_singleton()->get_log_file_path();
 	String report = "Log file written to " + log_path;

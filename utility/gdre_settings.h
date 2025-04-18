@@ -159,6 +159,7 @@ private:
 
 	void _do_import_load(uint32_t i, IInfoToken *tokens);
 	void _do_string_load(uint32_t i, StringLoadToken *tokens);
+	String get_string_load_token_description(uint32_t i, StringLoadToken *p_userdata);
 	HashMap<ResourceUID::ID, UID_Cache> unique_ids; //unique IDs and utf8 paths (less memory used)
 	ParallelFlatHashMap<String, ResourceUID::ID> path_to_uid;
 	HashMap<String, Dictionary> script_cache;
