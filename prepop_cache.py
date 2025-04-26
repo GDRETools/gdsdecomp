@@ -49,7 +49,7 @@ def get_godot_arch():
     else:
         raise ValueError(f"Unsupported architecture: {platform.machine()}")
 
-DEV_MODE = True #os.getenv("DEV_MODE", "0") != "0"
+DEV_MODE = os.getenv("DEV_MODE", "0") != "0"
 GODOT_EXE = os.path.join(BIN_DIR, f"godot.{get_godot_platform()}.editor.{('dev.' if DEV_MODE else '')}{get_godot_arch()}")
 ARGS = [GODOT_EXE, "--headless", "--path", STANDALONE_DIR]
 
@@ -97,8 +97,23 @@ def generate_json_file():
         "github": github_base64_dict,
         "gitlab": gitlab_base64_dict
     }
-    with open(JSON_DST_PATH, "w") as f:
+    previous_file_size = 0
+    dest_path = JSON_DST_PATH
+    already_exists = os.path.exists(JSON_DST_PATH)
+    if already_exists:
+        # check the file_size
+        previous_file_size = os.path.getsize(JSON_DST_PATH)
+        dest_path = JSON_DST_PATH + ".tmp"
+    with open(dest_path, "w") as f:
         json.dump(main_dict, f)
+    if os.path.getsize(dest_path) < previous_file_size:
+        print("File size decreased, aborting")
+        # remove the tmp file
+        os.remove(dest_path)
+        sys.exit(1)
+    elif already_exists:
+        # rename the tmp file to the original file
+        os.rename(dest_path, JSON_DST_PATH)
 
 
 def prepop_cache():
