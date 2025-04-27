@@ -33,6 +33,40 @@ protected:
 			HashMap<uint64_t, Dictionary> assets;
 		};
 		HashMap<uint64_t, ReleasePair> releases;
+		Dictionary to_json() const {
+			Dictionary d;
+			d["retrieved_time"] = retrieved_time;
+			Dictionary releases_dict;
+			for (auto &E : releases) {
+				auto &release_id = E.key;
+				auto &release_pair = E.value;
+				Dictionary release_dict;
+				release_dict["release"] = release_pair.release;
+				// Don't populate assets; we restore them from the `release` dictionary
+				releases_dict[release_id] = release_dict;
+			}
+			d["releases"] = releases_dict;
+			return d;
+		}
+		static GHReleaseCache from_json(const Dictionary &d) {
+			GHReleaseCache cache;
+			cache.retrieved_time = d.get("retrieved_time", 0);
+			Dictionary releases_dict = d.get("releases", {});
+			for (auto &E : releases_dict.keys()) {
+				auto &release_id = E;
+				Dictionary release_dict = releases_dict[release_id];
+				ReleasePair release_pair;
+				release_pair.release = release_dict.get("release", {});
+				Array assets = release_pair.release.get("assets", {});
+				for (int i = 0; i < assets.size(); i++) {
+					Dictionary asset = assets[i];
+					uint64_t asset_id = asset.get("id", 0);
+					release_pair.assets[asset_id] = asset;
+				}
+				cache.releases[release_id] = release_pair;
+			}
+			return cache;
+		}
 	};
 
 	HashMap<String, GHReleaseCache> release_cache;
@@ -51,6 +85,10 @@ protected:
 	PluginVersion get_plugin_version_gh(const String &plugin_name, uint64_t release_id, uint64_t asset_id);
 
 	virtual bool recache_release_list(const String &plugin_name);
+
+	String _get_release_cache_file_name();
+	void _load_release_cache();
+	void _save_release_cache();
 
 public:
 	GitHubSource();

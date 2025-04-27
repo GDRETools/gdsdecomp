@@ -122,6 +122,7 @@ String GitHubSource::get_repo_url(const String &plugin_name) {
 }
 
 bool GitHubSource::recache_release_list(const String &plugin_name) {
+	bool has_cached_releases = false;
 	{
 		MutexLock lock(cache_mutex);
 		if (release_cache.has(plugin_name)) {
@@ -129,6 +130,7 @@ bool GitHubSource::recache_release_list(const String &plugin_name) {
 			if (!is_cache_expired(cache.retrieved_time)) {
 				return true;
 			}
+			has_cached_releases = cache.releases.size() > 0;
 		}
 	}
 
@@ -153,7 +155,24 @@ bool GitHubSource::recache_release_list(const String &plugin_name) {
 		Vector<uint8_t> response;
 		Error err = gdre::wget_sync(request_url, response, 20);
 		if (err) {
-			break;
+			if (err == ERR_UNAUTHORIZED) { // rate limit exceeded
+				// use the cached releases if they exist
+				print_line(get_plugin_name() + " rate limit exceeded!");
+				if (has_cached_releases) {
+					print_line(get_plugin_name() + " using cached releases...");
+					return true;
+				}
+				print_line(get_plugin_name() + " no cached releases, failing...");
+				return false;
+			}
+			if (err == ERR_FILE_NOT_FOUND && page > 1) {
+				// no more releases
+				break;
+			}
+			if (err != OK) {
+				print_line(get_plugin_name() + " failed to get releases: " + itos(err));
+				return false;
+			}
 		}
 
 		String response_str;
@@ -167,6 +186,9 @@ bool GitHubSource::recache_release_list(const String &plugin_name) {
 			Dictionary release = response_obj[i];
 			releases.push_back(release);
 		}
+		if (response_obj.size() < 100) {
+			break;
+		}
 	}
 
 	GHReleaseCache cache;
@@ -177,9 +199,12 @@ bool GitHubSource::recache_release_list(const String &plugin_name) {
 		uint64_t release_id = uint64_t(release.get("id", 0));
 		Array assets_arr = release.get("assets", {});
 		HashMap<uint64_t, Dictionary> asset_map;
-
+		// empty out the author field because it takes up way too much space and its not needed
+		release["author"] = Dictionary();
 		for (int j = 0; j < assets_arr.size(); j++) {
 			Dictionary asset = assets_arr[j];
+			// same as author
+			asset["uploader"] = Dictionary();
 			uint64_t asset_id = uint64_t(asset.get("id", 0));
 			asset_map[asset_id] = asset;
 		}
@@ -408,6 +433,9 @@ void GitHubSource::load_cache_internal() {
 	auto files = Glob::rglob(cache_folder.path_join("**/*.json"), true);
 	MutexLock lock(cache_mutex);
 	for (auto &file : files) {
+		if (file.get_file().ends_with("_release_cache.json")) {
+			continue;
+		}
 		auto fa = FileAccess::open(file, FileAccess::READ);
 		ERR_CONTINUE_MSG(fa.is_null(), "Failed to open file for reading: " + file);
 		String json = fa->get_as_text();
@@ -415,6 +443,39 @@ void GitHubSource::load_cache_internal() {
 		Dictionary d = JSON::parse_string(json);
 		load_cache_data(plugin_name, d);
 	}
+	_load_release_cache();
+}
+
+String GitHubSource::_get_release_cache_file_name() {
+	return get_plugin_cache_path().path_join("..").simplify_path().path_join(get_plugin_name() + "_release_cache.json");
+}
+
+// Doing this because GitHub rate limits after only 60 requests per hour
+void GitHubSource::_load_release_cache() {
+	auto file = _get_release_cache_file_name();
+	if (!FileAccess::exists(file)) {
+		return;
+	}
+	auto fa = FileAccess::open(file, FileAccess::READ);
+	ERR_FAIL_COND_MSG(fa.is_null(), "Failed to open file for reading: " + file);
+	String json = fa->get_as_text();
+	Dictionary d = JSON::parse_string(json);
+	for (auto &E : d.keys()) {
+		String plugin_name = E;
+		Dictionary plugin_dict = d[plugin_name];
+		release_cache[plugin_name] = GHReleaseCache::from_json(plugin_dict);
+	}
+}
+
+void GitHubSource::_save_release_cache() {
+	auto file = _get_release_cache_file_name();
+	auto fa = FileAccess::open(file, FileAccess::WRITE);
+	ERR_FAIL_COND_MSG(fa.is_null(), "Failed to open file for writing: " + file);
+	Dictionary d;
+	for (auto &E : release_cache) {
+		d[E.key] = E.value.to_json();
+	}
+	fa->store_string(JSON::stringify(d, " ", false, true));
 }
 
 void GitHubSource::save_cache() {
@@ -440,6 +501,7 @@ void GitHubSource::save_cache() {
 		fa->store_string(json);
 		fa->close();
 	}
+	_save_release_cache();
 }
 
 void GitHubSource::prepop_cache(const Vector<String> &plugin_names, bool multithread) {
