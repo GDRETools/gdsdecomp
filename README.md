@@ -24,7 +24,16 @@ Full project recovery performs the following:
 
 This module has support for decompiling Godot 4.x, 3.x, and 2.x projects.
 
+## Installation
+
 Grab the latest release version from here: https://github.com/GDRETools/gdsdecomp/releases
+
+On Windows, you can also install it from [Scoop](https://scoop.sh):
+
+```
+scoop bucket add games
+scoop install gdsdecomp
+```
 
 ## Usage
 
