@@ -334,7 +334,7 @@ void GDRESettings::set_ver_rev(uint32_t p_rev) {
 void GDRESettings::set_project_path(const String &p_path) {
 	project_path = p_path;
 }
-String GDRESettings::get_project_path() {
+String GDRESettings::get_project_path() const {
 	return project_path;
 }
 bool GDRESettings::is_project_config_loaded() const {
@@ -1663,6 +1663,17 @@ ResourceUID::ID GDRESettings::get_uid_for_path(const String &p_path) const {
 	// 		id = e.second;
 	// 	});}
 	return id;
+}
+
+String GDRESettings::get_game_name() const {
+	String game_name;
+	if (is_project_config_loaded()) {
+		game_name = current_project->pcfg->get_setting(get_ver_major() <= 2 ? "application/name" : "application/config/name", "");
+	}
+	if (game_name.is_empty() && is_pack_loaded()) {
+		game_name = get_project_path().get_file().get_basename();
+	}
+	return game_name;
 }
 
 Error GDRESettings::load_pack_gdscript_cache(bool p_reset) {

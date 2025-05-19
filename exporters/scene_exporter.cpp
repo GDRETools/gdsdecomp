@@ -429,6 +429,9 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 	const bool after_4_3 = (iinfo.is_null() ? false : (iinfo->get_ver_major() > 4 || (iinfo->get_ver_major() == 4 && iinfo->get_ver_minor() > 3)));
 	const bool after_4_4 = (iinfo.is_null() ? false : (iinfo->get_ver_major() > 4 || (iinfo->get_ver_major() == 4 && iinfo->get_ver_minor() > 4)));
 
+	String game_name = GDRESettings::get_singleton()->get_game_name();
+	String copyright_string = vformat("The Creators of '%s'", game_name.is_empty() ? p_dest_path.get_file().get_basename() : game_name);
+
 	bool set_all_externals = false;
 	List<String> get_deps;
 	// We need to preload any Texture resources that are used by the scene with our own loader
@@ -717,8 +720,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 						// check for a transform that affects a non-skeleton node
 						for (size_t i = 0; i < num_tracks; i++) {
 							if (anim->track_get_type(i) == Animation::TYPE_SCALE_3D || anim->track_get_type(i) == Animation::TYPE_ROTATION_3D || anim->track_get_type(i) == Animation::TYPE_POSITION_3D) {
-								auto track_path = anim->track_get_path(i);
-								if (track_path.get_subname_count() == 0) {
+								if (anim->track_get_path(i).get_subname_count() == 0) {
 									has_non_skeleton_transforms = true;
 									break;
 								}
@@ -782,6 +784,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 				Ref<GLTFState> state;
 				state.instantiate();
 				state->set_scene_name(scene_name);
+				state->set_copyright(copyright_string);
 
 				if (has_non_skeleton_transforms && has_skinned_meshes) {
 					// WARN_PRINT("Skinned meshes have non-skeleton transforms, exporting as non-single-root.");
@@ -1077,6 +1080,10 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 						json["nodes"] = json_nodes;
 						json["scenes"] = json_scenes;
 					}
+
+					Dictionary gltf_asset = json["asset"];
+					gltf_asset["generator"] = "GDRE Tools v" + GDRESettings::get_singleton()->get_gdre_version();
+					json["asset"] = gltf_asset;
 				}
 #if DEBUG_ENABLED
 				if (p_dest_path.get_extension() == "glb") {

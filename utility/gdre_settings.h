@@ -249,7 +249,7 @@ public:
 	String globalize_path(const String &p_path, const String &resource_path = "") const;
 	String localize_path(const String &p_path, const String &resource_path = "") const;
 	void set_project_path(const String &p_path);
-	String get_project_path();
+	String get_project_path() const;
 	String get_res_path(const String &p_path, const String &resource_dir = "");
 	bool has_res_path(const String &p_path, const String &resource_dir = "");
 	Error open_log_file(const String &output_dir);
@@ -302,6 +302,7 @@ public:
 	Variant get_setting(const String &p_setting, const Variant &p_default_value = Variant()) const;
 	String get_home_dir();
 	ResourceUID::ID get_uid_for_path(const String &p_path) const;
+	String get_game_name() const;
 
 	Vector<String> get_errors();
 
