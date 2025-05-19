@@ -1201,8 +1201,11 @@ func get_sanitized_args():
 	var args = OS.get_cmdline_args()
 	#var scene_path = get_tree().root.scene_file_path
 	var scene_path = "res://gdre_main.tscn"
+
+	if args.size() > 0 and args[0] == "--scene":
+		args = args.slice(1)
 	if args.size() > 0 and args[0].begins_with("res://gdre") and args[0].ends_with(".tscn"):
-		return args.slice(1)
+		args = args.slice(1)
 	return args
 
 func text_to_bin(files: PackedStringArray, output_dir: String):
@@ -1385,6 +1388,7 @@ func handle_cli(args: PackedStringArray) -> bool:
 		else:
 			print_usage()
 			print("ERROR: invalid option '" + arg + "'")
+			print("Args: " + str(args))
 			return true
 		if last_error != "":
 			print_usage()
