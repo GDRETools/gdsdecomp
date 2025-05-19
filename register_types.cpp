@@ -138,28 +138,29 @@ void init_loaders() {
 }
 
 void init_exporters() {
-	auto_converted_exporter = memnew(AutoConvertedExporter);
 	fontfile_exporter = memnew(FontFileExporter);
-	gdextension_exporter = memnew(GDExtensionExporter);
 	mp3str_exporter = memnew(Mp3StrExporter);
 	oggstr_exporter = memnew(OggStrExporter);
 	sample_exporter = memnew(SampleExporter);
-	scene_exporter = memnew(SceneExporter);
 	texture_exporter = memnew(TextureExporter);
-	translation_exporter = memnew(TranslationExporter);
-	gdscript_exporter = memnew(GDScriptExporter);
 	obj_exporter = memnew(ObjExporter);
-	Exporter::add_exporter(auto_converted_exporter);
+	translation_exporter = memnew(TranslationExporter);
+	scene_exporter = memnew(SceneExporter);
+	auto_converted_exporter = memnew(AutoConvertedExporter);
+	gdscript_exporter = memnew(GDScriptExporter);
+	gdextension_exporter = memnew(GDExtensionExporter);
 	Exporter::add_exporter(fontfile_exporter);
-	Exporter::add_exporter(gdextension_exporter);
 	Exporter::add_exporter(mp3str_exporter);
 	Exporter::add_exporter(oggstr_exporter);
 	Exporter::add_exporter(sample_exporter);
-	Exporter::add_exporter(scene_exporter);
 	Exporter::add_exporter(texture_exporter);
-	Exporter::add_exporter(translation_exporter);
-	Exporter::add_exporter(gdscript_exporter);
 	Exporter::add_exporter(obj_exporter);
+
+	Exporter::add_exporter(translation_exporter);
+	Exporter::add_exporter(scene_exporter);
+	Exporter::add_exporter(gdscript_exporter);
+	Exporter::add_exporter(gdextension_exporter);
+	Exporter::add_exporter(auto_converted_exporter);
 }
 
 void init_plugin_manager_sources() {
