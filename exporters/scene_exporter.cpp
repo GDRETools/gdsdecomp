@@ -25,8 +25,12 @@ struct dep_info {
 	ResourceUID::ID uid = ResourceUID::INVALID_ID;
 	String dep;
 	String remap;
+	String orig_remap;
 	String type;
 	bool exists = true;
+	bool uid_in_uid_cache = false;
+	bool uid_in_uid_cache_matches_dep = true;
+	bool uid_remap_path_exists = true;
 };
 
 #define MAX_DEPTH 256
@@ -44,25 +48,31 @@ void get_deps_recursive(const String &p_path, HashMap<String, dep_info> &r_deps,
 			auto splits = dep.split("::");
 			if (splits.size() == 3) {
 				// If it has a UID, UID is first, followed by type, then fallback path
-				info.uid = splits[0].is_empty() ? ResourceUID::INVALID_ID : ResourceUID::get_singleton()->text_to_id(splits[0]);
+				String uid_text = splits[0];
+				info.uid = splits[0].is_empty() ? ResourceUID::INVALID_ID : ResourceUID::get_singleton()->text_to_id(uid_text);
 				info.type = splits[1];
 				info.dep = splits[2];
-				info.remap = GDRESettings::get_singleton()->get_mapped_path(info.dep);
+				info.uid_in_uid_cache = info.uid != ResourceUID::INVALID_ID && ResourceUID::get_singleton()->has_id(info.uid);
+				auto uid_path = info.uid_in_uid_cache ? ResourceUID::get_singleton()->get_id_path(info.uid) : "";
+				info.orig_remap = GDRESettings::get_singleton()->get_mapped_path(info.dep);
+				if (info.uid_in_uid_cache && uid_path != info.dep) {
+					info.uid_in_uid_cache_matches_dep = false;
+					info.remap = GDRESettings::get_singleton()->get_mapped_path(uid_path);
+					if (!FileAccess::exists(info.remap)) {
+						info.uid_remap_path_exists = false;
+						info.remap = "";
+					}
+				}
+				if (info.remap.is_empty()) {
+					info.remap = info.orig_remap;
+				}
 				auto thingy = GDRESettings::get_singleton()->get_mapped_path(splits[0]);
 				if (!FileAccess::exists(info.remap)) {
 					if (FileAccess::exists(info.dep)) {
 						info.remap = info.dep;
 					} else {
-						// If the remap doesn't exist, try to find the remap in the UID system
-						auto mapped_path = info.uid != ResourceUID::INVALID_ID && ResourceUID::get_singleton()->has_id(info.uid) ? ResourceUID::get_singleton()->get_id_path(info.uid) : "";
-						if (mapped_path.is_empty() || !FileAccess::exists(mapped_path)) {
-							mapped_path = GDRESettings::get_singleton()->get_mapped_path(mapped_path);
-							if (mapped_path.is_empty() || !FileAccess::exists(mapped_path)) {
-								info.exists = false;
-								continue;
-							}
-						}
-						info.remap = mapped_path;
+						info.exists = false;
+						continue;
 					}
 				}
 
@@ -517,6 +527,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 		return options.get("save_to_file/path", "");
 	};
 
+	bool no_threaded_load = false;
 	{
 		get_deps_recursive(p_src_path, get_deps_map);
 
@@ -552,7 +563,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 		// 	// if it has a shader, we have to set gltf_load to false and do a real load on the textures, otherwise shaders will not be applied to the textures
 		// 	ResourceCompatLoader::set_default_gltf_load(false);
 		// }
-		auto set_cache_res = [&](const dep_info &info, Ref<Resource> texture, bool force_replace) {
+		auto set_cache_res = [&](const dep_info &info, const Ref<Resource> &texture, bool force_replace) {
 			if (texture.is_null() || (!force_replace && ResourceCache::get_ref(info.dep).is_valid())) {
 				return;
 			}
@@ -576,25 +587,43 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 				GDRE_SCN_EXP_FAIL_V_MSG(ERR_FILE_MISSING_DEPENDENCIES,
 						vformat("Dependency %s -> %s does not exist.", info.dep, info.remap));
 			} else if (info.uid != ResourceUID::INVALID_ID) {
-				if (!ResourceUID::get_singleton()->has_id(info.uid)) {
+				if (!info.uid_in_uid_cache) {
 					ResourceUID::get_singleton()->add_id(info.uid, info.remap);
 					texture_uids.push_back(info.uid);
+				} else if (!info.uid_in_uid_cache_matches_dep) {
+					if (info.uid_remap_path_exists) {
+						WARN_PRINT(vformat("Dependency %s:%s is not mapped to the same path: %s (%s)", info.dep, info.remap, info.orig_remap, ResourceUID::get_singleton()->id_to_text(info.uid)));
+						ResourceUID::get_singleton()->set_id(info.uid, info.remap);
+					}
 				}
-				continue;
+				if (info.uid_remap_path_exists) {
+					continue;
+					// else fall through
+				}
 			}
 
 			if (info.dep != info.remap) {
-				auto texture = ResourceCompatLoader::custom_load(
-						info.remap, "",
-						ResourceCompatLoader::get_default_load_type(),
-						&err,
-						using_threaded_load(),
-						ResourceFormatLoader::CACHE_MODE_REUSE);
-				if (err || texture.is_null()) {
-					GDRE_SCN_EXP_FAIL_V_MSG(ERR_FILE_MISSING_DEPENDENCIES,
-							vformat("Dependency %s:%s failed to load.", info.dep, info.remap));
+				String our_path = GDRESettings::get_singleton()->get_mapped_path(info.dep);
+				if (our_path != info.remap) {
+					WARN_PRINT(vformat("Dependency %s:%s is not mapped to the same path: %s", info.dep, info.remap, our_path));
+					if (!ResourceCache::has(info.dep)) {
+						auto texture = ResourceCompatLoader::custom_load(
+								info.remap, "",
+								ResourceCompatLoader::get_default_load_type(),
+								&err,
+								using_threaded_load(),
+								ResourceFormatLoader::CACHE_MODE_IGNORE); // not ignore deep, we want to reuse dependencies if they exist
+						if (err || texture.is_null()) {
+							GDRE_SCN_EXP_FAIL_V_MSG(ERR_FILE_MISSING_DEPENDENCIES,
+									vformat("Dependency %s:%s failed to load.", info.dep, info.remap));
+						}
+						if (!ResourceCache::has(info.dep)) {
+							set_cache_res(info, texture, false);
+						}
+					}
+				} else { // if mapped_path logic changes, we have to set this to true
+					// no_threaded_load = true;
 				}
-				set_cache_res(info, texture, false);
 			}
 		}
 		Vector<String> id_to_texture_path;
@@ -634,14 +663,35 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 			ERR_FAIL_COND_V_MSG(p_err, ERR_FILE_CANT_READ, "Failed to load scene " + p_src_path);
 			p_err = gdre::ensure_dir(p_dest_path.get_base_dir());
 			auto deps = _find_resources(scene, true, ver_major);
-			Vector<Ref<AnimationLibrary>> animation_libraries;
-			if (has_external_animation) {
-				for (auto &E : deps) {
-					Ref<AnimationLibrary> anim_lib = E;
-					if (anim_lib.is_valid()) {
-						animation_libraries.push_back(anim_lib);
-						List<StringName> anim_names;
-						anim_lib->get_animation_list(&anim_names);
+			Node *root = scene->instantiate();
+			TypedArray<Node> skel_nodes = root->find_children("*", "AnimationPlayer");
+			for (int32_t node_i = 0; node_i < skel_nodes.size(); node_i++) {
+				// Force re-compute animation tracks.
+				Vector<Ref<AnimationLibrary>> anim_libs;
+				AnimationPlayer *player = cast_to<AnimationPlayer>(skel_nodes[node_i]);
+				List<StringName> anim_lib_names;
+				player->get_animation_library_list(&anim_lib_names);
+				for (auto &lib_name : anim_lib_names) {
+					Ref<AnimationLibrary> lib = player->get_animation_library(lib_name);
+					if (lib.is_valid()) {
+						anim_libs.push_back(lib);
+					}
+				}
+				ERR_CONTINUE(!player);
+				auto current_anmation = player->get_current_animation();
+				auto current_pos = current_anmation.is_empty() ? 0 : player->get_current_animation_position();
+				for (auto &anim_lib : anim_libs) {
+					List<StringName> anim_names;
+					anim_lib->get_animation_list(&anim_names);
+					if (ver_major <= 3 && anim_names.size() > 0) {
+						// force re-compute animation tracks.
+						player->set_current_animation(anim_names.front()->get());
+						player->advance(0);
+						player->set_current_animation(current_anmation);
+						if (!current_anmation.is_empty()) {
+							player->seek(current_pos);
+						}
+					} else {
 						for (auto &anim_name : anim_names) {
 							Ref<Animation> anim = anim_lib->get_animation(anim_name);
 							auto path = get_resource_path(anim);
@@ -670,7 +720,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 					}
 				}
 			}
-			Node *root;
+
 			String scene_name;
 			if (p_report.is_valid()) {
 				scene_name = iinfo->get_source_file().get_file().get_basename();
@@ -704,7 +754,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 				int32_t flags = 0;
 				auto exts = doc->get_supported_gltf_extensions();
 				flags |= 16; // EditorSceneFormatImporter::IMPORT_USE_NAMED_SKIN_BINDS;
-				root = scene->instantiate();
+				// root = scene->instantiate();
 				root_type = root->get_class();
 				root_name = root->get_name();
 				p_err = doc->append_from_scene(root, state, flags);
@@ -882,9 +932,6 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 							Ref<GLTFMesh> gltf_mesh = gltf_meshes[i];
 							auto mesh = gltf_mesh->get_mesh();
 							auto original_name = gltf_mesh->get_original_name();
-							if (original_name.is_empty()) {
-								original_name = mesh->get_name();
-							}
 							Dictionary mesh_dict = json_meshes[i];
 							ObjExporter::MeshInfo mesh_info;
 							if (mesh.is_null()) {
@@ -901,8 +948,11 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 							}
 							if (!name.is_empty()) {
 								mesh_dict["name"] = demangle_name(name);
-							} else {
+							} else if (!original_name.is_empty()) {
 								mesh_dict["name"] = original_name;
+							}
+							if (original_name.is_empty()) {
+								gltf_mesh->set_original_name(name);
 							}
 							mesh_info.path = path;
 							mesh_info.name = name;
@@ -919,6 +969,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 
 							id_to_mesh_info.push_back(mesh_info);
 						}
+						json["meshes"] = json_meshes;
 					}
 					{
 						TypedArray<Node> nodes = root->find_children("*", "MeshInstance3D");
@@ -1003,7 +1054,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 			err = ERR_PRINTER_ON_FIRE;
 		}
 		auto iinfo = p_report.is_valid() ? p_report->get_import_info() : Ref<ImportInfo>();
-		if (iinfo.is_valid()) {
+		if (iinfo.is_valid() && iinfo->get_ver_major() >= 4) {
 			ObjExporter::MeshInfo global_mesh_info;
 			Vector<bool> global_has_tangents;
 			Vector<bool> global_has_lods;
@@ -1180,6 +1231,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 			extra_info["image_path_to_data_hash"] = image_path_to_data_hash;
 			p_report->set_extra_info(extra_info);
 		}
+		textures.clear();
 	}
 
 	// remove the UIDs that we added that didn't exist before
@@ -1280,7 +1332,7 @@ Ref<ExportReport> SceneExporter::export_resource(const String &output_dir, Ref<I
 	}
 	iinfo->set_export_dest(new_path);
 	String dest_path = output_dir.path_join(new_path.replace("res://", ""));
-	if (!to_text && iinfo->get_ver_major() != 4) {
+	if (!to_text && iinfo->get_ver_major() < 3) {
 		err = ERR_UNAVAILABLE;
 		report->set_message("Scene export for engine version " + itos(iinfo->get_ver_major()) + " is not currently supported.");
 		report->set_unsupported_format_type(itos(iinfo->get_ver_major()) + ".x PackedScene");
@@ -1294,7 +1346,7 @@ Ref<ExportReport> SceneExporter::export_resource(const String &output_dir, Ref<I
 		auto import_dest = output_dir.path_join(iinfo->get_import_md_path().trim_prefix("res://"));
 		iinfo->save_to(import_dest);
 		report->set_rewrote_metadata(ExportReport::NOT_IMPORTABLE);
-	} else if (err == OK && !to_text && !to_obj && !non_gltf) {
+	} else if (err == OK && !to_text && !to_obj && !non_gltf && iinfo->get_ver_major() >= 4) {
 		// TODO: Turn this on when we feel confident that we can tell that are exporting correctly
 		// TODO: do real GLTF validation
 		// TODO: fix errors where some models aren't being textured?
