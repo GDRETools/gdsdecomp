@@ -54,6 +54,8 @@ func reset():
 	%TextureInfo.text = ""
 	%TextureRect.texture = null
 	%ResourceInfo.text = ""
+	%MeshPreviewer.visible = false
+	%MeshPreviewer.reset()
 
 
 var previous_res_info_size = Vector2(0, 0)
@@ -88,6 +90,22 @@ func pop_resource_info(path: String):
 	else:
 		%ResourceInfo.text = "[b]Path:[/b] " + path
 
+func is_mesh(ext):
+	return ext == "mesh"
+
+func load_mesh(path):
+	var res = ResourceCompatLoader.real_load(path, "", ResourceFormatLoader.CACHE_MODE_IGNORE_DEEP)
+	if not res:
+		return false
+	# check if the resource is a mesh or a descendant of mesh
+	if not res.get_class().contains("Mesh"):
+		return false
+	print(res.get_class())
+	%MeshPreviewer.edit(res)
+	%MeshPreviewer.visible = true
+	return true
+
+
 func load_resource(path: String) -> void:
 	reset()
 	var ext = path.get_extension().to_lower()
@@ -111,6 +129,8 @@ func load_resource(path: String) -> void:
 		error_opening = not load_texture(path)
 	elif (is_texture(ext)):
 		error_opening = not load_texture(path)
+	elif (is_mesh(ext)):
+		error_opening = not load_mesh(path)
 	elif (is_text_resource(ext) or is_ini_like(ext)):
 		%TextView.load_text_resource(path)
 		%TextView.visible = true
@@ -250,6 +270,8 @@ func get_currently_visible_view() -> Control:
 		return %MediaPlayer
 	elif %TextureView.visible:
 		return %TextureView
+	elif %MeshPreviewer.visible:
+		return %MeshPreviewer
 	return null
 
 
@@ -265,7 +287,8 @@ func _ready():
 	previous_res_info_size = Vector2(0, 100)
 	%ResourceInfoContainer.custom_minimum_size = previous_res_info_size
 	# TODO: remove me
-	#load_resource("res://gdre_file_tree.gd")
+	load_resource
+	load_resource("res://.godot/imported/ScifiStruct_3.obj-8ad9868dec2ef9403c73f82a7404489a.mesh")
 	# load_resource("res://.godot/imported/gdre_Script.svg-4c68c9c5e02f5e7a41dddea59a95e245.ctex")
 	#load_resource("res://.godot/imported/anomaly 105 jun12.ogg-d3e939934d210d1a4e1f9d2d34966046.oggvorbisstr")
 

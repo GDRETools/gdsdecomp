@@ -46,6 +46,7 @@
 #include "utility/glob.h"
 #include "utility/godotver.h"
 #include "utility/import_exporter.h"
+#include "utility/mesh_previewer.h"
 #include "utility/packed_file_info.h"
 #include "utility/pck_creator.h"
 #include "utility/pck_dumper.h"
@@ -366,6 +367,7 @@ void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
 	ClassDB::register_class<AssetLibrarySource>();
 	ClassDB::register_class<GitLabSource>();
 	ClassDB::register_class<ResourceInfo>();
+	ClassDB::register_class<MeshPreviewer>();
 	init_plugin_manager_sources();
 	gdre_singleton = memnew(GDRESettings);
 	Engine::get_singleton()->add_singleton(Engine::Singleton("GDRESettings", GDRESettings::get_singleton()));
