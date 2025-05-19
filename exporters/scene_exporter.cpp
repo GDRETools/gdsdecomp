@@ -635,6 +635,9 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 		HashMap<String, String> animation_map;
 		HashMap<String, ObjExporter::MeshInfo> mesh_info_map;
 		HashMap<String, Dictionary> animation_options;
+		bool has_reset_track = false;
+		bool has_skinned_meshes = false;
+		bool has_non_skeleton_transforms = false;
 		String root_type;
 		String root_name;
 
@@ -664,11 +667,22 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 			p_err = gdre::ensure_dir(p_dest_path.get_base_dir());
 			auto deps = _find_resources(scene, true, ver_major);
 			Node *root = scene->instantiate();
-			TypedArray<Node> skel_nodes = root->find_children("*", "AnimationPlayer");
-			for (int32_t node_i = 0; node_i < skel_nodes.size(); node_i++) {
+			TypedArray<Node> animation_player_nodes = root->find_children("*", "AnimationPlayer");
+			TypedArray<Node> mesh_instances = root->find_children("*", "MeshInstance3D");
+			HashSet<Node *> skinned_mesh_instances;
+			for (auto &E : mesh_instances) {
+				MeshInstance3D *mesh_instance = cast_to<MeshInstance3D>(E);
+				ERR_CONTINUE(!mesh_instance);
+				auto skin = mesh_instance->get_skin();
+				if (skin.is_valid()) {
+					has_skinned_meshes = true;
+					skinned_mesh_instances.insert(mesh_instance);
+				}
+			}
+			for (int32_t node_i = 0; node_i < animation_player_nodes.size(); node_i++) {
 				// Force re-compute animation tracks.
 				Vector<Ref<AnimationLibrary>> anim_libs;
-				AnimationPlayer *player = cast_to<AnimationPlayer>(skel_nodes[node_i]);
+				AnimationPlayer *player = cast_to<AnimationPlayer>(animation_player_nodes[node_i]);
 				List<StringName> anim_lib_names;
 				player->get_animation_library_list(&anim_lib_names);
 				for (auto &lib_name : anim_lib_names) {
@@ -691,11 +705,26 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 						if (!current_anmation.is_empty()) {
 							player->seek(current_pos);
 						}
-					} else {
-						for (auto &anim_name : anim_names) {
-							Ref<Animation> anim = anim_lib->get_animation(anim_name);
-							auto path = get_resource_path(anim);
-							String name = anim_name;
+					}
+					for (auto &anim_name : anim_names) {
+						Ref<Animation> anim = anim_lib->get_animation(anim_name);
+						auto path = get_resource_path(anim);
+						String name = anim_name;
+						if (name == "RESET") {
+							has_reset_track = true;
+						}
+						size_t num_tracks = anim->get_track_count();
+						// check for a transform that affects a non-skeleton node
+						for (size_t i = 0; i < num_tracks; i++) {
+							if (anim->track_get_type(i) == Animation::TYPE_SCALE_3D || anim->track_get_type(i) == Animation::TYPE_ROTATION_3D || anim->track_get_type(i) == Animation::TYPE_POSITION_3D) {
+								auto track_path = anim->track_get_path(i);
+								if (track_path.get_subname_count() == 0) {
+									has_non_skeleton_transforms = true;
+									break;
+								}
+							}
+						}
+						if (ver_major == 4) {
 							int i = 1;
 							while (animation_options.has(name)) {
 								// append _001, _002, etc.
@@ -745,12 +774,18 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 				return path.trim_prefix(scene_name + "_");
 			};
 
+
 			{
 				List<String> deps;
 				Ref<GLTFDocument> doc;
 				doc.instantiate();
 				Ref<GLTFState> state;
 				state.instantiate();
+
+				if (has_non_skeleton_transforms && has_skinned_meshes) {
+					// WARN_PRINT("Skinned meshes have non-skeleton transforms, exporting as non-single-root.");
+					doc->set_root_node_mode(GLTFDocument::RootNodeMode::ROOT_NODE_MODE_MULTI_ROOT);
+				}
 				int32_t flags = 0;
 				auto exts = doc->get_supported_gltf_extensions();
 				flags |= 16; // EditorSceneFormatImporter::IMPORT_USE_NAMED_SKIN_BINDS;
@@ -922,7 +957,6 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 
 					{
 						auto default_light_map_size = Vector2i(0, 0);
-						TypedArray<Node> mesh_instances = root->find_children("*", "MeshInstance3D");
 						Vector<String> mesh_names;
 						Vector<Pair<Ref<ArrayMesh>, MeshInstance3D *>> mesh_to_instance;
 						Vector<bool> mesh_is_shadow;
@@ -972,7 +1006,6 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 						json["meshes"] = json_meshes;
 					}
 					{
-						TypedArray<Node> nodes = root->find_children("*", "MeshInstance3D");
 						Array json_materials = json["materials"];
 						for (int i = 0; i < materials.size(); i++) {
 							Dictionary material_dict = json_materials[i];
@@ -995,38 +1028,47 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 					// rename animation player nodes to avoid name clashes when reimporting
 					if (gltf_nodes.size() > 0) {
 						Array json_nodes = json["nodes"];
+						Array json_scenes = json["scenes"];
 						Vector<GLTFNodeIndex> nodes_to_remove;
-						for (int i = 0; i < gltf_nodes.size(); i++) {
-							Ref<GLTFNode> node = gltf_nodes[i];
-							Dictionary json_node = json_nodes[i];
+						for (int node_idx = gltf_nodes.size() - 1; node_idx >= 0; node_idx--) {
+							Ref<GLTFNode> node = gltf_nodes[node_idx];
+							Dictionary json_node = json_nodes[node_idx];
 							if (node.is_valid()) {
 								auto original_name = node->get_original_name();
 								if (!original_name.is_empty() && original_name.contains("AnimationPlayer")) {
-									if (json_node.size() == 0 || (json_node.size() == 1 && json_node.has("name"))) {
+									if (node_idx == json_nodes.size() - 1 && (json_node.size() == 0 || (json_node.size() == 1 && json_node.has("name")))) {
 										// useless node, remove it
 										auto parent = node->get_parent();
 										if (parent != -1) {
 											Dictionary parent_node = json_nodes[parent];
 											Array children = parent_node.get("children", Array());
-											if (children.has(i)) {
-												children.erase(i);
+											if (children.has(node_idx)) {
+												children.erase(node_idx);
 												parent_node["children"] = children;
 											}
 										}
-										nodes_to_remove.push_back(i);
+										for (int j = 0; j < json_scenes.size(); j++) {
+											Dictionary scene_json = json_scenes[j];
+											Array scene_nodes = scene_json.get("nodes", Array());
+											if (scene_nodes.has(node_idx)) {
+												scene_nodes.erase(node_idx);
+												scene_json["nodes"] = scene_nodes;
+												json_scenes[j] = scene_json;
+											}
+										}
+										json_nodes.remove_at(node_idx);
+										nodes_to_remove.push_back(node_idx);
 										continue;
 									} else {
-										json_node["name"] = original_name + "_ORIG_" + String::num_int64(i);
+										json_node["name"] = original_name + "_ORIG_" + String::num_int64(node_idx);
 									}
 								}
 							}
 						}
-						nodes_to_remove.sort();
-						nodes_to_remove.reverse();
-						for (int i = nodes_to_remove.size() - 1; i >= 0; i--) {
-							json_nodes.remove_at(nodes_to_remove[i]);
-						}
+						// nodes_to_remove.sort();
+						// nodes_to_remove.reverse();
 						json["nodes"] = json_nodes;
+						json["scenes"] = json_scenes;
 					}
 				}
 #if DEBUG_ENABLED
@@ -1119,7 +1161,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 			iinfo->set_param("animation/fps", 30);
 			iinfo->set_param("animation/trimming", p_dest_path.get_extension().to_lower() == "fbx");
 			iinfo->set_param("animation/remove_immutable_tracks", true);
-			iinfo->set_param("animation/import_rest_as_RESET", false);
+			iinfo->set_param("animation/import_rest_as_RESET", has_reset_track);
 			iinfo->set_param("import_script/path", "");
 			// 		r_options->push_back(ResourceImporterScene::ImportOption(PropertyInfo(Variant::INT, "gltf/naming_version", PROPERTY_HINT_ENUM, "Godot 4.1 or 4.0,Godot 4.2 or later"), 1));
 			// r_options->push_back(ResourceImporterScene::ImportOption(PropertyInfo(Variant::INT, "gltf/embedded_image_handling", PROPERTY_HINT_ENUM, "Discard All Textures,Extract Textures,Embed as Basis Universal,Embed as Uncompressed", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_UPDATE_ALL_IF_MODIFIED), GLTFState::HANDLE_BINARY_EXTRACT_TEXTURES));
