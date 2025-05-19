@@ -1487,3 +1487,7 @@ void SceneExporter::get_handled_types(List<String> *out) const {
 void SceneExporter::get_handled_importers(List<String> *out) const {
 	out->push_back("scene");
 }
+
+String SceneExporter::get_name() const {
+	return "PackedScene";
+}

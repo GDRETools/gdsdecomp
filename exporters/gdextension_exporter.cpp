@@ -188,3 +188,7 @@ void GDExtensionExporter::get_handled_importers(List<String> *out) const {
 	out->push_back("gdextension");
 	out->push_back("gdnative");
 }
+
+String GDExtensionExporter::get_name() const {
+	return "GDExtension";
+}

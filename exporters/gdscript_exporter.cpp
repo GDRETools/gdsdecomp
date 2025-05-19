@@ -87,3 +87,7 @@ void GDScriptExporter::get_handled_importers(List<String> *out) const {
 bool GDScriptExporter::supports_multithread() const {
 	return true;
 }
+
+String GDScriptExporter::get_name() const {
+	return "GDScript";
+}

@@ -604,3 +604,7 @@ bool ObjExporter::supports_multithread() const {
 	// So, if we're using multithreading, we use the fake mesh loader to load meshes without loading them into the render server.
 	return true;
 }
+
+String ObjExporter::get_name() const {
+	return "Wavefront OBJ";
+}

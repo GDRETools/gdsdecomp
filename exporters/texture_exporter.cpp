@@ -967,3 +967,7 @@ void TextureExporter::get_handled_importers(List<String> *out) const {
 	out->push_back("texture_3d");
 	out->push_back("3d_texture");
 }
+
+String TextureExporter::get_name() const {
+	return "Texture";
+}

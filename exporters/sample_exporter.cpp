@@ -305,3 +305,7 @@ void SampleExporter::get_handled_importers(List<String> *out) const {
 	out->push_back("sample");
 	out->push_back("wav");
 }
+
+String SampleExporter::get_name() const {
+	return "WAV";
+}

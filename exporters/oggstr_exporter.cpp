@@ -186,3 +186,7 @@ void OggStrExporter::get_handled_importers(List<String> *out) const {
 	out->push_back("ogg_vorbis");
 	out->push_back("oggvorbisstr");
 }
+
+String OggStrExporter::get_name() const {
+	return "OggVorbis";
+}

@@ -66,3 +66,7 @@ void Mp3StrExporter::get_handled_types(List<String> *out) const {
 void Mp3StrExporter::get_handled_importers(List<String> *out) const {
 	out->push_back("mp3");
 }
+
+String Mp3StrExporter::get_name() const {
+	return "MP3";
+}

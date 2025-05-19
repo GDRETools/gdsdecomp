@@ -40,3 +40,7 @@ void FontFileExporter::get_handled_types(List<String> *out) const {
 void FontFileExporter::get_handled_importers(List<String> *out) const {
 	out->push_back("font_data_dynamic");
 }
+
+String FontFileExporter::get_name() const {
+	return "FontFile";
+}

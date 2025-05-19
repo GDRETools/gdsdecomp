@@ -20,7 +20,8 @@ public:
 	virtual void get_handled_types(List<String> *out) const override;
 	virtual void get_handled_importers(List<String> *out) const override;
 	virtual bool supports_multithread() const override;
-
+	virtual String get_name() const override;
+	virtual bool supports_nonpack_export() const override { return false; }
 	GDScriptExporter() = default;
 	~GDScriptExporter() = default;
 };

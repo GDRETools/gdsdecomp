@@ -10,4 +10,6 @@ public:
 	virtual Ref<ExportReport> export_resource(const String &output_dir, Ref<ImportInfo> import_infos) override;
 	virtual void get_handled_types(List<String> *out) const override;
 	virtual void get_handled_importers(List<String> *out) const override;
+	virtual String get_name() const override;
+	virtual bool supports_nonpack_export() const override { return false; }
 };

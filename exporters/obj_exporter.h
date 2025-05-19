@@ -27,6 +27,7 @@ public:
 		String name;
 		String path;
 	};
+	virtual String get_name() const override;
 	static Error _write_meshes_to_obj(const Vector<Ref<Mesh>> &p_meshes, const String &p_path, const String &p_output_dir, MeshInfo &r_mesh_info);
 	static Error write_meshes_to_obj(const Vector<Ref<Mesh>> &p_meshes, const String &p_path);
 	static void rewrite_import_params(Ref<ImportInfo> p_import_info, const MeshInfo &p_mesh_info);

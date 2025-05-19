@@ -34,3 +34,7 @@ void AutoConvertedExporter::get_handled_types(List<String> *out) const {
 void AutoConvertedExporter::get_handled_importers(List<String> *out) const {
 	out->push_back("autoconverted");
 }
+
+String AutoConvertedExporter::get_name() const {
+	return "AutoConverted";
+}

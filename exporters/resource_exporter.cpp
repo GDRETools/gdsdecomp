@@ -68,10 +68,20 @@ Ref<ExportReport> ResourceExporter::export_resource(const String &output_dir, Re
 	return thing;
 }
 
+String ResourceExporter::get_name() const {
+	return get_class().trim_suffix("Exporter");
+}
+
+bool ResourceExporter::supports_nonpack_export() const {
+	return true;
+}
+
 void ResourceExporter::_bind_methods() {
-	// ClassDB::bind_method(D_METHOD("export_file", "out_path", "src_path"), &ResourceExporter::export_file);
-	// ClassDB::bind_method(D_METHOD("export_resource", "output_dir", "import_infos"), &ResourceExporter::export_resource);
-	// ClassDB::bind_method(D_METHOD("handles_import", "importer", "resource_type"), &ResourceExporter::handles_import);
+	ClassDB::bind_method(D_METHOD("get_name"), &ResourceExporter::get_name);
+	ClassDB::bind_method(D_METHOD("supports_nonpack_export"), &ResourceExporter::supports_nonpack_export);
+	ClassDB::bind_method(D_METHOD("export_file", "out_path", "src_path"), &ResourceExporter::export_file);
+	ClassDB::bind_method(D_METHOD("export_resource", "output_dir", "import_infos"), &ResourceExporter::export_resource);
+	ClassDB::bind_method(D_METHOD("handles_import", "importer", "resource_type"), &ResourceExporter::handles_import);
 }
 
 void Exporter::add_exporter(Ref<ResourceExporter> exporter, bool at_front) {
@@ -140,9 +150,22 @@ Error Exporter::export_file(const String &out_path, const String &res_path) {
 	return exporter->export_file(out_path, res_path);
 }
 
+Ref<ResourceExporter> Exporter::get_nonpack_exporter_from_path(const String &res_path) {
+	String importer = "";
+	Ref<ResourceInfo> info = ResourceCompatLoader::get_resource_info(res_path, importer);
+	String type = info.is_valid() ? info->type : "";
+	for (int i = 0; i < exporter_count; ++i) {
+		if (exporters[i]->handles_import(importer, type) && exporters[i]->supports_nonpack_export()) {
+			return exporters[i];
+		}
+	}
+	return Ref<ResourceExporter>();
+}
+
 void Exporter::_bind_methods() {
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("add_exporter", "exporter", "at_front"), &Exporter::add_exporter);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("remove_exporter", "exporter"), &Exporter::remove_exporter);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("export_resource", "output_dir", "import_infos"), &Exporter::export_resource);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("export_file", "out_path", "res_path"), &Exporter::export_file);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("get_nonpack_exporter_from_path", "res_path"), &Exporter::get_nonpack_exporter_from_path);
 }
