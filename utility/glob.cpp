@@ -484,7 +484,7 @@ String Glob::translate(const String &pattern) {
 			} else {
 				auto stuff = pattern.substr(i, j - i);
 				if (stuff.find("--") == String::npos) {
-					stuff.replace(String{ "\\" }, String{ R"(\\)" });
+					stuff = stuff.replace(String{ "\\" }, String{ R"(\\)" });
 				} else {
 					Vector<String> chunks;
 					std::size_t k = 0;
@@ -511,8 +511,8 @@ String Glob::translate(const String &pattern) {
 					// Hyphens that create ranges shouldn't be escaped.
 					bool first = true;
 					for (auto &s : chunks) {
-						s.replace(String{ "\\" }, String{ R"(\\)" });
-						s.replace(String{ "-" }, String{ R"(\-)" });
+						s = s.replace(String{ "\\" }, String{ R"(\\)" });
+						s = s.replace(String{ "-" }, String{ R"(\-)" });
 						if (first) {
 							stuff += s;
 							first = false;
