@@ -627,7 +627,9 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 		}
 	}
 
-	if (!has_valid_version() || current_project->suspect_version) {
+	bool invalid_ver = !has_valid_version() || current_project->suspect_version;
+
+	if (invalid_ver) {
 		// We need to get the version from the binary resources.
 		err = get_version_from_bin_resources();
 		// this is a catastrophic failure, unload the pack
@@ -637,7 +639,7 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 		}
 	}
 
-	err = detect_bytecode_revision();
+	err = detect_bytecode_revision(invalid_ver);
 	if (err) {
 		if (err == ERR_UNAUTHORIZED) {
 			_set_error_encryption(true);
@@ -662,7 +664,7 @@ constexpr bool GDRESettings::need_correct_patch(int ver_major, int ver_minor) {
 	return ((ver_major == 2 || ver_major == 3) && ver_minor == 1);
 }
 
-Error GDRESettings::detect_bytecode_revision() {
+Error GDRESettings::detect_bytecode_revision(bool p_no_valid_version) {
 	if (!is_pack_loaded()) {
 		return ERR_FILE_CANT_OPEN;
 	}
@@ -721,7 +723,7 @@ Error GDRESettings::detect_bytecode_revision() {
 		auto version = decomp->get_godot_ver();
 		if (version->is_prerelease()) {
 			current_project->version = decomp->get_max_engine_version().is_empty() ? version : decomp->get_max_godot_ver();
-		} else {
+		} else if (ver_major < 3 || (ver_major == 3 && ver_minor <= 1) || p_no_valid_version) { // didn't write correct patch version or did not have a correct pck version
 			auto max_version = decomp->get_max_godot_ver();
 			if (max_version.is_valid() && (check_if_same_minor_major(current_project->version, max_version))) {
 				if (max_version->get_patch() > current_project->version->get_patch()) {

@@ -200,7 +200,7 @@ private:
 	Error load_pack_gdscript_cache(bool p_reset = false);
 	Error reset_gdscript_cache();
 
-	Error detect_bytecode_revision();
+	Error detect_bytecode_revision(bool p_no_valid_version);
 
 	static constexpr bool need_correct_patch(int ver_major, int ver_minor);
 	void _do_prepop(uint32_t i, const String *plugins);
