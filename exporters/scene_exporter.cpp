@@ -631,13 +631,13 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 		Vector<Pair<String, String>> id_to_material_path;
 		// Vector<Pair<String, String>> id_to_meshes_path;
 		Vector<ObjExporter::MeshInfo> id_to_mesh_info;
-		Vector<Pair<String, String>> id_to_animations_path;
 		HashMap<String, String> animation_map;
 		HashMap<String, ObjExporter::MeshInfo> mesh_info_map;
 		HashMap<String, Dictionary> animation_options;
 		bool has_reset_track = false;
 		bool has_skinned_meshes = false;
 		bool has_non_skeleton_transforms = false;
+		bool has_physics_nodes = false;
 		String root_type;
 		String root_name;
 
@@ -781,10 +781,17 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 				doc.instantiate();
 				Ref<GLTFState> state;
 				state.instantiate();
+				state->set_scene_name(scene_name);
 
 				if (has_non_skeleton_transforms && has_skinned_meshes) {
 					// WARN_PRINT("Skinned meshes have non-skeleton transforms, exporting as non-single-root.");
 					doc->set_root_node_mode(GLTFDocument::RootNodeMode::ROOT_NODE_MODE_MULTI_ROOT);
+					TypedArray<Node> physics_nodes = root->find_children("*", "CollisionObject3D");
+					TypedArray<Node> physics_shapes = root->find_children("*", "CollisionShape3D");
+					has_physics_nodes = physics_nodes.size() > 0 || physics_shapes.size() > 0;
+					if (has_physics_nodes) {
+						WARN_PRINT("Skinned meshes have physics nodes, but still exporting as non-single-root.");
+					}
 				}
 				int32_t flags = 0;
 				auto exts = doc->get_supported_gltf_extensions();
