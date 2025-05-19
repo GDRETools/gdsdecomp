@@ -2011,6 +2011,8 @@ void GDRESettings::load_config() {
 	set_setting("download_plugins", false);
 	set_setting("ask_for_download", true);
 	set_setting("last_showed_disclaimer", "<NONE>");
+	set_setting("scene_export/force_lossless_images", false);
+	// set_setting("scene_export/force_export_multi_root", false);
 	auto cfg_path = get_gdre_user_path().path_join("gdre_settings.cfg");
 	if (FileAccess::exists(cfg_path)) {
 		Error err = config->load(cfg_path);

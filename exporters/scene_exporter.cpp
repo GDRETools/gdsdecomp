@@ -439,6 +439,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 	HashSet<String> need_to_be_updated;
 	HashSet<String> external_deps_updated;
 	Vector<String> error_messages;
+	Vector<String> image_extensions;
 	auto append_error_messages = [&](Error p_err, const String &err_msg = "") {
 		String step;
 		switch (p_err) {
@@ -551,6 +552,11 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 					need_to_be_updated.insert(info.dep);
 				} else if (info.type.contains("Texture")) {
 					has_external_images = true;
+					String ext = info.dep.get_extension().to_upper();
+					if (ext == "JPG") {
+						ext = "JPEG";
+					}
+					image_extensions.append(ext);
 					need_to_be_updated.insert(info.dep);
 				} else if (info.type.contains("Mesh")) {
 					has_external_meshes = true;
@@ -629,6 +635,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 				}
 			}
 		}
+
 		Vector<String> id_to_texture_path;
 		Dictionary image_path_to_data_hash;
 		Vector<Pair<String, String>> id_to_material_path;
@@ -637,12 +644,42 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 		HashMap<String, String> animation_map;
 		HashMap<String, ObjExporter::MeshInfo> mesh_info_map;
 		HashMap<String, Dictionary> animation_options;
+
+		// export/import settings
 		bool has_reset_track = false;
 		bool has_skinned_meshes = false;
 		bool has_non_skeleton_transforms = false;
 		bool has_physics_nodes = false;
 		String root_type;
 		String root_name;
+		String export_image_format = image_extensions.is_empty() ? "PNG" : get_most_popular_value(image_extensions);
+		bool lossy = false;
+		if (export_image_format == "WEBP") {
+			// Only 3.4 and above supports lossless WebP
+			if (iinfo.is_valid() && (iinfo->get_ver_major() > 3 || (iinfo->get_ver_major() == 3 && iinfo->get_ver_minor() >= 4))) {
+				export_image_format = "Lossless WebP";
+			} else {
+				if (GDRESettings::get_singleton()->get_setting("scene_export/force_lossless_images", false)) {
+					export_image_format = "PNG";
+				} else {
+					export_image_format = "Lossy WebP";
+					lossy = true;
+				}
+			}
+			// TODO: add setting to force PNG?
+		} else if (export_image_format == "JPEG") {
+			if (GDRESettings::get_singleton()->get_setting("scene_export/force_lossless_images", false)) {
+				export_image_format = "PNG";
+			} else {
+				lossy = true;
+			}
+		} else {
+			// the GLTF exporter doesn't support anything other than PNG, JPEG, and WEBP
+			export_image_format = "PNG";
+		}
+		if (lossy && p_report.is_valid()) {
+			p_report->set_loss_type(ImportInfo::STORED_LOSSY);
+		}
 
 		auto get_resource_path = [&](const Ref<Resource> &res) {
 			String path = res->get_path();
@@ -785,6 +822,8 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 				state.instantiate();
 				state->set_scene_name(scene_name);
 				state->set_copyright(copyright_string);
+				doc->set_image_format(export_image_format);
+				doc->set_lossy_quality(1.0f);
 
 				if (has_non_skeleton_transforms && has_skinned_meshes) {
 					// WARN_PRINT("Skinned meshes have non-skeleton transforms, exporting as non-single-root.");
