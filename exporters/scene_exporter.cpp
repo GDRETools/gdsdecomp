@@ -440,6 +440,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 	HashSet<String> external_deps_updated;
 	Vector<String> error_messages;
 	Vector<String> image_extensions;
+	HashSet<NodePath> external_animation_nodepaths = { NodePath("AnimationPlayer") };
 	auto append_error_messages = [&](Error p_err, const String &err_msg = "") {
 		String step;
 		switch (p_err) {
@@ -759,8 +760,10 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 							if (anim->track_get_type(i) == Animation::TYPE_SCALE_3D || anim->track_get_type(i) == Animation::TYPE_ROTATION_3D || anim->track_get_type(i) == Animation::TYPE_POSITION_3D) {
 								if (anim->track_get_path(i).get_subname_count() == 0) {
 									has_non_skeleton_transforms = true;
-									break;
 								}
+							}
+							if (!anim->track_is_imported(i)) {
+								external_animation_nodepaths.insert(anim->track_get_path(i));
 							}
 						}
 						if (ver_major == 4) {
@@ -1344,12 +1347,18 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 		for (auto &msg : error_messages) {
 			auto message = msg.strip_edges();
 
-			if (message.contains("Cannot export empty property. No property was specified in the NodePath: AnimationPlayer") ||
-					message.to_lower().contains("animated track") ||
-					message.begins_with("at:") ||
+			if (message.begins_with("at:") ||
 					message.begins_with("GDScript backtrace") ||
 					message.begins_with("WARNING:")) {
 				continue;
+			}
+			if (message.contains("glTF:")) {
+				if (message.contains("Cannot export empty property. No property was specified in the NodePath:") || message.contains("Cannot get node for animated track")) {
+					NodePath path = message.substr(message.find("ath:") + 4).strip_edges();
+					if (!path.is_empty() && external_animation_nodepaths.has(path)) {
+						continue;
+					}
+				}
 			}
 			err = ERR_PRINTER_ON_FIRE;
 			break;
