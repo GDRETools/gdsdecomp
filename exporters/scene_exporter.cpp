@@ -816,7 +816,6 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 				return path.trim_prefix(scene_name + "_");
 			};
 
-
 			{
 				List<String> deps;
 				Ref<GLTFDocument> doc;
@@ -1436,7 +1435,6 @@ Ref<ExportReport> SceneExporter::export_resource(const String &output_dir, Ref<I
 	}
 	iinfo->set_export_dest(new_path);
 	String dest_path = output_dir.path_join(new_path.replace("res://", ""));
-
 
 #if ENABLE_3_X_SCENE_LOADING
 	constexpr int minimum_ver = 3;
