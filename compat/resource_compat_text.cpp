@@ -737,6 +737,7 @@ Error ResourceLoaderCompatText::load() {
 						}
 					}
 					res->set_scene_unique_id(id);
+					int_resources[id] = res;
 				} else {
 					// If the conversion failed, we should still keep the missing resource.
 					WARN_PRINT("Conversion failed for resource: " + path);
