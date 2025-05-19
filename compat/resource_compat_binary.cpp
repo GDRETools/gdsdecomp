@@ -887,6 +887,10 @@ Error ResourceLoaderCompatBinary::load() {
 			internal_index_cache[path] = res;
 		}
 
+#if ENABLE_3_X_SCENE_LOADING
+		res->_start_load("binary", ver_format);
+#endif
+
 		int pc = f->get_32();
 
 		//set properties
@@ -1007,6 +1011,9 @@ Error ResourceLoaderCompatBinary::load() {
 		res->set_edited(false);
 #endif
 
+#if ENABLE_3_X_SCENE_LOADING
+		res->_finish_load("binary", ver_format);
+#endif
 		if (progress) {
 			*progress = (i + 1) / float(internal_resources.size());
 		}

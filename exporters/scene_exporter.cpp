@@ -1436,7 +1436,14 @@ Ref<ExportReport> SceneExporter::export_resource(const String &output_dir, Ref<I
 	}
 	iinfo->set_export_dest(new_path);
 	String dest_path = output_dir.path_join(new_path.replace("res://", ""));
-	if (!to_text && iinfo->get_ver_major() < 3) {
+
+
+#if ENABLE_3_X_SCENE_LOADING
+	constexpr int minimum_ver = 3;
+#else
+	constexpr int minimum_ver = 4;
+#endif
+	if (!to_text && iinfo->get_ver_major() < minimum_ver) {
 		err = ERR_UNAVAILABLE;
 		report->set_message("Scene export for engine version " + itos(iinfo->get_ver_major()) + " is not currently supported.");
 		report->set_unsupported_format_type(itos(iinfo->get_ver_major()) + ".x PackedScene");

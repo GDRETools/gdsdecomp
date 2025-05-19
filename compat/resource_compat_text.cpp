@@ -209,6 +209,9 @@ Ref<PackedScene> ResourceLoaderCompatText::_parse_node_tag(VariantParser::Resour
 	if (packed_scene.is_null()) {
 		packed_scene.instantiate();
 	}
+#if ENABLE_3_X_SCENE_LOADING
+	packed_scene->_start_load("text", format_version);
+#endif
 
 	while (true) {
 		if (next_tag.name == "node") {
@@ -304,6 +307,9 @@ Ref<PackedScene> ResourceLoaderCompatText::_parse_node_tag(VariantParser::Resour
 						return Ref<PackedScene>();
 					} else {
 						error = OK;
+#if ENABLE_3_X_SCENE_LOADING
+						packed_scene->_finish_load("text", format_version);
+#endif
 						return packed_scene;
 					}
 				}
@@ -386,6 +392,9 @@ Ref<PackedScene> ResourceLoaderCompatText::_parse_node_tag(VariantParser::Resour
 					return Ref<PackedScene>();
 				} else {
 					error = OK;
+#if ENABLE_3_X_SCENE_LOADING
+					packed_scene->_finish_load("text", format_version);
+#endif
 					return packed_scene;
 				}
 			}
@@ -409,6 +418,9 @@ Ref<PackedScene> ResourceLoaderCompatText::_parse_node_tag(VariantParser::Resour
 					return Ref<PackedScene>();
 				} else {
 					error = OK;
+#if ENABLE_3_X_SCENE_LOADING
+					packed_scene->_finish_load("text", format_version);
+#endif
 					return packed_scene;
 				}
 			}
@@ -629,6 +641,9 @@ Error ResourceLoaderCompatText::load() {
 
 		int_resources[id] = res; // Always assign int resources.
 		if (do_assign) {
+#if ENABLE_3_X_SCENE_LOADING
+			res->_start_load("text", format_version);
+#endif
 			if (cache_mode != ResourceFormatLoader::CACHE_MODE_IGNORE) {
 				res->set_path(path, cache_mode == ResourceFormatLoader::CACHE_MODE_REPLACE);
 			} else {
@@ -645,6 +660,10 @@ Error ResourceLoaderCompatText::load() {
 			do_assign = true;
 			// will have path and scene unique id set after conversion
 		}
+
+#if ENABLE_3_X_SCENE_LOADING
+		res->_start_load("text", format_version);
+#endif
 
 		Dictionary missing_resource_properties;
 
@@ -749,6 +768,11 @@ Error ResourceLoaderCompatText::load() {
 			res->set_meta(META_MISSING_RESOURCES, missing_resource_properties);
 		}
 		set_internal_resource_compat_meta(path, id, type, res);
+#if ENABLE_3_X_SCENE_LOADING
+		if (do_assign) {
+			res->_finish_load("text", format_version);
+		}
+#endif
 	}
 
 	// main resource parsing (if it is a resource)
@@ -946,6 +970,10 @@ Error ResourceLoaderCompatText::load() {
 			resource->set_meta(META_MISSING_RESOURCES, missing_resource_properties);
 		}
 		set_compat_meta(resource);
+
+#if ENABLE_3_X_SCENE_LOADING
+		resource->_finish_load("text", format_version);
+#endif
 
 		error = OK;
 
