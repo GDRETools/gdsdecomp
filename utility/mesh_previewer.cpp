@@ -52,9 +52,8 @@ void MeshPreviewer::gui_input(const Ref<InputEvent> &p_event) {
 
 void MeshPreviewer::_update_theme_item_cache() {
 	SubViewportContainer::_update_theme_item_cache();
-
-	theme_cache.light_1_icon = get_editor_theme_icon(SNAME("MaterialPreviewLight1"));
-	theme_cache.light_2_icon = get_editor_theme_icon(SNAME("MaterialPreviewLight2"));
+	theme_cache.light_1_icon = get_theme_icon(SNAME("MaterialPreviewLight1"), SNAME("EditorIcons"));
+	theme_cache.light_2_icon = get_theme_icon(SNAME("MaterialPreviewLight2"), SNAME("EditorIcons"));
 }
 
 void MeshPreviewer::_notification(int p_what) {
