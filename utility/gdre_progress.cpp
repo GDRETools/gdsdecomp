@@ -245,7 +245,7 @@ void GDREProgressDialog::_popup() {
 		}
 	}
 	set_process_input(true);
-	grab_focus();
+	show();
 }
 
 void GDREProgressDialog::_post_add_task(bool p_can_cancel) {
