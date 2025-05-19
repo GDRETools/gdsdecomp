@@ -293,6 +293,25 @@ void ImportExporter::_do_export(uint32_t i, ExportToken *tokens) {
 	if (unlikely(cancelled)) {
 		return;
 	}
+	auto &token = tokens[i];
+	bool has_file = false;
+	auto dest_files = token.iinfo->get_dest_files();
+	for (const String &dest : dest_files) {
+		if (GDRESettings::get_singleton()->has_file(dest)) {
+			has_file = true;
+			break;
+		}
+	}
+	if (!has_file) {
+		token.report.instantiate(token.iinfo);
+		token.report->set_error(ERR_FILE_NOT_FOUND);
+		token.report->set_message("No existing resources found for this import");
+		token.report->append_message_detail({ "Possibles:" });
+		token.report->append_message_detail(dest_files);
+		last_completed++;
+		return;
+	}
+
 	tokens[i].report = Exporter::export_resource(tokens[i].output_dir, tokens[i].iinfo);
 	rewrite_metadata(tokens[i]);
 	if (tokens[i].supports_multithread) {
@@ -1205,7 +1224,7 @@ String ImportExporterReport::get_report_string() {
 		report += "------\n";
 		report += "\nFailed conversions:" + String("\n");
 		for (auto &fail : failed) {
-			report += vformat("* %s\n", fail->get_path());
+			report += vformat("* %s\n", fail->get_source_path());
 			auto splits = fail->get_message().split("\n");
 			for (int i = 0; i < splits.size(); i++) {
 				auto split = splits[i].strip_edges();
