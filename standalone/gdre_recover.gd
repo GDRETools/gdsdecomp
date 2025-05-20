@@ -99,13 +99,6 @@ func add_project(paths: PackedStringArray) -> int:
 	clear()
 	var err = GDRESettings.load_project(paths)
 	if (err != OK):
-		var errors = (GDRESettings.get_errors())
-		var error_msg = ""
-		for error in errors:
-			error_msg += error.strip_edges() + "\n"
-		if error_msg.to_lower().contains("encrypt"):
-			error_msg = "Incorrect encryption key. Please set the correct key and try again."
-		popup_error_box("Error: failed to open " + str(paths) + ":\n" + error_msg, "Error")
 		return err
 	var pckdump = PckDumper.new()
 	var skipped = false
