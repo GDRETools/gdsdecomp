@@ -193,6 +193,10 @@ func sample_format_to_string(format: int) -> String:
 			return "Quite OK"
 	return "Unknown"
 
+func is_supported_video_format(path) -> bool:
+	var ext = path.get_extension().to_lower()
+	return ext == "ogv"
+
 func is_video(path) -> bool:
 	var ext = path.get_extension().to_lower()
 	return ext == "ogv" or ext == "mp4" or ext == "webm"
@@ -208,8 +212,10 @@ func load_media(path):
 	if is_video(path):
 		return load_video(path)
 	return load_sample(path)
-	
+
 func load_video(path):
+	if not is_supported_video_format(path):
+		return false
 	var video_stream: VideoStream = ResourceCompatLoader.real_load(path, "", ResourceFormatLoader.CACHE_MODE_IGNORE_DEEP)
 	if (video_stream == null):
 		return false
@@ -248,7 +254,7 @@ func load_sample(path):
 	# check if it's an AudioStreamSample
 	if (audio_stream.get_class() == "AudioStreamWAV"):
 		var sample: AudioStreamWAV = audio_stream
-		
+
 		AUDIO_STREAM_INFO.text = sample_info_box_text_format % [sample.mix_rate, 2 if sample.stereo else 1, sample_format_to_string(sample.format),  loopmode_to_string(sample.loop_mode)]
 		if (sample.loop_mode != AudioStreamWAV.LOOP_DISABLED):
 			AUDIO_STREAM_INFO.text += "\nLoop Begin: " + str(sample.loop_begin) + "\nLoop End: " + str(sample.loop_end)
@@ -265,14 +271,14 @@ func load_sample(path):
 		if (audio_stream.bpm != 0):
 			info_string += "\nBPM: " + str(audio_stream.bpm)
 		if (audio_stream.bar_beats != 4):
-			info_string += "\nBar Beats: " + str(audio_stream.bar_beats)	
+			info_string += "\nBar Beats: " + str(audio_stream.bar_beats)
 		if (audio_stream.beat_count != 0):
 			info_string += "\nBeat Count: " + str(audio_stream.beat_count)
 		if (audio_stream.loop):
 			info_string += "\nLoop: Yes"
 			info_string += "\nLoop Offset: " + str(audio_stream.loop_offset)
 		else:
-			info_string += "\nLoop: No"	
+			info_string += "\nLoop: No"
 		AUDIO_STREAM_INFO.text = info_string
 	else:
 		AUDIO_STREAM_INFO.text = ""
@@ -338,7 +344,7 @@ func _on_slider_drag_ended(value_changed: bool) -> void:
 		if last_seek_pos != pos:
 			seek(pos)
 	dragging_slider = false
-	
+
 
 	pass # Replace with function body.
 
