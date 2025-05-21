@@ -1,17 +1,18 @@
-[gd_scene load_steps=20 format=3 uid="uid://bhxdw5q2etvki"]
+[gd_scene load_steps=25 format=3 uid="uid://bhxdw5q2etvki"]
 
 [ext_resource type="Theme" uid="uid://crq1fwn0ajw7b" path="res://gdre_theme.tres" id="1_g10qc"]
 [ext_resource type="Script" uid="uid://b5le16a48uctd" path="res://gdre_export_report.gd" id="1_vylry"]
 
-[sub_resource type="Theme" id="Theme_m335r"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_g10qc"]
+content_margin_left = 6.0
+content_margin_top = 4.0
+content_margin_right = 6.0
+content_margin_bottom = 4.0
+bg_color = Color(0.196078, 0.231373, 0.309804, 1)
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_76kox"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ungfb"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_7fdsg"]
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_5o50s"]
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_qfeic"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ito0v"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_lf4mi"]
 
@@ -21,65 +22,93 @@
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_c3jhm"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_mlhcu"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_w0jew"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_0twig"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_76kox"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_iw1sx"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_7fdsg"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_nmlmy"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_5o50s"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_7ewy3"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_qfeic"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_lcsrs"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_07ynx"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ieqyf"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_g10qc"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_cwd61"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_lyhke"]
 
-[node name="GdreExportReport" type="AcceptDialog"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_e2r7w"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ql6qo"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_hhhhu"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ld4nm"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_b202p"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_n6if2"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_jnjsh"]
+
+[node name="GdreExportReport" type="Window"]
+oversampling_override = 1.0
 position = Vector2i(0, 24)
 size = Vector2i(1152, 800)
-visible = true
+min_size = Vector2i(680, 680)
 theme = ExtResource("1_g10qc")
 script = ExtResource("1_vylry")
 
-[node name="Control" type="Control" parent="."]
-layout_mode = 3
+[node name="Control" type="Panel" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 8.0
-offset_right = -8.0
-offset_bottom = -49.0
 grow_horizontal = 2
 grow_vertical = 2
-theme = SubResource("Theme_m335r")
+theme_override_styles/panel = SubResource("StyleBoxFlat_g10qc")
 
-[node name="EditorMessageLabel" type="RichTextLabel" parent="Control"]
-layout_mode = 0
-offset_left = 11.0
-offset_top = 79.0
-offset_right = 918.0
-offset_bottom = 173.0
-theme_override_font_sizes/bold_font_size = 16
-theme_override_styles/fill = SubResource("StyleBoxEmpty_76kox")
-theme_override_styles/background = SubResource("StyleBoxEmpty_7fdsg")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_5o50s")
-theme_override_styles/normal = SubResource("StyleBoxEmpty_qfeic")
-bbcode_enabled = true
-text = "[b]Use Godot editor version <GODOT_VER> to edit the project.[/b]
-Note: the project may be using a custom version of Godot. Detection for this has not been implemented yet.
-If you find that you have many non-import errors upon opening the project 
-(i.e. scripts or shaders have many errors), use the original game's binary as the export template."
+[node name="parentVBOX" type="VBoxContainer" parent="Control"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_right = -12.0
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="LogFileLabel" type="RichTextLabel" parent="Control"]
-layout_mode = 0
-offset_left = 13.0
-offset_top = 15.0
-offset_right = 1097.0
-offset_bottom = 67.0
+[node name="VBoxContainer" type="VBoxContainer" parent="Control/parentVBOX"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Control/parentVBOX/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 0
+
+[node name="VSeparator" type="VSeparator" parent="Control/parentVBOX/VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+theme_override_styles/separator = SubResource("StyleBoxEmpty_ungfb")
+
+[node name="VBoxText" type="VBoxContainer" parent="Control/parentVBOX/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+
+[node name="VSeparator" type="VSeparator" parent="Control/parentVBOX/VBoxContainer/HBoxContainer/VBoxText"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+theme_override_styles/separator = SubResource("StyleBoxEmpty_ito0v")
+
+[node name="LogFileLabel" type="RichTextLabel" parent="Control/parentVBOX/VBoxContainer/HBoxContainer/VBoxText"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/bold_italics_font_size = 18
+theme_override_font_sizes/italics_font_size = 18
+theme_override_font_sizes/mono_font_size = 18
+theme_override_font_sizes/normal_font_size = 18
+theme_override_font_sizes/bold_font_size = 18
 theme_override_styles/fill = SubResource("StyleBoxEmpty_lf4mi")
 theme_override_styles/background = SubResource("StyleBoxEmpty_gj7d4")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_wkive")
@@ -87,85 +116,132 @@ theme_override_styles/normal = SubResource("StyleBoxEmpty_c3jhm")
 bbcode_enabled = true
 text = "Log file written to <LOG_FILE_URI>
 [b]Please include this file when reporting an issue![/b]"
+fit_content = true
 
-[node name="NotesLabel" type="RichTextLabel" parent="Control"]
-layout_mode = 0
-offset_left = 10.0
-offset_top = 201.0
-offset_right = 200.0
-offset_bottom = 235.0
-theme_override_styles/fill = SubResource("StyleBoxEmpty_mlhcu")
-theme_override_styles/background = SubResource("StyleBoxEmpty_0twig")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_iw1sx")
-theme_override_styles/normal = SubResource("StyleBoxEmpty_nmlmy")
+[node name="VSeparator3" type="VSeparator" parent="Control/parentVBOX/VBoxContainer/HBoxContainer/VBoxText"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+theme_override_styles/separator = SubResource("StyleBoxEmpty_w0jew")
+
+[node name="EditorMessageLabel" type="RichTextLabel" parent="Control/parentVBOX/VBoxContainer/HBoxContainer/VBoxText"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/bold_italics_font_size = 18
+theme_override_font_sizes/italics_font_size = 18
+theme_override_font_sizes/mono_font_size = 18
+theme_override_font_sizes/normal_font_size = 18
+theme_override_font_sizes/bold_font_size = 18
+theme_override_styles/fill = SubResource("StyleBoxEmpty_76kox")
+theme_override_styles/background = SubResource("StyleBoxEmpty_7fdsg")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_5o50s")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_qfeic")
+bbcode_enabled = true
+text = "[b]Use Godot editor version <GODOT_VER> to edit the project.[/b]
+Note: Detection for custom Godot builds has not been implemented yet."
+fit_content = true
+
+[node name="VSeparator2" type="VSeparator" parent="Control/parentVBOX/VBoxContainer/HBoxContainer/VBoxText"]
+visible = false
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+theme_override_styles/separator = SubResource("StyleBoxEmpty_07ynx")
+
+[node name="AssetsNote" type="RichTextLabel" parent="Control/parentVBOX/VBoxContainer/HBoxContainer/VBoxText"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_styles/fill = SubResource("StyleBoxEmpty_lf4mi")
+theme_override_styles/background = SubResource("StyleBoxEmpty_gj7d4")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_wkive")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_c3jhm")
+bbcode_enabled = true
+text = "Certain assets have been written to the .assets directory!"
+fit_content = true
+
+[node name="VSeparator2" type="VSeparator" parent="Control/parentVBOX/VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+theme_override_styles/separator = SubResource("StyleBoxEmpty_ungfb")
+
+[node name="HSeperator" type="HSeparator" parent="Control/parentVBOX/VBoxContainer"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
+[node name="VSplitContainer" type="VSplitContainer" parent="Control/parentVBOX/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+split_offset = 50
+drag_area_offset = 5
+drag_area_highlight_in_editor = true
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Control/parentVBOX/VBoxContainer/VSplitContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="NotesLabel" type="RichTextLabel" parent="Control/parentVBOX/VBoxContainer/VSplitContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_override_styles/fill = SubResource("StyleBoxEmpty_g10qc")
+theme_override_styles/background = SubResource("StyleBoxEmpty_lyhke")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_e2r7w")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_ql6qo")
 bbcode_enabled = true
 text = "[b]Important Notes[/b]"
 
-[node name="NoteTree" type="Tree" parent="Control"]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.003
-anchor_right = 1.0
-anchor_bottom = 0.638
-offset_left = -0.408
-offset_top = 233.0
-offset_right = -15.0
-offset_bottom = -0.0339966
-grow_horizontal = 2
+[node name="NoteTree" type="Tree" parent="Control/parentVBOX/VBoxContainer/VSplitContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
 hide_root = true
 
-[node name="TotalsLabel" type="RichTextLabel" parent="Control"]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.007
-anchor_top = 0.638
-anchor_right = 0.007
-anchor_bottom = 0.638
-offset_left = 3.048
-offset_top = 18.966
-offset_right = 109.048
-offset_bottom = 53.966
-grow_horizontal = 0
-grow_vertical = 0
-theme_override_styles/fill = SubResource("StyleBoxEmpty_7ewy3")
-theme_override_styles/background = SubResource("StyleBoxEmpty_lcsrs")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_ieqyf")
-theme_override_styles/normal = SubResource("StyleBoxEmpty_cwd61")
+[node name="VBoxContainer2" type="VBoxContainer" parent="Control/parentVBOX/VBoxContainer/VSplitContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="TotalsLabel" type="RichTextLabel" parent="Control/parentVBOX/VBoxContainer/VSplitContainer/VBoxContainer2"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_override_styles/fill = SubResource("StyleBoxEmpty_hhhhu")
+theme_override_styles/background = SubResource("StyleBoxEmpty_ld4nm")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_b202p")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_n6if2")
 bbcode_enabled = true
 text = "[b]Totals[/b]"
 
-[node name="TotalsTree" type="Tree" parent="Control"]
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 0.636
-anchor_right = 0.988
-anchor_bottom = 1.063
-offset_left = 8.0
-offset_top = 57.452
-offset_right = -0.368042
-offset_bottom = -56.8091
-grow_horizontal = 2
+[node name="TotalsTree" type="Tree" parent="Control/parentVBOX/VBoxContainer/VSplitContainer/VBoxContainer2"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
 columns = 2
 hide_root = true
 
-[node name="OpenFolderButton" type="Button" parent="Control"]
-layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -144.0
-offset_top = 9.0
-offset_right = -41.0
-offset_bottom = 40.0
-grow_horizontal = 2
-grow_vertical = 0
+[node name="VSeparator" type="VSeparator" parent="Control/parentVBOX"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+theme_override_styles/separator = SubResource("StyleBoxEmpty_ungfb")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Control/parentVBOX"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+theme_override_constants/separation = 80
+alignment = 1
+
+[node name="OpenFolderButton" type="Button" parent="Control/parentVBOX/HBoxContainer"]
+layout_mode = 2
 text = "Open Folder"
 
-[connection signal="canceled" from="." to="." method="cancelled"]
-[connection signal="close_requested" from="." to="." method="_on_close_requested"]
-[connection signal="confirmed" from="." to="." method="confirmed"]
-[connection signal="meta_clicked" from="Control/EditorMessageLabel" to="." method="_on_click_uri"]
-[connection signal="meta_clicked" from="Control/LogFileLabel" to="." method="_on_click_uri"]
-[connection signal="pressed" from="Control/OpenFolderButton" to="." method="_open_folder"]
+[node name="OKButton" type="Button" parent="Control/parentVBOX/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+text = "OK"
+
+[node name="VSeparator2" type="VSeparator" parent="Control/parentVBOX"]
+custom_minimum_size = Vector2(0, 5)
+layout_mode = 2
+theme_override_styles/separator = SubResource("StyleBoxEmpty_jnjsh")
+
+[connection signal="close_requested" from="." to="." method="_close_requested"]
+[connection signal="meta_clicked" from="Control/parentVBOX/VBoxContainer/HBoxContainer/VBoxText/LogFileLabel" to="." method="_on_click_uri"]
+[connection signal="meta_clicked" from="Control/parentVBOX/VBoxContainer/HBoxContainer/VBoxText/EditorMessageLabel" to="." method="_on_click_uri"]
+[connection signal="pressed" from="Control/parentVBOX/HBoxContainer/OpenFolderButton" to="." method="_open_folder"]
+[connection signal="pressed" from="Control/parentVBOX/HBoxContainer/OKButton" to="." method="close"]

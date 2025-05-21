@@ -1,4 +1,4 @@
-extends AcceptDialog
+extends Window
 
 const file_icon: Texture2D = preload("res://gdre_icons/gdre_File.svg")
 const file_ok: Texture2D = preload("res://gdre_icons/gdre_FileOk.svg")
@@ -20,6 +20,10 @@ var num_files:int = 0
 var num_broken:int = 0
 var num_malformed:int = 0
 var _is_test:bool = false
+var report: ImportExporterReport = null
+
+const skippable_keys: PackedStringArray = ["rewrote_metadata", "failed_rewrite_md5"]
+
 
 signal report_done()
 
@@ -27,11 +31,10 @@ signal report_done()
 # MUST CALL set_root_window() first!!!
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	NOTE_TREE =      $Control/NoteTree
-	NOTE_TREE = 	 $Control/NoteTree
-	TOTALS_TREE =    $Control/TotalsTree
-	EDITOR_MESSAGE_LABEL = $Control/EditorMessageLabel
-	LOG_FILE_LABEL = $Control/LogFileLabel
+	NOTE_TREE = 	 %NoteTree
+	TOTALS_TREE =    %TotalsTree
+	EDITOR_MESSAGE_LABEL = %EditorMessageLabel
+	LOG_FILE_LABEL = %LogFileLabel
 	editor_message_default_text = EDITOR_MESSAGE_LABEL.text
 	log_file_default_text = LOG_FILE_LABEL.text
 
@@ -92,13 +95,14 @@ func load_test():
 	err = pckdump.pck_dump_to_dir(output_dir)
 	var import_exporter = ImportExporter.new()
 	import_exporter.export_imports(output_dir)
-	var report = import_exporter.get_report()
-	add_report(report)
+	add_report(import_exporter.get_report())
 	show_win()
 
 func add_ver_string(ver_string: String):
 	var ver = GodotVer.parse_godotver(ver_string)
 	var tag = ver_to_tag(ver)
+	if report.is_steam_detected():
+		ver_string += " (Steam edition)"
 	EDITOR_MESSAGE_LABEL.text = EDITOR_MESSAGE_LABEL.text.replace("<GODOT_VER>", "[url=" + get_url_for_tag(tag) + "]"+ ver_string + "[/url]")
 
 func add_log_file(log_path: String):
@@ -134,12 +138,14 @@ func get_note_header_item_icon(_key: String) -> Texture2D:
 		#return info_icon
 	return null
 
-func add_report(report: ImportExporterReport) -> int:
+func add_report(rep: ImportExporterReport) -> int:
 	self.clear()
+	self.report = rep
 	add_ver_string(report.get_ver())
 	add_log_file(report.get_log_file_location())
 	var notes = report.get_session_notes()
-	var report_sections = report.get_report_sections()
+	var report_sections: Dictionary = report.get_report_sections()
+	var report_labels: Dictionary = report.get_section_labels()
 	# iterate over all the keys in the notes
 	# add fake root
 	var note_root = NOTE_TREE.create_item(null)
@@ -155,9 +161,11 @@ func add_report(report: ImportExporterReport) -> int:
 				var subitem = NOTE_TREE.create_item(header_item)
 				subitem.set_text(0, item)
 	for key in report_sections.keys():
+		if skippable_keys.has(key):
+			continue
 		var section:Variant = report_sections[key]
 		var header_item = TOTALS_TREE.create_item(report_root)
-		header_item.set_text(0, key)
+		header_item.set_text(0, report_labels.get(key, key))
 		# check that section is actually a dictionary
 		if typeof(section) == TYPE_DICTIONARY:
 			var dict :Dictionary = section
@@ -188,6 +196,7 @@ func clear():
 	TOTALS_TREE.clear()
 	EDITOR_MESSAGE_LABEL.text = editor_message_default_text
 	LOG_FILE_LABEL.text = log_file_default_text
+	report = null
 
 func close():
 	_exit_tree()
@@ -214,7 +223,3 @@ func _process(_delta):
 
 func _exit_tree():
 	hide_win()
-
-
-func _on_close_requested() -> void:
-	pass # Replace with function body.

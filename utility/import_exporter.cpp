@@ -1092,20 +1092,34 @@ void add_to_dict(Dictionary &dict, const Vector<Ref<ExportReport>> &vec) {
 	}
 }
 
+Dictionary ImportExporterReport::get_section_labels() {
+	Dictionary labels;
+	labels["success"] = "Successfully converted";
+	labels["decompiled_scripts"] = "Decompiled scripts";
+	labels["not_converted"] = "Not converted";
+	labels["failed_scripts"] = "Failed scripts";
+	labels["failed"] = "Failed conversions";
+	labels["lossy_imports"] = "Lossy imports";
+	labels["rewrote_metadata"] = "Rewrote metadata";
+	labels["failed_rewrite_md"] = "Non-importable";
+	labels["failed_rewrite_md5"] = "Failed to rewrite metadata MD5";
+	labels["failed_plugin_cfg_create"] = "Failed to create plugin.cfg";
+	labels["failed_gdnative_copy"] = "Failed to copy GDExtension libraries";
+	labels["unsupported_types"] = "Unsupported types";
+	return labels;
+}
+
 Dictionary ImportExporterReport::get_report_sections() {
 	Dictionary sections;
 	// sections["totals"] = get_totals();
 	// sections["unsupported_types"] = get_unsupported_types();
 	// sections["session_notes"] = get_session_notes();
-	sections["success"] = Dictionary();
-	Dictionary success_dict = sections["success"];
-	add_to_dict(success_dict, success);
-	sections["decompiled_scripts"] = Dictionary();
-	Dictionary decompiled_scripts_dict = sections["decompiled_scripts"];
-	for (int i = 0; i < decompiled_scripts.size(); i++) {
-		decompiled_scripts_dict[decompiled_scripts[i]] = decompiled_scripts[i];
-	}
 
+	if (!failed.is_empty()) {
+		sections["failed"] = Dictionary();
+		Dictionary failed_dict = sections["failed"];
+		add_to_dict(failed_dict, failed);
+	}
 	if (!not_converted.is_empty()) {
 		sections["not_converted"] = Dictionary();
 		Dictionary not_converted_dict = sections["not_converted"];
@@ -1118,30 +1132,15 @@ Dictionary ImportExporterReport::get_report_sections() {
 			failed_scripts_dict[failed_scripts[i]] = failed_scripts[i];
 		}
 	}
-	if (!failed.is_empty()) {
-		sections["failed"] = Dictionary();
-		Dictionary failed_dict = sections["failed"];
-		add_to_dict(failed_dict, failed);
-	}
 	if (!lossy_imports.is_empty()) {
 		sections["lossy_imports"] = Dictionary();
 		Dictionary lossy_dict = sections["lossy_imports"];
 		add_to_dict(lossy_dict, lossy_imports);
 	}
-	if (!rewrote_metadata.is_empty()) {
-		sections["rewrote_metadata"] = Dictionary();
-		Dictionary rewrote_metadata_dict = sections["rewrote_metadata"];
-		add_to_dict(rewrote_metadata_dict, rewrote_metadata);
-	}
 	if (!failed_rewrite_md.is_empty()) {
 		sections["failed_rewrite_md"] = Dictionary();
 		Dictionary failed_rewrite_md_dict = sections["failed_rewrite_md"];
 		add_to_dict(failed_rewrite_md_dict, failed_rewrite_md);
-	}
-	if (!failed_rewrite_md5.is_empty()) {
-		sections["failed_rewrite_md5"] = Dictionary();
-		Dictionary failed_rewrite_md5_dict = sections["failed_rewrite_md5"];
-		add_to_dict(failed_rewrite_md5_dict, failed_rewrite_md5);
 	}
 	// plugins
 	if (!failed_plugin_cfg_create.is_empty()) {
@@ -1157,6 +1156,25 @@ Dictionary ImportExporterReport::get_report_sections() {
 		for (int i = 0; i < failed_gdnative_copy.size(); i++) {
 			failed_gdnative_copy_dict[failed_gdnative_copy[i]] = failed_gdnative_copy[i];
 		}
+	}
+	if (!failed_rewrite_md5.is_empty()) {
+		sections["failed_rewrite_md5"] = Dictionary();
+		Dictionary failed_rewrite_md5_dict = sections["failed_rewrite_md5"];
+		add_to_dict(failed_rewrite_md5_dict, failed_rewrite_md5);
+	}
+	if (!rewrote_metadata.is_empty()) {
+		sections["rewrote_metadata"] = Dictionary();
+		Dictionary rewrote_metadata_dict = sections["rewrote_metadata"];
+		add_to_dict(rewrote_metadata_dict, rewrote_metadata);
+	}
+
+	sections["success"] = Dictionary();
+	Dictionary success_dict = sections["success"];
+	add_to_dict(success_dict, success);
+	sections["decompiled_scripts"] = Dictionary();
+	Dictionary decompiled_scripts_dict = sections["decompiled_scripts"];
+	for (int i = 0; i < decompiled_scripts.size(); i++) {
+		decompiled_scripts_dict[decompiled_scripts[i]] = decompiled_scripts[i];
 	}
 	return sections;
 }
@@ -1356,6 +1374,10 @@ Vector<String> ImportExporterReport::get_failed_gdnative_copy() const {
 	return failed_gdnative_copy;
 }
 
+bool ImportExporterReport::is_steam_detected() const {
+	return godotsteam_detected;
+}
+
 void ImportExporterReport::print_report() {
 	print_line("\n\n********************************EXPORT REPORT********************************" + String("\n"));
 	print_line(get_report_string());
@@ -1391,7 +1413,9 @@ void ImportExporterReport::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_failed_plugin_cfg_create"), &ImportExporterReport::get_failed_plugin_cfg_create);
 	ClassDB::bind_method(D_METHOD("get_failed_gdnative_copy"), &ImportExporterReport::get_failed_gdnative_copy);
 	ClassDB::bind_method(D_METHOD("get_report_sections"), &ImportExporterReport::get_report_sections);
+	ClassDB::bind_method(D_METHOD("get_section_labels"), &ImportExporterReport::get_section_labels);
 	ClassDB::bind_method(D_METHOD("print_report"), &ImportExporterReport::print_report);
 	ClassDB::bind_method(D_METHOD("set_ver", "ver"), &ImportExporterReport::set_ver);
 	ClassDB::bind_method(D_METHOD("get_ver"), &ImportExporterReport::get_ver);
+	ClassDB::bind_method(D_METHOD("is_steam_detected"), &ImportExporterReport::is_steam_detected);
 }

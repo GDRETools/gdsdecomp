@@ -42,8 +42,10 @@ public:
 	void set_lossy_opt(bool lossy) {
 		opt_lossy = lossy;
 	}
+
 	Dictionary get_totals();
 	Dictionary get_unsupported_types();
+	Dictionary get_section_labels();
 
 	Dictionary get_session_notes();
 	String get_totals_string();
@@ -67,6 +69,8 @@ public:
 	TypedArray<ImportInfo> get_not_converted() const;
 	Vector<String> get_failed_plugin_cfg_create() const;
 	Vector<String> get_failed_gdnative_copy() const;
+
+	bool is_steam_detected() const;
 
 	void print_report();
 	ImportExporterReport() {
