@@ -456,6 +456,9 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		}
 		src_to_iinfo.insert(iinfo->get_source_file(), iinfo);
 		String importer = iinfo->get_importer();
+		if (importer == ImportInfo::NO_IMPORTER) {
+			continue;
+		}
 		if (importer == "script_bytecode") {
 			if (iinfo->get_path().get_extension().to_lower() == "gde" && GDRESettings::get_singleton()->had_encryption_error()) {
 				// don't spam the logs with errors, just set the flag and skip
@@ -487,9 +490,9 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 			iinfo->set_export_dest(iinfo->get_source_file());
 		}
 		bool supports_multithreading = opt_multi_thread;
-		bool is_high_priority = iinfo->get_importer() == "gdextension" || iinfo->get_importer() == "gdnative";
-		if (exporter_map.has(iinfo->get_importer())) {
-			if (!exporter_map.get(iinfo->get_importer())->supports_multithread()) {
+		bool is_high_priority = importer == "gdextension" || importer == "gdnative";
+		if (exporter_map.has(importer)) {
+			if (!exporter_map.get(importer)->supports_multithread()) {
 				supports_multithreading = false;
 			}
 		} else {

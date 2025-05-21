@@ -574,10 +574,10 @@ Error ImportInfoRemap::_load(const String &p_path) {
 		print_line("WARNING: Remap path " + preferred_import_path + " does not exist...");
 	} else {
 		ERR_FAIL_COND_V_MSG(err != OK, err, "Could not load resource info from remap path " + preferred_import_path);
+		type = res_info->type;
+		ver_major = res_info->ver_major;
+		ver_minor = res_info->ver_minor;
 	}
-	type = res_info->type;
-	ver_major = res_info->ver_major;
-	ver_minor = res_info->ver_minor;
 	dest_files = Vector<String>({ preferred_import_path });
 	not_an_import = true;
 	import_md_path = p_path;

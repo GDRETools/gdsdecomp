@@ -70,6 +70,8 @@ class ImportInfo : public RefCounted {
 	GDCLASS(ImportInfo, RefCounted)
 
 public:
+	constexpr static const char *NO_IMPORTER = "<NONE>";
+
 	enum IInfoType {
 		BASE,
 		V2,
@@ -311,7 +313,7 @@ public:
 	virtual void set_type(const String &p_type) override { type = p_type; }
 	virtual String get_compat_type() const override { return ClassDB::get_compatibility_remapped_class(get_type()); }
 
-	virtual String get_importer() const override { return "<NONE>"; }
+	virtual String get_importer() const override { return NO_IMPORTER; }
 
 	virtual String get_source_file() const override { return source_file; }
 	virtual void set_source_file(const String &path) override { source_file = path; }
@@ -349,7 +351,7 @@ class ImportInfoRemap : public ImportInfoDummy {
 	GDCLASS(ImportInfoRemap, ImportInfoDummy)
 private:
 	friend class ImportInfo;
-	String importer = "<NONE>";
+	String importer = NO_IMPORTER;
 
 	virtual Error _load(const String &p_path) override;
 
