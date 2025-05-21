@@ -674,7 +674,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	// Need to recreate the uid files for the exported resources
 	// check if we're at version 4.4 or higher
 	if ((get_ver_major() == 4 && get_ver_minor() >= 4) || get_ver_major() > 4) {
-		auto non_custom_uid_files = get_settings()->get_file_list({ "*.gd", "*.gdshader", "*.shader" });
+		auto non_custom_uid_files = get_settings()->get_file_list({ "*.gd", "*.gdshader", "*.shader", "*.cs" });
 		for (int i = 0; i < non_custom_uid_files.size(); i++) {
 			recreate_uid_file(output_dir, non_custom_uid_files[i], false, files_to_export_set);
 		}
