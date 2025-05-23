@@ -200,6 +200,27 @@ TypedDictionary<K, V> hashmap_to_typed_dict(const HashMap<Ref<K>, Ref<V>> &map) 
 	return dict;
 }
 
+template <typename T>
+T get_most_popular_value(const Vector<T> &p_values) {
+	if (p_values.is_empty()) {
+		return T();
+	}
+	HashMap<T, int64_t> dict;
+	for (int i = 0; i < p_values.size(); i++) {
+		size_t current_count = dict.has(p_values[i]) ? dict.get(p_values[i]) : 0;
+		dict[p_values[i]] = current_count + 1;
+	}
+	int64_t max_count = 0;
+	T most_popular_value;
+	for (auto &E : dict) {
+		if (E.value > max_count) {
+			max_count = E.value;
+			most_popular_value = E.key;
+		}
+	}
+	return most_popular_value;
+}
+
 bool string_is_ascii(const String &s);
 bool string_has_whitespace(const String &s);
 void get_chars_in_set(const String &s, const HashSet<char32_t> &chars, HashSet<char32_t> &ret);

@@ -526,27 +526,6 @@ Error _serialize_file(Ref<GLTFState> p_state, const String p_path) {
 	return err;
 }
 
-template <typename T>
-T get_most_popular_value(const Vector<T> &p_values) {
-	if (p_values.is_empty()) {
-		return T();
-	}
-	HashMap<T, int64_t> dict;
-	for (int i = 0; i < p_values.size(); i++) {
-		size_t current_count = dict.has(p_values[i]) ? dict.get(p_values[i]) : 0;
-		dict[p_values[i]] = current_count + 1;
-	}
-	int64_t max_count = 0;
-	T most_popular_value;
-	for (auto &E : dict) {
-		if (E.value > max_count) {
-			max_count = E.value;
-			most_popular_value = E.key;
-		}
-	}
-	return most_popular_value;
-}
-
 Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src_path, Ref<ExportReport> p_report) {
 	String dest_ext = p_dest_path.get_extension().to_lower();
 	Ref<ImportInfo> iinfo = p_report.is_valid() ? p_report->get_import_info() : nullptr;
@@ -805,7 +784,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 		bool has_physics_nodes = false;
 		String root_type;
 		String root_name;
-		String export_image_format = image_extensions.is_empty() ? "PNG" : get_most_popular_value(image_extensions);
+		String export_image_format = image_extensions.is_empty() ? "PNG" : gdre::get_most_popular_value(image_extensions);
 		bool lossy = false;
 		if (export_image_format == "WEBP") {
 			// Only 3.4 and above supports lossless WebP
@@ -1334,15 +1313,15 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 			global_mesh_info.has_lods = global_has_lods.count(true) > global_has_lods.size() / 2;
 			global_mesh_info.has_shadow_meshes = global_has_shadow_meshes.count(true) > global_has_shadow_meshes.size() / 2;
 			global_mesh_info.has_lightmap_uv2 = global_has_lightmap_uv2.count(true) > global_has_lightmap_uv2.size() / 2;
-			global_mesh_info.lightmap_uv2_texel_size = get_most_popular_value(global_lightmap_uv2_texel_size);
-			global_mesh_info.bake_mode = get_most_popular_value(global_bake_mode);
+			global_mesh_info.lightmap_uv2_texel_size = gdre::get_most_popular_value(global_lightmap_uv2_texel_size);
+			global_mesh_info.bake_mode = gdre::get_most_popular_value(global_bake_mode);
 
 			int image_handling_val = GLTFState::HANDLE_BINARY_EXTRACT_TEXTURES;
 			if (had_images) {
 				if (has_external_images) {
 					image_handling_val = GLTFState::HANDLE_BINARY_EXTRACT_TEXTURES;
 				} else {
-					auto most_common_format = get_most_popular_value(image_formats);
+					auto most_common_format = gdre::get_most_popular_value(image_formats);
 					if (most_common_format == CompressedTexture2D::DATA_FORMAT_BASIS_UNIVERSAL) {
 						image_handling_val = GLTFState::HANDLE_BINARY_EMBED_AS_BASISU;
 					} else {
