@@ -9,6 +9,41 @@
 #include "gdre_settings.h"
 #include "packed_file_info.h"
 
+bool DirSource::try_open_pack(const String &p_path, bool p_replace_files, uint64_t p_offset) {
+	if (!DirAccess::exists(p_path)) {
+		return false;
+	}
+	Ref<DirAccess> da = DirAccess::open(p_path);
+	if (da.is_null()) {
+		return false;
+	}
+	PackedStringArray pa = da->get_files_at(p_path);
+	if (is_print_verbose_enabled()) {
+		for (auto s : pa) {
+			print_verbose(s);
+		}
+	}
+	Ref<GDRESettings::PackInfo> pckinfo;
+	pckinfo.instantiate();
+	pckinfo->init(p_path, Ref<GodotVer>(memnew(GodotVer)), 1, 0, 0, pa.size(), GDRESettings::PackInfo::DIR);
+	GDRESettings::get_singleton()->add_pack_info(pckinfo);
+	for (auto &path : pa) {
+		GDREPackedData::get_singleton()->add_path(p_path, path, 1, 0, MD5_EMPTY, this, p_replace_files, false, false);
+	}
+	return true;
+}
+
+Ref<FileAccess> DirSource::get_file(const String &p_path, PackedData::PackedFile *p_file) {
+	if (!p_file) {
+		return nullptr;
+	}
+	if (p_path.begins_with("res://")) {
+		String path = p_file->pack.path_join(p_path.trim_prefix("res://"));
+		return FileAccess::open(path, FileAccess::READ);
+	}
+	return nullptr;
+}
+
 Error GDREPackedData::add_pack(const String &p_path, bool p_replace_files, uint64_t p_offset) {
 	if (sources.is_empty()) {
 		sources.push_back(memnew(GDREPackedSource));
@@ -25,45 +60,12 @@ Error GDREPackedData::add_pack(const String &p_path, bool p_replace_files, uint6
 	return ERR_FILE_UNRECOGNIZED;
 }
 
-class DirSource : public PackSource {
-public:
-	virtual bool try_open_pack(const String &p_path, bool p_replace_files, uint64_t p_offset) override {
-		Ref<DirAccess> da = DirAccess::open(p_path.get_base_dir());
-		ERR_FAIL_COND_V_MSG(da.is_null(), ERR_FILE_CANT_OPEN, "FATAL ERROR: Can't find folder!");
-		ERR_FAIL_COND_V_MSG(!da->dir_exists(p_path), ERR_FILE_CANT_OPEN, "FATAL ERROR: Can't find folder!");
-		da = da->open("res://");
-		PackedStringArray pa = da->get_files_at("res://");
-		if (is_print_verbose_enabled()) {
-			for (auto s : pa) {
-				print_verbose(s);
-			}
-		}
-		Ref<GDRESettings::PackInfo> pckinfo;
-		pckinfo.instantiate();
-		pckinfo->init(p_path, Ref<GodotVer>(memnew(GodotVer)), 1, 0, 0, pa.size(), GDRESettings::PackInfo::DIR);
-		GDRESettings::get_singleton()->add_pack_info(pckinfo);
-		for (auto &path : pa) {
-			GDREPackedData::get_singleton()->add_path(p_path, path, 1, 0, MD5_EMPTY, this, p_replace_files, false, false);
-		}
-		return true;
+Error GDREPackedData::add_dir(const String &p_path, bool p_replace_files) {
+	if (dir_source.try_open_pack(p_path, p_replace_files, 0)) {
+		set_disabled(false);
+		return OK;
 	}
-	virtual Ref<FileAccess> get_file(const String &p_path, PackedData::PackedFile *p_file) override {
-		if (!p_file) {
-			return nullptr;
-		}
-		if (p_path.begins_with("res://")) {
-			String path = p_file->pack.path_join(p_path.trim_prefix("res://"));
-			return FileAccess::open(path, FileAccess::READ);
-		}
-		return nullptr;
-	}
-};
-
-Error GDREPackedData::add_dir(const String &p_path) {
-	if (dir_source.is_null()) {
-		dir_source.instantiate();
-	}
-	return dir_source->try_open_pack(p_path, false, 0) ? OK : ERR_FILE_CANT_OPEN;
+	return ERR_FILE_CANT_OPEN;
 }
 
 void GDREPackedData::add_path(const String &p_pkg_path, const String &p_path, uint64_t p_ofs, uint64_t p_size, const uint8_t *p_md5, PackSource *p_src, bool p_replace_files, bool p_encrypted, bool p_pck_src) {
@@ -160,7 +162,6 @@ GDREPackedData *GDREPackedData::singleton = nullptr;
 GDREPackedData::GDREPackedData() {
 	singleton = this;
 	root = memnew(PackedDir);
-	dir_source.instantiate();
 }
 
 Vector<Ref<PackedFileInfo>> GDREPackedData::get_file_info_list(const Vector<String> &filters) {

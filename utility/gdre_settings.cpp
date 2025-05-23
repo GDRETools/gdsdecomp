@@ -386,27 +386,11 @@ Error GDRESettings::load_dir(const String &p_path) {
 	ProjectSettings *settings_singleton = ProjectSettings::get_singleton();
 	GDREPackSettings *new_singleton = reinterpret_cast<GDREPackSettings *>(settings_singleton);
 	GDREPackSettings::do_set_resource_path(new_singleton, p_path);
-
-	da = da->open("res://");
 	project_path = p_path;
-	PackedStringArray pa = da->get_files_at("res://");
-	if (is_print_verbose_enabled()) {
-		for (auto s : pa) {
-			print_verbose(s);
-		}
-	}
 
-	Ref<PackInfo> pckinfo;
-	pckinfo.instantiate();
-	pckinfo->init(
-			p_path, Ref<GodotVer>(memnew(GodotVer)), 1, 0, 0, pa.size(), PackInfo::DIR);
-	add_pack_info(pckinfo);
-	auto paths = gdre::get_recursive_dir_list(project_path);
-	for (auto &path : paths) {
-		Ref<PackedFileInfo> info;
-		info.instantiate();
-		info->init(project_path, path, 1, 0, MD5_EMPTY, nullptr, false);
-		dir_files.push_back(info);
+	if (!GDREPackedData::get_singleton()->add_dir(p_path, false)) {
+		unload_dir();
+		ERR_FAIL_V_MSG(ERR_FILE_CANT_OPEN, "FATAL ERROR: Can't open directory!");
 	}
 	return OK;
 }
@@ -416,7 +400,6 @@ Error GDRESettings::unload_dir() {
 	GDREPackSettings *new_singleton = static_cast<GDREPackSettings *>(settings_singleton);
 	GDREPackSettings::do_set_resource_path(new_singleton, gdre_resource_path);
 	project_path = "";
-	dir_files.clear();
 	return OK;
 }
 
@@ -1045,24 +1028,7 @@ Array GDRESettings::get_file_info_array(const Vector<String> &filters) {
 }
 
 Vector<Ref<PackedFileInfo>> GDRESettings::get_file_info_list(const Vector<String> &filters) {
-	if (is_pack_loaded()) {
-		if (get_pack_type() != PackInfo::DIR) {
-			return GDREPackedData::get_singleton()->get_file_info_list(filters);
-		}
-		if (filters.is_empty()) {
-			return dir_files;
-		}
-		Vector<Ref<PackedFileInfo>> ret;
-		for (auto &file : dir_files) {
-			for (auto &filter : filters) {
-				if (file->path.get_file().matchn(filter)) {
-					ret.push_back(file);
-				}
-			}
-		}
-		return ret;
-	}
-	return Vector<Ref<PackedFileInfo>>();
+	return GDREPackedData::get_singleton()->get_file_info_list(filters);
 }
 
 TypedArray<GDRESettings::PackInfo> GDRESettings::get_pack_info_list() const {
