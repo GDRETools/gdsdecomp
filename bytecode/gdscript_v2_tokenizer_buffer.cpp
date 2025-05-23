@@ -33,16 +33,14 @@
 #include "core/io/compression.h"
 #include "core/io/marshalls.h"
 
-#define TOKENIZER_VERSION 101
-
-int GDScriptV2TokenizerBufferCompat::_token_to_binary(const Token &p_token, Vector<uint8_t> &r_buffer, int p_start, HashMap<StringName, uint32_t> &r_identifiers_map, HashMap<Variant, uint32_t, VariantHasher, VariantComparator> &r_constants_map) {
+int GDScriptV2TokenizerBufferCompat::_token_to_binary(const Token &p_token, Vector<uint8_t> &r_buffer, int p_start, HashMap<StringName, uint32_t> &r_identifiers_map, HashMap<Variant, uint32_t, VariantHasher, VariantComparator> &r_constants_map, GDScriptDecomp *p_decomp) {
 	int pos = p_start;
 
-	int token_type = p_token.type & TOKEN_MASK;
+	int token_type = p_decomp->get_local_token_val((GDScriptDecomp::GlobalToken)(p_token.type & TOKEN_MASK));
 
 	switch (p_token.type) {
-		case GDScriptTokenizer::Token::ANNOTATION:
-		case GDScriptTokenizer::Token::IDENTIFIER: {
+		case GDScriptV2TokenizerCompat::Token::Type::G_TK_ANNOTATION:
+		case GDScriptV2TokenizerCompat::Token::Type::G_TK_IDENTIFIER: {
 			// Add identifier to map.
 			int identifier_pos;
 			StringName id = p_token.get_identifier();
@@ -54,8 +52,8 @@ int GDScriptV2TokenizerBufferCompat::_token_to_binary(const Token &p_token, Vect
 			}
 			token_type |= identifier_pos << TOKEN_BITS;
 		} break;
-		case GDScriptTokenizer::Token::ERROR:
-		case GDScriptTokenizer::Token::LITERAL: {
+		case GDScriptV2TokenizerCompat::Token::Type::G_TK_ERROR:
+		case GDScriptV2TokenizerCompat::Token::Type::G_TK_CONSTANT: {
 			// Add literal to map.
 			int constant_pos;
 			if (r_constants_map.has(p_token.literal)) {
@@ -87,12 +85,12 @@ int GDScriptV2TokenizerBufferCompat::_token_to_binary(const Token &p_token, Vect
 	return token_len;
 }
 
-GDScriptTokenizer::Token GDScriptV2TokenizerBufferCompat::_binary_to_token(const uint8_t *p_buffer) {
+GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerBufferCompat::_binary_to_token(const uint8_t *p_buffer) {
 	Token token;
 	const uint8_t *b = p_buffer;
 
 	uint32_t token_type = decode_uint32(b);
-	token.type = (Token::Type)(token_type & TOKEN_MASK);
+	token.type = decomp->get_global_token((token_type & TOKEN_MASK));
 	if (token_type & TOKEN_BYTE_MASK) {
 		b += 4;
 	} else {
@@ -102,30 +100,30 @@ GDScriptTokenizer::Token GDScriptV2TokenizerBufferCompat::_binary_to_token(const
 	token.end_line = token.start_line;
 
 	token.literal = token.get_name();
-	if (token.type == Token::CONST_NAN) {
+	if (token.type == Token::Type::G_TK_CONST_NAN) {
 		token.literal = String("NAN"); // Special case since name and notation are different.
 	}
 
 	switch (token.type) {
-		case GDScriptTokenizer::Token::ANNOTATION:
-		case GDScriptTokenizer::Token::IDENTIFIER: {
+		case GDScriptV2TokenizerCompat::Token::Type::G_TK_ANNOTATION:
+		case GDScriptV2TokenizerCompat::Token::Type::G_TK_IDENTIFIER: {
 			// Get name from map.
 			int identifier_pos = token_type >> TOKEN_BITS;
 			if (unlikely(identifier_pos >= identifiers.size())) {
 				Token error;
-				error.type = Token::ERROR;
+				error.type = Token::Type::G_TK_ERROR;
 				error.literal = "Identifier index out of bounds.";
 				return error;
 			}
 			token.literal = identifiers[identifier_pos];
 		} break;
-		case GDScriptTokenizer::Token::ERROR:
-		case GDScriptTokenizer::Token::LITERAL: {
+		case GDScriptV2TokenizerCompat::Token::Type::G_TK_ERROR:
+		case GDScriptV2TokenizerCompat::Token::Type::G_TK_CONSTANT: {
 			// Get literal from map.
 			int constant_pos = token_type >> TOKEN_BITS;
 			if (unlikely(constant_pos >= constants.size())) {
 				Token error;
-				error.type = Token::ERROR;
+				error.type = Token::Type::G_TK_ERROR;
 				error.literal = "Constant index out of bounds.";
 				return error;
 			}
@@ -143,7 +141,7 @@ Error GDScriptV2TokenizerBufferCompat::set_code_buffer(const Vector<uint8_t> &p_
 	ERR_FAIL_COND_V(p_buffer.size() < 12 || p_buffer[0] != 'G' || p_buffer[1] != 'D' || p_buffer[2] != 'S' || p_buffer[3] != 'C', ERR_INVALID_DATA);
 
 	int version = decode_uint32(&buf[4]);
-	ERR_FAIL_COND_V_MSG(version > TOKENIZER_VERSION, ERR_INVALID_DATA, "Binary GDScript is too recent! Please use a newer engine version.");
+	ERR_FAIL_COND_V_MSG(version > decomp->get_bytecode_version(), ERR_INVALID_DATA, "Binary GDScript is too recent! Please use a newer engine version.");
 
 	int decompressed_size = decode_uint32(&buf[8]);
 
@@ -229,7 +227,7 @@ Error GDScriptV2TokenizerBufferCompat::set_code_buffer(const Vector<uint8_t> &p_
 		ERR_FAIL_COND_V(total_len < token_len, ERR_INVALID_DATA);
 		Token token = _binary_to_token(b);
 		b += token_len;
-		ERR_FAIL_INDEX_V(token.type, Token::TK_MAX, ERR_INVALID_DATA);
+		ERR_FAIL_INDEX_V(token.type, Token::Type::G_TK_MAX, ERR_INVALID_DATA);
 		tokens.write[i] = token;
 		total_len -= token_len;
 	}
@@ -239,23 +237,29 @@ Error GDScriptV2TokenizerBufferCompat::set_code_buffer(const Vector<uint8_t> &p_
 	return OK;
 }
 
-Vector<uint8_t> GDScriptV2TokenizerBufferCompat::parse_code_string(const String &p_code, CompressMode p_compress_mode) {
+Vector<uint8_t> GDScriptV2TokenizerBufferCompat::parse_code_string(const String &p_code, GDScriptDecomp *p_decomp, CompressMode p_compress_mode) {
 	HashMap<StringName, uint32_t> identifier_map;
 	HashMap<Variant, uint32_t, VariantHasher, VariantComparator> constant_map;
 	Vector<uint8_t> token_buffer;
 	HashMap<uint32_t, uint32_t> token_lines;
 	HashMap<uint32_t, uint32_t> token_columns;
 
-	GDScriptTokenizerText tokenizer;
+	GDScriptV2TokenizerCompatText tokenizer(p_decomp);
 	tokenizer.set_source_code(p_code);
 	tokenizer.set_multiline_mode(true); // Ignore whitespace tokens.
+
 	Token current = tokenizer.scan();
+	Vector<Token> tokens;
+	while (current.type != Token::Type::G_TK_EOF) {
+		tokens.push_back(current);
+		current = tokenizer.scan();
+	}
 	int token_pos = 0;
 	int last_token_line = 0;
 	int token_counter = 0;
 
-	while (current.type != Token::TK_EOF) {
-		int token_len = _token_to_binary(current, token_buffer, token_pos, identifier_map, constant_map);
+	for (const Token &current : tokens) {
+		int token_len = _token_to_binary(current, token_buffer, token_pos, identifier_map, constant_map, p_decomp);
 		token_pos += token_len;
 		if (token_counter > 0 && current.start_line > last_token_line) {
 			token_lines[token_counter] = current.start_line;
@@ -263,7 +267,7 @@ Vector<uint8_t> GDScriptV2TokenizerBufferCompat::parse_code_string(const String 
 		}
 		last_token_line = current.end_line;
 
-		current = tokenizer.scan();
+		// current = tokenizer.scan();
 		token_counter++;
 	}
 
@@ -360,7 +364,7 @@ Vector<uint8_t> GDScriptV2TokenizerBufferCompat::parse_code_string(const String 
 	buf.write[1] = 'D';
 	buf.write[2] = 'S';
 	buf.write[3] = 'C';
-	encode_uint32(TOKENIZER_VERSION, &buf.write[4]);
+	encode_uint32(p_decomp->get_bytecode_version(), &buf.write[4]);
 
 	switch (p_compress_mode) {
 		case COMPRESS_NONE:
@@ -414,11 +418,11 @@ void GDScriptV2TokenizerBufferCompat::pop_expression_indented_block() {
 	indent_stack_stack.pop_back();
 }
 
-GDScriptTokenizer::Token GDScriptV2TokenizerBufferCompat::scan() {
+GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerBufferCompat::scan() {
 	// Add final newline.
 	if (current >= tokens.size() && !last_token_was_newline) {
 		Token newline;
-		newline.type = Token::NEWLINE;
+		newline.type = Token::Type::G_TK_NEWLINE;
 		newline.start_line = current_line;
 		newline.end_line = current_line;
 		last_token_was_newline = true;
@@ -429,14 +433,14 @@ GDScriptTokenizer::Token GDScriptV2TokenizerBufferCompat::scan() {
 	if (pending_indents > 0) {
 		pending_indents--;
 		Token indent;
-		indent.type = Token::INDENT;
+		indent.type = Token::Type::G_TK_INDENT;
 		indent.start_line = current_line;
 		indent.end_line = current_line;
 		return indent;
 	} else if (pending_indents < 0) {
 		pending_indents++;
 		Token dedent;
-		dedent.type = Token::DEDENT;
+		dedent.type = Token::Type::G_TK_DEDENT;
 		dedent.start_line = current_line;
 		dedent.end_line = current_line;
 		return dedent;
@@ -449,7 +453,7 @@ GDScriptTokenizer::Token GDScriptV2TokenizerBufferCompat::scan() {
 			return scan();
 		}
 		Token eof;
-		eof.type = Token::TK_EOF;
+		eof.type = Token::Type::G_TK_EOF;
 		return eof;
 	};
 
@@ -478,7 +482,7 @@ GDScriptTokenizer::Token GDScriptV2TokenizerBufferCompat::scan() {
 			}
 
 			Token newline;
-			newline.type = Token::NEWLINE;
+			newline.type = Token::Type::G_TK_NEWLINE;
 			newline.start_line = current_line;
 			newline.end_line = current_line;
 			last_token_was_newline = true;
