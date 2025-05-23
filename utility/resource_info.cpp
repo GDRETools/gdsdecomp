@@ -155,13 +155,12 @@ Dictionary ResourceInfo::get_extra() const {
 }
 
 void ResourceInfo::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("using_script_class"), &ResourceInfo::using_script_class);
-	ClassDB::bind_static_method(get_class_static(), D_METHOD("from_dict"), &ResourceInfo::from_dict);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("from_dict", "dict"), &ResourceInfo::from_dict);
 	ClassDB::bind_method(D_METHOD("to_dict"), &ResourceInfo::to_dict);
-	ClassDB::bind_method(D_METHOD("set_on_resource"), &ResourceInfo::set_on_resource);
-	ClassDB::bind_method(D_METHOD("_set_on_resource"), &ResourceInfo::_set_on_resource);
-	ClassDB::bind_static_method(get_class_static(), D_METHOD("get_info_from_resource"), &ResourceInfo::get_info_from_resource);
-	ClassDB::bind_static_method(get_class_static(), D_METHOD("resource_has_info"), &ResourceInfo::resource_has_info);
+	ClassDB::bind_method(D_METHOD("set_on_resource", "res"), &ResourceInfo::set_on_resource);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("get_info_from_resource", "res"), &ResourceInfo::get_info_from_resource);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("resource_has_info", "res"), &ResourceInfo::resource_has_info);
+	ClassDB::bind_method(D_METHOD("using_script_class"), &ResourceInfo::using_script_class);
 	ClassDB::bind_method(D_METHOD("get_ver_major"), &ResourceInfo::get_ver_major);
 	ClassDB::bind_method(D_METHOD("get_ver_minor"), &ResourceInfo::get_ver_minor);
 	ClassDB::bind_method(D_METHOD("get_ver_format"), &ResourceInfo::get_ver_format);

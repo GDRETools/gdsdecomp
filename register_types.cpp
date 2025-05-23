@@ -366,6 +366,7 @@ void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
 	ClassDB::register_class<TextDiff>();
 	ClassDB::register_class<TaskManager>();
 	ClassDB::register_class<PluginManager>();
+	ClassDB::register_class<PluginSource>();
 	ClassDB::register_class<GitHubSource>();
 	ClassDB::register_class<AssetLibrarySource>();
 	ClassDB::register_class<GitLabSource>();

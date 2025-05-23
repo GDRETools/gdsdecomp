@@ -154,7 +154,7 @@ public:
 	virtual void reload_from_file() override;
 
 	void set_shadow_mesh(const Ref<Resource> &p_mesh);
-	Ref<FakeMesh> get_shadow_mesh() const;
+	Ref<Resource> get_shadow_mesh() const;
 
 	FakeMesh();
 

@@ -1464,7 +1464,7 @@ void FakeMesh::set_shadow_mesh(const Ref<Resource> &p_mesh) {
 	// }
 }
 
-Ref<FakeMesh> FakeMesh::get_shadow_mesh() const {
+Ref<Resource> FakeMesh::get_shadow_mesh() const {
 	return shadow_mesh;
 }
 
