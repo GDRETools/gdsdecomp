@@ -1,6 +1,5 @@
 #include "utility/common.h"
 #include "bytecode/bytecode_base.h"
-#include "external/grisu2/grisu2.h"
 #include "external/tga/tga.h"
 #include "utility/glob.h"
 
@@ -908,30 +907,6 @@ bool gdre::detect_utf8(const PackedByteArray &p_utf8_buf) {
 	return true;
 }
 
-String gdre::num_scientific(double p_num) {
-	if (Math::is_nan(p_num) || Math::is_inf(p_num)) {
-		return String::num(p_num, 0);
-	}
-	char buffer[256];
-	char *last = grisu2::to_chars(buffer, p_num);
-	*last = 0;
-	return buffer;
-}
-
-String gdre::num_scientific(float p_num) {
-	if (Math::is_nan(p_num) || Math::is_inf(p_num)) {
-		return String::num(p_num, 0);
-	}
-	char buffer[256];
-	char *last = grisu2::to_chars(buffer, p_num);
-	*last = 0;
-	return buffer;
-}
-
-String _num_scientific(double p_num) {
-	return gdre::num_scientific(p_num);
-}
-
 void GDRECommon::_bind_methods() {
 	//	ClassDB::bind_static_method("GLTFCamera", D_METHOD("from_node", "camera_node"), &GLTFCamera::from_node);
 
@@ -949,5 +924,4 @@ void GDRECommon::_bind_methods() {
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("remove_whitespace", "str"), &gdre::remove_whitespace);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("split_multichar", "str", "splitters", "allow_empty", "maxsplit"), &gdre::_split_multichar);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("rsplit_multichar", "str", "splitters", "allow_empty", "maxsplit"), &gdre::_rsplit_multichar);
-	ClassDB::bind_static_method("GDRECommon", D_METHOD("num_scientific", "num"), &_num_scientific);
 }

@@ -773,7 +773,7 @@ struct VarWriter {
 	static constexpr bool use_inf_neg = !(ver_major <= 2 || (ver_major >= 4 && !p_compat && after_4_4));
 
 	template <typename T>
-	static String rtosfix(T p_value) {
+	static String _rtosfix(T p_value) {
 		static_assert(std::is_floating_point_v<T>, "rtosfix only supports floating point types");
 		if (p_value == 0.0) {
 			return "0"; // Avoid negative zero (-0) being written, which may annoy git, svn, etc. for changes when they don't exist.
@@ -792,7 +792,18 @@ struct VarWriter {
 				return "inf";
 			}
 		}
-		return gdre::num_scientific(p_value);
+		return String::num_scientific(p_value);
+	}
+
+	static _ALWAYS_INLINE_ String rtosfix(float p_value) {
+		return _rtosfix(p_value);
+	}
+
+	static _ALWAYS_INLINE_ String rtosfix(double p_value) {
+		if ((double)(float)p_value == p_value) {
+			return _rtosfix((float)p_value);
+		}
+		return _rtosfix(p_value);
 	}
 
 #define MAKE_WRITE_PACKED_ELEMENT(type, str)                             \
@@ -803,8 +814,8 @@ struct VarWriter {
 	MAKE_WRITE_PACKED_ELEMENT(uint8_t, itos(el));
 	MAKE_WRITE_PACKED_ELEMENT(int32_t, itos(el));
 	MAKE_WRITE_PACKED_ELEMENT(int64_t, itos(el));
-	MAKE_WRITE_PACKED_ELEMENT(float, rtosfix(el));
-	MAKE_WRITE_PACKED_ELEMENT(double, rtosfix(el));
+	MAKE_WRITE_PACKED_ELEMENT(float, _rtosfix(el));
+	MAKE_WRITE_PACKED_ELEMENT(double, _rtosfix(el));
 	MAKE_WRITE_PACKED_ELEMENT(String, "\"" + el.c_escape() + "\"");
 	MAKE_WRITE_PACKED_ELEMENT(Vector2, rtosfix(el.x) + ", " + rtosfix(el.y));
 	MAKE_WRITE_PACKED_ELEMENT(Vector3, rtosfix(el.x) + ", " + rtosfix(el.y) + ", " + rtosfix(el.z));

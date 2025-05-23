@@ -84,7 +84,6 @@ TEST_CASE("[GDSDecomp][ResourceExport] Export texture") {
 			String original_file = file.rsplit("-", true, 1)[0];
 			String output_file = output_dir.path_join(original_file.get_file());
 			gdre::ensure_dir(output_file.get_base_dir());
-			Error error;
 
 			Error err = Exporter::export_file(output_file, file);
 			CHECK(err == OK);

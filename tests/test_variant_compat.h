@@ -247,12 +247,10 @@ TEST_CASE("[GDSDecomp][VariantCompat] Vector<double>") {
 }
 
 // TODO: disabling the rest of the float tests until the pr that fixes float precision lands.
-#if 0
 TEST_CASE("[GDSDecomp][VariantCompat] Vector<float> (with >6 precision)") {
 	Vector<float> arr = { 0.0, 1.0, 1.1, NAN, INFINITY, -INFINITY, 0 };
 	test_variant_write_v4("Simple Vector<float>", arr);
 }
-#endif
 
 TEST_CASE("[GDSDecomp][VariantCompat] Vector<String>") {
 	{
@@ -280,13 +278,11 @@ TEST_CASE("[GDSDecomp][VariantCompat] Vector<Vector2>") {
 	String arg_str = "0, 0, 1, 1";
 	test_vector_write_all("Simple Vector<Vector2>", arr, vector2_array_v2_name, vector2_array_v3_name, arg_str);
 }
-#if 0
 TEST_CASE("[GDSDecomp][VariantCompat] Vector<Vector3> with precision") {
 	Vector<Vector3> arr = { Vector3(0, 0, 0), Vector3(1, 1, 1.1) };
-	String arg_str = "Vector3( 0, 0, 0 ), Vector3( 1, 1, 1.1 )";
+	String arg_str = "0, 0, 0, 1, 1, 1.1";
 	test_vector_write_all("Simple Vector<Vector3>", arr, vector3_array_v2_name, vector3_array_v3_name, arg_str);
 }
-#endif
 
 TEST_CASE("[GDSDecomp][VariantCompat] Vector<Vector3>") {
 	Vector<Vector3> arr = { Vector3(0, 0, 0), Vector3(1, 1, 1) };
@@ -377,6 +373,38 @@ TEST_CASE("[GDSDecomp][VariantCompat] Writer and parser Variant::FLOAT") {
 	VariantParserCompat::parse(&css, variant_parsed, errs, line);
 	float_parsed = variant_parsed;
 	CHECK_MESSAGE(float_parsed == 1.0e+100, "Should match the double literal.");
+}
+
+TEST_CASE("[GDSDecomp][VariantCompat] Writer and parser Vector2") {
+	Variant vec2_parsed;
+	String vec2_str;
+	String errs;
+	int line;
+	// Variant::VECTOR2 and Vector2 can be either 32-bit or 64-bit depending on the precision level of real_t.
+	{
+		Vector2 vec2 = Vector2(1.2, 3.4);
+		VariantWriterCompat::write_to_string(vec2, vec2_str, 4);
+		// Reminder: "1.2" and "3.4" are not exactly those decimal numbers. They are the closest float to them.
+		CHECK_MESSAGE(vec2_str == "Vector2(1.2, 3.4)", "Should write with enough digits to ensure parsing back is exact.");
+		VariantParser::StreamString stream;
+		stream.s = vec2_str;
+		VariantParserCompat::parse(&stream, vec2_parsed, errs, line);
+		CHECK_MESSAGE(Vector2(vec2_parsed) == vec2, "Should parse back to the same Vector2.");
+	}
+	// Check with big numbers and small numbers.
+	{
+		Vector2 vec2 = Vector2(1.234567898765432123456789e30, 1.234567898765432123456789e-10);
+		VariantWriterCompat::write_to_string(vec2, vec2_str, 4);
+#ifdef REAL_T_IS_DOUBLE
+		CHECK_MESSAGE(vec2_str == "Vector2(1.2345678987654322e+30, 1.2345678987654322e-10)", "Should write with enough digits to ensure parsing back is exact.");
+#else
+		CHECK_MESSAGE(vec2_str == "Vector2(1.2345679e+30, 1.2345679e-10)", "Should write with enough digits to ensure parsing back is exact.");
+#endif
+		VariantParser::StreamString stream;
+		stream.s = vec2_str;
+		VariantParserCompat::parse(&stream, vec2_parsed, errs, line);
+		CHECK_MESSAGE(Vector2(vec2_parsed) == vec2, "Should parse back to the same Vector2.");
+	}
 }
 
 TEST_CASE("[GDSDecomp][VariantCompat] Writer and parser array") {
