@@ -8,6 +8,7 @@
 #include "gdre_packed_source.h"
 #include "gdre_settings.h"
 #include "packed_file_info.h"
+#include "utility/common.h"
 
 bool DirSource::try_open_pack(const String &p_path, bool p_replace_files, uint64_t p_offset) {
 	if (!DirAccess::exists(p_path)) {
@@ -17,7 +18,7 @@ bool DirSource::try_open_pack(const String &p_path, bool p_replace_files, uint64
 	if (da.is_null()) {
 		return false;
 	}
-	PackedStringArray pa = da->get_files_at(p_path);
+	PackedStringArray pa = gdre::get_recursive_dir_list(p_path, {}, false);
 	if (is_print_verbose_enabled()) {
 		for (auto s : pa) {
 			print_verbose(s);

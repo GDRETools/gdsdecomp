@@ -597,7 +597,7 @@ func _notification(what: int) -> void:
 
 
 func get_glob_files(glob: String) -> PackedStringArray:
-	var files: PackedStringArray = Glob.rglob(glob)
+	var files: PackedStringArray = Glob.rglob(glob, true)
 	# doing this because non-windows platforms can have '?' and '[' in filenames
 	if files.size() == 0 and FileAccess.file_exists(glob):
 		files.append(glob)
@@ -802,14 +802,6 @@ func print_usage():
 # TODO: remove this hack
 var translation_only = false
 var SCRIPTS_EXT = ["gd", "gdc", "gde"]
-func copy_dir(src:String, dst:String) -> int:
-	var da:DirAccess = DirAccess.open(src)
-	if !da.dir_exists(src):
-		print("Error: " + src + " does not appear to be a directory")
-		return ERR_FILE_NOT_FOUND
-	da.make_dir_recursive(dst)
-	da.copy_dir(src, dst)
-	return OK
 
 func get_cli_abs_path(path:String) -> String:
 	path = path.simplify_path()
@@ -950,6 +942,7 @@ func recovery(  input_files:PackedStringArray,
 		if includes.size() > 0:
 			includes = normalize_cludes(includes, parent_dir)
 			files = get_globs_files(includes)
+			print("Files: " + str(files))
 			if len(files) == 0:
 				print("Error: no files found that match includes")
 				print("Includes: " + str(includes))
@@ -980,7 +973,7 @@ func recovery(  input_files:PackedStringArray,
 		if extract_only:
 			print("Why did you open a folder to extract it??? What's wrong with you?!!?")
 			return
-		if copy_dir(input_file, output_dir) != OK:
+		if output_dir.simplify_path() != input_file.simplify_path() and GDRECommon.copy_dir(input_file, output_dir) != OK:
 			print("Error: failed to copy " + input_file + " to " + output_dir)
 			return
 	else:

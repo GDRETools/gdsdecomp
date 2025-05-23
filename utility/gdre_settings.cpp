@@ -387,10 +387,10 @@ Error GDRESettings::load_dir(const String &p_path) {
 	GDREPackSettings *new_singleton = reinterpret_cast<GDREPackSettings *>(settings_singleton);
 	GDREPackSettings::do_set_resource_path(new_singleton, p_path);
 	project_path = p_path;
-
-	if (!GDREPackedData::get_singleton()->add_dir(p_path, false)) {
+	Error err = GDREPackedData::get_singleton()->add_dir(p_path, false);
+	if (err != OK) {
 		unload_dir();
-		ERR_FAIL_V_MSG(ERR_FILE_CANT_OPEN, "FATAL ERROR: Can't open directory!");
+		ERR_FAIL_V_MSG(err, "FATAL ERROR: Can't open directory!");
 	}
 	return OK;
 }
@@ -1009,9 +1009,6 @@ Error GDRESettings::set_encryption_key(Vector<uint8_t> key) {
 
 Vector<String> GDRESettings::get_file_list(const Vector<String> &filters) {
 	Vector<String> ret;
-	if (get_pack_type() == PackInfo::DIR) {
-		return gdre::get_recursive_dir_list("res://", filters, true);
-	}
 	Vector<Ref<PackedFileInfo>> flist = get_file_info_list(filters);
 	for (int i = 0; i < flist.size(); i++) {
 		ret.push_back(flist[i]->path);
@@ -1046,7 +1043,7 @@ String GDRESettings::localize_path(const String &p_path, const String &resource_
 		return p_path.simplify_path();
 	}
 	if ((p_path.is_absolute_path()) && (res_path == "" || !p_path.begins_with(res_path))) {
-		if (is_pack_loaded() && get_pack_type() != PackInfo::DIR) {
+		if (is_pack_loaded()) {
 			// it's a file system path... we need to start popping off the left-hand sides of the path until we find a directory that exists in the pack
 			String dir_path = p_path.get_base_dir().simplify_path();
 			// LEFT hand side, not right
@@ -1142,12 +1139,9 @@ bool GDRESettings::is_fs_path(const String &p_path) const {
 		return true;
 	}
 	//windows
-	if (OS::get_singleton()->get_name().begins_with("Win")) {
-		auto reg = RegEx("^[A-Za-z]:\\/");
-		if (reg.search(p_path).is_valid()) {
-			return true;
-		}
-		return false;
+	auto reg = RegEx("^[A-Za-z]:\\/");
+	if (reg.search(p_path).is_valid()) {
+		return true;
 	}
 	// unix
 	if (p_path.begins_with("/")) {
@@ -1164,7 +1158,7 @@ String GDRESettings::_get_res_path(const String &p_path, const String &resource_
 	String res_dir = resource_dir != "" ? resource_dir : project_path;
 	String res_path;
 	// Try and find it in the packed data
-	if (is_pack_loaded() && get_pack_type() != PackInfo::DIR) {
+	if (is_pack_loaded()) {
 		if (GDREPackedData::get_singleton()->has_path(p_path)) {
 			return p_path;
 		}
@@ -1562,11 +1556,7 @@ Array GDRESettings::get_import_files(bool copy) {
 
 bool GDRESettings::has_file(const String &p_path) {
 	if (is_pack_loaded()) {
-		if (get_pack_type() != PackInfo::DIR) {
-			return GDREPackedData::get_singleton()->has_path(p_path);
-		} else {
-			return FileAccess::exists(p_path);
-		}
+		return GDREPackedData::get_singleton()->has_path(p_path);
 	}
 	return false;
 }
