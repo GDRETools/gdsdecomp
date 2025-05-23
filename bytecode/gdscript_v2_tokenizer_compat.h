@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include "bytecode_base.h"
 #include "core/templates/hash_map.h"
 #include "core/templates/list.h"
 #include "core/templates/vector.h"
@@ -45,124 +46,9 @@ public:
 	};
 
 	struct Token {
-		enum Type {
-			EMPTY,
-			// Basic
-			ANNOTATION,
-			IDENTIFIER,
-			LITERAL,
-			// Comparison
-			LESS,
-			LESS_EQUAL,
-			GREATER,
-			GREATER_EQUAL,
-			EQUAL_EQUAL,
-			BANG_EQUAL,
-			// Logical
-			AND,
-			OR,
-			NOT,
-			AMPERSAND_AMPERSAND,
-			PIPE_PIPE,
-			BANG,
-			// Bitwise
-			AMPERSAND,
-			PIPE,
-			TILDE,
-			CARET,
-			LESS_LESS,
-			GREATER_GREATER,
-			// Math
-			PLUS,
-			MINUS,
-			STAR,
-			STAR_STAR,
-			SLASH,
-			PERCENT,
-			// Assignment
-			EQUAL,
-			PLUS_EQUAL,
-			MINUS_EQUAL,
-			STAR_EQUAL,
-			STAR_STAR_EQUAL,
-			SLASH_EQUAL,
-			PERCENT_EQUAL,
-			LESS_LESS_EQUAL,
-			GREATER_GREATER_EQUAL,
-			AMPERSAND_EQUAL,
-			PIPE_EQUAL,
-			CARET_EQUAL,
-			// Control flow
-			IF,
-			ELIF,
-			ELSE,
-			FOR,
-			WHILE,
-			BREAK,
-			CONTINUE,
-			PASS,
-			RETURN,
-			MATCH,
-			WHEN,
-			// Keywords
-			ABSTRACT,
-			AS,
-			ASSERT,
-			AWAIT,
-			BREAKPOINT,
-			CLASS,
-			CLASS_NAME,
-			TK_CONST, // Conflict with WinAPI.
-			ENUM,
-			EXTENDS,
-			FUNC,
-			TK_IN, // Conflict with WinAPI.
-			IS,
-			NAMESPACE,
-			PRELOAD,
-			SELF,
-			SIGNAL,
-			STATIC,
-			SUPER,
-			TRAIT,
-			VAR,
-			TK_VOID, // Conflict with WinAPI.
-			YIELD,
-			// Punctuation
-			BRACKET_OPEN,
-			BRACKET_CLOSE,
-			BRACE_OPEN,
-			BRACE_CLOSE,
-			PARENTHESIS_OPEN,
-			PARENTHESIS_CLOSE,
-			COMMA,
-			SEMICOLON,
-			PERIOD,
-			PERIOD_PERIOD,
-			COLON,
-			DOLLAR,
-			FORWARD_ARROW,
-			UNDERSCORE,
-			// Whitespace
-			NEWLINE,
-			INDENT,
-			DEDENT,
-			// Constants
-			CONST_PI,
-			CONST_TAU,
-			CONST_INF,
-			CONST_NAN,
-			// Error message improvement
-			VCS_CONFLICT_MARKER,
-			BACKTICK,
-			QUESTION_MARK,
-			// Special
-			ERROR,
-			TK_EOF, // "EOF" is reserved
-			TK_MAX
-		};
+		using Type = GDScriptDecomp::GlobalToken;
 
-		Type type = EMPTY;
+		Type type = Type::G_TK_EMPTY;
 		Variant literal;
 		int start_line = 0, end_line = 0, start_column = 0, end_column = 0;
 		int leftmost_column = 0, rightmost_column = 0; // Column span for multiline tokens.
@@ -251,6 +137,11 @@ class GDScriptV2TokenizerCompatText : public GDScriptV2TokenizerCompat {
 	HashMap<int, CommentData> comments;
 #endif // TOOLS_ENABLED
 
+	const GDScriptDecomp *decomp;
+	Ref<GodotVer> engine_ver;
+
+	bool has_abstract = false;
+
 	_FORCE_INLINE_ bool _is_at_end() { return position >= length; }
 	_FORCE_INLINE_ char32_t _peek(int p_offset = 0) { return position + p_offset >= 0 && position + p_offset < length ? _current[p_offset] : '\0'; }
 	int indent_level() const { return indent_stack.size(); }
@@ -304,5 +195,5 @@ public:
 
 	virtual Token scan() override;
 
-	GDScriptV2TokenizerCompatText();
+	GDScriptV2TokenizerCompatText(GDScriptDecomp *p_decomp);
 };

@@ -42,133 +42,14 @@
 #include "editor/editor_settings.h"
 #endif
 
-static const char *token_names[] = {
-	"Empty", // EMPTY,
-	// Basic
-	"Annotation", // ANNOTATION
-	"Identifier", // IDENTIFIER,
-	"Literal", // LITERAL,
-	// Comparison
-	"<", // LESS,
-	"<=", // LESS_EQUAL,
-	">", // GREATER,
-	">=", // GREATER_EQUAL,
-	"==", // EQUAL_EQUAL,
-	"!=", // BANG_EQUAL,
-	// Logical
-	"and", // AND,
-	"or", // OR,
-	"not", // NOT,
-	"&&", // AMPERSAND_AMPERSAND,
-	"||", // PIPE_PIPE,
-	"!", // BANG,
-	// Bitwise
-	"&", // AMPERSAND,
-	"|", // PIPE,
-	"~", // TILDE,
-	"^", // CARET,
-	"<<", // LESS_LESS,
-	">>", // GREATER_GREATER,
-	// Math
-	"+", // PLUS,
-	"-", // MINUS,
-	"*", // STAR,
-	"**", // STAR_STAR,
-	"/", // SLASH,
-	"%", // PERCENT,
-	// Assignment
-	"=", // EQUAL,
-	"+=", // PLUS_EQUAL,
-	"-=", // MINUS_EQUAL,
-	"*=", // STAR_EQUAL,
-	"**=", // STAR_STAR_EQUAL,
-	"/=", // SLASH_EQUAL,
-	"%=", // PERCENT_EQUAL,
-	"<<=", // LESS_LESS_EQUAL,
-	">>=", // GREATER_GREATER_EQUAL,
-	"&=", // AMPERSAND_EQUAL,
-	"|=", // PIPE_EQUAL,
-	"^=", // CARET_EQUAL,
-	// Control flow
-	"if", // IF,
-	"elif", // ELIF,
-	"else", // ELSE,
-	"for", // FOR,
-	"while", // WHILE,
-	"break", // BREAK,
-	"continue", // CONTINUE,
-	"pass", // PASS,
-	"return", // RETURN,
-	"match", // MATCH,
-	"when", // WHEN,
-	// Keywords
-	"abstract", // ABSTRACT,
-	"as", // AS,
-	"assert", // ASSERT,
-	"await", // AWAIT,
-	"breakpoint", // BREAKPOINT,
-	"class", // CLASS,
-	"class_name", // CLASS_NAME,
-	"const", // TK_CONST,
-	"enum", // ENUM,
-	"extends", // EXTENDS,
-	"func", // FUNC,
-	"in", // TK_IN,
-	"is", // IS,
-	"namespace", // NAMESPACE
-	"preload", // PRELOAD,
-	"self", // SELF,
-	"signal", // SIGNAL,
-	"static", // STATIC,
-	"super", // SUPER,
-	"trait", // TRAIT,
-	"var", // VAR,
-	"void", // TK_VOID,
-	"yield", // YIELD,
-	// Punctuation
-	"[", // BRACKET_OPEN,
-	"]", // BRACKET_CLOSE,
-	"{", // BRACE_OPEN,
-	"}", // BRACE_CLOSE,
-	"(", // PARENTHESIS_OPEN,
-	")", // PARENTHESIS_CLOSE,
-	",", // COMMA,
-	";", // SEMICOLON,
-	".", // PERIOD,
-	"..", // PERIOD_PERIOD,
-	":", // COLON,
-	"$", // DOLLAR,
-	"->", // FORWARD_ARROW,
-	"_", // UNDERSCORE,
-	// Whitespace
-	"Newline", // NEWLINE,
-	"Indent", // INDENT,
-	"Dedent", // DEDENT,
-	// Constants
-	"PI", // CONST_PI,
-	"TAU", // CONST_TAU,
-	"INF", // CONST_INF,
-	"NaN", // CONST_NAN,
-	// Error message improvement
-	"VCS conflict marker", // VCS_CONFLICT_MARKER,
-	"`", // BACKTICK,
-	"?", // QUESTION_MARK,
-	// Special
-	"Error", // ERROR,
-	"End of file", // EOF,
-};
-
-// Avoid desync.
-static_assert(std::size(token_names) == GDScriptV2TokenizerCompat::Token::TK_MAX, "Amount of token names don't match the amount of token types.");
-
 const char *GDScriptV2TokenizerCompat::Token::get_name() const {
-	ERR_FAIL_INDEX_V_MSG(type, TK_MAX, "<error>", "Using token type out of the enum.");
-	return token_names[type];
+	ERR_FAIL_INDEX_V_MSG(type, Type::G_TK_MAX, "<error>", "Using token type out of the enum.");
+	return GDScriptTokenizerTextCompat::token_names[type];
 }
 
 String GDScriptV2TokenizerCompat::Token::get_debug_name() const {
 	switch (type) {
-		case IDENTIFIER:
+		case Type::G_TK_IDENTIFIER:
 			return vformat(R"(identifier "%s")", source);
 		default:
 			return vformat(R"("%s")", get_name());
@@ -177,16 +58,16 @@ String GDScriptV2TokenizerCompat::Token::get_debug_name() const {
 
 bool GDScriptV2TokenizerCompat::Token::can_precede_bin_op() const {
 	switch (type) {
-		case IDENTIFIER:
-		case LITERAL:
-		case SELF:
-		case BRACKET_CLOSE:
-		case BRACE_CLOSE:
-		case PARENTHESIS_CLOSE:
-		case CONST_PI:
-		case CONST_TAU:
-		case CONST_INF:
-		case CONST_NAN:
+		case Type::G_TK_IDENTIFIER:
+		case Type::G_TK_CONSTANT:
+		case Type::G_TK_SELF:
+		case Type::G_TK_BRACKET_CLOSE:
+		case Type::G_TK_CURLY_BRACKET_CLOSE:
+		case Type::G_TK_PARENTHESIS_CLOSE:
+		case Type::G_TK_CONST_PI:
+		case Type::G_TK_CONST_TAU:
+		case Type::G_TK_CONST_INF:
+		case Type::G_TK_CONST_NAN:
 			return true;
 		default:
 			return false;
@@ -197,15 +78,15 @@ bool GDScriptV2TokenizerCompat::Token::is_identifier() const {
 	// Note: Most keywords should not be recognized as identifiers.
 	// These are only exceptions for stuff that already is on the engine's API.
 	switch (type) {
-		case IDENTIFIER:
-		case MATCH: // Used in String.match().
-		case WHEN: // New keyword, avoid breaking existing code.
-		case ABSTRACT:
+		case Type::G_TK_IDENTIFIER:
+		case Type::G_TK_CF_MATCH: // Used in String.match().
+		case Type::G_TK_CF_WHEN: // New keyword, avoid breaking existing code.
+		case Type::G_TK_ABSTRACT:
 		// Allow constants to be treated as regular identifiers.
-		case CONST_PI:
-		case CONST_INF:
-		case CONST_NAN:
-		case CONST_TAU:
+		case Type::G_TK_CONST_PI:
+		case Type::G_TK_CONST_INF:
+		case Type::G_TK_CONST_NAN:
+		case Type::G_TK_CONST_TAU:
 			return true;
 		default:
 			return false;
@@ -215,49 +96,49 @@ bool GDScriptV2TokenizerCompat::Token::is_identifier() const {
 bool GDScriptV2TokenizerCompat::Token::is_node_name() const {
 	// This is meant to allow keywords with the $ notation, but not as general identifiers.
 	switch (type) {
-		case IDENTIFIER:
-		case ABSTRACT:
-		case AND:
-		case AS:
-		case ASSERT:
-		case AWAIT:
-		case BREAK:
-		case BREAKPOINT:
-		case CLASS_NAME:
-		case CLASS:
-		case TK_CONST:
-		case CONST_PI:
-		case CONST_INF:
-		case CONST_NAN:
-		case CONST_TAU:
-		case CONTINUE:
-		case ELIF:
-		case ELSE:
-		case ENUM:
-		case EXTENDS:
-		case FOR:
-		case FUNC:
-		case IF:
-		case TK_IN:
-		case IS:
-		case MATCH:
-		case NAMESPACE:
-		case NOT:
-		case OR:
-		case PASS:
-		case PRELOAD:
-		case RETURN:
-		case SELF:
-		case SIGNAL:
-		case STATIC:
-		case SUPER:
-		case TRAIT:
-		case UNDERSCORE:
-		case VAR:
-		case TK_VOID:
-		case WHILE:
-		case WHEN:
-		case YIELD:
+		case Type::G_TK_IDENTIFIER:
+		case Type::G_TK_ABSTRACT:
+		case Type::G_TK_OP_AND:
+		case Type::G_TK_PR_AS:
+		case Type::G_TK_PR_ASSERT:
+		case Type::G_TK_PR_AWAIT:
+		case Type::G_TK_CF_BREAK:
+		case Type::G_TK_PR_BREAKPOINT:
+		case Type::G_TK_PR_CLASS_NAME:
+		case Type::G_TK_PR_CLASS:
+		case Type::G_TK_PR_CONST:
+		case Type::G_TK_CONST_PI:
+		case Type::G_TK_CONST_INF:
+		case Type::G_TK_CONST_NAN:
+		case Type::G_TK_CONST_TAU:
+		case Type::G_TK_CF_CONTINUE:
+		case Type::G_TK_CF_ELIF:
+		case Type::G_TK_CF_ELSE:
+		case Type::G_TK_PR_ENUM:
+		case Type::G_TK_PR_EXTENDS:
+		case Type::G_TK_CF_FOR:
+		case Type::G_TK_PR_FUNCTION:
+		case Type::G_TK_CF_IF:
+		case Type::G_TK_OP_IN:
+		case Type::G_TK_PR_IS:
+		case Type::G_TK_CF_MATCH:
+		case Type::G_TK_PR_NAMESPACE:
+		case Type::G_TK_OP_NOT:
+		case Type::G_TK_OP_OR:
+		case Type::G_TK_CF_PASS:
+		case Type::G_TK_PR_PRELOAD:
+		case Type::G_TK_CF_RETURN:
+		case Type::G_TK_SELF:
+		case Type::G_TK_PR_SIGNAL:
+		case Type::G_TK_PR_STATIC:
+		case Type::G_TK_PR_SUPER:
+		case Type::G_TK_PR_TRAIT:
+		case Type::G_TK_UNDERSCORE:
+		case Type::G_TK_PR_VAR:
+		case Type::G_TK_PR_VOID:
+		case Type::G_TK_CF_WHILE:
+		case Type::G_TK_CF_WHEN:
+		case Type::G_TK_PR_YIELD:
 			return true;
 		default:
 			return false;
@@ -265,8 +146,8 @@ bool GDScriptV2TokenizerCompat::Token::is_node_name() const {
 }
 
 String GDScriptV2TokenizerCompat::get_token_name(Token::Type p_token_type) {
-	ERR_FAIL_INDEX_V_MSG(p_token_type, Token::TK_MAX, "<error>", "Using token type out of the enum.");
-	return token_names[p_token_type];
+	ERR_FAIL_INDEX_V_MSG(p_token_type, Token::Type::G_TK_MAX, "<error>", "Using token type out of the enum.");
+	return GDScriptTokenizerTextCompat::token_names[p_token_type];
 }
 
 void GDScriptV2TokenizerCompatText::set_source_code(const String &p_source_code) {
@@ -364,6 +245,7 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::pop_error() {
 
 GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::make_token(Token::Type p_type) {
 	Token token(p_type);
+	DEV_ASSERT(decomp->get_local_token_val(p_type) != -1);
 	token.start_line = start_line;
 	token.end_line = line;
 	token.start_column = start_column;
@@ -372,7 +254,7 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::make_token(Token
 	token.rightmost_column = rightmost_column;
 	token.source = String::utf32(Span(_start, _current - _start));
 
-	if (p_type != Token::ERROR && cursor_line > -1) {
+	if (p_type != Token::Type::G_TK_ERROR && cursor_line > -1) {
 		// Also count whitespace after token.
 		int offset = 0;
 		while (_peek(offset) == ' ' || _peek(offset) == '\t') {
@@ -422,19 +304,19 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::make_token(Token
 }
 
 GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::make_literal(const Variant &p_literal) {
-	Token token = make_token(Token::LITERAL);
+	Token token = make_token(Token::Type::G_TK_CONSTANT);
 	token.literal = p_literal;
 	return token;
 }
 
 GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::make_identifier(const StringName &p_identifier) {
-	Token identifier = make_token(Token::IDENTIFIER);
+	Token identifier = make_token(Token::Type::G_TK_IDENTIFIER);
 	identifier.literal = p_identifier;
 	return identifier;
 }
 
 GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::make_error(const String &p_message) {
-	Token error = make_token(Token::ERROR);
+	Token error = make_token(Token::Type::G_TK_ERROR);
 	error.literal = p_message;
 
 	return error;
@@ -474,7 +356,7 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::check_vcs_marker
 			_advance();
 			chars--;
 		}
-		return make_token(Token::VCS_CONFLICT_MARKER);
+		return make_token(Token::Type::G_TK_VCS_CONFLICT_MARKER);
 	} else {
 		// It is only a regular double character token, so we consume the second character.
 		_advance();
@@ -492,73 +374,73 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::annotation() {
 		// Consume all identifier characters.
 		_advance();
 	}
-	Token annotation = make_token(Token::ANNOTATION);
+	Token annotation = make_token(Token::Type::G_TK_ANNOTATION);
 	annotation.literal = StringName(annotation.source);
 	return annotation;
 }
 
-#define KEYWORDS(KEYWORD_GROUP, KEYWORD)     \
-	KEYWORD_GROUP('a')                       \
-	KEYWORD("abstract", Token::ABSTRACT)     \
-	KEYWORD("as", Token::AS)                 \
-	KEYWORD("and", Token::AND)               \
-	KEYWORD("assert", Token::ASSERT)         \
-	KEYWORD("await", Token::AWAIT)           \
-	KEYWORD_GROUP('b')                       \
-	KEYWORD("break", Token::BREAK)           \
-	KEYWORD("breakpoint", Token::BREAKPOINT) \
-	KEYWORD_GROUP('c')                       \
-	KEYWORD("class", Token::CLASS)           \
-	KEYWORD("class_name", Token::CLASS_NAME) \
-	KEYWORD("const", Token::TK_CONST)        \
-	KEYWORD("continue", Token::CONTINUE)     \
-	KEYWORD_GROUP('e')                       \
-	KEYWORD("elif", Token::ELIF)             \
-	KEYWORD("else", Token::ELSE)             \
-	KEYWORD("enum", Token::ENUM)             \
-	KEYWORD("extends", Token::EXTENDS)       \
-	KEYWORD_GROUP('f')                       \
-	KEYWORD("for", Token::FOR)               \
-	KEYWORD("func", Token::FUNC)             \
-	KEYWORD_GROUP('i')                       \
-	KEYWORD("if", Token::IF)                 \
-	KEYWORD("in", Token::TK_IN)              \
-	KEYWORD("is", Token::IS)                 \
-	KEYWORD_GROUP('m')                       \
-	KEYWORD("match", Token::MATCH)           \
-	KEYWORD_GROUP('n')                       \
-	KEYWORD("namespace", Token::NAMESPACE)   \
-	KEYWORD("not", Token::NOT)               \
-	KEYWORD_GROUP('o')                       \
-	KEYWORD("or", Token::OR)                 \
-	KEYWORD_GROUP('p')                       \
-	KEYWORD("pass", Token::PASS)             \
-	KEYWORD("preload", Token::PRELOAD)       \
-	KEYWORD_GROUP('r')                       \
-	KEYWORD("return", Token::RETURN)         \
-	KEYWORD_GROUP('s')                       \
-	KEYWORD("self", Token::SELF)             \
-	KEYWORD("signal", Token::SIGNAL)         \
-	KEYWORD("static", Token::STATIC)         \
-	KEYWORD("super", Token::SUPER)           \
-	KEYWORD_GROUP('t')                       \
-	KEYWORD("trait", Token::TRAIT)           \
-	KEYWORD_GROUP('v')                       \
-	KEYWORD("var", Token::VAR)               \
-	KEYWORD("void", Token::TK_VOID)          \
-	KEYWORD_GROUP('w')                       \
-	KEYWORD("while", Token::WHILE)           \
-	KEYWORD("when", Token::WHEN)             \
-	KEYWORD_GROUP('y')                       \
-	KEYWORD("yield", Token::YIELD)           \
-	KEYWORD_GROUP('I')                       \
-	KEYWORD("INF", Token::CONST_INF)         \
-	KEYWORD_GROUP('N')                       \
-	KEYWORD("NAN", Token::CONST_NAN)         \
-	KEYWORD_GROUP('P')                       \
-	KEYWORD("PI", Token::CONST_PI)           \
-	KEYWORD_GROUP('T')                       \
-	KEYWORD("TAU", Token::CONST_TAU)
+#define KEYWORDS(KEYWORD_GROUP, KEYWORD)                   \
+	KEYWORD_GROUP('a')                                     \
+	KEYWORD("abstract", Token::Type::G_TK_ABSTRACT)        \
+	KEYWORD("as", Token::Type::G_TK_PR_AS)                 \
+	KEYWORD("and", Token::Type::G_TK_OP_AND)               \
+	KEYWORD("assert", Token::Type::G_TK_PR_ASSERT)         \
+	KEYWORD("await", Token::Type::G_TK_PR_AWAIT)           \
+	KEYWORD_GROUP('b')                                     \
+	KEYWORD("break", Token::Type::G_TK_CF_BREAK)           \
+	KEYWORD("breakpoint", Token::Type::G_TK_PR_BREAKPOINT) \
+	KEYWORD_GROUP('c')                                     \
+	KEYWORD("class", Token::Type::G_TK_PR_CLASS)           \
+	KEYWORD("class_name", Token::Type::G_TK_PR_CLASS_NAME) \
+	KEYWORD("const", Token::Type::G_TK_PR_CONST)           \
+	KEYWORD("continue", Token::Type::G_TK_CF_CONTINUE)     \
+	KEYWORD_GROUP('e')                                     \
+	KEYWORD("elif", Token::Type::G_TK_CF_ELIF)             \
+	KEYWORD("else", Token::Type::G_TK_CF_ELSE)             \
+	KEYWORD("enum", Token::Type::G_TK_PR_ENUM)             \
+	KEYWORD("extends", Token::Type::G_TK_PR_EXTENDS)       \
+	KEYWORD_GROUP('f')                                     \
+	KEYWORD("for", Token::Type::G_TK_CF_FOR)               \
+	KEYWORD("func", Token::Type::G_TK_PR_FUNCTION)         \
+	KEYWORD_GROUP('i')                                     \
+	KEYWORD("if", Token::Type::G_TK_CF_IF)                 \
+	KEYWORD("in", Token::Type::G_TK_OP_IN)                 \
+	KEYWORD("is", Token::Type::G_TK_PR_IS)                 \
+	KEYWORD_GROUP('m')                                     \
+	KEYWORD("match", Token::Type::G_TK_CF_MATCH)           \
+	KEYWORD_GROUP('n')                                     \
+	KEYWORD("namespace", Token::Type::G_TK_PR_NAMESPACE)   \
+	KEYWORD("not", Token::Type::G_TK_OP_NOT)               \
+	KEYWORD_GROUP('o')                                     \
+	KEYWORD("or", Token::Type::G_TK_OP_OR)                 \
+	KEYWORD_GROUP('p')                                     \
+	KEYWORD("pass", Token::Type::G_TK_CF_PASS)             \
+	KEYWORD("preload", Token::Type::G_TK_PR_PRELOAD)       \
+	KEYWORD_GROUP('r')                                     \
+	KEYWORD("return", Token::Type::G_TK_CF_RETURN)         \
+	KEYWORD_GROUP('s')                                     \
+	KEYWORD("self", Token::Type::G_TK_SELF)                \
+	KEYWORD("signal", Token::Type::G_TK_PR_SIGNAL)         \
+	KEYWORD("static", Token::Type::G_TK_PR_STATIC)         \
+	KEYWORD("super", Token::Type::G_TK_PR_SUPER)           \
+	KEYWORD_GROUP('t')                                     \
+	KEYWORD("trait", Token::Type::G_TK_PR_TRAIT)           \
+	KEYWORD_GROUP('v')                                     \
+	KEYWORD("var", Token::Type::G_TK_PR_VAR)               \
+	KEYWORD("void", Token::Type::G_TK_PR_VOID)             \
+	KEYWORD_GROUP('w')                                     \
+	KEYWORD("while", Token::Type::G_TK_CF_WHILE)           \
+	KEYWORD("when", Token::Type::G_TK_CF_WHEN)             \
+	KEYWORD_GROUP('y')                                     \
+	KEYWORD("yield", Token::Type::G_TK_PR_YIELD)           \
+	KEYWORD_GROUP('I')                                     \
+	KEYWORD("INF", Token::Type::G_TK_CONST_INF)            \
+	KEYWORD_GROUP('N')                                     \
+	KEYWORD("NAN", Token::Type::G_TK_CONST_NAN)            \
+	KEYWORD_GROUP('P')                                     \
+	KEYWORD("PI", Token::Type::G_TK_CONST_PI)              \
+	KEYWORD_GROUP('T')                                     \
+	KEYWORD("TAU", Token::Type::G_TK_CONST_TAU)
 
 #define MIN_KEYWORD_LENGTH 2
 #define MAX_KEYWORD_LENGTH 10
@@ -588,7 +470,7 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::potential_identi
 
 	if (len == 1 && _peek(-1) == '_') {
 		// Lone underscore.
-		Token token = make_token(Token::UNDERSCORE);
+		Token token = make_token(Token::Type::G_TK_UNDERSCORE);
 		token.literal = "_";
 		return token;
 	}
@@ -626,7 +508,7 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::potential_identi
 		const int keyword_length = sizeof(keyword) - 1;                                                                   \
 		static_assert(keyword_length <= MAX_KEYWORD_LENGTH, "There's a keyword longer than the defined maximum length");  \
 		static_assert(keyword_length >= MIN_KEYWORD_LENGTH, "There's a keyword shorter than the defined minimum length"); \
-		if (keyword_length == len && name == keyword) {                                                                   \
+		if (keyword_length == len && name == keyword && decomp->get_local_token_val(token_type) != -1) {                  \
 			Token kw = make_token(token_type);                                                                            \
 			kw.literal = name;                                                                                            \
 			return kw;                                                                                                    \
@@ -667,7 +549,7 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::potential_identi
 void GDScriptV2TokenizerCompatText::newline(bool p_make_token) {
 	// Don't overwrite previous newline, nor create if we want a line continuation.
 	if (p_make_token && !pending_newline && !line_continuation) {
-		Token newline(Token::NEWLINE);
+		Token newline(Token::Type::G_TK_NEWLINE);
 		newline.start_line = line;
 		newline.end_line = line;
 		newline.start_column = column - 1;
@@ -1443,11 +1325,11 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::scan() {
 		if (pending_indents > 0) {
 			// Indents.
 			pending_indents--;
-			return make_token(Token::INDENT);
+			return make_token(Token::Type::G_TK_INDENT);
 		} else {
 			// Dedents.
 			pending_indents++;
-			Token dedent = make_token(Token::DEDENT);
+			Token dedent = make_token(Token::Type::G_TK_DEDENT);
 			dedent.end_column += 1;
 			dedent.rightmost_column += 1;
 			return dedent;
@@ -1455,7 +1337,7 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::scan() {
 	}
 
 	if (_is_at_end()) {
-		return make_token(Token::TK_EOF);
+		return make_token(Token::Type::G_TK_EOF);
 	}
 
 	const char32_t c = _advance();
@@ -1502,186 +1384,186 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::scan() {
 
 		// Single characters.
 		case '~':
-			return make_token(Token::TILDE);
+			return make_token(Token::Type::G_TK_OP_BIT_INVERT);
 		case ',':
-			return make_token(Token::COMMA);
+			return make_token(Token::Type::G_TK_COMMA);
 		case ':':
-			return make_token(Token::COLON);
+			return make_token(Token::Type::G_TK_COLON);
 		case ';':
-			return make_token(Token::SEMICOLON);
+			return make_token(Token::Type::G_TK_SEMICOLON);
 		case '$':
-			return make_token(Token::DOLLAR);
+			return make_token(Token::Type::G_TK_DOLLAR);
 		case '?':
-			return make_token(Token::QUESTION_MARK);
+			return make_token(Token::Type::G_TK_QUESTION_MARK);
 		case '`':
-			return make_token(Token::BACKTICK);
+			return make_token(Token::Type::G_TK_BACKTICK);
 
 		// Parens.
 		case '(':
 			push_paren('(');
-			return make_token(Token::PARENTHESIS_OPEN);
+			return make_token(Token::Type::G_TK_PARENTHESIS_OPEN);
 		case '[':
 			push_paren('[');
-			return make_token(Token::BRACKET_OPEN);
+			return make_token(Token::Type::G_TK_BRACKET_OPEN);
 		case '{':
 			push_paren('{');
-			return make_token(Token::BRACE_OPEN);
+			return make_token(Token::Type::G_TK_CURLY_BRACKET_OPEN);
 		case ')':
 			if (!pop_paren('(')) {
 				return make_paren_error(c);
 			}
-			return make_token(Token::PARENTHESIS_CLOSE);
+			return make_token(Token::Type::G_TK_PARENTHESIS_CLOSE);
 		case ']':
 			if (!pop_paren('[')) {
 				return make_paren_error(c);
 			}
-			return make_token(Token::BRACKET_CLOSE);
+			return make_token(Token::Type::G_TK_BRACKET_CLOSE);
 		case '}':
 			if (!pop_paren('{')) {
 				return make_paren_error(c);
 			}
-			return make_token(Token::BRACE_CLOSE);
+			return make_token(Token::Type::G_TK_CURLY_BRACKET_CLOSE);
 
 		// Double characters.
 		case '!':
 			if (_peek() == '=') {
 				_advance();
-				return make_token(Token::BANG_EQUAL);
+				return make_token(Token::Type::G_TK_OP_NOT_EQUAL);
 			} else {
-				return make_token(Token::BANG);
+				return make_token(Token::Type::G_TK_BANG);
 			}
 		case '.':
 			if (_peek() == '.') {
 				_advance();
-				return make_token(Token::PERIOD_PERIOD);
+				return make_token(Token::Type::G_TK_PERIOD_PERIOD);
 			} else if (is_digit(_peek())) {
 				// Number starting with '.'.
 				return number();
 			} else {
-				return make_token(Token::PERIOD);
+				return make_token(Token::Type::G_TK_PERIOD);
 			}
 		case '+':
 			if (_peek() == '=') {
 				_advance();
-				return make_token(Token::PLUS_EQUAL);
+				return make_token(Token::Type::G_TK_OP_ASSIGN_ADD);
 			} else if (is_digit(_peek()) && !last_token.can_precede_bin_op()) {
 				// Number starting with '+'.
 				return number();
 			} else {
-				return make_token(Token::PLUS);
+				return make_token(Token::Type::G_TK_OP_ADD);
 			}
 		case '-':
 			if (_peek() == '=') {
 				_advance();
-				return make_token(Token::MINUS_EQUAL);
+				return make_token(Token::Type::G_TK_OP_ASSIGN_SUB);
 			} else if (is_digit(_peek()) && !last_token.can_precede_bin_op()) {
 				// Number starting with '-'.
 				return number();
 			} else if (_peek() == '>') {
 				_advance();
-				return make_token(Token::FORWARD_ARROW);
+				return make_token(Token::Type::G_TK_FORWARD_ARROW);
 			} else {
-				return make_token(Token::MINUS);
+				return make_token(Token::Type::G_TK_OP_SUB);
 			}
 		case '*':
 			if (_peek() == '=') {
 				_advance();
-				return make_token(Token::STAR_EQUAL);
+				return make_token(Token::Type::G_TK_OP_ASSIGN_MUL);
 			} else if (_peek() == '*') {
 				if (_peek(1) == '=') {
 					_advance();
 					_advance(); // Advance both '*' and '='
-					return make_token(Token::STAR_STAR_EQUAL);
+					return make_token(Token::Type::G_TK_STAR_STAR_EQUAL);
 				}
 				_advance();
-				return make_token(Token::STAR_STAR);
+				return make_token(Token::Type::G_TK_STAR_STAR);
 			} else {
-				return make_token(Token::STAR);
+				return make_token(Token::Type::G_TK_OP_MUL);
 			}
 		case '/':
 			if (_peek() == '=') {
 				_advance();
-				return make_token(Token::SLASH_EQUAL);
+				return make_token(Token::Type::G_TK_OP_ASSIGN_DIV);
 			} else {
-				return make_token(Token::SLASH);
+				return make_token(Token::Type::G_TK_OP_DIV);
 			}
 		case '%':
 			if (_peek() == '=') {
 				_advance();
-				return make_token(Token::PERCENT_EQUAL);
+				return make_token(Token::Type::G_TK_OP_ASSIGN_MOD);
 			} else {
-				return make_token(Token::PERCENT);
+				return make_token(Token::Type::G_TK_OP_MOD);
 			}
 		case '^':
 			if (_peek() == '=') {
 				_advance();
-				return make_token(Token::CARET_EQUAL);
+				return make_token(Token::Type::G_TK_OP_ASSIGN_BIT_XOR);
 			} else if (_peek() == '"' || _peek() == '\'') {
 				// Node path
 				return string();
 			} else {
-				return make_token(Token::CARET);
+				return make_token(Token::Type::G_TK_OP_BIT_XOR);
 			}
 		case '&':
 			if (_peek() == '&') {
 				_advance();
-				return make_token(Token::AMPERSAND_AMPERSAND);
+				return make_token(Token::Type::G_TK_AMPERSAND_AMPERSAND);
 			} else if (_peek() == '=') {
 				_advance();
-				return make_token(Token::AMPERSAND_EQUAL);
+				return make_token(Token::Type::G_TK_OP_ASSIGN_BIT_AND);
 			} else if (_peek() == '"' || _peek() == '\'') {
 				// String Name
 				return string();
 			} else {
-				return make_token(Token::AMPERSAND);
+				return make_token(Token::Type::G_TK_OP_BIT_AND);
 			}
 		case '|':
 			if (_peek() == '|') {
 				_advance();
-				return make_token(Token::PIPE_PIPE);
+				return make_token(Token::Type::G_TK_PIPE_PIPE);
 			} else if (_peek() == '=') {
 				_advance();
-				return make_token(Token::PIPE_EQUAL);
+				return make_token(Token::Type::G_TK_OP_ASSIGN_BIT_OR);
 			} else {
-				return make_token(Token::PIPE);
+				return make_token(Token::Type::G_TK_OP_BIT_OR);
 			}
 
 		// Potential VCS conflict markers.
 		case '=':
 			if (_peek() == '=') {
-				return check_vcs_marker('=', Token::EQUAL_EQUAL);
+				return check_vcs_marker('=', Token::Type::G_TK_OP_EQUAL);
 			} else {
-				return make_token(Token::EQUAL);
+				return make_token(Token::Type::G_TK_OP_ASSIGN);
 			}
 		case '<':
 			if (_peek() == '=') {
 				_advance();
-				return make_token(Token::LESS_EQUAL);
+				return make_token(Token::Type::G_TK_OP_LESS_EQUAL);
 			} else if (_peek() == '<') {
 				if (_peek(1) == '=') {
 					_advance();
 					_advance(); // Advance both '<' and '='
-					return make_token(Token::LESS_LESS_EQUAL);
+					return make_token(Token::Type::G_TK_OP_ASSIGN_SHIFT_LEFT);
 				} else {
-					return check_vcs_marker('<', Token::LESS_LESS);
+					return check_vcs_marker('<', Token::Type::G_TK_OP_SHIFT_LEFT);
 				}
 			} else {
-				return make_token(Token::LESS);
+				return make_token(Token::Type::G_TK_OP_LESS);
 			}
 		case '>':
 			if (_peek() == '=') {
 				_advance();
-				return make_token(Token::GREATER_EQUAL);
+				return make_token(Token::Type::G_TK_OP_GREATER_EQUAL);
 			} else if (_peek() == '>') {
 				if (_peek(1) == '=') {
 					_advance();
 					_advance(); // Advance both '>' and '='
-					return make_token(Token::GREATER_GREATER_EQUAL);
+					return make_token(Token::Type::G_TK_OP_ASSIGN_SHIFT_RIGHT);
 				} else {
-					return check_vcs_marker('>', Token::GREATER_GREATER);
+					return check_vcs_marker('>', Token::Type::G_TK_OP_SHIFT_RIGHT);
 				}
 			} else {
-				return make_token(Token::GREATER);
+				return make_token(Token::Type::G_TK_OP_GREATER);
 			}
 
 		default:
@@ -1693,12 +1575,19 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::scan() {
 	}
 }
 
-GDScriptV2TokenizerCompatText::GDScriptV2TokenizerCompatText() {
+GDScriptV2TokenizerCompatText::GDScriptV2TokenizerCompatText(GDScriptDecomp *p_decomp) {
 #ifdef TOOLS_ENABLED
 	if (EditorSettings::get_singleton()) {
-		tab_size = EditorSettings::get_singleton()->get_setting("text_editor/behavior/indent/size");
+		// fuck off
+		// tab_size = EditorSettings::get_singleton()->get_setting("text_editor/behavior/indent/size");
 	}
 #endif // TOOLS_ENABLED
+	if (!p_decomp) {
+		ERR_PRINT("GDScriptV2TokenizerCompatText: No decomp provided");
+	}
+	decomp = p_decomp;
+	engine_ver = p_decomp->get_godot_ver();
+
 #ifdef DEBUG_ENABLED
 	make_keyword_list();
 #endif // DEBUG_ENABLED
