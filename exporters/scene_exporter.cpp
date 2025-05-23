@@ -1039,7 +1039,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 					auto json = state->get_json();
 					auto materials = state->get_materials();
 					Array images = state->get_images();
-					Array json_images = json["images"];
+					Array json_images = json.has("images") ? (Array)json["images"] : Array();
 					HashMap<String, Vector<int>> image_map;
 					bool has_duped_images = false;
 					static const HashMap<String, Vector<BaseMaterial3D::TextureParam>> generated_tex_suffixes = {
@@ -1156,15 +1156,17 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 						}
 						json["textures"] = json_textures;
 					}
-					json["images"] = json_images;
+					if (json_images.size() > 0) {
+						json["images"] = json_images;
+					}
 
-					{
+					if (json.has("meshes")) {
 						auto default_light_map_size = Vector2i(0, 0);
 						Vector<String> mesh_names;
 						Vector<Pair<Ref<ArrayMesh>, MeshInstance3D *>> mesh_to_instance;
 						Vector<bool> mesh_is_shadow;
 						auto gltf_meshes = state->get_meshes();
-						Array json_meshes = json["meshes"];
+						Array json_meshes = json.has("meshes") ? (Array)json["meshes"] : Array();
 						for (int i = 0; i < gltf_meshes.size(); i++) {
 							Ref<GLTFMesh> gltf_mesh = gltf_meshes[i];
 							auto mesh = gltf_mesh->get_mesh();
@@ -1208,7 +1210,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 						}
 						json["meshes"] = json_meshes;
 					}
-					{
+					if (json.has("materials")) {
 						Array json_materials = json["materials"];
 						for (int i = 0; i < materials.size(); i++) {
 							Dictionary material_dict = json_materials[i];
@@ -1275,7 +1277,13 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 					}
 
 					Dictionary gltf_asset = json["asset"];
+#if DEBUG_ENABLED
+					// less file churn when testing
+					gltf_asset["generator"] = "GDRE Tools";
+#else
 					gltf_asset["generator"] = "GDRE Tools v" + GDRESettings::get_singleton()->get_gdre_version();
+#endif
+
 					json["asset"] = gltf_asset;
 				}
 #if DEBUG_ENABLED
