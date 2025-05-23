@@ -907,6 +907,13 @@ bool gdre::detect_utf8(const PackedByteArray &p_utf8_buf) {
 	return true;
 }
 
+Error gdre::copy_dir(const String &src, const String &dst) {
+	auto da = DirAccess::open(src);
+	ERR_FAIL_COND_V_MSG(da.is_null(), ERR_FILE_CANT_OPEN, "Failed to open source directory: " + src);
+	gdre::ensure_dir(dst);
+	return da->copy_dir(src, dst);
+}
+
 void GDRECommon::_bind_methods() {
 	//	ClassDB::bind_static_method("GLTFCamera", D_METHOD("from_node", "camera_node"), &GLTFCamera::from_node);
 
@@ -924,4 +931,5 @@ void GDRECommon::_bind_methods() {
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("remove_whitespace", "str"), &gdre::remove_whitespace);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("split_multichar", "str", "splitters", "allow_empty", "maxsplit"), &gdre::_split_multichar);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("rsplit_multichar", "str", "splitters", "allow_empty", "maxsplit"), &gdre::_rsplit_multichar);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("copy_dir", "src", "dst"), &gdre::copy_dir);
 }

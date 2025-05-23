@@ -210,6 +210,7 @@ Vector<String> rsplit_multichar(const String &s, const HashSet<char32_t> &splitt
 		int maxsplit = 0);
 
 bool detect_utf8(const PackedByteArray &p_utf8_buf);
+Error copy_dir(const String &src, const String &dst);
 } // namespace gdre
 
 class GDRECommon : public Object {
