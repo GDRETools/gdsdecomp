@@ -49,6 +49,15 @@ HashSet<T> vector_to_hashset(const Vector<T> &vec) {
 }
 
 template <class T>
+Array hashset_to_array(const HashSet<T> &hs) {
+	Array ret;
+	for (const T &E : hs) {
+		ret.push_back(E);
+	}
+	return ret;
+}
+
+template <class T>
 bool vectors_intersect(const Vector<T> &a, const Vector<T> &b) {
 	const Vector<T> &bigger = a.size() > b.size() ? a : b;
 	const Vector<T> &smaller = a.size() > b.size() ? b : a;
