@@ -401,6 +401,13 @@ Error GDRESettings::load_dir(const String &p_path) {
 	pckinfo->init(
 			p_path, Ref<GodotVer>(memnew(GodotVer)), 1, 0, 0, pa.size(), PackInfo::DIR);
 	add_pack_info(pckinfo);
+	auto paths = gdre::get_recursive_dir_list(project_path);
+	for (auto &path : paths) {
+		Ref<PackedFileInfo> info;
+		info.instantiate();
+		info->init(project_path, path, 1, 0, MD5_EMPTY, nullptr, false);
+		dir_files.push_back(info);
+	}
 	return OK;
 }
 
@@ -409,6 +416,7 @@ Error GDRESettings::unload_dir() {
 	GDREPackSettings *new_singleton = static_cast<GDREPackSettings *>(settings_singleton);
 	GDREPackSettings::do_set_resource_path(new_singleton, gdre_resource_path);
 	project_path = "";
+	dir_files.clear();
 	return OK;
 }
 
@@ -1030,14 +1038,31 @@ Vector<String> GDRESettings::get_file_list(const Vector<String> &filters) {
 
 Array GDRESettings::get_file_info_array(const Vector<String> &filters) {
 	Array ret;
-	for (auto file_info : GDREPackedData::get_singleton()->get_file_info_list(filters)) {
+	for (auto file_info : get_file_info_list(filters)) {
 		ret.push_back(file_info);
 	}
 	return ret;
 }
 
 Vector<Ref<PackedFileInfo>> GDRESettings::get_file_info_list(const Vector<String> &filters) {
-	return GDREPackedData::get_singleton()->get_file_info_list(filters);
+	if (is_pack_loaded()) {
+		if (get_pack_type() != PackInfo::DIR) {
+			return GDREPackedData::get_singleton()->get_file_info_list(filters);
+		}
+		if (filters.is_empty()) {
+			return dir_files;
+		}
+		Vector<Ref<PackedFileInfo>> ret;
+		for (auto &file : dir_files) {
+			for (auto &filter : filters) {
+				if (file->path.get_file().matchn(filter)) {
+					ret.push_back(file);
+				}
+			}
+		}
+		return ret;
+	}
+	return Vector<Ref<PackedFileInfo>>();
 }
 
 TypedArray<GDRESettings::PackInfo> GDRESettings::get_pack_info_list() const {
@@ -1570,7 +1595,14 @@ Array GDRESettings::get_import_files(bool copy) {
 }
 
 bool GDRESettings::has_file(const String &p_path) {
-	return GDREPackedData::get_singleton()->has_path(p_path);
+	if (is_pack_loaded()) {
+		if (get_pack_type() != PackInfo::DIR) {
+			return GDREPackedData::get_singleton()->has_path(p_path);
+		} else {
+			return FileAccess::exists(p_path);
+		}
+	}
+	return false;
 }
 
 String GDRESettings::get_loaded_pack_data_dir() {

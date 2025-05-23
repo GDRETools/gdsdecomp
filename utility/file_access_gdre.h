@@ -5,6 +5,7 @@
 #include "core/io/file_access_pack.h"
 #include "utility/packed_file_info.h"
 
+class DirSource;
 class GDREPackedData {
 	friend class FileAccessPack;
 	friend class DirAccessGDRE;
@@ -46,6 +47,8 @@ private:
 
 	PackedDir *root = nullptr;
 
+	Ref<DirSource> dir_source;
+
 	static GDREPackedData *singleton;
 	bool disabled = false;
 	bool packed_data_was_enabled = false;
@@ -71,6 +74,7 @@ public:
 
 	static GDREPackedData *get_singleton();
 	Error add_pack(const String &p_path, bool p_replace_files, uint64_t p_offset);
+	Error add_dir(const String &p_path);
 
 	void clear();
 

@@ -136,8 +136,8 @@ private:
 	HashMap<String, Ref<ImportInfoRemap>> remap_iinfo;
 	String gdre_user_path = "";
 	String gdre_resource_path = "";
+	Vector<Ref<PackedFileInfo>> dir_files;
 
-	String current_project_path = "";
 	struct UID_Cache {
 		CharString cs;
 		bool saved_to_cache = false;
