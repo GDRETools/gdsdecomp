@@ -124,6 +124,8 @@ class ResourceLoaderCompatBinary {
 
 	Ref<ResourceLoader::LoadToken> start_ext_load(const String &p_path, const String &p_type_hint, const ResourceUID::ID p_uid, const int er_idx);
 	Ref<Resource> finish_ext_load(Ref<ResourceLoader::LoadToken> &load_token, Error *r_err);
+	bool _recognize_file_header_and_decompress(Ref<FileAccess> p_f);
+	void check_suspect_version();
 
 public:
 	static int get_current_format_version();
@@ -138,16 +140,18 @@ public:
 	String recognize_script_class(Ref<FileAccess> p_f);
 	void get_dependencies(Ref<FileAccess> p_f, List<String> *p_dependencies, bool p_add_types);
 	void get_classes_used(Ref<FileAccess> p_f, HashSet<StringName> *p_classes);
+	bool get_ver_major_minor(Ref<FileAccess> p_f, uint32_t &r_ver_major, uint32_t &r_ver_minor, bool &r_suspicious);
 
 	ResourceLoaderCompatBinary() {}
 };
 
 class ResourceFormatLoaderCompatBinary : public CompatFormatLoader {
 	GDCLASS(ResourceFormatLoaderCompatBinary, CompatFormatLoader);
-	static Error write_v2_import_metadata(Ref<FileAccess> f, Ref<ResourceImportMetadatav2> imd, uint64_t &r_imd_offset, HashMap<Ref<Resource>, int> &p_resource_map, HashMap<Ref<Resource>, int> &p_external_resources, HashMap<StringName, int> &p_string_map, size_t p_md_at);
 
 public:
 	static Error get_ver_major_minor(const String &p_path, uint32_t &r_ver_major, uint32_t &r_ver_minor, bool &r_suspicious);
+	static bool is_binary_resource(const String &p_path);
+
 	virtual Ref<Resource> custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error = nullptr, bool use_threads = true, ResourceFormatLoader::CacheMode p_cache_mode = CACHE_MODE_REUSE) override;
 	virtual Ref<ResourceInfo> get_resource_info(const String &p_path, Error *r_error) const override;
 	virtual bool handles_fake_load() const override { return true; }

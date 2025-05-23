@@ -1159,43 +1159,15 @@ void ResourceLoaderCompatBinary::open(Ref<FileAccess> p_f, bool p_no_resources, 
 	bool use_real64 = f->get_32();
 
 	f->set_big_endian(big_endian != 0); //read big endian if saved as big endian
-	stored_big_endian = big_endian;
+
 	ver_major = f->get_32();
 	ver_minor = f->get_32();
 	ver_format = f->get_32();
+
+	stored_big_endian = big_endian;
 	stored_use_real64 = use_real64;
-	// Version 1.x? unlikely
-	if (ver_major < 2) {
-		switch (ver_format) {
-			case 0:
-				// Version 1.x, format 0
-				// Ok, this might actually be Godot 1.x
-				break;
-			case 1:
-				suspect_version = true;
-				ver_major = 2;
-				ver_minor = 0;
-				break;
-			case 2:
-			case 3:
-				suspect_version = true;
-				// Godot didn't support format version 2-3 until Godot 3.x.
-				ver_major = 3;
-				// this is likely SCU, so we'll just put 1 for the minor version here.
-				ver_minor = 1;
-				break;
-			case 4:
-			case 5:
-				suspect_version = true;
-				ver_major = 4;
-				break;
-			case 6:
-				suspect_version = true;
-				ver_major = 4;
-				ver_minor = 3;
-				break;
-		}
-	}
+
+	check_suspect_version();
 
 	print_bl("big endian: " + itos(big_endian));
 #ifdef BIG_ENDIAN_ENABLED
@@ -1311,7 +1283,7 @@ void ResourceLoaderCompatBinary::open(Ref<FileAccess> p_f, bool p_no_resources, 
 	}
 }
 
-String ResourceLoaderCompatBinary::recognize(Ref<FileAccess> p_f) {
+bool ResourceLoaderCompatBinary::_recognize_file_header_and_decompress(Ref<FileAccess> p_f) {
 	error = OK;
 
 	f = p_f;
@@ -1324,7 +1296,7 @@ String ResourceLoaderCompatBinary::recognize(Ref<FileAccess> p_f) {
 		error = fac->open_after_magic(f);
 		if (error != OK) {
 			f.unref();
-			return "";
+			return false;
 		}
 		f = fac;
 
@@ -1332,6 +1304,13 @@ String ResourceLoaderCompatBinary::recognize(Ref<FileAccess> p_f) {
 		// Not normal.
 		error = ERR_FILE_UNRECOGNIZED;
 		f.unref();
+		return false;
+	}
+	return true;
+}
+
+String ResourceLoaderCompatBinary::recognize(Ref<FileAccess> p_f) {
+	if (!_recognize_file_header_and_decompress(p_f)) {
 		return "";
 	}
 
@@ -3153,24 +3132,6 @@ Ref<ResourceInfo> ResourceLoaderCompatBinary::get_resource_info() {
 		ERR_FAIL_COND_V_MSG(err, ret, msg);          \
 	}
 
-//	static Error get_ver_major_minor(const String &p_path, uint32_t &r_ver_major, uint32_t &r_ver_minor, bool &r_suspicious);
-
-Error ResourceFormatLoaderCompatBinary::get_ver_major_minor(const String &p_path, uint32_t &r_ver_major, uint32_t &r_ver_minor, bool &r_suspicious) {
-	Error err;
-	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ, &err);
-	ERR_FAIL_COND_V_MSG(err != OK, err, "Cannot open file '" + p_path + "'.");
-	ResourceLoaderCompatBinary loader;
-	String path = p_path;
-	loader.use_sub_threads = false;
-	loader.local_path = GDRESettings::get_singleton()->localize_path(path);
-	loader.res_path = loader.local_path;
-	loader.open(f, false, true);
-	r_ver_major = loader.ver_major;
-	r_ver_minor = loader.ver_minor;
-	r_suspicious = loader.suspect_version;
-	return OK;
-}
-
 Ref<ResourceInfo> ResourceFormatLoaderCompatBinary::get_resource_info(const String &p_path, Error *r_error) const {
 	if (r_error) {
 		*r_error = ERR_CANT_OPEN;
@@ -3404,4 +3365,88 @@ Error ResourceFormatSaverCompatBinaryInstance::write_v2_import_metadata(Ref<File
 	f->store_64(md_pos);
 	f->seek_end();
 	return OK;
+}
+
+void ResourceLoaderCompatBinary::check_suspect_version() {
+	if (ver_major < 2) {
+		switch (ver_format) {
+			case 0:
+				// Version 1.x, format 0
+				// Ok, this might actually be Godot 1.x
+				break;
+			case 1:
+				suspect_version = true;
+				ver_major = 2;
+				ver_minor = 0;
+				break;
+			case 2:
+			case 3:
+				suspect_version = true;
+				// Godot didn't support format version 2-3 until Godot 3.x.
+				ver_major = 3;
+				// this is likely SCU, so we'll just put 1 for the minor version here.
+				ver_minor = 1;
+				break;
+			case 4:
+			case 5:
+				suspect_version = true;
+				ver_major = 4;
+				break;
+			case 6:
+				suspect_version = true;
+				ver_major = 4;
+				ver_minor = 3;
+				break;
+		}
+	}
+}
+
+bool ResourceLoaderCompatBinary::get_ver_major_minor(Ref<FileAccess> p_f, uint32_t &r_ver_major, uint32_t &r_ver_minor, bool &r_suspicious) {
+	if (!_recognize_file_header_and_decompress(p_f)) {
+		r_ver_major = 0;
+		r_ver_minor = 0;
+		r_suspicious = false;
+		return false;
+	}
+	bool big_endian = f->get_32();
+	bool use_real64 = f->get_32();
+
+	f->set_big_endian(big_endian != 0); //read big endian if saved as big endian
+
+	ver_major = f->get_32();
+	ver_minor = f->get_32();
+	ver_format = f->get_32();
+
+	stored_big_endian = big_endian;
+	stored_use_real64 = use_real64;
+
+	check_suspect_version();
+
+	r_ver_major = ver_major;
+	r_ver_minor = ver_minor;
+	r_suspicious = suspect_version;
+	return true;
+}
+
+bool ResourceFormatLoaderCompatBinary::is_binary_resource(const String &p_path) {
+	Error err;
+	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ, &err);
+	if (err != OK) {
+		return false;
+	}
+	ResourceLoaderCompatBinary loader;
+	return loader._recognize_file_header_and_decompress(f);
+}
+
+Error ResourceFormatLoaderCompatBinary::get_ver_major_minor(const String &p_path, uint32_t &r_ver_major, uint32_t &r_ver_minor, bool &r_suspicious) {
+	Error err;
+	if (!FileAccess::exists(p_path)) {
+		return ERR_FILE_NOT_FOUND;
+	}
+	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ, &err);
+	if (err != OK || !f.is_valid()) {
+		return err != OK ? err : ERR_FILE_CANT_OPEN;
+	}
+	ResourceLoaderCompatBinary loader;
+	return loader.get_ver_major_minor(f, r_ver_major, r_ver_minor, r_suspicious) ? OK : loader.error;
 }
