@@ -56,8 +56,20 @@ public:
 	GDREAudioStreamPreview();
 };
 
-class GDREAudioStreamPreviewGenerator : public Node {
-	GDCLASS(GDREAudioStreamPreviewGenerator, Node);
+// splitting this up into an Object and Node because we want to access the generator singleton from GDScript
+class GDREAudioStreamPreviewGeneratorNode : public Node {
+	GDCLASS(GDREAudioStreamPreviewGeneratorNode, Node);
+
+protected:
+	void _notification(int p_what);
+
+public:
+	GDREAudioStreamPreviewGeneratorNode();
+};
+
+class GDREAudioStreamPreviewGenerator : public Object {
+	GDCLASS(GDREAudioStreamPreviewGenerator, Object);
+	friend class GDREAudioStreamPreviewGeneratorNode;
 
 	static GDREAudioStreamPreviewGenerator *singleton;
 

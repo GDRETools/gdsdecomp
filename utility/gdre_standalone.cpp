@@ -1,5 +1,6 @@
 #include "gdre_standalone.h"
 #include "gdre_version.gen.h"
+#include "utility/gdre_audio_stream_preview.h"
 
 GodotREEditorStandalone *GodotREEditorStandalone::singleton = nullptr;
 
@@ -73,12 +74,17 @@ void GodotREEditorStandalone::_bind_methods() {
 GodotREEditorStandalone::GodotREEditorStandalone() {
 	singleton = this;
 	progress_dialog = memnew(GDREProgressDialog);
+	audio_stream_preview_generator_node = memnew(GDREAudioStreamPreviewGeneratorNode);
 	add_child(progress_dialog);
+	add_child(audio_stream_preview_generator_node);
 }
 
 GodotREEditorStandalone::~GodotREEditorStandalone() {
 	if (progress_dialog) {
 		progress_dialog->queue_free();
+	}
+	if (audio_stream_preview_generator_node) {
+		audio_stream_preview_generator_node->queue_free();
 	}
 	singleton = nullptr;
 }

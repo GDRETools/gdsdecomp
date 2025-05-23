@@ -241,7 +241,7 @@ GDREAudioStreamPreviewGenerator *GDREAudioStreamPreviewGenerator::singleton = nu
 
 void GDREAudioStreamPreviewGenerator::_notification(int p_what) {
 	switch (p_what) {
-		case NOTIFICATION_PROCESS: {
+		case Node::NOTIFICATION_PROCESS: {
 			List<ObjectID> to_erase;
 			for (KeyValue<ObjectID, Preview> &E : previews) {
 				if (!E.value.generating.is_set()) {
@@ -266,5 +266,12 @@ void GDREAudioStreamPreviewGenerator::_notification(int p_what) {
 
 GDREAudioStreamPreviewGenerator::GDREAudioStreamPreviewGenerator() {
 	singleton = this;
+}
+
+GDREAudioStreamPreviewGeneratorNode::GDREAudioStreamPreviewGeneratorNode() {
 	set_process(true);
+}
+
+void GDREAudioStreamPreviewGeneratorNode::_notification(int p_what) {
+	GDREAudioStreamPreviewGenerator::get_singleton()->_notification(p_what);
 }

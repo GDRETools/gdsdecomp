@@ -59,6 +59,7 @@
 void gdsdecomp_init_callback() {
 	EditorNode *editor = EditorNode::get_singleton();
 	editor->add_child(memnew(GodotREEditor(editor)));
+	editor->add_child(memnew(GDREAudioStreamPreviewGeneratorNode));
 }
 #endif
 
@@ -357,6 +358,7 @@ void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
 	ClassDB::register_class<PackedFileInfo>();
 	ClassDB::register_class<GDRESettings::PackInfo>();
 
+	ClassDB::register_class<GDREAudioStreamPreviewGeneratorNode>();
 	ClassDB::register_class<GDREAudioStreamPreviewGenerator>();
 	ClassDB::register_class<GDREAudioStreamPreview>();
 

@@ -5,12 +5,14 @@
 #include "scene/gui/tree.h"
 #include "utility/gdre_progress.h"
 
+class GDREAudioStreamPreviewGeneratorNode;
 class GodotREEditorStandalone : public Control {
 	GDCLASS(GodotREEditorStandalone, Control)
 
 	static GodotREEditorStandalone *singleton;
 	HBoxContainer *menu_hb = nullptr;
 	GDREProgressDialog *progress_dialog = nullptr;
+	GDREAudioStreamPreviewGeneratorNode *audio_stream_preview_generator_node = nullptr;
 
 protected:
 	void _notification(int p_notification);
