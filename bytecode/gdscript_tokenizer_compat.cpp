@@ -33,7 +33,7 @@
 
 #include "compat/variant_decoder_compat.h"
 
-const char *GDScriptTokenizerTextCompat::token_names[T::G_TK_MAX] = {
+const char *GDScriptTokenizerTextCompat::token_names[] = {
 	"Empty",
 	"Identifier",
 	"Constant",
@@ -153,8 +153,11 @@ const char *GDScriptTokenizerTextCompat::token_names[T::G_TK_MAX] = {
 	"..",
 	"_",
 	"VCS conflict marker", // VCS_CONFLICT_MARKER,
+	"abstract", // added in 4.5
 	"`", // BACKTICK,
 };
+
+static_assert((sizeof(GDScriptTokenizerTextCompat::token_names) / sizeof(GDScriptTokenizerTextCompat::token_names[0])) == GDScriptTokenizerTextCompat::Token::G_TK_MAX, "Amount of token names don't match the amount of token types.");
 
 struct _bit {
 	Variant::Type type;

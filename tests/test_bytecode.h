@@ -2,6 +2,8 @@
 #define TEST_BYTECODE_H
 
 #include "../bytecode/bytecode_base.h"
+#include "bytecode/bytecode_versions.h"
+#include "core/io/image.h"
 #include "test_common.h"
 #include "tests/test_macros.h"
 
@@ -176,6 +178,14 @@ inline void test_script_text(const String &script_name, const String &helper_scr
 		output_diff(script_name, decompiled_string_stripped, helper_script_text_stripped);
 	}
 #endif
+
+	if (revision == LATEST_GDSCRIPT_COMMIT) {
+		// test with the latest GDScriptTokenizer
+		auto reference_result = GDScriptTokenizerBuffer::parse_code_string(helper_script_text, GDScriptTokenizerBuffer::CompressMode::COMPRESS_ZSTD);
+		CHECK(reference_result.size() > 0);
+		err = decomp->test_bytecode_match(bytecode, reference_result);
+		CHECK(err == OK);
+	}
 	CHECK(decomp->get_error_message() == "");
 	CHECK(err == OK);
 }
@@ -242,13 +252,13 @@ TEST_CASE("[GDSDecomp][Bytecode][GDScript2.0] Compiling GDScript Tests") {
 	for (auto &script_path : gdscript_test_scripts) {
 		auto sub_case_name = vformat("Testing compiling script %s", script_path);
 		SUBCASE(sub_case_name.utf8().get_data()) {
-			test_script(script_path, 0x77af6ca, false, true);
+			test_script(script_path, LATEST_GDSCRIPT_COMMIT, false, true);
 		}
 	}
 }
 
 TEST_CASE("[GDSDecomp][Bytecode][GDScript2.0] Test unique_id modulo operator") {
-	test_script_text("test_unique_id_modulo", test_unique_id_modulo, 0x77af6ca, false, false, true);
+	test_script_text("test_unique_id_modulo", test_unique_id_modulo, LATEST_GDSCRIPT_COMMIT, false, false, true);
 }
 
 } //namespace TestBytecode

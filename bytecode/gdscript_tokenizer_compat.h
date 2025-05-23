@@ -113,9 +113,9 @@ private:
 
 	void _advance();
 
+public:
 	static const char *token_names[T::G_TK_MAX];
 
-public:
 	static const char *get_token_name(Token p_token);
 
 	// bool is_token_literal(int p_offset = 0, bool variable_safe = false) const;

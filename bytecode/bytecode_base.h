@@ -26,7 +26,7 @@ protected:
 
 public:
 	static constexpr int GDSCRIPT_2_0_VERSION = 100;
-	static constexpr int LATEST_GDSCRIPT_VERSION = 100;
+	static constexpr int LATEST_GDSCRIPT_VERSION = 101;
 	enum GlobalToken {
 		G_TK_EMPTY,
 		G_TK_IDENTIFIER,
@@ -44,11 +44,11 @@ public:
 		G_TK_OP_AND,
 		G_TK_OP_OR,
 		G_TK_OP_NOT,
-		G_TK_OP_ADD,
-		G_TK_OP_SUB,
-		G_TK_OP_MUL,
-		G_TK_OP_DIV,
-		G_TK_OP_MOD,
+		G_TK_OP_ADD, // "PLUS" in 4.2
+		G_TK_OP_SUB, // "MINUS" in 4.2
+		G_TK_OP_MUL, // "STAR" in 4.2
+		G_TK_OP_DIV, // "SLASH" in 4.2
+		G_TK_OP_MOD, // "PERCENT" in 4.2
 		G_TK_OP_SHIFT_LEFT, // "LESS_LESS" in 4.2
 		G_TK_OP_SHIFT_RIGHT, // "GREATER_GREATER" in 4.2
 		G_TK_OP_ASSIGN, // "EQUAL" in 4.2
@@ -76,7 +76,7 @@ public:
 		G_TK_CF_PASS,
 		G_TK_CF_RETURN,
 		G_TK_CF_MATCH,
-		G_TK_PR_FUNCTION,
+		G_TK_PR_FUNCTION, // "FUNC" in 4.2
 		G_TK_PR_CLASS,
 		G_TK_PR_CLASS_NAME,
 		G_TK_PR_EXTENDS,
@@ -147,6 +147,7 @@ public:
 		G_TK_DEDENT, // added in 4.3
 		G_TK_VCS_CONFLICT_MARKER, // added in 4.3
 		G_TK_BACKTICK, // added in 4.3
+		G_TK_ABSTRACT, // added in 4.5
 		G_TK_MAX,
 	};
 	enum BytecodeTestResult {

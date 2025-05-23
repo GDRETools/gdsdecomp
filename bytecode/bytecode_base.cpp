@@ -6,6 +6,7 @@
 
 #include "bytecode/bytecode_versions.h"
 #include "bytecode/gdscript_tokenizer_compat.h"
+#include "bytecode/gdscript_v2_tokenizer_buffer.h"
 #include "compat/file_access_encrypted_v3.h"
 #include "compat/variant_decoder_compat.h"
 #include "compat/variant_writer_compat.h"
@@ -174,7 +175,7 @@ Error GDScriptDecomp::get_ids_consts_tokens_v2(const Vector<uint8_t> &p_buffer, 
 	GDSDECOMP_FAIL_COND_V_MSG(p_buffer.size() < 12 || !CHECK_GDSC_HEADER(p_buffer), ERR_INVALID_DATA, "Invalid GDScript tokenizer buffer.");
 
 	int version = decode_uint32(&buf[4]);
-	GDSDECOMP_FAIL_COND_V_MSG(version > GDSCRIPT_2_0_VERSION, ERR_INVALID_DATA, "Binary GDScript is too recent! Please use a newer engine version.");
+	GDSDECOMP_FAIL_COND_V_MSG(version > LATEST_GDSCRIPT_VERSION, ERR_INVALID_DATA, "Binary GDScript is too recent! Please use a newer engine version.");
 	GDSDECOMP_FAIL_COND_V_MSG(version < GDSCRIPT_2_0_VERSION, ERR_INVALID_DATA, "Don't use this function for older versions of GDScript.");
 
 	int decompressed_size = decode_uint32(&buf[8]);
@@ -513,6 +514,7 @@ const char *g_token_str[] = {
 	"TK_DEDENT", // added in 4.3
 	"TK_VCS_CONFLICT_MARKER", // added in 4.3
 	"TK_BACKTICK", // added in 4.3
+	"TK_ABSTRACT", // added in 4.5
 	"TK_MAX",
 };
 static_assert(sizeof(g_token_str) / sizeof(g_token_str[0]) == GDScriptDecomp::GlobalToken::G_TK_MAX + 1, "g_token_str size mismatch");
@@ -1110,6 +1112,9 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 			case G_TK_BACKTICK: {
 				line += "`";
 			} break;
+			case G_TK_ABSTRACT: {
+				line += "abstract ";
+			} break;
 			case G_TK_ERROR: {
 				//skip - invalid
 			} break;
@@ -1578,14 +1583,7 @@ bool GDScriptDecomp::check_compile_errors(const Vector<uint8_t> &p_buffer) {
 Vector<uint8_t> GDScriptDecomp::compile_code_string(const String &p_code) {
 	error_message = "";
 	if (get_bytecode_version() >= GDSCRIPT_2_0_VERSION) {
-		GDScriptTokenizerBuffer tbf;
-		//test with an empty string to check the version
-		auto buf = GDScriptTokenizerBuffer::parse_code_string("", GDScriptTokenizerBuffer::CompressMode::COMPRESS_NONE);
-		int this_ver = decode_uint32(&buf[4]);
-		if (this_ver > LATEST_GDSCRIPT_VERSION) {
-			GDSDECOMP_FAIL_COND_V_MSG(false, Vector<uint8_t>(), "ERROR: GDScriptTokenizer version is newer than the latest supported version! Please report this!");
-		}
-		buf = GDScriptTokenizerBuffer::parse_code_string(p_code, GDScriptTokenizerBuffer::CompressMode::COMPRESS_ZSTD);
+		auto buf = GDScriptV2TokenizerBufferCompat::parse_code_string(p_code, this, GDScriptV2TokenizerBufferCompat::CompressMode::COMPRESS_ZSTD);
 		GDSDECOMP_FAIL_COND_V_MSG(buf.size() == 0, Vector<uint8_t>(), "Error parsing code");
 		if (check_compile_errors(buf)) {
 			return Vector<uint8_t>();
