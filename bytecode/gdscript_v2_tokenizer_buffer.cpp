@@ -156,13 +156,15 @@ Error GDScriptV2TokenizerBufferCompat::set_code_buffer(const Vector<uint8_t> &p_
 
 	int total_len = contents.size();
 	buf = contents.ptr();
+	const int token_count_offset = version < GDScriptDecomp::CONTENT_HEADER_SIZE_CHANGED ? 16 : 12;
+	const int content_header_size = token_count_offset + 4;
 	uint32_t identifier_count = decode_uint32(&buf[0]);
 	uint32_t constant_count = decode_uint32(&buf[4]);
 	uint32_t token_line_count = decode_uint32(&buf[8]);
-	uint32_t token_count = decode_uint32(&buf[16]);
+	uint32_t token_count = decode_uint32(&buf[token_count_offset]);
 
-	const uint8_t *b = &buf[20];
-	total_len -= 20;
+	const uint8_t *b = &buf[content_header_size];
+	total_len -= content_header_size;
 
 	identifiers.resize(identifier_count);
 	for (uint32_t i = 0; i < identifier_count; i++) {
@@ -295,15 +297,21 @@ Vector<uint8_t> GDScriptV2TokenizerBufferCompat::parse_code_string(const String 
 		}
 	}
 
+	const int bytecode_version = p_decomp->get_bytecode_version();
+	const int token_count_offset = bytecode_version < GDScriptDecomp::CONTENT_HEADER_SIZE_CHANGED ? 16 : 12;
+	const int content_header_size = token_count_offset + 4;
+
 	Vector<uint8_t> contents;
-	contents.resize(20);
+	contents.resize(content_header_size);
 	encode_uint32(identifier_map.size(), &contents.write[0]);
 	encode_uint32(constant_map.size(), &contents.write[4]);
 	encode_uint32(token_lines.size(), &contents.write[8]);
-	encode_uint32(0, &contents.write[12]); // Unused, kept for compatibility. Please remove at next `TOKENIZER_VERSION` increment.
-	encode_uint32(token_counter, &contents.write[16]);
+	if (bytecode_version < GDScriptDecomp::CONTENT_HEADER_SIZE_CHANGED) {
+		encode_uint32(0, &contents.write[12]); // Unused, only written in bytecode version 100
+	}
+	encode_uint32(token_counter, &contents.write[token_count_offset]);
 
-	int buf_pos = 20;
+	int buf_pos = content_header_size;
 
 	// Save identifiers.
 	for (const StringName &id : rev_identifier_map) {
@@ -359,12 +367,12 @@ Vector<uint8_t> GDScriptV2TokenizerBufferCompat::parse_code_string(const String 
 	Vector<uint8_t> buf;
 
 	// Save header.
-	buf.resize(12);
+	buf.resize(12); // 'GDSC', bytecode_version, decompressed_size
 	buf.write[0] = 'G';
 	buf.write[1] = 'D';
 	buf.write[2] = 'S';
 	buf.write[3] = 'C';
-	encode_uint32(p_decomp->get_bytecode_version(), &buf.write[4]);
+	encode_uint32(bytecode_version, &buf.write[4]);
 
 	switch (p_compress_mode) {
 		case COMPRESS_NONE:

@@ -174,7 +174,7 @@ inline void test_script_text(const String &script_name, const String &helper_scr
 	err = decomp->test_bytecode_match(bytecode, recompiled_bytecode);
 #if DEBUG_ENABLED
 	if (err) {
-		TextDiff::print_diff(TextDiff::get_diff_with_header(script_name, script_name, decompiled_string_stripped, helper_script_text_stripped));
+		TextDiff::print_diff(TextDiff::get_diff_with_header(script_name + "_original", script_name + "_decompiled", helper_script_text_stripped, decompiled_string_stripped));
 		output_diff(script_name, decompiled_string_stripped, helper_script_text_stripped);
 	}
 #endif
@@ -249,15 +249,18 @@ TEST_CASE("[GDSDecomp][Bytecode][GDScript2.0] Compiling GDScript Tests") {
 		}
 	}
 
-	for (auto &script_path : gdscript_test_scripts) {
+	for (size_t i = 0; i < gdscript_test_scripts.size(); i++) {
+		auto &script_path = gdscript_test_scripts[i];
 		auto sub_case_name = vformat("Testing compiling script %s", script_path);
 		SUBCASE(sub_case_name.utf8().get_data()) {
+			test_script(script_path, 0x77af6ca, false, true);
 			test_script(script_path, LATEST_GDSCRIPT_COMMIT, false, true);
 		}
 	}
 }
 
 TEST_CASE("[GDSDecomp][Bytecode][GDScript2.0] Test unique_id modulo operator") {
+	test_script_text("test_unique_id_modulo", test_unique_id_modulo, 0x77af6ca, false, false, true);
 	test_script_text("test_unique_id_modulo", test_unique_id_modulo, LATEST_GDSCRIPT_COMMIT, false, false, true);
 }
 

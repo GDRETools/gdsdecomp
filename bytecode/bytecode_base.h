@@ -27,6 +27,7 @@ protected:
 public:
 	static constexpr int GDSCRIPT_2_0_VERSION = 100;
 	static constexpr int LATEST_GDSCRIPT_VERSION = 101;
+	static constexpr int CONTENT_HEADER_SIZE_CHANGED = 101;
 	enum GlobalToken {
 		G_TK_EMPTY,
 		G_TK_IDENTIFIER,
