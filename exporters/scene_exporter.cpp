@@ -32,6 +32,158 @@ struct dep_info {
 	bool uid_in_uid_cache_matches_dep = true;
 	bool uid_remap_path_exists = true;
 };
+void _add_indent(String &r_result, const String &p_indent, int p_size) {
+	if (p_indent.is_empty()) {
+		return;
+	}
+	for (int i = 0; i < p_size; i++) {
+		r_result += p_indent;
+	}
+}
+
+void _stringify_json(String &r_result, const Variant &p_var, const String &p_indent, int p_cur_indent, bool p_sort_keys, HashSet<const void *> &p_markers) {
+	if (p_cur_indent > Variant::MAX_RECURSION_DEPTH) {
+		r_result += "...";
+		ERR_FAIL_MSG("JSON structure is too deep. Bailing.");
+	}
+
+	const char *colon = p_indent.is_empty() ? ":" : ": ";
+	const char *end_statement = p_indent.is_empty() ? "" : "\n";
+
+	switch (p_var.get_type()) {
+		case Variant::NIL:
+			r_result += "null";
+			return;
+		case Variant::BOOL:
+			r_result += p_var.operator bool() ? "true" : "false";
+			return;
+		case Variant::INT:
+			r_result += itos(p_var);
+			return;
+		case Variant::FLOAT: {
+			double num = p_var;
+
+			// Only for exactly 0. If we have approximately 0 let the user decide how much
+			// precision they want.
+			if (num == double(0)) {
+				r_result += "0.0";
+				return;
+			}
+
+			// No NaN in JSON.
+			if (Math::is_nan(num)) {
+				r_result += "null";
+				return;
+			}
+
+			// No Infinity in JSON; use a value that will be parsed as Infinity/-Infinity.
+			if (std::isinf(num)) {
+				if (num < 0.0) {
+					r_result += "-1.0e+511";
+				} else {
+					r_result += "1.0e+511";
+				}
+				return;
+			}
+
+			if ((double)(float)num == num) {
+				float fl_num = (float)num;
+				r_result += String::num_scientific(fl_num);
+			} else {
+				r_result += String::num_scientific(num);
+			}
+			return;
+		}
+		case Variant::PACKED_INT32_ARRAY:
+		case Variant::PACKED_INT64_ARRAY:
+		case Variant::PACKED_FLOAT32_ARRAY:
+		case Variant::PACKED_FLOAT64_ARRAY:
+		case Variant::PACKED_STRING_ARRAY:
+		case Variant::ARRAY: {
+			Array a = p_var;
+			if (p_markers.has(a.id())) {
+				r_result += "\"[...]\"";
+				ERR_FAIL_MSG("Converting circular structure to JSON.");
+			}
+
+			if (a.is_empty()) {
+				r_result += "[]";
+				return;
+			}
+
+			r_result += '[';
+			r_result += end_statement;
+
+			p_markers.insert(a.id());
+
+			bool first = true;
+			for (const Variant &var : a) {
+				if (first) {
+					first = false;
+				} else {
+					r_result += ',';
+					r_result += end_statement;
+				}
+				_add_indent(r_result, p_indent, p_cur_indent + 1);
+				_stringify_json(r_result, var, p_indent, p_cur_indent + 1, p_sort_keys, p_markers);
+			}
+			r_result += end_statement;
+			_add_indent(r_result, p_indent, p_cur_indent);
+			r_result += ']';
+			p_markers.erase(a.id());
+			return;
+		}
+		case Variant::DICTIONARY: {
+			Dictionary d = p_var;
+			if (p_markers.has(d.id())) {
+				r_result += "\"{...}\"";
+				ERR_FAIL_MSG("Converting circular structure to JSON.");
+			}
+
+			r_result += '{';
+			r_result += end_statement;
+			p_markers.insert(d.id());
+
+			LocalVector<Variant> keys = d.get_key_list();
+
+			if (p_sort_keys) {
+				keys.sort_custom<StringLikeVariantOrder>();
+			}
+
+			bool first_key = true;
+			for (const Variant &key : keys) {
+				if (first_key) {
+					first_key = false;
+				} else {
+					r_result += ',';
+					r_result += end_statement;
+				}
+				_add_indent(r_result, p_indent, p_cur_indent + 1);
+				_stringify_json(r_result, String(key), p_indent, p_cur_indent + 1, p_sort_keys, p_markers);
+				r_result += colon;
+				_stringify_json(r_result, d[key], p_indent, p_cur_indent + 1, p_sort_keys, p_markers);
+			}
+
+			r_result += end_statement;
+			_add_indent(r_result, p_indent, p_cur_indent);
+			r_result += '}';
+			p_markers.erase(d.id());
+			return;
+		}
+		default:
+			r_result += '"';
+			r_result += String(p_var).json_escape();
+			r_result += '"';
+			return;
+	}
+}
+
+String stringify_json(const Variant &p_var, const String &p_indent, bool p_sort_keys) {
+	String result;
+	HashSet<const void *> markers;
+	_stringify_json(result, p_var, p_indent, 0, p_sort_keys, markers);
+	return result;
+}
 
 #define MAX_DEPTH 256
 void get_deps_recursive(const String &p_path, HashMap<String, dep_info> &r_deps, int depth = 0) {
@@ -313,7 +465,7 @@ Error _serialize_file(Ref<GLTFState> p_state, const String p_path) {
 		Ref<FileAccess> file = FileAccess::open(p_path, FileAccess::WRITE, &err);
 		ERR_FAIL_COND_V(file.is_null(), FAILED);
 
-		String json = JSON::stringify(p_state->get_json(), "", true, true);
+		String json = stringify_json(p_state->get_json(), "", true);
 
 		const uint32_t magic = 0x46546C67; // GLTF
 		const int32_t header_size = 12;
@@ -368,7 +520,7 @@ Error _serialize_file(Ref<GLTFState> p_state, const String p_path) {
 		ERR_FAIL_COND_V(file.is_null(), FAILED);
 
 		file->create(FileAccess::ACCESS_RESOURCES);
-		String json = JSON::stringify(Variant(p_state->get_json()), indent, true, true);
+		String json = stringify_json(Variant(p_state->get_json()), indent, true);
 		file->store_string(json);
 	}
 	return err;
