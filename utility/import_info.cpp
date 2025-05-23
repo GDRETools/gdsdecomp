@@ -233,27 +233,10 @@ Ref<ImportInfo> ImportInfo::load_from_file(const String &p_path, int ver_major, 
 	if (p_path.get_extension() == "import") {
 		iinfo = Ref<ImportInfo>(memnew(ImportInfoModern));
 		err = iinfo->_load(p_path);
-		if (ver_major == 0 && err == OK) {
-			Ref<ResourceInfo> res_info;
-			err = ImportInfo::get_resource_info(p_path, res_info);
-			if (err) {
-				WARN_PRINT("ImportInfo: Version major not specified and could not load binary resource file!");
-				err = OK;
-			} else {
-				iinfo->ver_major = res_info->ver_major;
-				iinfo->ver_minor = res_info->ver_minor;
-				if (res_info->type != iinfo->get_type()) {
-					WARN_PRINT(p_path + ": binary resource type " + res_info->type + " does not equal import type " + iinfo->get_type() + "???");
-				}
-				if (res_info->resource_format == "text") {
-					WARN_PRINT_ONCE("ImportInfo: Attempted to load a text resource file, cannot determine minor version!");
-				}
-			}
-		} else if (err == OK) {
+		if (err == OK && iinfo.is_valid() && iinfo->ver_major == 0 && ver_major != 0) {
 			iinfo->ver_major = ver_major;
 			iinfo->ver_minor = ver_minor;
 		}
-
 	} else if (p_path.get_extension() == "remap") {
 		// .remap file for an autoconverted export
 		iinfo = Ref<ImportInfoRemap>(memnew(ImportInfoRemap));
@@ -453,45 +436,33 @@ Error ImportInfoModern::_load(const String &p_path) {
 	// Godot 4.x started stripping the deps section from the .import file, need to recreate it
 	if (!cf->has_section("deps")) {
 		dirty = true;
-
 		// the source file is the import_md path minus ".import"
-		cf->set_value("deps", "source_file", path.substr(0, path.length() - 7));
+		String source_file = import_md_path.get_basename();
 		if (!preferred_import_path.is_empty()) {
+			set_source_file(source_file);
 			cf->set_value("deps", "dest_files", vec_to_array({ preferred_import_path }));
 		} else {
 			// this is a multi-path import, get all the "path.*" key values
 			dest_files = get_remap_paths(cf);
-			cf->set_value("deps", "dest_files", vec_to_array(dest_files));
 			// No path values at all; may be a translation file
 			if (dest_files.is_empty()) {
 				String importer = cf->get_value("remap", "importer", "");
 				if (importer == "csv_translation") {
 					// They recently started removing the path from the [remap] section for these types
-					// We need to recreate it
-					String source_file = import_md_path.get_basename();
 					String prefix = source_file.get_basename();
-					// TODO: Fix this!
-					preferred_import_path = prefix + ".*.translation";
-					// if (GDRESettings::get_singleton()->is_project_config_loaded()) {
-					// 	//internationalization/locale/translations
-					// 	dest_files = GDRESettings::get_singleton()->get_project_setting("internationalization/locale/translations");
-					// }
 					if (dest_files.size() == 0) {
-						dest_files = Glob::glob(preferred_import_path);
+						dest_files = Glob::glob(prefix + ".*.translation");
 					}
-					set_source_file(source_file);
-					set_dest_files(dest_files);
 				}
 			}
 			if (dest_files.size() > 1) { // only write this if there are multiple files
-				auto deduped = gdre::vector_to_hashset(dest_files);
+				Array arr = gdre::hashset_to_array(gdre::vector_to_hashset(dest_files));
 				// we still write this even if the deduped list is 1 file
-				Array arr;
-				for (auto &E : deduped) {
-					arr.push_back(E);
-				}
 				cf->set_value("deps", "files", arr);
 			}
+			// In import files, it goes "files", then "source_file", then "dest_files"
+			set_source_file(source_file);
+			cf->set_value("deps", "dest_files", vec_to_array(dest_files));
 		}
 	}
 
@@ -526,6 +497,15 @@ Error ImportInfoModern::_load(const String &p_path) {
 	// If we fail to find the import path, throw error
 	if (preferred_import_path.is_empty() || get_type().is_empty()) {
 		ERR_FAIL_COND_V_MSG(preferred_import_path.is_empty() || get_type().is_empty(), ERR_FILE_CORRUPT, p_path + ": file is corrupt");
+	}
+	bool suspicious;
+	uint32_t major, minor;
+	for (auto &E : dest_files) {
+		if (ResourceFormatLoaderCompatBinary::get_ver_major_minor(E, major, minor, suspicious) == OK) {
+			ver_major = major;
+			ver_minor = minor;
+			break;
+		}
 	}
 
 	return OK;
@@ -819,8 +799,16 @@ String ImportInfoModern::get_md5_file_path() const {
 	if (dest_files.size() == 0) {
 		return "";
 	}
+	String part;
 	Vector<String> parts = dest_files[0].rsplit("-", true, 1);
-	String md5_file_path = parts[0] + "-" + get_source_file().md5_text() + ".md5";
+	if (!dest_files[0].begins_with("res://.godot") && !dest_files[0].begins_with("res://.import")) {
+		part = ver_major <= 3 ? "res://.import" : "res://.godot/imported";
+		part = part.path_join(parts[0].get_file());
+	} else {
+		part = parts[0];
+	}
+
+	String md5_file_path = part + "-" + get_source_file().md5_text() + ".md5";
 	return md5_file_path;
 }
 
@@ -829,10 +817,7 @@ Error ImportInfoModern::save_md5_file(const String &output_dir) {
 	if (dest_files.size() == 0) {
 		return ERR_PRINTER_ON_FIRE;
 	}
-	// Only imports under these paths have .md5 files
-	if (!dest_files[0].begins_with("res://.godot") && !dest_files[0].begins_with("res://.import")) {
-		return ERR_PRINTER_ON_FIRE;
-	}
+
 	String actual_source = get_source_file();
 	if (export_dest != actual_source) {
 		return ERR_PRINTER_ON_FIRE;
