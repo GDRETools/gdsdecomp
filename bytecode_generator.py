@@ -669,6 +669,7 @@ BYTECODE_CLASSDB_REGISTER = "//_BYTECODE_CLASSDB_REGISTER_"
 BYTECODE_CASE_STATEMENTS = "//_BYTECODE_CASE_STATEMENTS_"
 BYTECODE_HEADERS = "//_BYTECODE_HEADERS_"
 BYTECODE_DECOMP_VERSIONS = "//_BYTECODE_DECOMP_VERSIONS_"
+BYTECODE_LATEST_VERSION = "/*_BYTECODE_DECOMP_LATEST_VERSION_*/"
 PRELUDE_REPLACE = "//_PRELUDE_"
 
 
@@ -715,6 +716,7 @@ def generate_bytecode_version_header(dir: Path, bytecode_classes: list[BytecodeC
         version_section += line
     version_section += '\t{ 0x0000000, "-NULL-", 0, false },\n'
     code = code.replace(BYTECODE_DECOMP_VERSIONS, version_section)
+    code = code.replace(BYTECODE_LATEST_VERSION, "0x" + str(bytecode_classes[0].bytecode_rev))
     with open(new_file_h, "w") as f:
         f.write(code)
 

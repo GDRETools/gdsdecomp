@@ -7,6 +7,7 @@
 
 #include "bytecode/bytecode_base.h"
 
+#include "bytecode/bytecode_b59d6be.h"
 #include "bytecode/bytecode_77af6ca.h"
 #include "bytecode/bytecode_f3f05dc.h"
 #include "bytecode/bytecode_506df14.h"
@@ -84,9 +85,12 @@ struct GDScriptDecompVersion {
 };
 Vector<GDScriptDecompVersion> get_decomp_versions(bool include_dev = true, int ver_major = 0);
 
+static constexpr int LATEST_GDSCRIPT_COMMIT = 0xb59d6be;
+
 static const GDScriptDecompVersion decomp_versions[] = {
 	{ 0xfffffff, "--- Please select bytecode version ---", 0, false },
-	{ 0x77af6ca, "4.3.0-stable (77af6ca / 2024-02-09 / Bytecode version: 100) - initial version", 100, false, "4.3.0-stable", "", 0x0 },
+	{ 0xb59d6be, "4.5-dev.4 (b59d6be / 2025-05-18 / Bytecode version: 101) - Added `ABSTRACT` token.", 101, false, "4.5-dev.4", "", 0x77af6ca },
+	{ 0x77af6ca, "4.3.0-stable (77af6ca / 2024-02-09 / Bytecode version: 100) - initial version", 100, false, "4.3.0-stable", "4.4.9-stable", 0x0 },
 	{ 0xf3f05dc, "	4.0-dev2 (f3f05dc / 2020-02-13 / Bytecode version: 13) - Removed `SYNC`, `SLAVE` tokens.", 13, true, "4.0-dev2", "", 0x506df14 },
 	{ 0x506df14, "	4.0-dev1 (506df14 / 2020-02-12 / Bytecode version: 13) - Removed `decimals` function.", 13, true, "4.0-dev1", "", 0x5565f55 },
 	{ 0xa7aad78, "3.5.0-stable (a7aad78 / 2020-10-07 / Bytecode version: 13) - Added `deep_equal` function.", 13, false, "3.5.0-stable", "3.6.0-stable", 0x5565f55 },

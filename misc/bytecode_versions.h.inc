@@ -27,6 +27,8 @@ struct GDScriptDecompVersion {
 };
 Vector<GDScriptDecompVersion> get_decomp_versions(bool include_dev = true, int ver_major = 0);
 
+static constexpr int LATEST_GDSCRIPT_COMMIT = /*_BYTECODE_DECOMP_LATEST_VERSION_*/;
+
 static const GDScriptDecompVersion decomp_versions[] = {
 //_BYTECODE_DECOMP_VERSIONS_
 };
