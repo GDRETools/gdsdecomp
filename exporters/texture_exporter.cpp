@@ -23,12 +23,15 @@ bool get_bit(const Vector<uint8_t> &bitmask, int width, int p_x, int p_y) {
 
 // Format is the same on V2 - V4
 Ref<Image> TextureExporter::load_image_from_bitmap(const String p_path, Error *r_err) {
-	Error err;
+	Error err = OK;
+	if (!r_err) {
+		r_err = &err;
+	}
 	Ref<Image> image;
 	image.instantiate();
 	ResourceFormatLoaderCompatBinary rlcb;
-	auto res = ResourceCompatLoader::fake_load(p_path, "", &err);
-	ERR_FAIL_COND_V_MSG(err != OK, Ref<Image>(), "Cannot open resource '" + p_path + "'.");
+	auto res = ResourceCompatLoader::fake_load(p_path, "", r_err);
+	ERR_FAIL_COND_V_MSG(*r_err != OK, Ref<Image>(), "Cannot open resource '" + p_path + "'.");
 
 	String name;
 	Vector2 size;
@@ -55,12 +58,13 @@ Ref<Image> TextureExporter::load_image_from_bitmap(const String p_path, Error *r
 		}
 	}
 	ERR_FAIL_COND_V_MSG(image.is_null() || image->is_empty(), Ref<Image>(), "Failed to load image from " + p_path);
+	*r_err = OK;
 	return image;
 }
 
 Error TextureExporter::_convert_bitmap(const String &p_path, const String &dest_path, bool lossy, Ref<ExportReport> report) {
 	String dst_dir = dest_path.get_base_dir();
-	Error err;
+	Error err = OK;
 	Ref<Image> img = load_image_from_bitmap(p_path, &err);
 	// deprecated format
 	if (err == ERR_UNAVAILABLE) {
