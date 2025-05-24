@@ -1322,6 +1322,10 @@ GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t
 				if (bytecode_version < GDSCRIPT_2_0_VERSION) {
 					// next token has to be EOF, semicolon, or newline
 					SIZE_CHECK(1);
+					// function declaration with the same name
+					if (check_prev_token(i, tokens, G_TK_PR_FUNCTION) && check_next_token(i, tokens, G_TK_PARENTHESIS_OPEN)) {
+						break;
+					}
 
 					GlobalToken next_token = get_global_token(tokens[i + 1]);
 					if (next_token != G_TK_NEWLINE && next_token != G_TK_SEMICOLON && next_token != G_TK_EOF) {
