@@ -179,7 +179,6 @@ Error PckDumper::_pck_dump_to_dir(
 	reset();
 	Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
 	auto files = GDRESettings::get_singleton()->get_file_info_list();
-	Vector<uint8_t> key = GDRESettings::get_singleton()->get_encryption_key();
 
 	if (DirAccess::create(DirAccess::ACCESS_FILESYSTEM).is_null()) {
 		return ERR_FILE_CANT_WRITE;
