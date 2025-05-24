@@ -82,12 +82,16 @@ Error TextureExporter::_convert_bitmap(const String &p_path, const String &dest_
 	return OK;
 }
 
+bool dest_format_supports_mipmaps(const String &ext) {
+	return ext == "dds" || ext == "exr";
+}
+
 Error TextureExporter::save_image(const String &dest_path, const Ref<Image> &img, bool lossy) {
 	ERR_FAIL_COND_V_MSG(img->is_empty(), ERR_FILE_EOF, "Image data is empty for texture " + dest_path + ", not saving");
 	Error err = gdre::ensure_dir(dest_path.get_base_dir());
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to create dirs for " + dest_path);
 	String dest_ext = dest_path.get_extension().to_lower();
-	if (!(dest_ext == "dds" || dest_ext == "exr") && img->is_compressed() && img->has_mipmaps()) {
+	if (!dest_format_supports_mipmaps(dest_ext) && img->is_compressed() && img->has_mipmaps()) {
 		img->clear_mipmaps();
 	}
 	GDRE_ERR_DECOMPRESS_OR_FAIL(img);
@@ -479,11 +483,17 @@ Error TextureExporter::export_file(const String &out_path, const String &res_pat
 	return _convert_tex(res_path, out_path, false, fmt_name);
 }
 
-Error preflight(Vector<Ref<Image>> &images, int width, int height, Vector<Vector<uint8_t>> &images_data, Image::Format &new_format, int &pixel_size) {
-	auto layer_count = images.size();
-	if (layer_count == 0) {
-		return ERR_PARSE_ERROR;
-	}
+Error save_concat_image(
+		String p_path,
+		String dest_path,
+		int num_images_w,
+		int num_images_h,
+		bool lossy,
+		Vector<Ref<Image>> &images) {
+	ERR_FAIL_COND_V_MSG(images.size() == 0, ERR_PARSE_ERROR, "No images to concat");
+	int layer_count = num_images_w * num_images_h;
+	int width = images[0]->get_width();
+	int height = images[0]->get_height();
 
 	auto format = images[0]->get_format();
 	auto decompressed_fmt = format;
@@ -504,32 +514,89 @@ Error preflight(Vector<Ref<Image>> &images, int width, int height, Vector<Vector
 	if (ref_img.is_null()) {
 		return ERR_PARSE_ERROR;
 	}
-	new_format = decompressed_fmt;
+	auto new_format = decompressed_fmt;
+	bool had_mipmaps = layer_count != images.size();
+	Vector<Vector<uint8_t>> images_data;
 	bool is_hdr = decompressed_fmt >= Image::FORMAT_RF && decompressed_fmt <= Image::FORMAT_RGBE9995;
 
+	Vector<Image::Format> formats;
+	bool detected_alpha = false;
 	for (int64_t i = 0; i < layer_count; i++) {
 		Ref<Image> img = images[i];
 		if (img.is_null()) {
 			return ERR_PARSE_ERROR;
 		}
-		if (img->is_compressed() && img->has_mipmaps()) {
+		if (img->has_mipmaps()) {
+			had_mipmaps = true;
 			img->clear_mipmaps();
 		}
 		GDRE_ERR_DECOMPRESS_OR_FAIL(img);
+		detected_alpha = detected_alpha || img->detect_alpha();
+		if (is_hdr) {
+			new_format = img->get_format();
+			formats.push_back(img->get_format());
+			images_data.push_back(img->get_data());
+		}
+		ERR_FAIL_COND_V_MSG(img->get_width() != width || img->get_height() != height, ERR_PARSE_ERROR, "Image " + p_path + " has incorrect dimensions");
+	}
+
+	if (!is_hdr || gdre::vector_to_hashset(formats).size() > 1) {
 		if (!is_hdr) {
-			if (!img->detect_alpha() && img->get_format() != Image::FORMAT_RGB8) {
+			if (!detected_alpha) {
 				new_format = Image::FORMAT_RGB8;
-			} else if (img->detect_alpha() && img->get_format() != Image::FORMAT_RGBA8) {
+			} else if (detected_alpha) {
 				new_format = Image::FORMAT_RGBA8;
 			}
-			img->convert(new_format);
+		} else {
+			new_format = gdre::get_most_popular_value(formats);
+			// check if we've detected alpha and if this format supports it
+			const bool supports_alpha = new_format == Image::FORMAT_RGBA8 || new_format == Image::FORMAT_RGBA4444 || new_format == Image::FORMAT_RGBAH || new_format == Image::FORMAT_RGBAF;
+			if (detected_alpha && !supports_alpha) {
+				new_format = Image::FORMAT_RGBA8;
+			}
 		}
-		if (pixel_size == -1) {
-			pixel_size = Image::get_format_pixel_size(img->get_format());
+		images_data.clear();
+		for (int i = 0; i < layer_count; i++) {
+			Ref<Image> img = images[i];
+			if (img->get_format() != new_format) {
+				img->convert(new_format);
+			}
+			images_data.push_back(img->get_data());
 		}
-		images.push_back(img);
-		images_data.push_back(img->get_data());
 	}
+	int pixel_size = Image::get_format_pixel_size(new_format);
+
+	Vector<uint8_t> new_image_data;
+	size_t new_width = width * num_images_w;
+	size_t new_height = height * num_images_h;
+	size_t new_data_size = Image::get_image_data_size(new_width, new_height, new_format, false);
+	new_image_data.resize(new_data_size);
+	size_t current_offset = 0;
+	size_t copy_size = width * pixel_size;
+	for (int row_idx = 0; row_idx < num_images_h; row_idx++) {
+		for (int i = 0; i < height; i++) {
+			for (int img_idx = row_idx * num_images_w; img_idx < (row_idx + 1) * num_images_w; img_idx++) {
+				// We're concatenating the images horizontally; so we have to take a width-sized slice of the image
+				// and copy it into the new image data
+				size_t start_idx = i * copy_size;
+				ERR_FAIL_COND_V(images_data[img_idx].size() < start_idx + copy_size, ERR_PARSE_ERROR);
+				memcpy(new_image_data.ptrw() + current_offset, images_data[img_idx].ptr() + start_idx, copy_size);
+				current_offset += copy_size;
+			}
+		}
+	}
+	DEV_ASSERT(Image::get_image_data_size(new_width, new_height, new_format, false) == new_image_data.size());
+	Ref<Image> img = Image::create_from_data(new_width, new_height, false, new_format, new_image_data);
+	ERR_FAIL_COND_V_MSG(img.is_null(), ERR_PARSE_ERROR, "Failed to create image for texture " + p_path);
+	if (had_mipmaps && dest_format_supports_mipmaps(dest_path.get_extension().to_lower())) {
+		img->generate_mipmaps();
+		DEV_ASSERT(Image::get_image_data_size(new_width, new_height, new_format, true) == img->get_data_size());
+	}
+	Error err = TextureExporter::save_image(dest_path, img, lossy);
+	if (err == ERR_UNAVAILABLE) {
+		return err;
+	}
+	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to save image " + dest_path + " from texture " + p_path);
 	return OK;
 }
 
@@ -550,22 +617,15 @@ Error TextureExporter::_convert_3d(const String &p_path, const String &dest_path
 		return err;
 	}
 	ERR_FAIL_COND_V_MSG(err != OK || tex.is_null(), err, "Failed to load texture " + p_path);
-	ERR_FAIL_COND_V_MSG(tex->get_depth() <= 0, ERR_PARSE_ERROR, "Texture " + p_path + " is not HDR");
+	ERR_FAIL_COND_V_MSG(tex->get_depth() <= 0, ERR_PARSE_ERROR, "Texture " + p_path + " has no layers");
 
 	auto layer_count = tex->get_depth();
-	int width = tex->get_width();
-	int height = tex->get_height();
 	Vector<Ref<Image>> images = tex->get_data();
 	Ref<Image> ref_img = images[0]->duplicate();
-	Vector<Vector<uint8_t>> images_data;
-	Image::Format new_format;
-	int pixel_size = -1;
-	err = preflight(images, width, height, images_data, new_format, pixel_size);
+	ERR_FAIL_COND_V_MSG(images.size() == 0, ERR_PARSE_ERROR, "No images to concat");
 
 	int64_t num_images_w = -1;
 	int64_t num_images_h = -1;
-	size_t new_width;
-	size_t new_height;
 	Dictionary params;
 	if (iinfo.is_valid()) {
 		params = iinfo->get_params();
@@ -591,37 +651,16 @@ Error TextureExporter::_convert_3d(const String &p_path, const String &dest_path
 			num_images_h = 1;
 		}
 	}
+	bool had_mipmaps = layer_count != images.size();
 
-	new_width = width * num_images_w;
-	new_height = height * num_images_h;
-
-	Vector<uint8_t> new_image_data;
-
-	for (int i = 0; i < new_height; i++) {
-		for (int img_idx = 0; img_idx < layer_count; img_idx++) {
-			// We're concatenating the images horizontally; so we have to take a width-sized slice of the image
-			// and copy it into the new image data
-			size_t start_idx = i * width * pixel_size;
-			size_t end_idx = start_idx + (width * pixel_size);
-			if (images_data[img_idx].size() < end_idx) {
-				ERR_FAIL_COND_V(images_data[img_idx].size() < end_idx, ERR_PARSE_ERROR);
-			}
-			new_image_data.append_array(images_data[img_idx].slice(start_idx, end_idx));
-		}
-	}
-	Ref<Image> img = Image::create_from_data(new_width, new_height, false, new_format, new_image_data);
-	ERR_FAIL_COND_V_MSG(img.is_null(), ERR_PARSE_ERROR, "Failed to create image for texture " + p_path);
-	image_format = Image::get_format_name(img->get_format());
-	err = save_image(dest_path, img, lossy);
-	if (err == ERR_UNAVAILABLE) {
-		return err;
-	}
+	err = save_concat_image(p_path, dest_path, num_images_w, num_images_h, lossy, images);
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to save image " + dest_path + " from texture " + p_path);
 	set_tex_params(iinfo, tex, ref_img, iinfo->get_ver_major(), TEXTURE_3D);
 
 	if (!had_valid_params && iinfo.is_valid()) {
 		iinfo->set_param("slices/horizontal", num_images_w);
 		iinfo->set_param("slices/vertical", num_images_h);
+		iinfo->set_param("mipmaps/generate", had_mipmaps);
 	}
 	print_verbose("Converted " + p_path + " to " + dest_path);
 	return OK;
@@ -648,26 +687,18 @@ Error TextureExporter::_convert_layered_2d(const String &p_path, const String &d
 	if (layer_count == 0) {
 		return ERR_PARSE_ERROR;
 	}
-	int width = tex->get_width();
-	int height = tex->get_height();
 	Vector<Ref<Image>> images;
-	Vector<Vector<uint8_t>> images_data;
-	int pixel_size = -1;
-	Image::Format new_format;
 	Ref<Image> ref_img = tex->get_layer_data(0)->duplicate();
 	for (int i = 0; i < layer_count; i++) {
 		images.push_back(tex->get_layer_data(i));
 	}
-	err = preflight(images, width, height, images_data, new_format, pixel_size);
-	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to preflight texture " + p_path);
+	ERR_FAIL_COND_V_MSG(images.size() == 0, ERR_PARSE_ERROR, "No images to concat");
 
 	int64_t num_images_w = -1;
 	int64_t num_images_h = -1;
 	int64_t arrangement = -1;
 	int64_t layout = -1;
 	int64_t amount = -1;
-	size_t new_width;
-	size_t new_height;
 	auto mode = tex->get_layered_type();
 	Dictionary params;
 	if (iinfo.is_valid()) {
@@ -735,30 +766,11 @@ Error TextureExporter::_convert_layered_2d(const String &p_path, const String &d
 			}
 		}
 	}
-	new_width = width * num_images_w;
-	new_height = height * num_images_h;
-
-	Vector<uint8_t> new_image_data;
-
-	for (int i = 0; i < new_height; i++) {
-		for (int img_idx = 0; img_idx < layer_count; img_idx++) {
-			// We're concatenating the images horizontally; so we have to take a width-sized slice of the image
-			// and copy it into the new image data
-			size_t start_idx = i * width * pixel_size;
-			size_t end_idx = start_idx + (width * pixel_size);
-			ERR_FAIL_COND_V(images_data[img_idx].size() < end_idx, ERR_PARSE_ERROR);
-			new_image_data.append_array(images_data[img_idx].slice(start_idx, end_idx));
-		}
-	}
-	Ref<Image> img = Image::create_from_data(new_width, new_height, false, new_format, new_image_data);
-	ERR_FAIL_COND_V_MSG(img.is_null(), ERR_PARSE_ERROR, "Failed to create image for texture " + p_path);
-	image_format = Image::get_format_name(img->get_format());
-	err = save_image(dest_path, img, lossy);
-	if (err == ERR_UNAVAILABLE) {
-		return err;
-	}
+	bool had_mipmaps = layer_count != images.size();
+	err = save_concat_image(p_path, dest_path, num_images_w, num_images_h, lossy, images);
+	image_format = Image::get_format_name(images[0]->get_format());
+	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to concat images for texture " + p_path);
 	set_tex_params(iinfo, tex, ref_img, iinfo->get_ver_major(), TEXTURE_LAYERED);
-	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to save image " + dest_path + " from texture " + p_path);
 
 	if (!had_valid_params && iinfo.is_valid()) {
 		if (mode == TextureLayered::LAYERED_TYPE_2D_ARRAY) {
@@ -773,6 +785,7 @@ Error TextureExporter::_convert_layered_2d(const String &p_path, const String &d
 			iinfo->set_param("slices/layout", 0);
 			iinfo->set_param("slices/amount", layer_count / 6);
 		}
+		iinfo->set_param("mipmaps/generate", had_mipmaps);
 	}
 	print_verbose("Converted " + p_path + " to " + dest_path);
 	return OK;
