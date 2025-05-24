@@ -696,28 +696,6 @@ Ref<Image> crop_transparent(const Ref<Image> &img) {
 	int width = img->get_width();
 	int height = img->get_height();
 
-	// int min_x = width, min_y = height, max_x = -1, max_y = -1;
-
-	// for (int y = 0; y < height; ++y) {
-	// 	for (int x = 0; x < width; ++x) {
-	// 		Color c = img->get_pixel(x, y);
-	// 		if (c.a > 0.0) {
-	// 			if (x < min_x)
-	// 				min_x = x;
-	// 			if (y < min_y)
-	// 				min_y = y;
-	// 			if (x > max_x)
-	// 				max_x = x;
-	// 			if (y > max_y)
-	// 				max_y = y;
-	// 		}
-	// 	}
-	// }
-
-	// // If the image is fully transparent, return as a null image
-	// if (max_x < min_x || max_y < min_y) {
-	// 	return Ref<Image>();
-	// }
 	// check if it's width-wise or height-wise based on the ratio of the width and height
 	bool is_horizontal = width > height;
 	int64_t num_parts = (is_horizontal ? width / height : height / width);
@@ -776,6 +754,82 @@ Ref<Image> crop_transparent(const Ref<Image> &img) {
 
 	return img->get_region(Rect2i(width_region_start, height_region_start, new_width, new_height));
 	;
+}
+
+Vector<Ref<Image>> fix_cross_cubemaps(const Vector<Ref<Image>> &images, int width, int height, int layer_count, bool detected_alpha) {
+	// here is where we fix the "cross" style of cubemaps that got imported all funky
+	// check if the images have the same width and height
+	Vector<Ref<Image>> fixed_images;
+	bool is_horizontal = width > height;
+	int64_t num_parts = is_horizontal ? width / height : height / width;
+	if (width != height) {
+		if (detected_alpha) {
+			// we need to fix the images
+			for (int i = 0; i < layer_count; i++) {
+				Ref<Image> img = images[i];
+				if (img->detect_alpha()) {
+					Ref<Image> cropped = crop_transparent(img);
+					size_t new_width;
+					size_t new_height;
+					if (!cropped.is_null()) {
+						new_width = cropped->get_width();
+						new_height = cropped->get_height();
+						fixed_images.push_back(cropped);
+					} else {
+						new_width = 0;
+						new_height = 0;
+					}
+				} else {
+					// otherwise, divide it into parts based on the ratio of the width and height
+					for (int j = 0; j < num_parts; j++) {
+						Rect2i rect;
+						if (is_horizontal) {
+							rect.position.x = j * width / num_parts;
+							rect.size.width = width / num_parts;
+							rect.position.y = 0;
+							rect.size.height = height;
+						} else {
+							rect.position.x = 0;
+							rect.size.width = width;
+							rect.position.y = j * height / num_parts;
+							rect.size.height = height / num_parts;
+						}
+						Ref<Image> part = img->get_region(rect);
+						fixed_images.push_back(part);
+					}
+				}
+			}
+		}
+	}
+#if 0
+	for (int i = 0; i < fixed_images.size(); i++) {
+		Ref<Image> img = fixed_images[i];
+		if (img.is_null()) {
+			continue;
+		}
+		auto new_dest = dest_path.get_basename() + "_cropped_" + String::num_int64(i) + "." + dest_path.get_extension();
+		Error err = TextureExporter::save_image(new_dest, img, lossy);
+	}
+#endif
+	if (fixed_images.size() > 0) {
+		Vector<Ref<Image>> images;
+		images.resize(6);
+		// X+, X-, Y+, Y-, Z+, Z-
+		// this is upside down;
+		images.write[0] = fixed_images[3];
+		images.write[1] = fixed_images[1];
+		images.write[2] = fixed_images[0];
+		images.write[3] = fixed_images[5];
+		images.write[4] = fixed_images[2];
+		images.write[5] = fixed_images[4];
+
+		// arrangement = is_horizontal ? CUBEMAP_FORMAT_6X1 : CUBEMAP_FORMAT_1X6;
+		// num_images_w = is_horizontal ? 6 : 1;
+		// num_images_h = is_horizontal ? 1 : 6;
+		return images;
+	} else {
+		return {};
+	}
 }
 
 Error TextureExporter::_convert_layered_2d(const String &p_path, const String &dest_path, bool lossy, String &image_format, Ref<ExportReport> report) {
@@ -891,80 +945,11 @@ Error TextureExporter::_convert_layered_2d(const String &p_path, const String &d
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to preprocess images for texture " + p_path);
 	int width = tex->get_width();
 	int height = tex->get_height();
-	Vector<Ref<Image>> fixed_images;
+#if 0
 	if (mode == TextureLayered::LAYERED_TYPE_CUBEMAP || mode == TextureLayered::LAYERED_TYPE_CUBEMAP_ARRAY) {
-		// here is where we fix the cubemaps that got imported all funky
-		// check if the images have the same width and height
-		bool is_horizontal = width > height;
-		int64_t num_parts = is_horizontal ? width / height : height / width;
-		if (width != height) {
-			if (detected_alpha) {
-				// we need to fix the images
-				for (int i = 0; i < layer_count; i++) {
-					Ref<Image> img = images[i];
-					if (img->detect_alpha()) {
-						Ref<Image> cropped = crop_transparent(img);
-						size_t new_width;
-						size_t new_height;
-						if (!cropped.is_null()) {
-							new_width = cropped->get_width();
-							new_height = cropped->get_height();
-							fixed_images.push_back(cropped);
-						} else {
-							new_width = 0;
-							new_height = 0;
-						}
-						print_line("Cropped " + p_path + " layer " + String::num_int64(i) + " to " + String::num_int64(new_width) + "x" + String::num_int64(new_height));
-					} else {
-						// otherwise, divide it into parts based on the ratio of the width and height
-						for (int j = 0; j < num_parts; j++) {
-							Rect2i rect;
-							if (is_horizontal) {
-								rect.position.x = j * width / num_parts;
-								rect.size.width = width / num_parts;
-								rect.position.y = 0;
-								rect.size.height = height;
-							} else {
-								rect.position.x = 0;
-								rect.size.width = width;
-								rect.position.y = j * height / num_parts;
-								rect.size.height = height / num_parts;
-							}
-							Ref<Image> part = img->get_region(rect);
-							fixed_images.push_back(part);
-						}
-						print_line("Divided " + p_path + " layer " + String::num_int64(i) + " into " + String::num_int64(num_parts) + " parts");
-					}
-				}
-			}
-		}
-		for (int i = 0; i < fixed_images.size(); i++) {
-			Ref<Image> img = fixed_images[i];
-			if (img.is_null()) {
-				continue;
-			}
-			auto new_dest = dest_path.get_basename() + "_cropped_" + String::num_int64(i) + "." + dest_path.get_extension();
-			Error err = TextureExporter::save_image(new_dest, img, lossy);
-		}
-		if (fixed_images.size() > 0) {
-			// X+, X-, Y+, Y-, Z+, Z-
-			// Y+ is 0
-			// X+ is 1
-			// Z+ is 2
-			// X- is 3
-			// Z- is 4
-			// Y- is 5
-			images.write[0] = fixed_images[1];
-			images.write[1] = fixed_images[3];
-			images.write[2] = fixed_images[0];
-			images.write[3] = fixed_images[5];
-			images.write[4] = fixed_images[4];
-			images.write[5] = fixed_images[2];
-			arrangement = is_horizontal ? CUBEMAP_FORMAT_6X1 : CUBEMAP_FORMAT_1X6;
-			num_images_w = is_horizontal ? 6 : 1;
-			num_images_h = is_horizontal ? 1 : 6;
-		}
+		Vector<Ref<Image>> fixed_images = fix_cross_cubemaps(images, width, height, layer_count, detected_alpha);
 	}
+#endif
 	err = save_image_with_mipmaps(dest_path, images, num_images_w, num_images_h, lossy, had_mipmaps);
 	image_format = Image::get_format_name(images[0]->get_format());
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to concat images for texture " + p_path);
