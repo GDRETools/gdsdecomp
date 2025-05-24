@@ -1046,7 +1046,7 @@ Ref<CompressedTextureLayered> ResourceFormatLoaderCompatTextureLayered::_set_tex
 	fake->format = images[0]->get_format();
 	fake->path_to_file = p_path;
 	fake->mipmaps = mipmaps;
-	fake->layered_type = TextureLayered::LayeredType::LAYERED_TYPE_2D_ARRAY;
+	fake->layered_type = TextureLayered::LayeredType(type);
 	if (p_type == ResourceInfo::LoadType::REAL_LOAD) {
 		RID texture_rid = RS::get_singleton()->texture_2d_layered_create(images, RS::TextureLayeredType(type));
 		fake->texture = texture_rid;
