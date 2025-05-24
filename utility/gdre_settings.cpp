@@ -25,6 +25,10 @@
 #include "modules/regex/regex.h"
 #include "servers/rendering_server.h"
 
+#ifdef TOOLS_ENABLED
+#include "editor/editor_node.h"
+#endif
+
 #include <sys/types.h>
 
 #if defined(WINDOWS_ENABLED)
@@ -1626,7 +1630,13 @@ Error GDRESettings::load_pack_uid_cache(bool p_reset) {
 			ResourceUID::get_singleton()->add_id(E.second, E.first);
 		}
 	}
+#ifdef TOOLS_ENABLED
+	if (!EditorNode::get_singleton()) {
+		ResourceSaver::set_get_resource_id_for_path(&GDRESettings::_get_uid_for_path);
+	}
+#else
 	ResourceSaver::set_get_resource_id_for_path(&GDRESettings::_get_uid_for_path);
+#endif
 	return OK;
 }
 
