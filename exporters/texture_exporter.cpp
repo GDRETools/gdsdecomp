@@ -487,13 +487,15 @@ Error TextureExporter::export_file(const String &out_path, const String &res_pat
 	return _convert_tex(res_path, out_path, false, fmt_name);
 }
 
-Error save_concat_image(
+Error preprocess_images(
 		String p_path,
 		String dest_path,
 		int num_images_w,
 		int num_images_h,
 		bool lossy,
-		Vector<Ref<Image>> &images) {
+		Vector<Ref<Image>> &images,
+		bool &had_mipmaps,
+		bool &detected_alpha) {
 	ERR_FAIL_COND_V_MSG(images.size() == 0, ERR_PARSE_ERROR, "No images to concat");
 	int layer_count = num_images_w * num_images_h;
 	int width = images[0]->get_width();
@@ -519,12 +521,12 @@ Error save_concat_image(
 		return ERR_PARSE_ERROR;
 	}
 	auto new_format = decompressed_fmt;
-	bool had_mipmaps = layer_count != images.size();
+	had_mipmaps = layer_count != images.size();
 	Vector<Vector<uint8_t>> images_data;
 	bool is_hdr = decompressed_fmt >= Image::FORMAT_RF && decompressed_fmt <= Image::FORMAT_RGBE9995;
 
 	Vector<Image::Format> formats;
-	bool detected_alpha = false;
+	detected_alpha = false;
 	for (int64_t i = 0; i < layer_count; i++) {
 		Ref<Image> img = images[i];
 		if (img.is_null()) {
@@ -568,7 +570,18 @@ Error save_concat_image(
 			images_data.push_back(img->get_data());
 		}
 	}
+	return OK;
+}
+
+Error save_image_with_mipmaps(const String &dest_path, const Vector<Ref<Image>> &images, int num_images_w, int num_images_h, bool lossy, bool had_mipmaps) {
+	int width = images[0]->get_width();
+	int height = images[0]->get_height();
+	auto new_format = images[0]->get_format();
 	int pixel_size = Image::get_format_pixel_size(new_format);
+	Vector<Vector<uint8_t>> images_data;
+	for (int i = 0; i < images.size(); i++) {
+		images_data.push_back(images[i]->get_data());
+	}
 
 	Vector<uint8_t> new_image_data;
 	size_t new_width = width * num_images_w;
@@ -591,7 +604,7 @@ Error save_concat_image(
 	}
 	DEV_ASSERT(Image::get_image_data_size(new_width, new_height, new_format, false) == new_image_data.size());
 	Ref<Image> img = Image::create_from_data(new_width, new_height, false, new_format, new_image_data);
-	ERR_FAIL_COND_V_MSG(img.is_null(), ERR_PARSE_ERROR, "Failed to create image for texture " + p_path);
+	ERR_FAIL_COND_V_MSG(img.is_null(), ERR_PARSE_ERROR, "Failed to create image for texture " + dest_path.get_file());
 	if (had_mipmaps && dest_format_supports_mipmaps(dest_path.get_extension().to_lower())) {
 		img->generate_mipmaps();
 		DEV_ASSERT(Image::get_image_data_size(new_width, new_height, new_format, true) == img->get_data_size());
@@ -600,8 +613,7 @@ Error save_concat_image(
 	if (err == ERR_UNAVAILABLE) {
 		return err;
 	}
-	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to save image " + dest_path + " from texture " + p_path);
-	return OK;
+	return err;
 }
 
 Error TextureExporter::_convert_3d(const String &p_path, const String &dest_path, bool lossy, String &image_format, Ref<ExportReport> report) {
@@ -656,8 +668,10 @@ Error TextureExporter::_convert_3d(const String &p_path, const String &dest_path
 		}
 	}
 	bool had_mipmaps = layer_count != images.size();
-
-	err = save_concat_image(p_path, dest_path, num_images_w, num_images_h, lossy, images);
+	bool detected_alpha = false;
+	err = preprocess_images(p_path, dest_path, num_images_w, num_images_h, lossy, images, had_mipmaps, detected_alpha);
+	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to preprocess images for texture " + p_path);
+	err = save_image_with_mipmaps(dest_path, images, num_images_w, num_images_h, lossy, had_mipmaps);
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to save image " + dest_path + " from texture " + p_path);
 	set_tex_params(iinfo, tex, ref_img, iinfo->get_ver_major(), TEXTURE_3D);
 
@@ -668,6 +682,100 @@ Error TextureExporter::_convert_3d(const String &p_path, const String &dest_path
 	}
 	print_verbose("Converted " + p_path + " to " + dest_path);
 	return OK;
+}
+
+enum CubemapFormat {
+	CUBEMAP_FORMAT_1X6,
+	CUBEMAP_FORMAT_2X3,
+	CUBEMAP_FORMAT_3X2,
+	CUBEMAP_FORMAT_6X1,
+};
+
+Ref<Image> crop_transparent(const Ref<Image> &img) {
+	ERR_FAIL_COND_V(img.is_null(), img);
+	int width = img->get_width();
+	int height = img->get_height();
+
+	// int min_x = width, min_y = height, max_x = -1, max_y = -1;
+
+	// for (int y = 0; y < height; ++y) {
+	// 	for (int x = 0; x < width; ++x) {
+	// 		Color c = img->get_pixel(x, y);
+	// 		if (c.a > 0.0) {
+	// 			if (x < min_x)
+	// 				min_x = x;
+	// 			if (y < min_y)
+	// 				min_y = y;
+	// 			if (x > max_x)
+	// 				max_x = x;
+	// 			if (y > max_y)
+	// 				max_y = y;
+	// 		}
+	// 	}
+	// }
+
+	// // If the image is fully transparent, return as a null image
+	// if (max_x < min_x || max_y < min_y) {
+	// 	return Ref<Image>();
+	// }
+	// check if it's width-wise or height-wise based on the ratio of the width and height
+	bool is_horizontal = width > height;
+	int64_t num_parts = (is_horizontal ? width / height : height / width);
+
+	int new_width = is_horizontal ? width / num_parts : width;
+	int new_height = is_horizontal ? height : height / num_parts;
+
+	// now we need to find the first non-transparent pixel in the image
+	int min_x = 0;
+	int width_region_start = 0;
+	int min_y = 0;
+	int height_region_start = 0;
+
+	// first, check to see if the image is entirely transparent
+	bool is_entirely_transparent = true;
+	for (int y = 0; y < height; y++) {
+		for (int x = 0; x < width; x++) {
+			if (img->get_pixel(x, y).a > 0.0) {
+				is_entirely_transparent = false;
+			}
+		}
+	}
+	if (is_entirely_transparent) {
+		return Ref<Image>();
+	}
+
+	if (is_horizontal) {
+		// the transparent pixels start at either at 0,0, new_width,0, or width - new_width,0
+		if (img->get_pixel(0, 0).a == 0.0) {
+			min_x = 0;
+			width_region_start = new_width * (num_parts - 1);
+		} else if (img->get_pixel(new_width, 0).a == 0.0) {
+			min_x = new_width;
+			width_region_start = 0;
+		} else if (img->get_pixel(width - new_width, 0).a == 0.0) {
+			min_x = width - new_width;
+			width_region_start = width - (new_width * (num_parts - 1));
+		}
+		min_y = 0;
+		height_region_start = 0;
+	} else {
+		// the transparent pixels start at either at 0,0, 0,new_height, or 0,height - new_height
+		if (img->get_pixel(0, 0).a == 0.0) {
+			min_y = 0;
+			height_region_start = new_height * (num_parts - 1);
+		} else if (img->get_pixel(0, new_height).a == 0.0) {
+			min_y = new_height;
+			height_region_start = 0;
+		} else if (img->get_pixel(0, height - new_height).a == 0.0) {
+			min_y = height - new_height;
+			height_region_start = height - (new_height * (num_parts - 1));
+		}
+		min_x = 0;
+		width_region_start = 0;
+	}
+
+	return img->get_region(Rect2i(width_region_start, height_region_start, new_width, new_height));
+	;
 }
 
 Error TextureExporter::_convert_layered_2d(const String &p_path, const String &dest_path, bool lossy, String &image_format, Ref<ExportReport> report) {
@@ -697,6 +805,13 @@ Error TextureExporter::_convert_layered_2d(const String &p_path, const String &d
 		images.push_back(tex->get_layer_data(i));
 	}
 	ERR_FAIL_COND_V_MSG(images.size() == 0, ERR_PARSE_ERROR, "No images to concat");
+#ifdef DEBUG_ENABLED
+	for (int i = 0; i < layer_count; i++) {
+		Ref<Image> img = images[i];
+		auto new_dest = dest_path.get_basename() + "_" + String::num_int64(i) + "." + dest_path.get_extension();
+		Error err = TextureExporter::save_image(new_dest, img, lossy);
+	}
+#endif
 
 	int64_t num_images_w = -1;
 	int64_t num_images_h = -1;
@@ -749,16 +864,16 @@ Error TextureExporter::_convert_layered_2d(const String &p_path, const String &d
 			layout = 1;
 			amount = layer_count / 6;
 		}
-		if (arrangement == 0) {
+		if (arrangement == CUBEMAP_FORMAT_1X6) {
 			num_images_w = 1;
 			num_images_h = 6;
-		} else if (arrangement == 1) {
+		} else if (arrangement == CUBEMAP_FORMAT_2X3) {
 			num_images_w = 2;
 			num_images_h = 3;
-		} else if (arrangement == 2) {
+		} else if (arrangement == CUBEMAP_FORMAT_3X2) {
 			num_images_w = 3;
 			num_images_h = 2;
-		} else if (arrangement == 3) {
+		} else if (arrangement == CUBEMAP_FORMAT_6X1) {
 			num_images_w = 6;
 			num_images_h = 1;
 		}
@@ -771,7 +886,86 @@ Error TextureExporter::_convert_layered_2d(const String &p_path, const String &d
 		}
 	}
 	bool had_mipmaps = layer_count != images.size();
-	err = save_concat_image(p_path, dest_path, num_images_w, num_images_h, lossy, images);
+	bool detected_alpha = false;
+	err = preprocess_images(p_path, dest_path, num_images_w, num_images_h, lossy, images, had_mipmaps, detected_alpha);
+	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to preprocess images for texture " + p_path);
+	int width = tex->get_width();
+	int height = tex->get_height();
+	Vector<Ref<Image>> fixed_images;
+	if (mode == TextureLayered::LAYERED_TYPE_CUBEMAP || mode == TextureLayered::LAYERED_TYPE_CUBEMAP_ARRAY) {
+		// here is where we fix the cubemaps that got imported all funky
+		// check if the images have the same width and height
+		bool is_horizontal = width > height;
+		int64_t num_parts = is_horizontal ? width / height : height / width;
+		if (width != height) {
+			if (detected_alpha) {
+				// we need to fix the images
+				for (int i = 0; i < layer_count; i++) {
+					Ref<Image> img = images[i];
+					if (img->detect_alpha()) {
+						Ref<Image> cropped = crop_transparent(img);
+						size_t new_width;
+						size_t new_height;
+						if (!cropped.is_null()) {
+							new_width = cropped->get_width();
+							new_height = cropped->get_height();
+							fixed_images.push_back(cropped);
+						} else {
+							new_width = 0;
+							new_height = 0;
+						}
+						print_line("Cropped " + p_path + " layer " + String::num_int64(i) + " to " + String::num_int64(new_width) + "x" + String::num_int64(new_height));
+					} else {
+						// otherwise, divide it into parts based on the ratio of the width and height
+						for (int j = 0; j < num_parts; j++) {
+							Rect2i rect;
+							if (is_horizontal) {
+								rect.position.x = j * width / num_parts;
+								rect.size.width = width / num_parts;
+								rect.position.y = 0;
+								rect.size.height = height;
+							} else {
+								rect.position.x = 0;
+								rect.size.width = width;
+								rect.position.y = j * height / num_parts;
+								rect.size.height = height / num_parts;
+							}
+							Ref<Image> part = img->get_region(rect);
+							fixed_images.push_back(part);
+						}
+						print_line("Divided " + p_path + " layer " + String::num_int64(i) + " into " + String::num_int64(num_parts) + " parts");
+					}
+				}
+			}
+		}
+		for (int i = 0; i < fixed_images.size(); i++) {
+			Ref<Image> img = fixed_images[i];
+			if (img.is_null()) {
+				continue;
+			}
+			auto new_dest = dest_path.get_basename() + "_cropped_" + String::num_int64(i) + "." + dest_path.get_extension();
+			Error err = TextureExporter::save_image(new_dest, img, lossy);
+		}
+		if (fixed_images.size() > 0) {
+			// X+, X-, Y+, Y-, Z+, Z-
+			// Y+ is 0
+			// X+ is 1
+			// Z+ is 2
+			// X- is 3
+			// Z- is 4
+			// Y- is 5
+			images.write[0] = fixed_images[1];
+			images.write[1] = fixed_images[3];
+			images.write[2] = fixed_images[0];
+			images.write[3] = fixed_images[5];
+			images.write[4] = fixed_images[4];
+			images.write[5] = fixed_images[2];
+			arrangement = is_horizontal ? CUBEMAP_FORMAT_6X1 : CUBEMAP_FORMAT_1X6;
+			num_images_w = is_horizontal ? 6 : 1;
+			num_images_h = is_horizontal ? 1 : 6;
+		}
+	}
+	err = save_image_with_mipmaps(dest_path, images, num_images_w, num_images_h, lossy, had_mipmaps);
 	image_format = Image::get_format_name(images[0]->get_format());
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to concat images for texture " + p_path);
 	set_tex_params(iinfo, tex, ref_img, iinfo->get_ver_major(), TEXTURE_LAYERED);
@@ -782,11 +976,11 @@ Error TextureExporter::_convert_layered_2d(const String &p_path, const String &d
 			iinfo->set_param("slices/vertical", num_images_h);
 		} else if (mode == TextureLayered::LAYERED_TYPE_CUBEMAP) {
 			// 1x6
-			iinfo->set_param("slices/arrangement", 0);
+			iinfo->set_param("slices/arrangement", arrangement);
 		} else if (mode == TextureLayered::LAYERED_TYPE_CUBEMAP_ARRAY) {
 			// 1x6
-			iinfo->set_param("slices/arrangement", 0);
-			iinfo->set_param("slices/layout", 0);
+			iinfo->set_param("slices/arrangement", arrangement);
+			iinfo->set_param("slices/layout", layout);
 			iinfo->set_param("slices/amount", layer_count / 6);
 		}
 		iinfo->set_param("mipmaps/generate", had_mipmaps);
