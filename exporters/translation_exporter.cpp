@@ -1075,11 +1075,20 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 	Error err = OK;
 	// translation files are usually imported from one CSV and converted to multiple "<LOCALE>.translation" files
 	// TODO: make this also check for the first file in GDRESettings::get_singleton()->get_project_setting("internationalization/locale/translations")
-	String default_locale = GDRESettings::get_singleton()->pack_has_project_config() && GDRESettings::get_singleton()->has_project_setting("locale/fallback")
-			? GDRESettings::get_singleton()->get_project_setting("locale/fallback")
+	const String locale_setting_key = GDRESettings::get_singleton()->get_ver_major() >= 4 ? "internationalization/locale/fallback" : "locale/fallback";
+	String default_locale = GDRESettings::get_singleton()->pack_has_project_config() && GDRESettings::get_singleton()->has_project_setting(locale_setting_key)
+			? GDRESettings::get_singleton()->get_project_setting(locale_setting_key)
 			: "en";
-	if (iinfo->get_dest_files().size() == 1) {
-		default_locale = iinfo->get_dest_files()[0].get_basename().get_extension();
+	auto dest_files = iinfo->get_dest_files();
+	bool has_default_translation = false;
+	if (dest_files.size() > 1) {
+		has_default_translation = std::any_of(dest_files.begin(), dest_files.end(), [default_locale](const String &path) {
+			return path.get_basename().get_extension().to_lower() == default_locale;
+		});
+	}
+	if (!has_default_translation) {
+		default_locale = dest_files[0].get_basename().get_extension().to_lower();
+		has_default_translation = !default_locale.is_empty();
 	}
 	bl_debug("Exporting translation file " + iinfo->get_export_dest());
 	Vector<Ref<Translation>> translations;
@@ -1090,7 +1099,7 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 	Vector<String> keys;
 	Ref<ExportReport> report = memnew(ExportReport(iinfo));
 	report->set_error(ERR_CANT_ACQUIRE_RESOURCE);
-	for (String path : iinfo->get_dest_files()) {
+	for (String path : dest_files) {
 		Ref<Translation> tr = ResourceCompatLoader::non_global_load(path, "", &err);
 		ERR_FAIL_COND_V_MSG(err != OK, report, "Could not load translation file " + iinfo->get_path());
 		ERR_FAIL_COND_V_MSG(!tr.is_valid(), report, "Translation file " + iinfo->get_path() + " was not valid");
@@ -1099,7 +1108,7 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 		header += "," + locale;
 		if (tr->get_class_name() != "OptimizedTranslation") {
 			// We have a real translation class, get the keys
-			if (locale.to_lower() == default_locale.to_lower()) {
+			if (keys.size() == 0 && (!has_default_translation || locale.to_lower() == default_locale.to_lower())) {
 				List<StringName> key_list;
 				tr->get_message_list(&key_list);
 				for (auto key : key_list) {
@@ -1117,12 +1126,18 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 	}
 
 	if (default_translation.is_null()) {
-		report->set_error(ERR_FILE_MISSING_DEPENDENCIES);
-		ERR_FAIL_V_MSG(report, "No default translation found for " + iinfo->get_path());
+		if (!has_default_translation) {
+			default_translation = translations[0];
+			default_messages = translation_messages[0];
+		} else {
+			report->set_error(ERR_FILE_MISSING_DEPENDENCIES);
+			ERR_FAIL_V_MSG(report, "No default translation found for " + iinfo->get_path());
+		}
 	}
 	// We can't recover the keys from Optimized translations, we have to guess
 	int missing_keys = 0;
-	if (keys.size() == 0) {
+	bool is_optimized = keys.size() == 0;
+	if (is_optimized) {
 		KeyWorker kw(default_translation, all_keys_found);
 		kw.path = iinfo->get_path();
 		missing_keys = kw.run();
@@ -1177,6 +1192,10 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 			translation_export_message += "Saved " + iinfo->get_source_file().get_file() + " to " + iinfo->get_export_dest() + "\n";
 		}
 		report->set_message(translation_export_message);
+	}
+	if (iinfo->get_ver_major() >= 4) {
+		iinfo->set_param("compress", is_optimized);
+		iinfo->set_param("delimiter", 0);
 	}
 	report->set_new_source_path(iinfo->get_export_dest());
 	report->set_saved_path(output_path);
