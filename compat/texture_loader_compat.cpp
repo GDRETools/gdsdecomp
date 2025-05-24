@@ -527,17 +527,18 @@ Error TextureLoaderCompat::_load_layered_texture_v3(const String &p_path, Vector
 	f->get_buffer(header, 4);
 	// already checked
 
-	int tw = f->get_32();
-	int th = f->get_32();
-	int td = f->get_32();
+	r_width = f->get_32();
+	r_height = f->get_32();
+	r_depth = f->get_32();
 	int flags = f->get_32(); //texture flags!
+	r_mipmaps = (flags & 1); // Texture::FLAG_MIPMAPS
 
 	Image::Format format = ImageEnumCompat::convert_image_format_enum_v3_to_v4(V3Image::Format(f->get_32()));
 	ERR_FAIL_COND_V_MSG(format == Image::FORMAT_MAX, ERR_FILE_CORRUPT, "Textured layer is in an invalid or deprecated format");
 
 	uint32_t compression = f->get_32(); // 0 - lossless (PNG), 1 - vram, 2 - uncompressed
 
-	for (int layer = 0; layer < td; layer++) {
+	for (int layer = 0; layer < r_depth; layer++) {
 		Ref<Image> image;
 		image.instantiate();
 
@@ -545,6 +546,9 @@ Error TextureLoaderCompat::_load_layered_texture_v3(const String &p_path, Vector
 			// look for a PNG file inside
 
 			int mipmaps = f->get_32();
+			if (mipmaps > 1) {
+				r_mipmaps = true;
+			}
 			Vector<Ref<Image>> mipmap_images;
 
 			for (int i = 0; i < mipmaps; i++) {
@@ -567,7 +571,7 @@ Error TextureLoaderCompat::_load_layered_texture_v3(const String &p_path, Vector
 				image = mipmap_images[0];
 
 			} else {
-				int total_size = Image::get_image_data_size(tw, th, format, true);
+				int total_size = Image::get_image_data_size(r_width, r_height, format, true);
 				Vector<uint8_t> img_data;
 				img_data.resize(total_size);
 
@@ -581,7 +585,7 @@ Error TextureLoaderCompat::_load_layered_texture_v3(const String &p_path, Vector
 					}
 				}
 
-				image->initialize_data(tw, th, true, format, img_data);
+				image->initialize_data(r_width, r_height, true, format, img_data);
 				if (image->is_empty()) {
 					ERR_FAIL_V(ERR_FILE_CORRUPT);
 				}
@@ -590,7 +594,7 @@ Error TextureLoaderCompat::_load_layered_texture_v3(const String &p_path, Vector
 		} else {
 			// look for regular format
 			bool mipmaps = (flags & 1); // Texture::FLAG_MIPMAPS
-			int total_size = Image::get_image_data_size(tw, th, format, mipmaps);
+			int total_size = Image::get_image_data_size(r_width, r_height, format, mipmaps);
 
 			Vector<uint8_t> img_data;
 			img_data.resize(total_size);
@@ -601,7 +605,7 @@ Error TextureLoaderCompat::_load_layered_texture_v3(const String &p_path, Vector
 					ERR_FAIL_V(ERR_FILE_CORRUPT);
 				}
 			}
-			image->initialize_data(tw, th, mipmaps, format, img_data);
+			image->initialize_data(r_width, r_height, mipmaps, format, img_data);
 		}
 		r_data.push_back(image);
 	}
