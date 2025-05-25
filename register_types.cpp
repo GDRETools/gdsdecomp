@@ -150,6 +150,7 @@ void init_exporters() {
 	auto_converted_exporter = memnew(AutoConvertedExporter);
 	gdscript_exporter = memnew(GDScriptExporter);
 	gdextension_exporter = memnew(GDExtensionExporter);
+	Exporter::add_exporter(auto_converted_exporter);
 	Exporter::add_exporter(fontfile_exporter);
 	Exporter::add_exporter(mp3str_exporter);
 	Exporter::add_exporter(oggstr_exporter);
@@ -161,7 +162,6 @@ void init_exporters() {
 	Exporter::add_exporter(scene_exporter);
 	Exporter::add_exporter(gdscript_exporter);
 	Exporter::add_exporter(gdextension_exporter);
-	Exporter::add_exporter(auto_converted_exporter);
 }
 
 void init_plugin_manager_sources() {
