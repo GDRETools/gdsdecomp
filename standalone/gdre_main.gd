@@ -50,13 +50,7 @@ enum ResourcesMenuID {
 	MP3STREAM_TO_MP3,
 	SAMPLE_TO_WAV,
 }
-
-func test_text_to_bin(txt_to_bin: String, output_dir: String):
-	var importer:ImportExporter = ImportExporter.new()
-	var dst_file = txt_to_bin.get_file().replace(".tscn", ".scn").replace(".tres", ".res")
-	importer.convert_res_txt_2_bin(output_dir, txt_to_bin, dst_file)
-	importer.convert_res_bin_2_txt(output_dir, output_dir.path_join(dst_file), dst_file.replace(".scn", ".tscn").replace(".res", ".tres"))
-
+\
 func dequote(arg):
 	if arg.begins_with("\"") and arg.ends_with("\""):
 		return arg.substr(1, arg.length() - 2)
@@ -1211,18 +1205,34 @@ func get_sanitized_args():
 	return args
 
 func text_to_bin(files: PackedStringArray, output_dir: String):
-	var importer:ImportExporter = ImportExporter.new()
-	for file in files:
-		file = get_cli_abs_path(file)
+	var errors = []
+	for path in files:
+		var file = get_cli_abs_path(path)
 		var dst_file = file.get_file().replace(".tscn", ".scn").replace(".tres", ".res")
-		importer.convert_res_txt_2_bin(output_dir, file, dst_file)
+		var new_path = output_dir.path_join(dst_file)
+		if ResourceCompatLoader.to_binary(file, new_path) != OK:
+			errors.append(path)
+	if errors.size() > 0:
+		print("Error: failed to convert files to binary:")
+		for error in errors:
+			print(error)
+		return -1
+	return 0
 
 func bin_to_text(files: PackedStringArray, output_dir: String):
-	var importer:ImportExporter = ImportExporter.new()
-	for file in files:
-		file = get_cli_abs_path(file)
-		var dst_file = file.get_file().replace(".scn", ".tscn").replace(".res", ".tres")
-		importer.convert_res_bin_2_txt(output_dir, file, dst_file)
+	var errors = []
+	for path in files:
+		var file = get_cli_abs_path(path)
+		var dst_file = file.get_file().replace(".tscn", ".scn").replace(".tres", ".res")
+		var new_path = output_dir.path_join(dst_file)
+		if ResourceCompatLoader.to_text(file, new_path) != OK:
+			errors.append(path)
+	if errors.size() > 0:
+		print("Error: failed to convert files to binary:")
+		for error in errors:
+			print(error)
+		return -1
+	return 0
 
 
 

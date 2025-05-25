@@ -9,9 +9,7 @@
 #include "core/object/class_db.h"
 #include "core/string/print_string.h"
 #include "exporters/export_report.h"
-#include "exporters/oggstr_exporter.h"
-#include "exporters/sample_exporter.h"
-#include "exporters/texture_exporter.h"
+#include "exporters/resource_exporter.h"
 #include "gdre_logger.h"
 #include "utility/common.h"
 #include "utility/gdre_settings.h"
@@ -20,7 +18,6 @@
 #include "core/io/dir_access.h"
 #include "core/io/file_access.h"
 #include "core/os/os.h"
-#include "modules/minimp3/audio_stream_mp3.h"
 #include "thirdparty/minimp3/minimp3_ex.h"
 #include "utility/import_info.h"
 
@@ -786,8 +783,8 @@ Error ImportExporter::recreate_plugin_configs(const String &output_dir, const Ve
 	return OK;
 }
 
-// Godot v3-v4 import data rewriting
-// TODO: We have to rewrite the resources to remap to the new destination
+// Godot import data rewriting
+// TODO: For Godot v3-v4, we have to rewrite any resources that have this resource as a dependency to remap to the new destination
 // However, we currently only rewrite the import data if the source file was recorded as an absolute file path,
 // but is still in the project directory structure, which means no resource rewriting is necessary
 Error ImportExporter::rewrite_import_source(const String &rel_dest_path, const String &output_dir, const Ref<ImportInfo> &iinfo) {
@@ -799,40 +796,6 @@ Error ImportExporter::rewrite_import_source(const String &rel_dest_path, const S
 	return new_import->save_to(new_import_file);
 }
 
-Error ImportExporter::convert_res_txt_2_bin(const String &output_dir, const String &p_path, const String &p_dst) {
-	String dest = output_dir.path_join(p_dst.replace("res://", ""));
-	return ResourceCompatLoader::to_binary(p_path, dest);
-}
-
-Error ImportExporter::convert_res_bin_2_txt(const String &output_dir, const String &p_path, const String &p_dst) {
-	String dest = output_dir.path_join(p_dst.replace("res://", ""));
-	return ResourceCompatLoader::to_text(p_path, dest);
-}
-
-Error ImportExporter::convert_tex_to_png(const String &output_dir, const String &p_path, const String &p_dst) {
-	String src_path = _get_path(output_dir, p_path);
-	String dst_path = output_dir.path_join(p_dst.replace("res://", ""));
-	TextureExporter te;
-	return te.export_file(dst_path, src_path);
-}
-
-String ImportExporter::_get_path(const String &output_dir, const String &p_path) {
-	if (get_settings()->get_project_path() == "" && !get_settings()->is_pack_loaded()) {
-		if (p_path.is_absolute_path()) {
-			return p_path;
-		} else {
-			return output_dir.path_join(p_path.replace("res://", ""));
-		}
-	}
-	if (get_settings()->has_res_path(p_path)) {
-		return get_settings()->get_res_path(p_path);
-	} else if (get_settings()->has_res_path(p_path, output_dir)) {
-		return get_settings()->get_res_path(p_path, output_dir);
-	} else {
-		return output_dir.path_join(p_path.replace("res://", ""));
-	}
-}
-
 void ImportExporter::report_unsupported_resource(const String &type, const String &format_name, const String &import_path) {
 	String type_format_str = type + "%" + format_name.to_lower();
 	if (report->unsupported_types.find(type_format_str) == -1) {
@@ -842,64 +805,12 @@ void ImportExporter::report_unsupported_resource(const String &type, const Strin
 	print_verbose("Did not convert " + type + " resource " + import_path);
 }
 
-Error ImportExporter::convert_sample_to_wav(const String &output_dir, const String &p_path, const String &p_dst) {
-	String src_path = _get_path(output_dir, p_path);
-	String dst_path = output_dir.path_join(p_dst.replace("res://", ""));
-	Error err;
-	SampleExporter se;
-	err = se.export_file(dst_path, src_path);
-	ERR_FAIL_COND_V_MSG(err != OK, err, "Could not export " + p_dst);
-
-	print_verbose("Converted " + src_path + " to " + dst_path);
-	return OK;
-}
-
-Error ImportExporter::convert_oggstr_to_ogg(const String &output_dir, const String &p_path, const String &p_dst) {
-	String src_path = _get_path(output_dir, p_path);
-	String dst_path = output_dir.path_join(p_dst.replace("res://", ""));
-	Error err;
-	OggStrExporter oslc;
-	err = oslc.export_file(dst_path, src_path);
-	ERR_FAIL_COND_V_MSG(err != OK, err, "Could not export oggstr file " + p_path);
-	print_verbose("Converted " + src_path + " to " + dst_path);
-	return OK;
-}
-
-Error ImportExporter::convert_mp3str_to_mp3(const String &output_dir, const String &p_path, const String &p_dst) {
-	String src_path = _get_path(output_dir, p_path);
-	String dst_path = output_dir.path_join(p_dst.replace("res://", ""));
-	Error err;
-
-	Ref<AudioStreamMP3> sample = ResourceCompatLoader::non_global_load(src_path, "", &err);
-	ERR_FAIL_COND_V_MSG(err != OK, err, "Could not load mp3str file " + p_path);
-
-	err = gdre::ensure_dir(dst_path.get_base_dir());
-	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to create dirs for " + dst_path);
-
-	Ref<FileAccess> f = FileAccess::open(dst_path, FileAccess::WRITE);
-	ERR_FAIL_COND_V_MSG(err != OK, err, "Could not open " + p_dst + " for saving");
-
-	PackedByteArray data = sample->get_data();
-	f->store_buffer(data.ptr(), data.size());
-
-	print_verbose("Converted " + src_path + " to " + dst_path);
-	return OK;
-}
-
 void ImportExporter::set_multi_thread(bool p_enable) {
 	opt_multi_thread = p_enable;
 }
 
 void ImportExporter::_bind_methods() {
-	//Error ImportExporter::convert_res_txt_2_bin(const String &output_dir, const String &p_path, const String &p_dst) {
-
 	ClassDB::bind_method(D_METHOD("export_imports", "p_out_dir", "files_to_export"), &ImportExporter::export_imports, DEFVAL(""), DEFVAL(PackedStringArray()));
-	ClassDB::bind_method(D_METHOD("convert_res_txt_2_bin", "output_dir", "p_path", "p_dst"), &ImportExporter::convert_res_txt_2_bin);
-	ClassDB::bind_method(D_METHOD("convert_res_bin_2_txt", "output_dir", "p_path", "p_dst"), &ImportExporter::convert_res_bin_2_txt);
-	ClassDB::bind_method(D_METHOD("convert_tex_to_png", "output_dir", "p_path", "p_dst"), &ImportExporter::convert_tex_to_png);
-	ClassDB::bind_method(D_METHOD("convert_sample_to_wav", "output_dir", "p_path", "p_dst"), &ImportExporter::convert_sample_to_wav);
-	ClassDB::bind_method(D_METHOD("convert_oggstr_to_ogg", "output_dir", "p_path", "p_dst"), &ImportExporter::convert_oggstr_to_ogg);
-	ClassDB::bind_method(D_METHOD("convert_mp3str_to_mp3", "output_dir", "p_path", "p_dst"), &ImportExporter::convert_mp3str_to_mp3);
 	ClassDB::bind_method(D_METHOD("get_report"), &ImportExporter::get_report);
 	ClassDB::bind_method(D_METHOD("set_multi_thread", "p_enable"), &ImportExporter::set_multi_thread);
 	ClassDB::bind_method(D_METHOD("reset"), &ImportExporter::reset);

@@ -273,7 +273,6 @@ public:
 	Error load_import_file(const String &p_path);
 	Ref<ImportInfo> get_import_info_by_dest(const String &p_path) const;
 	Ref<ImportInfo> get_import_info_by_source(const String &p_path);
-	Vector<String> get_code_files();
 	String get_exec_dir();
 	// Only for testing, don't use this
 	void set_exec_dir(const String &p_cwd);

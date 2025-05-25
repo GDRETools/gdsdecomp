@@ -1835,11 +1835,6 @@ Ref<ImportInfo> GDRESettings::get_import_info_by_dest(const String &p_path) cons
 	// not found
 	return Ref<ImportInfo>();
 }
-
-Vector<String> GDRESettings::get_code_files() {
-	return get_file_list({ "*.gdc", "*.gde" });
-}
-
 bool GDRESettings::pack_has_project_config() {
 	if (!is_pack_loaded()) {
 		return false;
@@ -2099,7 +2094,6 @@ void GDRESettings::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("load_import_file", "p_path"), &GDRESettings::load_import_file);
 	ClassDB::bind_method(D_METHOD("get_import_info_by_source", "p_path"), &GDRESettings::get_import_info_by_source);
 	ClassDB::bind_method(D_METHOD("get_import_info_by_dest", "p_path"), &GDRESettings::get_import_info_by_dest);
-	ClassDB::bind_method(D_METHOD("get_code_files"), &GDRESettings::get_code_files);
 	ClassDB::bind_method(D_METHOD("get_exec_dir"), &GDRESettings::get_exec_dir);
 	ClassDB::bind_method(D_METHOD("are_imports_loaded"), &GDRESettings::are_imports_loaded);
 	ClassDB::bind_method(D_METHOD("is_project_config_loaded"), &GDRESettings::is_project_config_loaded);

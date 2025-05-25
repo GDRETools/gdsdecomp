@@ -118,8 +118,6 @@ class ImportExporter : public RefCounted {
 	String get_export_token_description(uint32_t i, ExportToken *tokens);
 	Error handle_auto_converted_file(const String &autoconverted_file, const String &output_dir);
 	Error rewrite_import_source(const String &rel_dest_path, const String &output_dir, const Ref<ImportInfo> &iinfo);
-	static Vector<String> get_v2_wildcards();
-	String _get_path(const String &output_dir, const String &p_path);
 	void report_unsupported_resource(const String &type, const String &format_name, const String &import_path);
 	Error remove_remap_and_autoconverted(const String &src, const String &dst, const String &output_dir);
 	void rewrite_metadata(ExportToken &token);
@@ -131,18 +129,8 @@ protected:
 	static void _bind_methods();
 
 public:
-	String get_session_notes_string();
-	String get_detected_unsupported_resource_string();
 	Error recreate_plugin_config(const String &output_dir, const String &plugin_dir);
 	Error recreate_plugin_configs(const String &output_dir, const Vector<String> &plugin_dirs = {});
-	Error remap_resource(const String &output_dir, Ref<ImportInfo> &iinfo);
-	Error convert_res_txt_2_bin(const String &output_dir, const String &p_path, const String &p_dst);
-	Error convert_res_bin_2_txt(const String &output_dir, const String &p_path, const String &p_dst);
-	Error convert_tex_to_png(const String &output_dir, const String &p_path, const String &p_dst);
-	Error convert_sample_to_wav(const String &output_dir, const String &p_path, const String &p_dst);
-	Error convert_oggstr_to_ogg(const String &output_dir, const String &p_path, const String &p_dst);
-	Error convert_mp3str_to_mp3(const String &output_dir, const String &p_path, const String &p_dst);
-
 	void set_multi_thread(bool p_enable);
 
 	Error export_imports(const String &output_dir = "", const Vector<String> &files_to_export = {});
