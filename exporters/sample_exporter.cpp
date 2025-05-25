@@ -215,9 +215,6 @@ Ref<AudioStreamWAV> SampleExporter::convert_adpcm_to_16bit(const Ref<AudioStream
 	return new_sample;
 }
 
-bool SampleExporter::handles_import(const String &importer, const String &resource_type) const {
-	return importer == "sample" || importer == "wav" || (resource_type == "AudioStreamWAV" || resource_type == "AudioStreamSample");
-}
 
 Error SampleExporter::_export_file(const String &out_path, const String &res_path, Ref<AudioStreamWAV> &r_sample, int ver_major) {
 	// Implement the export logic here
@@ -299,6 +296,7 @@ Ref<ExportReport> SampleExporter::export_resource(const String &output_dir, Ref<
 
 void SampleExporter::get_handled_types(List<String> *out) const {
 	out->push_back("AudioStreamWAV");
+	out->push_back("AudioStreamSample");
 }
 
 void SampleExporter::get_handled_importers(List<String> *out) const {

@@ -1202,19 +1202,17 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 	return report;
 }
 
-bool TranslationExporter::handles_import(const String &importer, const String &resource_type) const {
-	// Check if the exporter can handle the given importer and resource type
-	return importer == "translation_csv" || resource_type == "Translation";
-}
-
 void TranslationExporter::get_handled_types(List<String> *out) const {
 	// Add the types of resources that this exporter can handle
 	out->push_back("Translation");
+	out->push_back("PHashTranslation");
+	out->push_back("OptimizedTranslation");
 }
 
 void TranslationExporter::get_handled_importers(List<String> *out) const {
 	// Add the importers that this exporter can handle
 	out->push_back("translation_csv");
+	out->push_back("translation");
 }
 
 String TranslationExporter::get_name() const {

@@ -1620,10 +1620,6 @@ Ref<ExportReport> SceneExporter::export_resource(const String &output_dir, Ref<I
 	return report; // We always save to an unoriginal path
 }
 
-bool SceneExporter::handles_import(const String &importer, const String &resource_type) const {
-	return importer == "scene" || resource_type == "PackedScene";
-}
-
 void SceneExporter::get_handled_types(List<String> *out) const {
 	out->push_back("PackedScene");
 }

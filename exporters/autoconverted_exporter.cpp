@@ -24,10 +24,6 @@ Ref<ExportReport> AutoConvertedExporter::export_resource(const String &output_di
 	return report;
 }
 
-bool AutoConvertedExporter::handles_import(const String &importer, const String &resource_type) const {
-	return importer == "autoconverted";
-}
-
 void AutoConvertedExporter::get_handled_types(List<String> *out) const {
 }
 

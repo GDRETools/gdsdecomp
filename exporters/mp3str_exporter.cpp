@@ -55,10 +55,6 @@ Ref<ExportReport> Mp3StrExporter::export_resource(const String &output_dir, Ref<
 	return report;
 }
 
-bool Mp3StrExporter::handles_import(const String &importer, const String &resource_type) const {
-	return importer == "mp3" || resource_type == "AudioStreamMP3";
-}
-
 void Mp3StrExporter::get_handled_types(List<String> *out) const {
 	out->push_back("AudioStreamMP3");
 }
