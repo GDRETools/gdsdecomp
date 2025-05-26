@@ -63,6 +63,36 @@ Vector<String> gdre::get_recursive_dir_list(const String &p_dir, const Vector<St
 	return ret;
 }
 
+bool gdre::dir_has_any_matching_wildcards(const String &p_dir, const Vector<String> &wildcards) {
+	Vector<String> ret;
+	Error err;
+	Ref<DirAccess> da = DirAccess::open(p_dir, &err);
+	ERR_FAIL_COND_V_MSG(da.is_null(), false, "Failed to open directory " + p_dir);
+	Vector<String> dirs;
+
+	da->list_dir_begin();
+	String f = da->get_next();
+	while (!f.is_empty()) {
+		if (f == "." || f == "..") {
+			f = da->get_next();
+			continue;
+		} else if (da->current_is_dir()) {
+			if (dir_has_any_matching_wildcards(p_dir.path_join(f), wildcards)) {
+				return true;
+			}
+		} else {
+			for (auto &wc : wildcards) {
+				if (f.get_file().matchn(wc)) {
+					return true;
+				}
+			}
+		}
+		f = da->get_next();
+	}
+	da->list_dir_end();
+	return false;
+}
+
 Error gdre::ensure_dir(const String &dst_dir) {
 	Error err = OK;
 	Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
@@ -917,7 +947,8 @@ Error gdre::copy_dir(const String &src, const String &dst) {
 void GDRECommon::_bind_methods() {
 	//	ClassDB::bind_static_method("GLTFCamera", D_METHOD("from_node", "camera_node"), &GLTFCamera::from_node);
 
-	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_recursive_dir_list", "dir", "wildcards", "absolute", "rel"), &gdre::get_recursive_dir_list);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_recursive_dir_list", "dir", "wildcards", "absolute", "rel"), &gdre::get_recursive_dir_list, DEFVAL(PackedStringArray()), DEFVAL(true), DEFVAL(""));
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("dir_has_any_matching_wildcards", "dir", "wildcards"), &gdre::dir_has_any_matching_wildcards);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("ensure_dir", "dir"), &gdre::ensure_dir);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("save_image_as_tga", "path", "img"), &gdre::save_image_as_tga);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("save_image_as_webp", "path", "img", "lossy"), &gdre::save_image_as_webp);
