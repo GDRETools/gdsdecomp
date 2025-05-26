@@ -1211,6 +1211,7 @@ void TranslationExporter::get_handled_types(List<String> *out) const {
 
 void TranslationExporter::get_handled_importers(List<String> *out) const {
 	// Add the importers that this exporter can handle
+	out->push_back("csv_translation");
 	out->push_back("translation_csv");
 	out->push_back("translation");
 }
