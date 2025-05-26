@@ -420,9 +420,7 @@ void ImportInfoModern::set_params(Dictionary params) {
 Error ImportInfoModern::_load(const String &p_path) {
 	cf.instantiate();
 	String path = p_path;
-	if (GDRESettings::get_singleton()->is_pack_loaded()) {
-		path = GDRESettings::get_singleton()->get_res_path(p_path);
-	}
+	path = GDRESettings::get_singleton()->localize_path(p_path);
 	Error err = cf->load(path);
 	if (err) {
 		cf = Ref<ConfigFile>();
@@ -532,9 +530,7 @@ Error ImportInfoRemap::_load(const String &p_path) {
 	cf.instantiate();
 	source_file = p_path.get_basename(); // res://scene.tscn.remap -> res://scene.tscn
 	String path = p_path;
-	if (GDRESettings::get_singleton()->is_pack_loaded()) {
-		path = GDRESettings::get_singleton()->get_res_path(p_path);
-	}
+	path = GDRESettings::get_singleton()->localize_path(p_path);
 	Error err = cf->load(path);
 	if (err) {
 		cf = Ref<ConfigFile>();

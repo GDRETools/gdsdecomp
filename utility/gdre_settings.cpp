@@ -1012,6 +1012,9 @@ Error GDRESettings::set_encryption_key(Vector<uint8_t> key) {
 }
 
 Vector<String> GDRESettings::get_file_list(const Vector<String> &filters) {
+	if (!is_pack_loaded()) {
+		return gdre::get_recursive_dir_list("res://", filters);
+	}
 	Vector<String> ret;
 	Vector<Ref<PackedFileInfo>> flist = get_file_info_list(filters);
 	for (int i = 0; i < flist.size(); i++) {
@@ -1154,63 +1157,6 @@ bool GDRESettings::is_fs_path(const String &p_path) const {
 	return false;
 }
 
-// This gets the path necessary to open the file by checking for its existence
-// If a pack is loaded, it will try to find it in the pack and fail if it can't
-// If not, it will look for it in the file system and fail if it can't
-// If it fails to find it, it returns an empty string
-String GDRESettings::_get_res_path(const String &p_path, const String &resource_dir, const bool suppress_errors) {
-	String res_dir = resource_dir != "" ? resource_dir : project_path;
-	String res_path;
-	// Try and find it in the packed data
-	if (is_pack_loaded()) {
-		if (GDREPackedData::get_singleton()->has_path(p_path)) {
-			return p_path;
-		}
-		res_path = localize_path(p_path, res_dir);
-		if (res_path != p_path && GDREPackedData::get_singleton()->has_path(res_path)) {
-			return res_path;
-		}
-		// localize_path did nothing
-		if (!res_path.is_absolute_path()) {
-			res_path = "res://" + res_path;
-			if (GDREPackedData::get_singleton()->has_path(res_path)) {
-				return res_path;
-			}
-		}
-		// Can't find it
-		ERR_FAIL_COND_V_MSG(!suppress_errors, "", "Can't find " + res_path + " in PackedData");
-		return "";
-	}
-	//try and find it on the file system
-	res_path = p_path;
-	if (res_path.is_absolute_path() && is_fs_path(res_path)) {
-		if (!FileAccess::exists(res_path)) {
-			ERR_FAIL_COND_V_MSG(!suppress_errors, "", "Resource " + res_path + " does not exist");
-			return "";
-		}
-		return res_path;
-	}
-
-	if (res_dir == "") {
-		ERR_FAIL_COND_V_MSG(!suppress_errors, "", "Can't find resource without project dir set");
-		return "";
-	}
-
-	res_path = globalize_path(res_path, res_dir);
-	if (!FileAccess::exists(res_path)) {
-		ERR_FAIL_COND_V_MSG(!suppress_errors, "", "Resource " + res_path + " does not exist");
-		return "";
-	}
-	return res_path;
-}
-
-bool GDRESettings::has_res_path(const String &p_path, const String &resource_dir) {
-	return _get_res_path(p_path, resource_dir, true) != "";
-}
-
-String GDRESettings::get_res_path(const String &p_path, const String &resource_dir) {
-	return _get_res_path(p_path, resource_dir, false);
-}
 bool GDRESettings::has_any_remaps() const {
 	if (is_pack_loaded()) {
 		// version 3-4
@@ -1558,7 +1504,7 @@ Array GDRESettings::get_import_files(bool copy) {
 	return ifiles;
 }
 
-bool GDRESettings::has_file(const String &p_path) {
+bool GDRESettings::has_path_loaded(const String &p_path) {
 	if (is_pack_loaded()) {
 		return GDREPackedData::get_singleton()->has_path(p_path);
 	}
@@ -1840,15 +1786,15 @@ bool GDRESettings::pack_has_project_config() {
 		return false;
 	}
 	if (get_ver_major() == 2) {
-		if (has_res_path("res://engine.cfb")) {
+		if (has_path_loaded("res://engine.cfb")) {
 			return true;
 		}
 	} else if (get_ver_major() == 3 || get_ver_major() == 4) {
-		if (has_res_path("res://project.binary")) {
+		if (has_path_loaded("res://project.binary")) {
 			return true;
 		}
 	} else {
-		if (has_res_path("res://engine.cfb") || has_res_path("res://project.binary")) {
+		if (has_path_loaded("res://engine.cfb") || has_path_loaded("res://project.binary")) {
 			return true;
 		}
 	}
@@ -2073,8 +2019,6 @@ void GDRESettings::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("localize_path", "p_path", "resource_path"), &GDRESettings::localize_path);
 	ClassDB::bind_method(D_METHOD("set_project_path", "p_path"), &GDRESettings::set_project_path);
 	ClassDB::bind_method(D_METHOD("get_project_path"), &GDRESettings::get_project_path);
-	ClassDB::bind_method(D_METHOD("get_res_path", "p_path", "resource_dir"), &GDRESettings::get_res_path);
-	ClassDB::bind_method(D_METHOD("has_res_path", "p_path", "resource_dir"), &GDRESettings::has_res_path);
 	ClassDB::bind_method(D_METHOD("open_log_file", "output_dir"), &GDRESettings::open_log_file);
 	ClassDB::bind_method(D_METHOD("get_log_file_path"), &GDRESettings::get_log_file_path);
 	ClassDB::bind_method(D_METHOD("is_fs_path", "p_path"), &GDRESettings::is_fs_path);
@@ -2089,7 +2033,7 @@ void GDRESettings::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_project_config_path"), &GDRESettings::get_project_config_path);
 	ClassDB::bind_method(D_METHOD("get_cwd"), &GDRESettings::get_cwd);
 	ClassDB::bind_method(D_METHOD("get_import_files", "copy"), &GDRESettings::get_import_files);
-	ClassDB::bind_method(D_METHOD("has_file", "p_path"), &GDRESettings::has_file);
+	ClassDB::bind_method(D_METHOD("has_path_loaded", "p_path"), &GDRESettings::has_path_loaded);
 	ClassDB::bind_method(D_METHOD("load_import_files"), &GDRESettings::load_import_files);
 	ClassDB::bind_method(D_METHOD("load_import_file", "p_path"), &GDRESettings::load_import_file);
 	ClassDB::bind_method(D_METHOD("get_import_info_by_source", "p_path"), &GDRESettings::get_import_info_by_source);

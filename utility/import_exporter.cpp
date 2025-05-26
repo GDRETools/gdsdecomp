@@ -294,7 +294,7 @@ void ImportExporter::_do_export(uint32_t i, ExportToken *tokens) {
 	bool has_file = false;
 	auto dest_files = token.iinfo->get_dest_files();
 	for (const String &dest : dest_files) {
-		if (GDRESettings::get_singleton()->has_file(dest)) {
+		if (GDRESettings::get_singleton()->has_path_loaded(dest)) {
 			has_file = true;
 			break;
 		}

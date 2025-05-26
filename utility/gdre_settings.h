@@ -179,7 +179,6 @@ private:
 	Ref<ConfigFile> config;
 
 	void remove_current_pack();
-	String _get_res_path(const String &p_path, const String &resource_dir, const bool suppress_errors);
 	void add_logger();
 
 	static String _get_cwd();
@@ -249,8 +248,6 @@ public:
 	String localize_path(const String &p_path, const String &resource_path = "") const;
 	void set_project_path(const String &p_path);
 	String get_project_path() const;
-	String get_res_path(const String &p_path, const String &resource_dir = "");
-	bool has_res_path(const String &p_path, const String &resource_dir = "");
 	Error open_log_file(const String &output_dir);
 	String get_log_file_path();
 	bool is_fs_path(const String &p_path) const;
@@ -268,7 +265,8 @@ public:
 	String get_project_config_path();
 	String get_cwd();
 	Array get_import_files(bool copy = false);
-	bool has_file(const String &p_path);
+	// Whether or not the file is located in a loaded pack
+	bool has_path_loaded(const String &p_path);
 	Error load_import_files();
 	Error load_import_file(const String &p_path);
 	Ref<ImportInfo> get_import_info_by_dest(const String &p_path) const;

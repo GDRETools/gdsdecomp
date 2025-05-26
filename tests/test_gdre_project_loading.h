@@ -134,7 +134,7 @@ TEST_CASE("[GDSDecomp] GDRESettings project loading") {
 	CHECK(settings->get_bytecode_revision() != 0);
 	CHECK(settings->get_bytecode_revision() == decomp->get_bytecode_rev());
 	for (const auto &file : files) {
-		CHECK(settings->has_res_path(file.key));
+		CHECK(settings->has_path_loaded(file.key));
 	}
 	test_pck_files(files);
 	CHECK(settings->unload_project() == OK);
@@ -250,7 +250,7 @@ TEST_CASE("[GDSDecomp] uh oh") {
 	CHECK(settings->get_bytecode_revision() != 0);
 	CHECK(settings->get_bytecode_revision() == decomp->get_bytecode_rev());
 	for (const auto &file : packed_files) {
-		CHECK(settings->has_res_path(file));
+		CHECK(settings->has_path_loaded(file));
 	}
 	String output_dir = get_tmp_path().path_join("gdscripts_project_decompiled");
 	PckDumper dumper;
