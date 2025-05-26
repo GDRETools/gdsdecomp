@@ -554,6 +554,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	pr->step("Finalizing...", tokens.size() - 1, true);
 	report->session_files_total = tokens.size();
 	// add to report
+	bool has_remaps = GDRESettings::get_singleton()->has_any_remaps();
 	for (int i = 0; i < tokens.size(); i++) {
 		const ExportToken &token = tokens[i];
 		Ref<ImportInfo> iinfo = token.iinfo;
@@ -666,7 +667,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		}
 		report->success.push_back(ret);
 		// remove remaps
-		if (!err && get_settings()->has_any_remaps()) {
+		if (!err && has_remaps) {
 			remove_remap_and_autoconverted(iinfo->get_export_dest(), iinfo->get_path(), output_dir);
 		}
 	}
