@@ -1112,11 +1112,7 @@ String ImportExporterReport::get_report_string() {
 	report += get_totals_string();
 	report += "-------------\n" + String("\n");
 	if (lossy_imports.size() > 0) {
-		if (opt_lossy) {
-			report += "\nThe following files were converted from an import that was stored lossy." + String("\n");
-			report += "You may lose fidelity when re-importing these files upon loading the project." + String("\n");
-			report += get_to_string(lossy_imports);
-		} else {
+		if (!opt_lossy) {
 			report += "\nThe following files were not converted from a lossy import." + String("\n");
 			report += get_failed_section_string(lossy_imports);
 		}
