@@ -987,7 +987,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 					ERR_FAIL_COND_V_MSG(p_err, ERR_FILE_CANT_WRITE, "Failed to serialize glTF document");
 				}
 
-				auto get_name_res = [](const Dictionary &dict, const Ref<Resource> &res) {
+				auto get_name_res = [](const Dictionary &dict, const Ref<Resource> &res, int64_t idx) {
 					String name = dict.get("name", String());
 					if (name.is_empty()) {
 						name = res->get_name();
@@ -996,7 +996,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 							if (info.is_valid() && !info->resource_name.is_empty()) {
 								name = info->resource_name;
 							} else {
-								name = res->get_class() + "_" + String::num_int64(rand());
+								name = res->get_class() + "_" + String::num_int64(idx);
 							}
 						}
 					}
@@ -1034,7 +1034,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 						auto path = get_path_res(image);
 						String name;
 						if (path.is_empty()) {
-							name = get_name_res(image_dict, image);
+							name = get_name_res(image_dict, image, i);
 							auto parts = name.rsplit("_", false, 1);
 							String material_name = parts.size() > 0 ? parts[0] : String();
 							String suffix;
@@ -1069,7 +1069,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 						}
 						bool is_internal = path.is_empty() || path.get_file().contains("::");
 						if (is_internal) {
-							name = get_name_res(image_dict, image);
+							name = get_name_res(image_dict, image, i);
 							if (!image_map.has(name)) {
 								image_map[name] = Vector<int>();
 							} else {
@@ -1160,7 +1160,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 							String name;
 							bool is_internal = path.is_empty() || path.get_file().contains("::");
 							if (is_internal) {
-								name = get_name_res(mesh_dict, mesh);
+								name = get_name_res(mesh_dict, mesh, i);
 							} else {
 								name = path.get_file().get_basename();
 							}
@@ -1198,7 +1198,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 							String name;
 							bool is_internal = path.is_empty() || path.get_file().contains("::");
 							if (is_internal) {
-								name = get_name_res(material_dict, material);
+								name = get_name_res(material_dict, material, i);
 							} else {
 								name = path.get_file().get_basename();
 							}
