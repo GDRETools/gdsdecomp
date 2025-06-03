@@ -528,7 +528,7 @@ func _on_version_check_completed(_result, response_code, _headers, body):
 
 func should_show_disclaimer():
 	var curr_version = GDRESettings.get_gdre_version()
-	var last_showed  = GDRESettings.get_setting("last_showed_disclaimer")
+	var last_showed  = GDREConfig.get_setting("last_showed_disclaimer")
 	if last_showed == "<NONE>":
 		return true
 	if last_showed == curr_version:
@@ -543,7 +543,7 @@ func set_showed_disclaimer(setting: bool):
 	var version = "<NONE>"
 	if setting:
 		version = GDRESettings.get_gdre_version()
-	GDRESettings.set_setting("last_showed_disclaimer", version)
+	GDREConfig.set_setting("last_showed_disclaimer", version)
 
 func handle_quit(save_cfg = true):
 	if GDRESettings.is_pack_loaded():
@@ -618,7 +618,7 @@ func _ready():
 	show_disclaimer = show_disclaimer and len(args) == 0
 	if show_disclaimer:
 		set_showed_disclaimer(true)
-		GDRESettings.save_config()
+		GDREConfig.save_config()
 	register_dropped_files()
 	REAL_ROOT_WINDOW = get_window()
 	var popup_menu_gdremenu: PopupMenu = $MenuContainer/REToolsMenu.get_popup()
@@ -1351,7 +1351,7 @@ func handle_cli(args: PackedStringArray) -> bool:
 		elif arg.begins_with("--disable-multithreading"):
 			disable_multi_threading = true
 		elif arg.begins_with("--enable-experimental-plugin-downloading"):
-			GDRESettings.set_setting("download_plugins", true)
+			GDREConfig.set_setting("download_plugins", true)
 			set_setting = true
 		elif arg.begins_with("--list-bytecode-versions"):
 			var versions = GDScriptDecomp.get_bytecode_versions()

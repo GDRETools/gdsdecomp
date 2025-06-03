@@ -12,6 +12,7 @@
 #include "scene/resources/image_texture.h"
 #include "scene/resources/texture.h"
 #include "utility/common.h"
+#include "utility/gdre_config.h"
 #include "utility/gdre_logger.h"
 #include "utility/gdre_settings.h"
 
@@ -791,7 +792,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 			if (iinfo.is_valid() && (iinfo->get_ver_major() > 3 || (iinfo->get_ver_major() == 3 && iinfo->get_ver_minor() >= 4))) {
 				export_image_format = "Lossless WebP";
 			} else {
-				if (GDRESettings::get_singleton()->get_setting("scene_export/force_lossless_images", false)) {
+				if (GDREConfig::get_singleton()->get_setting("Exporter/Scene/GLTF/force_lossless_images", false)) {
 					export_image_format = "PNG";
 				} else {
 					export_image_format = "Lossy WebP";
@@ -800,7 +801,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 			}
 			// TODO: add setting to force PNG?
 		} else if (export_image_format == "JPEG") {
-			if (GDRESettings::get_singleton()->get_setting("scene_export/force_lossless_images", false)) {
+			if (GDREConfig::get_singleton()->get_setting("Exporter/Scene/GLTF/force_lossless_images", false)) {
 				export_image_format = "PNG";
 			} else {
 				lossy = true;

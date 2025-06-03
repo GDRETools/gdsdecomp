@@ -176,7 +176,6 @@ private:
 	static String exec_dir;
 	bool headless = false;
 	bool download_plugins = false;
-	Ref<ConfigFile> config;
 
 	void remove_current_pack();
 	void add_logger();
@@ -290,12 +289,6 @@ public:
 	void get_resource_strings(HashSet<String> &r_strings) const;
 	int get_bytecode_revision() const;
 	void prepop_plugin_cache(const Vector<String> &plugins);
-	void load_config();
-	void save_config();
-	void set_setting(const String &p_setting, const Variant &p_value);
-	bool has_setting(const String &string) const;
-	static String get_section_from_key(const String &p_setting);
-	Variant get_setting(const String &p_setting, const Variant &p_default_value = Variant()) const;
 	String get_home_dir();
 	ResourceUID::ID get_uid_for_path(const String &p_path) const;
 	String get_game_name() const;

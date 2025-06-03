@@ -12,6 +12,7 @@
 #include "exporters/resource_exporter.h"
 #include "gdre_logger.h"
 #include "utility/common.h"
+#include "utility/gdre_config.h"
 #include "utility/gdre_settings.h"
 #include "utility/glob.h"
 
@@ -947,7 +948,7 @@ Dictionary ImportExporterReport::get_session_notes() {
 		Dictionary failed_gdnative;
 		failed_gdnative["title"] = "Missing GDExtension Libraries";
 		String message = "The following GDExtension addons could not be";
-		if (GDRESettings::get_singleton()->get_setting("download_plugins")) {
+		if (GDREConfig::get_singleton()->get_setting("download_plugins")) {
 			message += " detected and downloaded.\n";
 		} else {
 			message += " found for your platform.\n";

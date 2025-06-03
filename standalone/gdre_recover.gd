@@ -179,7 +179,7 @@ func _go():
 func confirm():
 	RESOURCE_PREVIEW.reset()
 	var files_to_extract = FILE_TREE.get_checked_files()
-	if (GDRESettings.get_setting("ask_for_download", true)):
+	if (GDREConfig.get_setting("ask_for_download", true)):
 		for file in FILE_TREE.get_checked_files():
 			var ext = file.get_extension().to_lower()
 			if ext == "gdextension" or ext == "gdnlib":
@@ -243,11 +243,11 @@ func _on_show_resource_preview_toggled(toggled_on: bool) -> void:
 
 
 func _on_download_confirm_dialog_canceled() -> void:
-	GDRESettings.set_setting("ask_for_download", not %DontAskAgainCheck.is_pressed())
-	GDRESettings.set_setting("download_plugins", false)
+	GDREConfig.set_setting("ask_for_download", not %DontAskAgainCheck.is_pressed())
+	GDREConfig.set_setting("download_plugins", false)
 	_go()
 
 func _on_download_confirm_dialog_confirmed() -> void:
-	GDRESettings.set_setting("ask_for_download", not %DontAskAgainCheck.is_pressed())
-	GDRESettings.set_setting("download_plugins", true)
+	GDREConfig.set_setting("ask_for_download", not %DontAskAgainCheck.is_pressed())
+	GDREConfig.set_setting("download_plugins", true)
 	_go()

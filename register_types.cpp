@@ -40,6 +40,7 @@
 #include "exporters/translation_exporter.h"
 #include "utility/asset_library_source.h"
 #include "utility/common.h"
+#include "utility/gdre_config.h"
 #include "utility/gdre_settings.h"
 #include "utility/github_source.h"
 #include "utility/gitlab_source.h"
@@ -66,6 +67,7 @@ void gdsdecomp_init_callback() {
 static GDRESettings *gdre_singleton = nullptr;
 static GDREAudioStreamPreviewGenerator *audio_stream_preview_generator = nullptr;
 static TaskManager *task_manager = nullptr;
+static GDREConfig *gdre_config = nullptr;
 // TODO: move this to its own thing
 static Ref<ResourceFormatLoaderCompatText> text_loader = nullptr;
 static Ref<ResourceFormatLoaderCompatBinary> binary_loader = nullptr;
@@ -372,9 +374,15 @@ void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
 	ClassDB::register_class<GitLabSource>();
 	ClassDB::register_class<ResourceInfo>();
 	ClassDB::register_class<MeshPreviewer>();
+
+	ClassDB::register_class<GDREConfig>();
+	ClassDB::register_class<GDREConfigSetting>();
+
 	init_plugin_manager_sources();
 	gdre_singleton = memnew(GDRESettings);
 	Engine::get_singleton()->add_singleton(Engine::Singleton("GDRESettings", GDRESettings::get_singleton()));
+	gdre_config = memnew(GDREConfig);
+	Engine::get_singleton()->add_singleton(Engine::Singleton("GDREConfig", GDREConfig::get_singleton()));
 	audio_stream_preview_generator = memnew(GDREAudioStreamPreviewGenerator);
 	Engine::get_singleton()->add_singleton(Engine::Singleton("GDREAudioStreamPreviewGenerator", GDREAudioStreamPreviewGenerator::get_singleton()));
 	task_manager = memnew(TaskManager);

@@ -241,15 +241,12 @@ GDRESettings::GDRESettings() {
 	gdre_resource_path = ProjectSettings::get_singleton()->get_resource_path();
 	logger = memnew(GDRELogger);
 	headless = !RenderingServer::get_singleton() || RenderingServer::get_singleton()->get_video_adapter_name().is_empty();
-	config.instantiate();
 	add_logger();
-	load_config();
 	PluginManager::load_cache();
 }
 
 GDRESettings::~GDRESettings() {
 	PluginManager::save_cache();
-	save_config();
 	remove_current_pack();
 	memdelete(gdre_packeddata_singleton);
 	singleton = nullptr;
@@ -1942,53 +1939,6 @@ void GDRESettings::prepop_plugin_cache(const Vector<String> &plugins) {
 	PluginManager::prepop_cache(plugins, true);
 }
 
-String GDRESettings::get_section_from_key(const String &p_setting) {
-	return p_setting.contains("/") ? p_setting.get_slice("/", 0) : "General";
-}
-
-void GDRESettings::load_config() {
-	config->clear();
-
-	set_setting("download_plugins", false);
-	set_setting("ask_for_download", true);
-	set_setting("last_showed_disclaimer", "<NONE>");
-	set_setting("scene_export/force_lossless_images", false);
-	// set_setting("scene_export/force_export_multi_root", false);
-	auto cfg_path = get_gdre_user_path().path_join("gdre_settings.cfg");
-	if (FileAccess::exists(cfg_path)) {
-		Error err = config->load(cfg_path);
-		if (err != OK) {
-			WARN_PRINT("Failed to load config file: " + cfg_path);
-		}
-	}
-}
-
-void GDRESettings::save_config() {
-	auto cfg_path = get_gdre_user_path().path_join("gdre_settings.cfg");
-	Error err = config->save(cfg_path);
-	if (err != OK) {
-		WARN_PRINT("Failed to save config file: " + cfg_path);
-	}
-}
-
-void GDRESettings::set_setting(const String &p_setting, const Variant &p_value) {
-	auto section = get_section_from_key(p_setting);
-	_THREAD_SAFE_METHOD_
-	config->set_value(section, p_setting, p_value);
-}
-
-bool GDRESettings::has_setting(const String &p_setting) const {
-	auto section = get_section_from_key(p_setting);
-	_THREAD_SAFE_METHOD_
-	return config->has_section_key(section, p_setting);
-}
-
-Variant GDRESettings::get_setting(const String &p_setting, const Variant &p_default_value) const {
-	auto section = get_section_from_key(p_setting);
-	_THREAD_SAFE_METHOD_
-	return config->get_value(section, p_setting, p_default_value);
-}
-
 Vector<String> GDRESettings::get_errors() {
 	return GDRELogger::get_errors();
 }
@@ -2050,11 +2000,6 @@ void GDRESettings::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_disclaimer_text"), &GDRESettings::get_disclaimer_text);
 	ClassDB::bind_method(D_METHOD("prepop_plugin_cache", "plugins"), &GDRESettings::prepop_plugin_cache);
 	ClassDB::bind_method(D_METHOD("get_home_dir"), &GDRESettings::get_home_dir);
-	ClassDB::bind_method(D_METHOD("load_config"), &GDRESettings::load_config);
-	ClassDB::bind_method(D_METHOD("save_config"), &GDRESettings::save_config);
-	ClassDB::bind_method(D_METHOD("set_setting", "p_setting", "p_value"), &GDRESettings::set_setting);
-	ClassDB::bind_method(D_METHOD("has_setting", "p_setting"), &GDRESettings::has_setting);
-	ClassDB::bind_method(D_METHOD("get_setting", "p_setting", "p_default_value"), &GDRESettings::get_setting, DEFVAL(Variant()));
 	ClassDB::bind_method(D_METHOD("get_errors"), &GDRESettings::get_errors);
 	ClassDB::bind_method(D_METHOD("get_auto_display_scale"), &GDRESettings::get_auto_display_scale);
 	ADD_SIGNAL(MethodInfo("write_log_message", PropertyInfo(Variant::STRING, "message")));

@@ -499,35 +499,169 @@ struct KeyWorker {
 		return false;
 	}
 
-	CharString cs_num(int64_t num) {
+	CharString cs_num(int64_t num, int zero_prefix_len) {
 		CharString ret;
 		ret.resize(32);
-		int len = snprintf(ret.ptrw(), 31, "%lld", num);
+		const char *format;
+		if (zero_prefix_len > 0) {
+			if (zero_prefix_len == 1) {
+				format = "%02lld";
+			} else if (zero_prefix_len == 2) {
+				format = "%03lld";
+			} else if (zero_prefix_len == 3) {
+				format = "%04lld";
+			} else if (zero_prefix_len == 4) {
+				format = "%05lld";
+			} else if (zero_prefix_len == 5) {
+				format = "%06lld";
+			} else if (zero_prefix_len == 6) {
+				format = "%07lld";
+			} else {
+				format = "%08lld";
+			}
+		} else {
+			format = "%lld";
+		}
+		int len = snprintf(ret.ptrw(), 31, format, num);
 		ret.resize(len + 1);
 		return ret;
 	}
 
-	auto try_num_suffix(const char *res_s, const char *suffix = "") {
+	auto try_strip_numeric_suffix(const char *p_res_s, int &num_suffix_val) {
+		size_t res_s_len = strlen(p_res_s);
+		if (res_s_len < 2) {
+			return CharString(p_res_s);
+		}
+		char last_char = p_res_s[res_s_len - 1];
+		bool stripped_last_char = false;
+		const char *res_s = p_res_s;
+		int new_len = res_s_len;
+		while (last_char >= '0' && last_char <= '9') {
+			stripped_last_char = true;
+			new_len = new_len - 1;
+			if (new_len == 0) {
+				stripped_last_char = false;
+				break;
+			}
+			last_char = p_res_s[new_len - 1];
+		}
+		CharString res_s_copy;
+		String num_str;
+		num_suffix_val = -1;
+		if (stripped_last_char) {
+			// malloc a new string
+			res_s_copy.resize(new_len + 1);
+			memcpy(res_s_copy.ptrw(), p_res_s, new_len);
+			res_s_copy[new_len] = '\0';
+			num_suffix_val = String(p_res_s + new_len).to_int();
+		} else {
+			res_s_copy = p_res_s;
+		}
+		return res_s_copy;
+	}
+
+	auto try_strip_numeric_suffix(const CharString &p_res_s, int &magnitude) {
+		size_t res_s_len = p_res_s.size();
+		if (res_s_len < 2) {
+			return p_res_s;
+		}
+		char last_char = p_res_s[res_s_len - 2];
+		bool stripped_last_char = false;
+		int new_len = res_s_len;
+		while (last_char >= '0' && last_char <= '9') {
+			stripped_last_char = true;
+			new_len = new_len - 1;
+			if (new_len == 0) {
+				stripped_last_char = false;
+				break;
+			}
+			last_char = p_res_s[new_len - 1];
+		}
+		CharString res_s_copy;
+		String num_str;
+
+		if (stripped_last_char) {
+			res_s_copy = p_res_s;
+			res_s_copy.resize(new_len + 1);
+			res_s_copy[new_len] = '\0';
+			String num_str = String(p_res_s.get_data() + new_len);
+			// check how many zeros are in the num_str
+			int zero_count = 0;
+			for (int i = 0; i < num_str.length(); i++) {
+				if (num_str[i] == '0') {
+					zero_count++;
+				} else {
+					break;
+				}
+			}
+			magnitude = zero_count;
+		} else {
+			magnitude = -1;
+			return p_res_s;
+		}
+		return res_s_copy;
+	}
+
+	constexpr const char *get_magnitude_prefix(int magnitude) {
+		switch (magnitude) {
+			case 0:
+				return "";
+			case 1:
+				return "0";
+			case 2:
+				return "00";
+			case 3:
+				return "000";
+			case 4:
+				return "0000";
+			case 5:
+				return "00000";
+			case 6:
+				return "000000";
+			case 7:
+				return "0000000";
+			case 8:
+				return "00000000";
+			case 9:
+				return "000000000";
+			case 10:
+				return "0000000000";
+			default:
+				return "";
+		}
+	}
+
+	auto try_num_suffix(const char *res_s, const char *suffix = "", bool skip_magnitude_check = false) {
 		bool found_num = try_key_suffixes(res_s, suffix, "1");
-		if (found_num) {
+		int zero_prefix_len = 0;
+		if (!skip_magnitude_check) {
+			zero_prefix_len = try_key_suffixes(res_s, suffix, "01") ? 1 : 0;
+			if (!found_num && zero_prefix_len == 0) {
+				zero_prefix_len = try_key_suffixes(res_s, suffix, "001") ? 2 : 0;
+				if (zero_prefix_len == 0) {
+					zero_prefix_len = try_key_suffixes(res_s, suffix, "0001") ? 3 : 0;
+				}
+			}
+		}
+		if (found_num || zero_prefix_len > 0 || skip_magnitude_check) {
 			try_key_suffixes(res_s, suffix, "N");
 			try_key_suffixes(res_s, suffix, "n");
 			try_key_suffixes(res_s, suffix, "0");
-			bool found_all = true;
-			int min_num = 2;
-			int max_num = 4;
+			bool found_most = true;
+			int min_num = skip_magnitude_check ? 0 : 2;
+			int max_num = skip_magnitude_check ? 10 : 4;
 
-			while (found_all) {
+			while (found_most) {
 				int numbers_found = 0;
 				for (int num = min_num; num < max_num; num++) {
-					if (try_key_suffixes(res_s, suffix, cs_num(num).get_data())) {
+					if (try_key_suffixes(res_s, suffix, cs_num(num, zero_prefix_len).get_data())) {
 						numbers_found++;
 					}
 				}
-				if (numbers_found >= max_num - min_num) {
-					found_all = true;
+				if (numbers_found >= max_num - min_num - 1) {
+					found_most = true;
 				} else {
-					found_all = false;
+					found_most = false;
 				}
 				min_num = max_num;
 				max_num = max_num * 2;
@@ -550,6 +684,17 @@ struct KeyWorker {
 			try_key_prefix(E.get_data(), res_s.get_data());
 			try_num_suffix(E.get_data(), res_s.get_data());
 		}
+		last_completed++;
+	}
+
+	void stage_3_5_task(uint32_t i, Pair<CharString, int> *res_strings) {
+		if (unlikely(cancel)) {
+			return;
+		}
+		const Pair<CharString, int> &res_s_pair = res_strings[i];
+		const char *res_s_data = res_s_pair.first.get_data();
+		int magnitude = res_s_pair.second;
+		try_num_suffix(res_s_data, get_magnitude_prefix(magnitude), magnitude != -1);
 		last_completed++;
 	}
 
@@ -768,7 +913,6 @@ struct KeyWorker {
 
 	// TODO: Rise of the Golden Idol specific hack, remove this
 	void dynamic_rgi_hack() {
-#if 0
 		const String ITEM_TR_SEP = "|";
 		const String ITEM_TR = "DB_%d";
 		const String ITEM_TR_PREFIX_ARC = "ARC";
@@ -796,7 +940,6 @@ struct KeyWorker {
 				try_key(get_composite_arc_translation_id(arc_id, item_id));
 			}
 		}
-#endif
 	}
 
 	String get_step_desc(uint32_t i, void *userdata) {
@@ -988,6 +1131,23 @@ struct KeyWorker {
 			common_suffixes = get_sanitized_strings(STANDARD_SUFFIXES);
 			pop_charstr_vectors();
 			Error err = run_stage(&KeyWorker::prefix_suffix_task_2, filtered_resource_strings_t, "Stage 3");
+			if (err != OK) {
+				return pop_keys();
+			}
+		}
+		// Stage 3.5: Try to find keys with numeric suffixes
+		if (key_to_message.size() != default_messages.size()) {
+			Vector<String> stripped_strings = filtered_resource_strings;
+			HashSet<Pair<CharString, int>> stripped_strings_set;
+			for (int i = 0; i < stripped_strings.size(); i++) {
+				auto &str = stripped_strings[i];
+				int num_suffix_val = -1;
+				CharString ut = str.utf8();
+				ut = try_strip_numeric_suffix(ut, num_suffix_val);
+				stripped_strings_set.insert({ ut, num_suffix_val });
+			}
+			auto vec = gdre::hashset_to_vector(stripped_strings_set);
+			Error err = run_stage(&KeyWorker::stage_3_5_task, vec, "Stage 3");
 			if (err != OK) {
 				return pop_keys();
 			}

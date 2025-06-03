@@ -3,6 +3,7 @@
 #include "core/object/worker_thread_pool.h"
 #include "utility/gd_parallel_hashmap.h"
 #include "utility/gd_parallel_queue.h"
+#include "utility/gdre_config.h"
 #include "utility/gdre_progress.h"
 
 class TaskManager : public Object {
@@ -300,8 +301,7 @@ public:
 			bool p_high_priority = true,
 			Ref<EditorProgressGDDC> p_preexisting_progress = nullptr,
 			int p_progress_start = 0) {
-		// bool is_singlethreaded = GDRESettings::get_singleton()->get_setting("singlethreaded", false);
-		bool is_singlethreaded = false;
+		bool is_singlethreaded = GDREConfig::get_singleton()->get_setting("force_single_threaded", false);
 		auto task = std::make_shared<GroupTaskData<C, M, U, R>>(p_instance, p_method, p_userdata, p_elements, p_task_step_callback, p_task, p_label, p_can_cancel, p_tasks, p_high_priority, is_singlethreaded, true, p_preexisting_progress, p_progress_start);
 		task->start();
 		auto group_id = ++current_group_task_id;
