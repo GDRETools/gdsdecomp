@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://el6o5uk15g2c"]
+[gd_scene load_steps=18 format=3 uid="uid://el6o5uk15g2c"]
 
 [ext_resource type="Theme" uid="uid://crq1fwn0ajw7b" path="res://gdre_theme.tres" id="1"]
 [ext_resource type="Script" uid="uid://bqpxqjfn2qt1g" path="res://gdre_main.gd" id="2"]
@@ -14,7 +14,8 @@
 [ext_resource type="PackedScene" uid="uid://bv7816js3kr4k" path="res://gdre_recover.tscn" id="8_xa6jx"]
 [ext_resource type="PackedScene" uid="uid://bxwjy4fsjewmr" path="res://gdre_decompile.tscn" id="13_ql2ay"]
 [ext_resource type="PackedScene" uid="uid://cnhcpronl4bps" path="res://gdre_compile.tscn" id="14_8cc8u"]
-[ext_resource type="PackedScene" uid="uid://bhxdw5q2etvki" path="res://gdre_export_report.tscn" id="15_l08vw"]
+[ext_resource type="PackedScene" uid="uid://bj0ic3tstm0sq" path="res://gdre_config_dialog.tscn" id="16_7bfsg"]
+[ext_resource type="PackedScene" uid="uid://bhxdw5q2etvki" path="res://gdre_export_report.tscn" id="16_htlpu"]
 
 [sub_resource type="ButtonGroup" id="ButtonGroup_x51e8"]
 
@@ -109,26 +110,29 @@ layout_mode = 2
 button_group = SubResource("ButtonGroup_x51e8")
 text = "RE Tools"
 icon = ExtResource("3_bc0t5")
-item_count = 7
+item_count = 8
 popup/item_0/text = "Recover Project..."
 popup/item_0/icon = ExtResource("3_bc0t5")
 popup/item_0/id = 0
-popup/item_1/text = "Set encryption key..."
+popup/item_1/text = "Settings..."
 popup/item_1/icon = ExtResource("3_bc0t5")
-popup/item_1/id = 1
-popup/item_2/id = 5
-popup/item_2/separator = true
-popup/item_3/text = "About Godot RE Tools..."
-popup/item_3/icon = ExtResource("3_bc0t5")
-popup/item_3/id = 2
-popup/item_4/text = "Report a bug..."
+popup/item_1/id = 7
+popup/item_2/text = "Set encryption key..."
+popup/item_2/icon = ExtResource("3_bc0t5")
+popup/item_2/id = 1
+popup/item_3/id = 5
+popup/item_3/separator = true
+popup/item_4/text = "About Godot RE Tools..."
 popup/item_4/icon = ExtResource("3_bc0t5")
-popup/item_4/id = 3
-popup/item_5/id = 6
-popup/item_5/separator = true
-popup/item_6/text = "Quit"
-popup/item_6/icon = ExtResource("3_bc0t5")
-popup/item_6/id = 4
+popup/item_4/id = 2
+popup/item_5/text = "Report a bug..."
+popup/item_5/icon = ExtResource("3_bc0t5")
+popup/item_5/id = 3
+popup/item_6/id = 6
+popup/item_6/separator = true
+popup/item_7/text = "Quit"
+popup/item_7/icon = ExtResource("3_bc0t5")
+popup/item_7/id = 4
 
 [node name="PCKMenu" type="MenuButton" parent="MenuContainer"]
 layout_mode = 2
@@ -246,7 +250,7 @@ metadata/_custom_type_script = "uid://cbggqwojxui00"
 visible = false
 metadata/_custom_type_script = "uid://cbggqwojxui00"
 
-[node name="GdreExportReport" parent="." instance=ExtResource("15_l08vw")]
+[node name="GdreExportReport" parent="." instance=ExtResource("16_htlpu")]
 unique_name_in_owner = true
 visible = false
 
@@ -297,6 +301,10 @@ access = 2
 filters = PackedStringArray("*.mp3str;MP3 Sample files")
 show_hidden_files = true
 use_native_dialog = true
+
+[node name="GdreConfigDialog" parent="." instance=ExtResource("16_7bfsg")]
+unique_name_in_owner = true
+visible = false
 
 [node name="SampleToWAVFileDialog" type="FileDialog" parent="."]
 title = "Open File(s)"

@@ -38,7 +38,8 @@ enum REToolsMenuID {
 	SET_KEY,
 	ABOUT,
 	REPORT_BUG,
-	QUIT
+	QUIT,
+	SETTINGS = 7
 }
 
 enum ResourcesMenuID {
@@ -303,11 +304,14 @@ func _on_GDScriptMenu_item_selected(index):
 
 			# open_compile_file_dialog()
 
-func _on_REToolsMenu_item_selected(index):
-	match index:
+func _on_REToolsMenu_item_selected(id):
+	match id:
 		REToolsMenuID.RECOVER:
 			# Recover Project...
 			open_recover_file_dialog()
+		REToolsMenuID.SETTINGS:  # Settings
+			%GdreConfigDialog.clear()
+			%GdreConfigDialog.popup_centered()
 		REToolsMenuID.SET_KEY:  # set key
 			# Open the set key dialog
 			open_setenc_window()
