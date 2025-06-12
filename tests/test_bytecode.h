@@ -6,6 +6,8 @@
 #include "core/io/image.h"
 #include "test_common.h"
 #include "tests/test_macros.h"
+#include <compat/resource_compat_text.h>
+#include <compat/resource_loader_compat.h>
 
 #include "core/version_generated.gen.h"
 #include <modules/gdscript/gdscript_tokenizer_buffer.h>
@@ -75,55 +77,9 @@ func _ready() -> void :
     var thingy3 = thingy % 20
 )";
 
-inline String remove_comments(const String &script_text) {
-	// gdscripts have comments starting with #, remove them
-	auto lines = script_text.split("\n", true);
-	auto new_lines = Vector<String>();
-	for (int i = 0; i < lines.size(); i++) {
-		auto &line = lines.write[i];
-		auto comment_pos = line.find("#");
-		if (comment_pos != -1) {
-			if (line.contains("\"") || line.contains("'")) {
-				bool in_quote = false;
-				char32_t quote_char = '"';
-				comment_pos = -1;
-				for (int j = 0; j < line.length(); j++) {
-					if (line[j] == '"' || line[j] == '\'') {
-						if (in_quote) {
-							if (quote_char == line[j]) {
-								in_quote = false;
-							}
-						} else {
-							in_quote = true;
-							quote_char = line[j];
-						}
-					} else if (!in_quote && line[j] == '#') {
-						comment_pos = j;
-						break;
-					}
-				}
-			}
-			if (comment_pos != -1) {
-				line = line.substr(0, comment_pos).strip_edges(false, true);
-			}
-		}
-		new_lines.push_back(line);
-	}
-	String new_text;
-	for (int i = 0; i < new_lines.size() - 1; i++) {
-		new_text += new_lines[i] + "\n";
-	}
-	new_text += new_lines[new_lines.size() - 1];
-	return new_text;
-}
-
-inline void test_script_text(const String &script_name, const String &helper_script_text, int revision, bool helper_script, bool no_text_equality_check, bool compare_whitespace = false) {
+inline void test_script_binary(const String &script_name, const Vector<uint8_t> &bytecode, const String &helper_script_text, int revision, bool helper_script, bool no_text_equality_check, bool compare_whitespace = false) {
 	auto decomp = GDScriptDecomp::create_decomp_for_commit(revision);
 	CHECK(decomp.is_valid());
-	auto bytecode = decomp->compile_code_string(helper_script_text);
-	auto compile_error_message = decomp->get_error_message();
-	CHECK(compile_error_message == "");
-	CHECK(bytecode.size() > 0);
 	auto result = decomp->test_bytecode(bytecode, false);
 	// TODO: remove BYTECODE_TEST_UNKNOWN and just make it PASS, there are no proper pass cases now
 	CHECK(result == GDScriptDecomp::BYTECODE_TEST_UNKNOWN);
@@ -188,6 +144,16 @@ inline void test_script_text(const String &script_name, const String &helper_scr
 	}
 	CHECK(decomp->get_error_message() == "");
 	CHECK(err == OK);
+}
+
+inline void test_script_text(const String &script_name, const String &helper_script_text, int revision, bool helper_script, bool no_text_equality_check, bool compare_whitespace = false) {
+	auto decomp = GDScriptDecomp::create_decomp_for_commit(revision);
+	CHECK(decomp.is_valid());
+	auto bytecode = decomp->compile_code_string(helper_script_text);
+	auto compile_error_message = decomp->get_error_message();
+	CHECK(compile_error_message == "");
+	CHECK(bytecode.size() > 0);
+	test_script_binary(script_name, bytecode, helper_script_text, revision, helper_script, no_text_equality_check, compare_whitespace);
 }
 
 inline void test_script(const String &helper_script_path, int revision, bool helper_script, bool no_text_equality_check) {
@@ -262,6 +228,30 @@ TEST_CASE("[GDSDecomp][Bytecode][GDScript2.0] Compiling GDScript Tests") {
 TEST_CASE("[GDSDecomp][Bytecode][GDScript2.0] Test unique_id modulo operator") {
 	test_script_text("test_unique_id_modulo", test_unique_id_modulo, 0x77af6ca, false, false, true);
 	test_script_text("test_unique_id_modulo", test_unique_id_modulo, LATEST_GDSCRIPT_COMMIT, false, false, true);
+}
+
+TEST_CASE("[GDSDecomp][Bytecode] Test sample GDScript bytecode") {
+	Vector<String> versions = get_test_versions();
+	CHECK(versions.size() > 0);
+
+	for (const String &version : versions) {
+		auto decomp = GDScriptDecomp::create_decomp_for_version(version);
+		CHECK(decomp.is_valid());
+		int revision = decomp->get_bytecode_rev();
+		String test_dir = get_test_resources_path().path_join(version).path_join("code");
+		Vector<String> files = gdre::get_recursive_dir_list(test_dir, { "*.gdc" });
+		String output_dir = get_tmp_path().path_join(version).path_join("code");
+		for (const String &file : files) {
+			auto sub_case_name = vformat("Testing compiling script %s, version %s", file, version);
+			SUBCASE(sub_case_name.utf8().get_data()) {
+				String original_file = file.get_basename() + ".gd";
+
+				Vector<uint8_t> bytecode = FileAccess::get_file_as_bytes(file);
+				String original_script_text = FileAccess::get_file_as_string(original_file);
+				test_script_binary(original_file, bytecode, original_script_text, revision, false, true);
+			}
+		}
+	}
 }
 
 } //namespace TestBytecode
