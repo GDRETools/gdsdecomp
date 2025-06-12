@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://bj0ic3tstm0sq"]
+[gd_scene load_steps=7 format=3 uid="uid://bj0ic3tstm0sq"]
 
 [ext_resource type="Theme" uid="uid://crq1fwn0ajw7b" path="res://gdre_theme.tres" id="1_g10qc"]
 [ext_resource type="Script" uid="uid://b18ni0c75jlv3" path="res://gdre_config_dialog.gd" id="2_rnan2"]
@@ -10,12 +10,6 @@ content_margin_top = 4.0
 content_margin_right = 6.0
 content_margin_bottom = 4.0
 bg_color = Color(0.196078, 0.231373, 0.309804, 1)
-
-[sub_resource type="StyleBoxLine" id="StyleBoxLine_rnan2"]
-color = Color(1, 1, 1, 0)
-grow_begin = 0.0
-grow_end = 0.0
-vertical = true
 
 [sub_resource type="LabelSettings" id="LabelSettings_rnan2"]
 font_size = 20
@@ -41,159 +35,6 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_rnan2")
 
-[node name="WindowVBox" type="VBoxContainer" parent="."]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="ParentHBox" type="HBoxContainer" parent="WindowVBox"]
-layout_mode = 2
-
-[node name="VSeparator2" type="VSeparator" parent="WindowVBox/ParentHBox"]
-layout_mode = 2
-theme_override_styles/separator = SubResource("StyleBoxLine_rnan2")
-
-[node name="MainHBox" type="HBoxContainer" parent="WindowVBox/ParentHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_constants/separation = 0
-
-[node name="FirstSectionVBox" type="VBoxContainer" parent="WindowVBox/ParentHBox/MainHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="GeneralVBox" type="VBoxContainer" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox"]
-layout_mode = 2
-theme_override_constants/separation = 0
-
-[node name="Label" type="Label" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/GeneralVBox"]
-layout_mode = 2
-text = "General"
-label_settings = SubResource("LabelSettings_rnan2")
-horizontal_alignment = 1
-
-[node name="HSeparator" type="HSeparator" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/GeneralVBox"]
-layout_mode = 2
-
-[node name="VBoxContainer" type="VBoxContainer" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/GeneralVBox"]
-layout_mode = 2
-
-[node name="CheckButton" type="CheckButton" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/GeneralVBox/VBoxContainer"]
-layout_mode = 2
-text = "Do stuff"
-
-[node name="CheckButton2" type="CheckButton" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/GeneralVBox/VBoxContainer"]
-layout_mode = 2
-text = "Do more stuff"
-
-[node name="ResetHBox" type="HBoxContainer" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/GeneralVBox/VBoxContainer/CheckButton2"]
-layout_mode = 1
-anchors_preset = 6
-anchor_left = 1.0
-anchor_top = 0.5
-anchor_right = 1.0
-anchor_bottom = 0.5
-offset_left = -71.0
-offset_top = -15.0
-offset_bottom = 15.0
-grow_horizontal = 0
-grow_vertical = 2
-
-[node name="ResetButton" type="Button" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/GeneralVBox/VBoxContainer/CheckButton2/ResetHBox"]
-layout_mode = 2
-theme_type_variation = &"FlatButton"
-icon = ExtResource("3_twpvv")
-
-[node name="FoldableContainer" type="FoldableContainer" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox"]
-visible = false
-layout_mode = 2
-theme_override_font_sizes/font_size = 20
-title = "General"
-title_alignment = 1
-
-[node name="GeneralVBox" type="VBoxContainer" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/FoldableContainer"]
-layout_mode = 2
-theme_override_constants/separation = 0
-
-[node name="HSeparator" type="HSeparator" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/FoldableContainer/GeneralVBox"]
-layout_mode = 2
-
-[node name="VBoxContainer" type="VBoxContainer" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/FoldableContainer/GeneralVBox"]
-layout_mode = 2
-
-[node name="CheckButton" type="CheckButton" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/FoldableContainer/GeneralVBox/VBoxContainer"]
-layout_mode = 2
-text = "Do stuff"
-
-[node name="HSeparator" type="HSeparator" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox"]
-layout_mode = 2
-
-[node name="VBoxContainer" type="VBoxContainer" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox"]
-layout_mode = 2
-
-[node name="SectionLabel" type="Label" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/VBoxContainer"]
-layout_mode = 2
-text = "Exporter Settings"
-label_settings = SubResource("LabelSettings_rnan2")
-horizontal_alignment = 1
-
-[node name="HSeparator" type="HSeparator" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/VBoxContainer"]
-layout_mode = 2
-
-[node name="VBoxContainer" type="VBoxContainer" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/VBoxContainer"]
-layout_mode = 2
-
-[node name="Label" type="Label" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/VBoxContainer/VBoxContainer"]
-layout_mode = 2
-text = "Scene Exporter"
-label_settings = SubResource("LabelSettings_twpvv")
-horizontal_alignment = 1
-
-[node name="SceneExportSubsection" type="FoldableContainer" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/VBoxContainer/VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 18
-title = "GLTF"
-title_alignment = 1
-
-[node name="VBoxContainer" type="VBoxContainer" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/VBoxContainer/VBoxContainer/SceneExportSubsection"]
-layout_mode = 2
-
-[node name="CheckButton" type="CheckButton" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/VBoxContainer/VBoxContainer/SceneExportSubsection/VBoxContainer"]
-layout_mode = 2
-text = "Do stuff"
-
-[node name="CheckButton2" type="CheckButton" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/VBoxContainer/VBoxContainer/SceneExportSubsection/VBoxContainer"]
-layout_mode = 2
-text = "Do other stuff"
-
-[node name="HSeparator2" type="HSeparator" parent="WindowVBox/ParentHBox/MainHBox/FirstSectionVBox/VBoxContainer"]
-layout_mode = 2
-
-[node name="VSeparator" type="VSeparator" parent="WindowVBox/ParentHBox"]
-layout_mode = 2
-theme_override_styles/separator = SubResource("StyleBoxLine_rnan2")
-
-[node name="HBoxContainer" type="HBoxContainer" parent="WindowVBox"]
-layout_mode = 2
-size_flags_vertical = 10
-theme_override_constants/separation = 30
-alignment = 1
-
-[node name="CancelButton" type="Button" parent="WindowVBox/HBoxContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Cancel"
-
-[node name="OKButton" type="Button" parent="WindowVBox/HBoxContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "OK"
-
 [node name="ConfirmClose" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true
 oversampling_override = 1.0
@@ -211,8 +52,168 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "Do you want to discard current changes?"
 
+[node name="MarginContainer" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="WindowVBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+
+[node name="MainHBox" type="HBoxContainer" parent="MarginContainer/WindowVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 0
+
+[node name="FirstSectionVBox" type="VBoxContainer" parent="MarginContainer/WindowVBox/MainHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="GeneralVBox" type="VBoxContainer" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="Label" type="Label" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/GeneralVBox"]
+layout_mode = 2
+text = "General"
+label_settings = SubResource("LabelSettings_rnan2")
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/GeneralVBox"]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/GeneralVBox"]
+layout_mode = 2
+
+[node name="CheckButton" type="CheckButton" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/GeneralVBox/VBoxContainer"]
+layout_mode = 2
+text = "Do stuff"
+
+[node name="CheckButton2" type="CheckButton" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/GeneralVBox/VBoxContainer"]
+layout_mode = 2
+text = "Do more stuff"
+
+[node name="ResetHBox" type="HBoxContainer" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/GeneralVBox/VBoxContainer/CheckButton2"]
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -71.0
+offset_top = -15.0
+offset_bottom = 15.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="ResetButton" type="Button" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/GeneralVBox/VBoxContainer/CheckButton2/ResetHBox"]
+layout_mode = 2
+theme_type_variation = &"FlatButton"
+icon = ExtResource("3_twpvv")
+
+[node name="FoldableContainer" type="FoldableContainer" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox"]
+visible = false
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+title = "General"
+title_alignment = 1
+
+[node name="GeneralVBox" type="VBoxContainer" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/FoldableContainer"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/FoldableContainer/GeneralVBox"]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/FoldableContainer/GeneralVBox"]
+layout_mode = 2
+
+[node name="CheckButton" type="CheckButton" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/FoldableContainer/GeneralVBox/VBoxContainer"]
+layout_mode = 2
+text = "Do stuff"
+
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox"]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox"]
+layout_mode = 2
+
+[node name="SectionLabel" type="Label" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/VBoxContainer"]
+layout_mode = 2
+text = "Exporter Settings"
+label_settings = SubResource("LabelSettings_rnan2")
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/VBoxContainer"]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/VBoxContainer/VBoxContainer"]
+layout_mode = 2
+text = "Scene Exporter"
+label_settings = SubResource("LabelSettings_twpvv")
+horizontal_alignment = 1
+
+[node name="SceneExportSubsection" type="FoldableContainer" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/VBoxContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+title = "GLTF"
+title_alignment = 1
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/VBoxContainer/VBoxContainer/SceneExportSubsection"]
+layout_mode = 2
+
+[node name="CheckButton" type="CheckButton" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/VBoxContainer/VBoxContainer/SceneExportSubsection/VBoxContainer"]
+layout_mode = 2
+text = "Do stuff"
+
+[node name="CheckButton2" type="CheckButton" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/VBoxContainer/VBoxContainer/SceneExportSubsection/VBoxContainer"]
+layout_mode = 2
+text = "Do other stuff"
+
+[node name="HSeparator2" type="HSeparator" parent="MarginContainer/WindowVBox/MainHBox/FirstSectionVBox/VBoxContainer"]
+layout_mode = 2
+
+[node name="ButtonHBox" type="HBoxContainer" parent="MarginContainer/WindowVBox"]
+layout_mode = 2
+size_flags_vertical = 10
+theme_override_constants/separation = 30
+alignment = 1
+
+[node name="ResetButton" type="Button" parent="MarginContainer/WindowVBox/ButtonHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Reset to Defaults"
+
+[node name="VSeparator" type="VSeparator" parent="MarginContainer/WindowVBox/ButtonHBox"]
+layout_mode = 2
+
+[node name="CancelButton" type="Button" parent="MarginContainer/WindowVBox/ButtonHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Cancel"
+
+[node name="OKButton" type="Button" parent="MarginContainer/WindowVBox/ButtonHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "OK"
+
 [connection signal="close_requested" from="." to="." method="_close_requested"]
-[connection signal="pressed" from="WindowVBox/HBoxContainer/CancelButton" to="." method="_on_cancel_button_pressed"]
-[connection signal="pressed" from="WindowVBox/HBoxContainer/OKButton" to="." method="_on_ok_button_pressed"]
 [connection signal="canceled" from="ConfirmClose" to="." method="_on_confirm_close_canceled"]
 [connection signal="confirmed" from="ConfirmClose" to="." method="_on_confirm_close_confirmed"]
+[connection signal="pressed" from="MarginContainer/WindowVBox/ButtonHBox/ResetButton" to="." method="_on_reset_button_pressed"]
+[connection signal="pressed" from="MarginContainer/WindowVBox/ButtonHBox/CancelButton" to="." method="_on_cancel_button_pressed"]
+[connection signal="pressed" from="MarginContainer/WindowVBox/ButtonHBox/OKButton" to="." method="_on_ok_button_pressed"]

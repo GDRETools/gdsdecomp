@@ -194,6 +194,9 @@ func clear_main_hbox():
 	%MainHBox.add_child(vbox)
 
 func _render_settings():
+	if not section_map.has("General"):
+		section_map["General"] = create_new_section(vboxes[0], "General")
+	var curr_vbox_index = vboxes.size() - 1
 	for setting: GDREConfigSetting in GDREConfig.get_all_settings():
 		setting_value_map[setting] = setting.get_value()
 		if setting.is_hidden():
@@ -202,13 +205,12 @@ func _render_settings():
 		var parts: PackedStringArray = full_name.split("/")
 		var toAdd
 		if parts.size() == 1:
-			if not section_map.has("General"):
-				section_map["General"] = create_new_section(vboxes[0], "General")
 			toAdd = section_map["General"]
 		else:
 			if parts.size() >= 2:
 				if not section_map.has(parts[0]):
-					section_map[parts[0]] = create_new_section(vboxes[0], parts[0])
+					section_map[parts[0]] = create_new_section(vboxes[curr_vbox_index], parts[0])
+					# TODO: handle logic for creating a additional vboxes if window is getting too tall
 				toAdd = section_map[parts[0]]
 			if parts.size() >= 3:
 				var subsection = "/".join(parts.slice(0, 2))
@@ -299,3 +301,9 @@ func _on_cancel_button_pressed() -> void:
 
 func _on_ok_button_pressed() -> void:
 	confirm()
+
+
+func _on_reset_button_pressed() -> void:
+	for setting: GDREConfigSetting in GDREConfig.get_all_settings():
+		setting.reset()
+	clear()
