@@ -8,8 +8,7 @@ Error FontFileExporter::export_file(const String &p_dest_path, const String &p_s
 	ERR_FAIL_COND_V_MSG(err, err, "Failed to load font file " + p_src_path);
 	PackedByteArray data = fontfile->get("data");
 	ERR_FAIL_COND_V_MSG(data.size() == 0, ERR_FILE_CORRUPT, "Font file " + p_src_path + " is empty");
-	write_to_file(p_dest_path, data);
-	return OK;
+	return write_to_file(p_dest_path, data);
 }
 
 Ref<ExportReport> FontFileExporter::export_resource(const String &output_dir, Ref<ImportInfo> import_infos) {
