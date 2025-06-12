@@ -42,7 +42,7 @@ void _add_indent(String &r_result, const String &p_indent, int p_size) {
 	}
 }
 
-void _stringify_json(String &r_result, const Variant &p_var, const String &p_indent, int p_cur_indent, bool p_sort_keys, HashSet<const void *> &p_markers) {
+void _stringify_json(String &r_result, const Variant &p_var, const String &p_indent, int p_cur_indent, bool p_sort_keys, bool force_single_precision, HashSet<const void *> &p_markers) {
 	if (p_cur_indent > Variant::MAX_RECURSION_DEPTH) {
 		r_result += "...";
 		ERR_FAIL_MSG("JSON structure is too deep. Bailing.");
@@ -87,12 +87,13 @@ void _stringify_json(String &r_result, const Variant &p_var, const String &p_ind
 				return;
 			}
 
-			if ((double)(float)num == num) {
-				float fl_num = (float)num;
-				r_result += String::num_scientific(fl_num);
+			String num_str;
+			if (force_single_precision || (double)(float)num == num) {
+				r_result += String::num_scientific((float)num);
 			} else {
 				r_result += String::num_scientific(num);
 			}
+			r_result += num_str;
 			return;
 		}
 		case Variant::PACKED_INT32_ARRAY:
@@ -126,7 +127,7 @@ void _stringify_json(String &r_result, const Variant &p_var, const String &p_ind
 					r_result += end_statement;
 				}
 				_add_indent(r_result, p_indent, p_cur_indent + 1);
-				_stringify_json(r_result, var, p_indent, p_cur_indent + 1, p_sort_keys, p_markers);
+				_stringify_json(r_result, var, p_indent, p_cur_indent + 1, p_sort_keys, force_single_precision, p_markers);
 			}
 			r_result += end_statement;
 			_add_indent(r_result, p_indent, p_cur_indent);
@@ -160,9 +161,9 @@ void _stringify_json(String &r_result, const Variant &p_var, const String &p_ind
 					r_result += end_statement;
 				}
 				_add_indent(r_result, p_indent, p_cur_indent + 1);
-				_stringify_json(r_result, String(key), p_indent, p_cur_indent + 1, p_sort_keys, p_markers);
+				_stringify_json(r_result, String(key), p_indent, p_cur_indent + 1, p_sort_keys, force_single_precision, p_markers);
 				r_result += colon;
-				_stringify_json(r_result, d[key], p_indent, p_cur_indent + 1, p_sort_keys, p_markers);
+				_stringify_json(r_result, d[key], p_indent, p_cur_indent + 1, p_sort_keys, force_single_precision, p_markers);
 			}
 
 			r_result += end_statement;
@@ -179,10 +180,10 @@ void _stringify_json(String &r_result, const Variant &p_var, const String &p_ind
 	}
 }
 
-String stringify_json(const Variant &p_var, const String &p_indent, bool p_sort_keys) {
+String stringify_json(const Variant &p_var, const String &p_indent, bool p_sort_keys, bool force_single_precision) {
 	String result;
 	HashSet<const void *> markers;
-	_stringify_json(result, p_var, p_indent, 0, p_sort_keys, markers);
+	_stringify_json(result, p_var, p_indent, 0, p_sort_keys, force_single_precision, markers);
 	return result;
 }
 
@@ -458,7 +459,7 @@ Error _encode_buffer_bins(Ref<GLTFState> p_state, const String &p_path) {
 	return OK;
 }
 
-Error _serialize_file(Ref<GLTFState> p_state, const String p_path) {
+Error _serialize_file(Ref<GLTFState> p_state, const String p_path, bool p_force_single_precision) {
 	Error err = FAILED;
 	if (p_path.to_lower().ends_with("glb")) {
 		err = _encode_buffer_glb(p_state, p_path);
@@ -466,7 +467,7 @@ Error _serialize_file(Ref<GLTFState> p_state, const String p_path) {
 		Ref<FileAccess> file = FileAccess::open(p_path, FileAccess::WRITE, &err);
 		ERR_FAIL_COND_V(file.is_null(), FAILED);
 
-		String json = stringify_json(p_state->get_json(), "", true);
+		String json = stringify_json(p_state->get_json(), "", true, p_force_single_precision);
 
 		const uint32_t magic = 0x46546C67; // GLTF
 		const int32_t header_size = 12;
@@ -521,7 +522,7 @@ Error _serialize_file(Ref<GLTFState> p_state, const String p_path) {
 		ERR_FAIL_COND_V(file.is_null(), FAILED);
 
 		file->create(FileAccess::ACCESS_RESOURCES);
-		String json = stringify_json(Variant(p_state->get_json()), indent, true);
+		String json = stringify_json(Variant(p_state->get_json()), indent, true, p_force_single_precision);
 		file->store_string(json);
 	}
 	return err;
@@ -1271,10 +1272,10 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 					// save a gltf copy for debugging
 					auto gltf_path = p_dest_path.get_base_dir().path_join("GLTF/" + p_dest_path.get_file().get_basename() + ".gltf");
 					gdre::ensure_dir(gltf_path.get_base_dir());
-					_serialize_file(state, gltf_path);
+					_serialize_file(state, gltf_path, !GDREConfig::get_singleton()->get_setting("Exporter/Scene/GLTF/use_double_precision", false));
 				}
 #endif
-				p_err = _serialize_file(state, p_dest_path);
+				p_err = _serialize_file(state, p_dest_path, !GDREConfig::get_singleton()->get_setting("Exporter/Scene/GLTF/use_double_precision", false));
 			}
 			memdelete(root);
 			ERR_FAIL_COND_V_MSG(p_err, ERR_FILE_CANT_WRITE, "Failed to write glTF document to " + p_dest_path);

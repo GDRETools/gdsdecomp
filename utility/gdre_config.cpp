@@ -40,11 +40,13 @@ Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 				"Force lossless images",
 				"Forces images to be saved as lossless PNGs when exporting to GLTF, regardless of the original image format",
 				false)),
+		// TODO: This isn't viable yet, as the gltf document converter doesn't write double precision values
 		memnew(GDREConfigSetting(
-				"Exporter/Scene/GLTF/force_single_precision",
-				"Force single precision",
-				"Forces all floating-point values to be saved as single precision to the GLTF document",
-				false)),
+				"Exporter/Scene/GLTF/use_double_precision",
+				"Use double precision",
+				"Uses double precision for all floating-point values in the GLTF document",
+				false,
+				true)),
 		memnew(GDREConfigSetting(
 				"Exporter/Scene/GLTF/force_export_multi_root",
 				"Force export multi root",
@@ -78,7 +80,6 @@ void GDREConfig::load_config() {
 
 	// set_setting("scene_export/force_export_multi_root", false);
 	auto cfg_path = get_config_path();
-	print_line("Loading config file from: " + cfg_path);
 	if (FileAccess::exists(cfg_path)) {
 		Ref<ConfigFile> config = memnew(ConfigFile);
 		Error err = config->load(cfg_path);
@@ -90,11 +91,6 @@ void GDREConfig::load_config() {
 				set_setting(section + "/" + key, config->get_value(section, key));
 			}
 		}
-		HashMap<String, Variant> settings_copy;
-		for (const auto &[key, value] : settings) {
-			settings_copy[key] = value;
-		}
-		print_line("Settings");
 	}
 }
 
@@ -104,11 +100,8 @@ String GDREConfig::get_config_path() {
 
 void GDREConfig::save_config() {
 	auto cfg_path = get_config_path();
-	print_line("Saving config file to: " + cfg_path);
 	Ref<ConfigFile> config = memnew(ConfigFile);
-	HashMap<String, Variant> settings_copy;
 	for (const auto &[key, value] : settings) {
-		settings_copy[key] = value;
 		config->set_value(get_section_from_key(key), get_name_from_key(key), value);
 	}
 	Error err = config->save(cfg_path);
