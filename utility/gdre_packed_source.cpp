@@ -1,11 +1,11 @@
 #include "gdre_packed_source.h"
 #include "core/io/file_access_encrypted.h"
+#include "core/io/file_access_pack.h"
 #include "core/object/script_language.h"
 #include "file_access_gdre.h"
 #include "gdre_settings.h"
 
-// TODO: FIX THIS!
-// static_assert(PACK_FORMAT_VERSION == GDREPackedSource::CURRENT_PACK_FORMAT_VERSION, "Pack format version changed.");
+static_assert(PACK_FORMAT_VERSION == GDREPackedSource::CURRENT_PACK_FORMAT_VERSION, "Pack format version changed.");
 
 bool GDREPackedSource::seek_after_magic_unix(Ref<FileAccess> f) {
 	f->seek(0);
@@ -311,7 +311,7 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 	uint32_t version = f->get_32();
 	uint32_t ver_major = f->get_32();
 	uint32_t ver_minor = f->get_32();
-	uint32_t ver_rev = f->get_32(); // patch number, did not start getting set to anything other than 0 until 3.2
+	uint32_t ver_patch = f->get_32(); // patch number, did not start getting set to anything other than 0 until 3.2
 
 	if (version > CURRENT_PACK_FORMAT_VERSION) {
 		ERR_FAIL_V_MSG(false, "Pack version unsupported: " + itos(version) + ".");
@@ -320,7 +320,7 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 	uint32_t pack_flags = 0;
 	uint64_t file_base = 0;
 
-	if (version == 2) {
+	if (version >= PACK_FORMAT_VERSION_V2) {
 		pack_flags = f->get_32();
 		file_base = f->get_64();
 	}
@@ -328,17 +328,22 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 	bool enc_directory = (pack_flags & PACK_DIR_ENCRYPTED);
 	bool rel_filebase = (pack_flags & PACK_REL_FILEBASE);
 
-	for (int i = 0; i < 16; i++) {
-		//reserved
-		f->get_32();
-	}
-
-	uint32_t file_count = f->get_32();
-
-	if (rel_filebase) {
+	if ((version == PACK_FORMAT_VERSION_V3) || (version == PACK_FORMAT_VERSION_V2 && rel_filebase)) {
 		file_base += pck_start_pos;
 	}
 
+	if (version == PACK_FORMAT_VERSION_V3) {
+		// V3: Read directory offset and skip reserved part of the header.
+		uint64_t dir_offset = f->get_64() + pck_start_pos;
+		f->seek(dir_offset);
+	} else if (version == PACK_FORMAT_VERSION_V2) {
+		// V2: Directory directly after the header.
+		for (int i = 0; i < 16; i++) {
+			f->get_32(); // Reserved.
+		}
+	}
+
+	uint32_t file_count = f->get_32();
 	if (enc_directory) {
 		Ref<FileAccessEncrypted> fae = memnew(FileAccessEncrypted);
 		if (fae.is_null()) {
@@ -355,10 +360,12 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 		Error err = fae->open_and_parse(f, key, FileAccessEncrypted::MODE_READ, false);
 		if (err) {
 			GDRESettings::get_singleton()->_set_error_encryption(true);
-			ERR_FAIL_V_MSG(false, "Can't open encrypted pack directory (PCK format version " + itos(version) + ", engine version " + itos(ver_major) + "." + itos(ver_minor) + "." + itos(ver_rev) + ").");
+			ERR_FAIL_V_MSG(false, "Can't open encrypted pack directory (PCK format version " + itos(version) + ", engine version " + itos(ver_major) + "." + itos(ver_minor) + "." + itos(ver_patch) + ").");
 		}
 		f = fae;
 	}
+
+	// Set Pack info before reading the file list.
 	String ver_string;
 
 	Ref<GodotVer> godot_ver;
@@ -374,7 +381,7 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 		// they only started writing the actual patch number in 3.2
 		ver_string = itos(ver_major) + "." + itos(ver_minor);
 	} else {
-		ver_string = itos(ver_major) + "." + itos(ver_minor) + "." + itos(ver_rev);
+		ver_string = itos(ver_major) + "." + itos(ver_minor) + "." + itos(ver_patch);
 	}
 	godot_ver = GodotVer::parse(ver_string);
 
@@ -385,6 +392,7 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 			pck_path, godot_ver, version, pack_flags, file_base, file_count, is_exe ? GDRESettings::PackInfo::EXE : GDRESettings::PackInfo::PCK, enc_directory, suspect_version);
 	GDRESettings::get_singleton()->add_pack_info(pckinfo);
 
+	// Read the file list.
 	for (uint32_t i = 0; i < file_count; i++) {
 		uint32_t sl = f->get_32();
 		CharString cs;
@@ -397,18 +405,19 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 		String p_file = path.get_file();
 		ERR_FAIL_COND_V_MSG(p_file.begins_with("gdre_") && p_file != "gdre_export.log", false, "Don't try to extract the GDRE pack files, just download the source from github.");
 
-		uint64_t ofs = file_base + f->get_64();
+		// TODO: Ask bruvzg about whether or not p_offset is needed here.
+		uint64_t ofs = file_base + f->get_64() + (version >= PACK_FORMAT_VERSION_V3 ? 0 : p_offset);
 		uint64_t size = f->get_64();
 		uint8_t md5[16];
 		uint32_t flags = 0;
 		f->get_buffer(md5, 16);
-		if (version == 2) {
+		if (version >= PACK_FORMAT_VERSION_V2) {
 			flags = f->get_32();
 		}
 		if (flags & PACK_FILE_REMOVAL) { // The file was removed.
 			GDREPackedData::get_singleton()->remove_path(path);
 		} else {
-			GDREPackedData::get_singleton()->add_path(pck_path, path, ofs + p_offset, size, md5, this, p_replace_files, (flags & PACK_FILE_ENCRYPTED), true);
+			GDREPackedData::get_singleton()->add_path(pck_path, path, ofs, size, md5, this, p_replace_files, (flags & PACK_FILE_ENCRYPTED), true);
 		}
 	}
 

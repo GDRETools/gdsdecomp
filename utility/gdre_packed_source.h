@@ -30,7 +30,7 @@ private:
 	static bool seek_offset_from_exe(Ref<FileAccess> f, const String &p_path);
 
 public:
-	static constexpr int CURRENT_PACK_FORMAT_VERSION = 2;
+	static constexpr int CURRENT_PACK_FORMAT_VERSION = 3;
 	static bool is_embeddable_executable(const String &p_path);
 	static bool has_embedded_pck(const String &p_path);
 	static bool get_exe_embedded_pck_info(const String &p_path, GDREPackedSource::EXEPCKInfo &r_info);
