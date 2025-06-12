@@ -48,6 +48,30 @@ void MeshPreviewer::gui_input(const Ref<InputEvent> &p_event) {
 		rot_x = CLAMP(rot_x, -Math::PI / 2, Math::PI / 2);
 		_update_rotation();
 	}
+
+	Ref<InputEventMagnifyGesture> mg = p_event;
+	if (mg.is_valid()) {
+		scale *= mg->get_factor();
+		_update_rotation();
+	}
+
+	Ref<InputEventMouseButton> mb = p_event;
+	if (mb.is_valid() && mb->is_pressed() && mb->get_button_index() == MouseButton::WHEEL_UP) {
+		scale *= 1.1;
+		_update_rotation();
+	}
+	if (mb.is_valid() && mb->is_pressed() && mb->get_button_index() == MouseButton::WHEEL_DOWN) {
+		scale *= 0.9;
+		_update_rotation();
+	}
+	Ref<InputEventKey> key = p_event;
+	if (key.is_valid() && key->is_pressed() && (key->get_keycode() == Key::EQUAL || key->get_keycode() == Key::PLUS)) {
+		scale *= 1.1;
+		_update_rotation();
+	} else if (key.is_valid() && key->is_pressed() && key->get_keycode() == Key::MINUS) {
+		scale *= 0.9;
+		_update_rotation();
+	}
 }
 
 void MeshPreviewer::_update_theme_item_cache() {
@@ -69,6 +93,7 @@ void MeshPreviewer::_update_rotation() {
 	Transform3D t;
 	t.basis.rotate(Vector3(0, 1, 0), -rot_y);
 	t.basis.rotate(Vector3(1, 0, 0), -rot_x);
+	t.scale(scale);
 	rotation->set_transform(t);
 }
 
@@ -78,6 +103,7 @@ void MeshPreviewer::edit(Ref<Mesh> p_mesh) {
 
 	rot_x = Math::deg_to_rad(-15.0);
 	rot_y = Math::deg_to_rad(30.0);
+	scale = Vector3(1.0, 1.0, 1.0);
 	_update_rotation();
 
 	AABB aabb = mesh->get_aabb();

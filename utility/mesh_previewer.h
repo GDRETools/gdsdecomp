@@ -47,6 +47,7 @@ class MeshPreviewer : public SubViewportContainer {
 
 	SubViewport *viewport = nullptr;
 	MeshInstance3D *mesh_instance = nullptr;
+	Vector3 scale = Vector3(1.0, 1.0, 1.0);
 	Node3D *rotation = nullptr;
 	DirectionalLight3D *light1 = nullptr;
 	DirectionalLight3D *light2 = nullptr;
