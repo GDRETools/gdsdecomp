@@ -494,112 +494,129 @@ Error PckCreator::_create_after_process() {
 	f->store_32(ver_rev);
 
 	int64_t file_base_ofs = 0;
-	if (version == 2) {
-		uint32_t pack_flags = 0;
+	int64_t dir_base_ofs = 0;
+	uint32_t pack_flags = version >= PACK_FORMAT_VERSION_V3 ? PACK_REL_FILEBASE : 0;
+	if (version >= PACK_FORMAT_VERSION_V2) {
 		if (encrypt) {
-			pack_flags |= (1 << 0);
+			pack_flags |= PACK_DIR_ENCRYPTED;
 		}
 		f->store_32(pack_flags); // flags
 		file_base_ofs = f->get_position();
 		f->store_64(0); // files base
+		if (version >= PACK_FORMAT_VERSION_V3) {
+			dir_base_ofs = f->get_position();
+			f->store_64(0); // directory offset
+		}
 	}
 
 	for (size_t i = 0; i < 16; i++) {
 		//reserved
 		f->store_32(0);
 	}
-	pr->step("Header...", 0, true);
-	f->store_32(files_to_pck.size()); //amount of files
-	// used by pck version 0-1, where the file offsets include the header size; pck version 2 uses the offset from the header
-	size_t header_size = f->get_position();
-	size_t predir_size = header_size;
 
-	Ref<FileAccessEncrypted> fae;
-	Ref<FileAccess> fhead = f;
-	if (version == 2) {
-		if (encrypt) {
-			fae.instantiate();
-			Error err = fae->open_and_parse(f, key, FileAccessEncrypted::MODE_WRITE_AES256, false);
-			if (err != OK) {
-				encryption_error = err;
-				error_string = "Encryption error: Could not open file for writing (invalid key?)";
-				f = nullptr;
-				return err;
+	auto write_header = [&]() {
+		bool use_rel_filebase = (pack_flags & PACK_REL_FILEBASE) != 0;
+		pr->step("Header...", 0, true);
+		f->store_32(files_to_pck.size()); //amount of files
+		// used by pck version 0-1, where the file offsets include the header size; pck version 2 uses the offset from the header
+		size_t header_size = f->get_position();
+		size_t predir_size = header_size;
+
+		Ref<FileAccessEncrypted> fae;
+		Ref<FileAccess> fhead = f;
+		if (version >= PACK_FORMAT_VERSION_V2) {
+			if (encrypt) {
+				fae.instantiate();
+				Error err = fae->open_and_parse(f, key, FileAccessEncrypted::MODE_WRITE_AES256, false);
+				if (err != OK) {
+					encryption_error = err;
+					error_string = "Encryption error: Could not open file for writing (invalid key?)";
+					f = nullptr;
+					return err;
+				}
+
+				fhead = fae;
+			}
+		}
+
+		bool add_res_prefix = !(ver_major == 4 && ver_minor >= 4);
+
+		for (size_t i = 0; i < files_to_pck.size(); i++) {
+			if (add_res_prefix) {
+				files_to_pck.write[i].path = files_to_pck[i].path.trim_prefix("res://");
+				if (!files_to_pck[i].path.is_absolute_path()) {
+					files_to_pck.write[i].path = "res://" + files_to_pck[i].path;
+				}
+			} else {
+				files_to_pck.write[i].path = files_to_pck[i].path.trim_prefix("res://");
+			}
+			header_size += 4; // size of path string (32 bits is enough)
+			uint32_t string_len = files_to_pck[i].path.utf8().length();
+			uint32_t pad = _get_pad(4, string_len);
+			header_size += string_len + pad; ///size of path string
+			header_size += 8; // offset to file _with_ header size included
+			header_size += 8; // size of file
+			header_size += 16; // md5
+			if (version >= PACK_FORMAT_VERSION_V2) {
+				header_size += 4; // flags
+			}
+		}
+		if (encrypt && version >= PACK_FORMAT_VERSION_V2) {
+			header_size += get_encryption_padding(header_size - predir_size);
+		}
+
+		size_t header_padding = _get_pad(PCK_PADDING, header_size);
+		pr->step("Directory...", 0, true);
+		for (size_t i = 0; i < files_to_pck.size(); i++) {
+			uint32_t string_len = files_to_pck[i].path.utf8().length();
+			uint32_t pad = _get_pad(4, string_len);
+
+			fhead->store_32(uint32_t(string_len + pad));
+			fhead->store_buffer((const uint8_t *)files_to_pck[i].path.utf8().get_data(), string_len);
+			for (uint32_t j = 0; j < pad; j++) {
+				fhead->store_8(0);
 			}
 
-			fhead = fae;
-		}
-	}
-
-	bool add_res_prefix = !(ver_major == 4 && ver_minor >= 4);
-
-	for (size_t i = 0; i < files_to_pck.size(); i++) {
-		if (add_res_prefix) {
-			files_to_pck.write[i].path = files_to_pck[i].path.trim_prefix("res://");
-			if (!files_to_pck[i].path.is_absolute_path()) {
-				files_to_pck.write[i].path = "res://" + files_to_pck[i].path;
+			if (version >= PACK_FORMAT_VERSION_V2) {
+				fhead->store_64(files_to_pck[i].ofs);
+			} else {
+				fhead->store_64(files_to_pck[i].ofs + header_padding + header_size);
 			}
-		} else {
-			files_to_pck.write[i].path = files_to_pck[i].path.trim_prefix("res://");
-		}
-		header_size += 4; // size of path string (32 bits is enough)
-		uint32_t string_len = files_to_pck[i].path.utf8().length();
-		uint32_t pad = _get_pad(4, string_len);
-		header_size += string_len + pad; ///size of path string
-		header_size += 8; // offset to file _with_ header size included
-		header_size += 8; // size of file
-		header_size += 16; // md5
-		if (version >= 2) {
-			header_size += 4; // flags
-		}
-	}
-	if (encrypt && version >= 2) {
-		header_size += get_encryption_padding(header_size - predir_size);
-	}
-
-	size_t header_padding = _get_pad(PCK_PADDING, header_size);
-	pr->step("Directory...", 0, true);
-	for (size_t i = 0; i < files_to_pck.size(); i++) {
-		uint32_t string_len = files_to_pck[i].path.utf8().length();
-		uint32_t pad = _get_pad(4, string_len);
-
-		fhead->store_32(uint32_t(string_len + pad));
-		fhead->store_buffer((const uint8_t *)files_to_pck[i].path.utf8().get_data(), string_len);
-		for (uint32_t j = 0; j < pad; j++) {
-			fhead->store_8(0);
-		}
-
-		if (version == 2) {
-			fhead->store_64(files_to_pck[i].ofs);
-		} else {
-			fhead->store_64(files_to_pck[i].ofs + header_padding + header_size);
-		}
-		fhead->store_64(files_to_pck[i].size); // pay attention here, this is where file is
-		fhead->store_buffer(files_to_pck[i].md5.ptr(), 16); //also save md5 for file
-		if (version == 2) {
-			uint32_t flags = 0;
-			if (files_to_pck[i].encrypted) {
-				flags |= PACK_FILE_ENCRYPTED;
+			fhead->store_64(files_to_pck[i].size); // pay attention here, this is where file is
+			fhead->store_buffer(files_to_pck[i].md5.ptr(), 16); //also save md5 for file
+			if (version >= PACK_FORMAT_VERSION_V2) {
+				uint32_t flags = 0;
+				if (files_to_pck[i].encrypted) {
+					flags |= PACK_FILE_ENCRYPTED;
+				}
+				if (files_to_pck[i].removal) {
+					flags |= PACK_FILE_REMOVAL;
+				}
+				fhead->store_32(flags);
 			}
-			if (files_to_pck[i].removal) {
-				flags |= PACK_FILE_REMOVAL;
-			}
-			fhead->store_32(flags);
+		}
+
+		if (fae.is_valid()) {
+			fhead.unref();
+			fae.unref();
+		}
+
+		for (uint32_t j = 0; j < header_padding; j++) {
+			f->store_8(0);
+		}
+		return OK;
+	};
+
+	if (version < PACK_FORMAT_VERSION_V3) {
+		Error err = write_header();
+		if (err != OK) {
+			return err;
 		}
 	}
 
-	if (fae.is_valid()) {
-		fhead.unref();
-		fae.unref();
-	}
-
-	for (uint32_t j = 0; j < header_padding; j++) {
-		f->store_8(0);
-	}
-
-	file_base = f->get_position();
-	DEV_ASSERT(file_base == header_size + header_padding);
-	if (version == 2) {
+	file_base = f->get_position() - ((pack_flags & PACK_REL_FILEBASE) != 0 ? pck_start_pos : 0);
+	// DEV_ASSERT(file_base == header_size + header_padding);
+	if (version >= PACK_FORMAT_VERSION_V2) {
 		f->seek(file_base_ofs);
 		f->store_64(file_base); // update files base
 		f->seek(file_base);
@@ -631,6 +648,17 @@ Error PckCreator::_create_after_process() {
 		f = nullptr;
 		return ERR_FILE_CANT_WRITE;
 	}
+
+	if (version >= PACK_FORMAT_VERSION_V3) {
+		uint64_t dir_offset = f->get_position();
+		f->seek(dir_base_ofs);
+		f->store_64(dir_offset); // update directory base
+		f->seek(dir_offset);
+		if (write_header() != OK) {
+			return ERR_FILE_CANT_WRITE;
+		}
+	}
+
 	if (watermark != "") {
 		f->store_32(0);
 		f->store_32(0);
