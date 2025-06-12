@@ -336,7 +336,7 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 		// V3: Read directory offset and skip reserved part of the header.
 		uint64_t dir_offset = f->get_64() + pck_start_pos;
 		f->seek(dir_offset);
-	} else if (version == PACK_FORMAT_VERSION_V2) {
+	} else if (version <= PACK_FORMAT_VERSION_V2) {
 		// V2: Directory directly after the header.
 		for (int i = 0; i < 16; i++) {
 			f->get_32(); // Reserved.
