@@ -132,7 +132,6 @@ func add_reset_button_to_toggle_button(setting: GDREConfigSetting, button: Butto
 func create_setting_button(setting: GDREConfigSetting) -> Control:
 	if setting.is_hidden():
 		return null
-	print("setting: ", setting.get_brief_description(), " type: ", setting.get_type())
 	var control: Control = null
 	if setting.get_type() == TYPE_BOOL:
 		var button: CheckButton = CheckButton.new()
