@@ -1,10 +1,7 @@
 import base64
 import sys
 import os
-import argparse
 import json
-from typing import Any, Tuple
-import requests
 import platform
 import subprocess
 import glob
@@ -127,7 +124,6 @@ def prepop_cache():
     for plugin in PLUGINS_TO_PREPOP:
         args.append(f"--plcache={plugin}")
     subprocess.run(args)
-
 
 
 def get_json_dicts_from_dir(dir_path: str) -> list[tuple[str, object]]:
