@@ -171,7 +171,7 @@ jobs:
         id: compile-editor
         uses: ./.github/actions/godot-build
         with:
-          sconsflags: ${{ env.SCONSFLAGS }} ${{ matrix.sconsflags }}
+          scons-flags: ${{ env.SCONSFLAGS }} ${{ matrix.sconsflags }}
           platform: ${{ matrix.platform }}
           target: editor
           tests: false
@@ -182,7 +182,7 @@ jobs:
         id: compile-template
         uses: ./.github/actions/godot-build
         with:
-          sconsflags: arch=x86_64 ${{ env.SCONSFLAGS }} ${{ env.SCONSFLAGS_TEMPLATE }} ${{ matrix.sconsflags }}
+          scons-flags: arch=x86_64 ${{ env.SCONSFLAGS }} ${{ env.SCONSFLAGS_TEMPLATE }} ${{ matrix.sconsflags }}
           platform: ${{ matrix.platform }}
           target: template_release
           tests: false
@@ -192,7 +192,7 @@ jobs:
         uses: ./.github/actions/godot-build
         if: matrix.platform == 'macos' && matrix.target == 'template_release'
         with:
-          sconsflags: arch=arm64 ${{ env.SCONSFLAGS }} ${{ env.SCONSFLAGS_TEMPLATE }} ${{ matrix.sconsflags }}
+          scons-flags: arch=arm64 ${{ env.SCONSFLAGS }} ${{ env.SCONSFLAGS_TEMPLATE }} ${{ matrix.sconsflags }}
           platform: ${{ matrix.platform }}
           target: template_release
           tests: false
