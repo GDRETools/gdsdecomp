@@ -913,6 +913,7 @@ struct KeyWorker {
 
 	// TODO: Rise of the Golden Idol specific hack, remove this
 	void dynamic_rgi_hack() {
+#if 0
 		const String ITEM_TR_SEP = "|";
 		const String ITEM_TR = "DB_%d";
 		const String ITEM_TR_PREFIX_ARC = "ARC";
@@ -940,6 +941,7 @@ struct KeyWorker {
 				try_key(get_composite_arc_translation_id(arc_id, item_id));
 			}
 		}
+#endif
 	}
 
 	String get_step_desc(uint32_t i, void *userdata) {
@@ -1242,9 +1244,12 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 	auto dest_files = iinfo->get_dest_files();
 	bool has_default_translation = false;
 	if (dest_files.size() > 1) {
-		has_default_translation = std::any_of(dest_files.begin(), dest_files.end(), [default_locale](const String &path) {
-			return path.get_basename().get_extension().to_lower() == default_locale;
-		});
+		for (const String &path : dest_files) {
+			if (path.get_basename().get_extension().to_lower() == default_locale) {
+				has_default_translation = true;
+				break;
+			}
+		}
 	}
 	if (!has_default_translation) {
 		default_locale = dest_files[0].get_basename().get_extension().to_lower();
