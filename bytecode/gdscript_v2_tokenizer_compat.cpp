@@ -1435,6 +1435,11 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::scan() {
 		case '.':
 			if (_peek() == '.') {
 				_advance();
+				// compat
+				if (decomp->get_local_token_val(Token::Type::G_TK_PERIOD_PERIOD_PERIOD) != -1 && _peek() == '.') {
+					_advance();
+					return make_token(Token::Type::G_TK_PERIOD_PERIOD_PERIOD);
+				}
 				return make_token(Token::Type::G_TK_PERIOD_PERIOD);
 			} else if (is_digit(_peek())) {
 				// Number starting with '.'.

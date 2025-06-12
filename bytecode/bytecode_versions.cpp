@@ -7,6 +7,8 @@
 #include "bytecode/bytecode_versions.h"
 
 void register_decomp_versions() {
+	ClassDB::register_class<GDScriptDecomp_2e216b5>();
+	ClassDB::register_class<GDScriptDecomp_ee121ef>();
 	ClassDB::register_class<GDScriptDecomp_b59d6be>();
 	ClassDB::register_class<GDScriptDecomp_77af6ca>();
 	ClassDB::register_class<GDScriptDecomp_f3f05dc>();
@@ -67,6 +69,8 @@ void register_decomp_versions() {
 
 GDScriptDecomp *create_decomp_for_commit(uint64_t p_commit_hash) {
 	switch (p_commit_hash) {
+		case 0x2e216b5: return memnew(GDScriptDecomp_2e216b5);
+		case 0xee121ef: return memnew(GDScriptDecomp_ee121ef);
 		case 0xb59d6be: return memnew(GDScriptDecomp_b59d6be);
 		case 0x77af6ca: return memnew(GDScriptDecomp_77af6ca);
 		case 0xf3f05dc: return memnew(GDScriptDecomp_f3f05dc);

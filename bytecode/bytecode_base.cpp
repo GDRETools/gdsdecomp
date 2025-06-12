@@ -517,6 +517,7 @@ const char *g_token_str[] = {
 	"TK_VCS_CONFLICT_MARKER", // added in 4.3
 	"TK_BACKTICK", // added in 4.3
 	"TK_ABSTRACT", // added in 4.5
+	"TK_PERIOD_PERIOD_PERIOD", // added in 4.5
 	"TK_MAX",
 };
 static_assert(sizeof(g_token_str) / sizeof(g_token_str[0]) == GDScriptDecomp::GlobalToken::G_TK_MAX + 1, "g_token_str size mismatch");
@@ -1109,6 +1110,9 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 			} break;
 			case G_TK_PERIOD_PERIOD: {
 				line += "..";
+			} break;
+			case G_TK_PERIOD_PERIOD_PERIOD: {
+				line += "...";
 			} break;
 			case G_TK_UNDERSCORE: {
 				line += "_";

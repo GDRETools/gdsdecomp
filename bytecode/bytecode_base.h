@@ -149,6 +149,7 @@ public:
 		G_TK_VCS_CONFLICT_MARKER, // added in 4.3
 		G_TK_BACKTICK, // added in 4.3
 		G_TK_ABSTRACT, // added in 4.5
+		G_TK_PERIOD_PERIOD_PERIOD, // added in 4.5
 		G_TK_MAX,
 	};
 	enum BytecodeTestResult {

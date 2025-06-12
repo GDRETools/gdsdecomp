@@ -633,7 +633,12 @@ def generate_bytecode_description_string(bytecode_class: BytecodeClass) -> str:
             )
             add_to_desc("renamed token {}", [fmt_insert])
     if len(description) == 0:
-        return "initial version"
+        if bytecode_class.bytecode_version == 100:
+            return "initial version"
+        elif bytecode_class.bytecode_version == 101:
+            return "content header size changed"
+        else:
+            return "bytecode version changed"
     return description[0].upper() + description[1:] + "."
 
 

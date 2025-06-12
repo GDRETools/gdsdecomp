@@ -154,6 +154,7 @@ const char *GDScriptTokenizerTextCompat::token_names[] = {
 	"_",
 	"VCS conflict marker", // VCS_CONFLICT_MARKER,
 	"abstract", // added in 4.5
+	"...", // added in 4.5
 	"`", // BACKTICK,
 };
 

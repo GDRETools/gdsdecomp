@@ -7,6 +7,8 @@
 
 #include "bytecode/bytecode_base.h"
 
+#include "bytecode/bytecode_2e216b5.h"
+#include "bytecode/bytecode_ee121ef.h"
 #include "bytecode/bytecode_b59d6be.h"
 #include "bytecode/bytecode_77af6ca.h"
 #include "bytecode/bytecode_f3f05dc.h"
@@ -85,11 +87,13 @@ struct GDScriptDecompVersion {
 };
 Vector<GDScriptDecompVersion> get_decomp_versions(bool include_dev = true, int ver_major = 0);
 
-static constexpr int LATEST_GDSCRIPT_COMMIT = 0xb59d6be;
+static constexpr int LATEST_GDSCRIPT_COMMIT = 0x2e216b5;
 
 static const GDScriptDecompVersion decomp_versions[] = {
 	{ 0xfffffff, "--- Please select bytecode version ---", 0, false },
-	{ 0xb59d6be, "4.5-dev.4 (b59d6be / 2025-05-18 / Bytecode version: 101) - Added `ABSTRACT` token.", 101, false, "4.5-dev.4", "", 0x77af6ca },
+	{ 0x2e216b5, "4.5-dev.6 (2e216b5 / 2025-06-10 / Bytecode version: 101) - content header size changed", 101, false, "4.5-dev.6", "", 0xee121ef },
+	{ 0xee121ef, "	4.5-dev.5 (ee121ef / 2025-06-09 / Bytecode version: 100) - Added `PERIOD_PERIOD_PERIOD` token.", 100, true, "4.5-dev.5", "", 0xb59d6be },
+	{ 0xb59d6be, "	4.5-dev.4 (b59d6be / 2025-05-18 / Bytecode version: 100) - Added `ABSTRACT` token.", 100, true, "4.5-dev.4", "", 0x77af6ca },
 	{ 0x77af6ca, "4.3.0-stable (77af6ca / 2024-02-09 / Bytecode version: 100) - initial version", 100, false, "4.3.0-stable", "4.4.9-stable", 0x0 },
 	{ 0xf3f05dc, "	4.0-dev2 (f3f05dc / 2020-02-13 / Bytecode version: 13) - Removed `SYNC`, `SLAVE` tokens.", 13, true, "4.0-dev2", "", 0x506df14 },
 	{ 0x506df14, "	4.0-dev1 (506df14 / 2020-02-12 / Bytecode version: 13) - Removed `decimals` function.", 13, true, "4.0-dev1", "", 0x5565f55 },
@@ -143,7 +147,7 @@ static const GDScriptDecompVersion decomp_versions[] = {
 	{ 0x703004f, "	1.0-dev4 (703004f / 2014-06-16 / Bytecode version: 2) - Added `hash` function.", 2, true, "1.0-dev4", "", 0x31ce3c5 },
 	{ 0x31ce3c5, "	1.0-dev3 (31ce3c5 / 2014-03-13 / Bytecode version: 2) - Added `funcref` function.", 2, true, "1.0-dev3", "", 0x8c1731b },
 	{ 0x8c1731b, "	1.0-dev2 (8c1731b / 2014-02-15 / Bytecode version: 2) - Added `load` function.", 2, true, "1.0-dev2", "", 0x0b806ee },
-	{ 0x0b806ee, "	1.0-dev1 (0b806ee / 2014-02-09 / Bytecode version: 1) - initial version", 1, true, "1.0-dev1", "", 0x0 },
+	{ 0x0b806ee, "	1.0-dev1 (0b806ee / 2014-02-09 / Bytecode version: 1) - bytecode version changed", 1, true, "1.0-dev1", "", 0x0 },
 	{ 0x0000000, "-NULL-", 0, false },
 
 };
