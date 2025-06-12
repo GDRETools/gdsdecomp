@@ -201,7 +201,7 @@ void PckCreator::_do_process_folder(uint32_t i, File *tokens) {
 		token.size = file->get_length();
 	}
 	if (token.size == 0) {
-		token.md5.resize_zeroed(16);
+		token.md5.resize_initialized(16);
 		return;
 	}
 	auto md5_str = FileAccess::get_md5(path);

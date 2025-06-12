@@ -1728,7 +1728,7 @@ Vector<uint8_t> GDScriptDecomp::compile_code_string(const String &p_code) {
 		Error err = VariantDecoderCompat::encode_variant_compat(get_variant_ver_major(), E->get(), nullptr, len, encode_full_objects);
 		GDSDECOMP_FAIL_COND_V_MSG(err != OK, Vector<uint8_t>(), "Error when trying to encode Variant.");
 		int pos = buf.size();
-		buf.resize_zeroed(pos + len);
+		buf.resize_initialized(pos + len);
 		VariantDecoderCompat::encode_variant_compat(get_variant_ver_major(), E->get(), &buf.write[pos], len, encode_full_objects);
 	}
 

@@ -213,7 +213,7 @@ bool FakeGDScript::is_placeholder_fallback_enabled() const {
 	return false;
 }
 
-Variant FakeGDScript::get_rpc_config() const {
+const Variant FakeGDScript::get_rpc_config() const {
 	return {};
 }
 

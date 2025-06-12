@@ -44,7 +44,7 @@ Error OggStrExporter::get_data_from_ogg_stream(const String &real_src, const Ref
 	int64_t page_cursor = 0;
 	bool reached_eos = false;
 	bool warned = false;
-	r_data.resize_zeroed(total_estimated_size);
+	r_data.resize_initialized(total_estimated_size);
 	while (playback->next_ogg_packet(&pkt) && !reached_eos) {
 		page_cursor = playback->get_page_number();
 		int64_t page_size = page_sizes[page_cursor];

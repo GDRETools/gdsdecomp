@@ -116,7 +116,7 @@ public:
 
 	virtual bool is_placeholder_fallback_enabled() const override;
 
-	virtual Variant get_rpc_config() const override;
+	virtual const Variant get_rpc_config() const override;
 	virtual String get_save_class() const override { return original_class; }
 
 	String get_script_path() const;
@@ -191,7 +191,7 @@ public:
 
 	virtual bool is_placeholder_fallback_enabled() const override { return false; }
 
-	virtual Variant get_rpc_config() const override { return {}; }
+	virtual const Variant get_rpc_config() const override { return {}; }
 	virtual String get_save_class() const override { return original_class; }
 
 	void set_original_class(const String &p_class);

@@ -26,7 +26,7 @@ on:
 env:
   GODOT_BASE_BRANCH: master
   # Change the README too
-  GODOT_MAIN_SYNC_REF: 19bb18716ef08b811fec330cba4d35fbdb027bcc
+  GODOT_MAIN_SYNC_REF: d9cd011e2fa9fa9a3011371843729f33032cee35
   SCONSFLAGS: verbose=yes warnings=all werror=no module_text_server_fb_enabled=yes minizip=yes deprecated=yes
   SCONSFLAGS_TEMPLATE: no_editor_splash=yes module_camera_enabled=no module_mobile_vr_enabled=no module_upnp_enabled=no module_websocket_enabled=no module_csg_enabled=yes module_gridmap_enabled=yes use_static_cpp=yes builtin_freetype=yes builtin_libpng=yes builtin_zlib=yes builtin_libwebp=yes builtin_libvorbis=yes builtin_libogg=yes disable_3d=no
   SCONS_CACHE_MSVC_CONFIG: true
