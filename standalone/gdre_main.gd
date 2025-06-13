@@ -190,7 +190,7 @@ func close_recover_file_dialog():
 func launch_recovery_window(paths: PackedStringArray):
 	setup_new_pck_window()
 	#RECOVERY_DIALOG = gdre_recover.instantiate()
-	RECOVERY_DIALOG.set_root_window(REAL_ROOT_WINDOW)
+	#RECOVERY_DIALOG.set_root_window(REAL_ROOT_WINDOW)
 	#REAL_ROOT_WINDOW.add_child(RECOVERY_DIALOG)
 	#REAL_ROOT_WINDOW.move_child(RECOVERY_DIALOG, self.get_index() -1)
 	var err = RECOVERY_DIALOG.add_project(paths)

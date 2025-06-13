@@ -1,16 +1,13 @@
 class_name GDRERecoverDialog
-extends GDREChildDialog
+extends Window
 
 
-const gdre_export_report = preload("res://gdre_export_report.tscn")
-const gdre_file_tree = preload("res://gdre_file_tree.gd")
 var FILE_TREE : GDREFileTree = null
 var EXTRACT_ONLY : CheckBox = null
 var RECOVER : CheckBox = null
 var RECOVER_WINDOW :Window = null
 var VERSION_TEXT: Label = null
 var INFO_TEXT : Label = null
-var REPORT_DIALOG = null
 var DIRECTORY: LineEdit = null
 var RESOURCE_PREVIEW: Control = null
 var HSPLIT_CONTAINER: HSplitContainer = null
@@ -18,13 +15,12 @@ var SHOW_PREVIEW_BUTTON: Button = null
 var DESKTOP_DIR = OS.get_system_dir(OS.SystemDir.SYSTEM_DIR_DESKTOP)
 
 
-# var isHiDPI = DisplayServer.screen_get_dpi() >= 240
+var isHiDPI = false #DisplayServer.screen_get_dpi() >= 240
 var root: TreeItem = null
 var userroot: TreeItem = null
 var num_files:int = 0
 var num_broken:int = 0
 var num_malformed:int = 0
-var _is_test:bool = false
 var _file_dialog: FileDialog = null
 
 signal recovery_done()
@@ -54,25 +50,18 @@ func show_win():
 	SHOW_PREVIEW_BUTTON.toggled.emit(true)
 	self.popup_centered()
 
-# MUST CALL set_root_window() first!!!
-# Called when the node enters the scene tree for the first time.
 func _ready():
-	FILE_TREE =      $HSplitContainer/Control/FileTree
-	EXTRACT_ONLY =   $HSplitContainer/Control/RadioButtons/ExtractOnly
-	RECOVER =        $HSplitContainer/Control/RadioButtons/FullRecovery
-	VERSION_TEXT =   $HSplitContainer/Control/VersionText
-	INFO_TEXT =      $HSplitContainer/Control/InfoText
+	FILE_TREE =      %FileTree
+	EXTRACT_ONLY =   %ExtractOnly
+	RECOVER =        %FullRecovery
+	VERSION_TEXT =   %VersionText
+	INFO_TEXT =      %InfoText
 	RECOVER_WINDOW = self #$Control/RecoverWindow
-	DIRECTORY = $HSplitContainer/Control/Directory
-	RESOURCE_PREVIEW = $HSplitContainer/GdreResourcePreview
-	HSPLIT_CONTAINER = $HSplitContainer
-	SHOW_PREVIEW_BUTTON = $HSplitContainer/Control/ShowResourcePreview
-	#if !_is_test:
-		#assert(POPUP_PARENT_WINDOW)
-	#else:
-	POPUP_PARENT_WINDOW = get_window()
-	var thing: Variant = 2
-	var int_thing: int = int(thing)
+	DIRECTORY = %Directory
+	RESOURCE_PREVIEW = %GdreResourcePreview
+	HSPLIT_CONTAINER = %HSplitContainer
+	SHOW_PREVIEW_BUTTON = %ShowResourcePreview
+
 	if isHiDPI:
 		# get_viewport().size *= 2.0
 		# get_viewport().content_scale_factor = 2.0
@@ -88,9 +77,6 @@ func _ready():
 	file_list.connect("item_edited", self._on_item_edited)
 	setup_extract_dir_dialog()
 	DIRECTORY.text = DESKTOP_DIR
-
-
-
 	# load_test()
 
 func add_project(paths: PackedStringArray) -> int:
@@ -125,12 +111,16 @@ func cancel_extract():
 	pass
 
 
+func hide_win():
+	self.hide()
 
-var _last_path: String = ""
 
-func open_extract_dir_dialog(path:String = ""):
-	#var pck_path = path if !path.is_empty() else GDRESettings.get_pack_path().get_base_dir()
+func open_subwindow(window: Window):
+	window.set_transient(true)
+	window.set_exclusive(true)
+	window.popup_centered()
 
+func open_extract_dir_dialog():
 	_file_dialog.set_current_dir(DIRECTORY.text.get_base_dir())
 	open_subwindow(_file_dialog)
 
@@ -139,18 +129,11 @@ func _dir_selected(path: String):
 
 func setup_extract_dir_dialog():
 	_file_dialog = $ExtractDirDialog
-	#_file_dialog = FileDialog.new()
-	#_file_dialog.use_native_dialog = true
-	#_file_dialog.set_access(FileDialog.ACCESS_FILESYSTEM)
-	#_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
-	#_file_dialog.set_title("Select a directory to extract to")
-	#POPUP_PARENT_WINDOW.add_child(_file_dialog)
 	_file_dialog.connect("dir_selected", self._dir_selected)
 
 
 func _on_filter_text_changed(new_text: String) -> void:
 	FILE_TREE.filter(new_text)
-	pass # Replace with function body.
 
 func _on_check_all_pressed() -> void:
 	FILE_TREE.check_all_shown(true)
@@ -161,9 +144,8 @@ func _on_uncheck_all_pressed() -> void:
 
 
 func close():
-	var err = OK
 	if GDRESettings.is_pack_loaded():
-		err = GDRESettings.unload_project()
+		GDRESettings.unload_project()
 	RESOURCE_PREVIEW.reset()
 	hide_win()
 	emit_signal("recovery_done")
@@ -178,7 +160,6 @@ func _go():
 
 func confirm():
 	RESOURCE_PREVIEW.reset()
-	var files_to_extract = FILE_TREE.get_checked_files()
 	if (GDREConfig.get_setting("ask_for_download", true)):
 		for file in FILE_TREE.get_checked_files():
 			var ext = file.get_extension().to_lower()
@@ -191,15 +172,8 @@ func confirm():
 func cancelled():
 	close()
 
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(_delta):
-	pass
-
-
 func _on_directory_button_pressed() -> void:
-	open_extract_dir_dialog() # Replace with function body.
-
-
+	open_extract_dir_dialog()
 
 func _on_file_tree_item_selected() -> void:
 	if not RESOURCE_PREVIEW.is_visible_in_tree():
@@ -210,29 +184,13 @@ func _on_file_tree_item_selected() -> void:
 		if not path.is_empty():
 			RESOURCE_PREVIEW.load_resource(path)
 
-# No need for this
-# var _multi_selected_timer = null
-# var _on_multi_selected_cooldown = false
-# var _on_multi_selected_cooldown_time: float = 0.5
-# func _on_multi_select_timeout():
-# 	_on_multi_selected_cooldown = false
-# 	_multi_selected_timer = null
-# func _on_multi_selected(item, column, selected):
-# 	if item and selected and not _on_multi_selected_cooldown and RESOURCE_PREVIEW.is_visible_in_tree() :
-# 		var path = item.get_metadata(0)
-# 		if not path.is_empty():
-# 			RESOURCE_PREVIEW.load_resource(path)
-# 			_multi_selected_timer = get_tree().create_timer(_on_multi_selected_cooldown_time)
-# 			_multi_selected_timer.connect("timeout", self._on_multi_select_timeout)
-
-
 
 func _on_show_resource_preview_toggled(toggled_on: bool) -> void:
 	if toggled_on:
 		RESOURCE_PREVIEW.visible = true
 		# get the current size of the window
-		# set the split offset to 66% of the window size
-		HSPLIT_CONTAINER.set_split_offset(self.size.x * 0.50)
+		# set the split offset to 50% of the window size
+		HSPLIT_CONTAINER.set_split_offset(self.size.x / 2)
 		SHOW_PREVIEW_BUTTON.text = "Hide Resource Preview"
 		_on_file_tree_item_selected()
 	else:
