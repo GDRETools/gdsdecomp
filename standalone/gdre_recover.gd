@@ -160,7 +160,7 @@ func _go():
 
 func confirm():
 	RESOURCE_PREVIEW.reset()
-	if (GDREConfig.get_setting("ask_for_download", true)):
+	if (not EXTRACT_ONLY.is_pressed() and GDREConfig.get_setting("ask_for_download", true)):
 		for file in FILE_TREE.get_checked_files():
 			var ext = file.get_extension().to_lower()
 			if ext == "gdextension" or ext == "gdnlib":
