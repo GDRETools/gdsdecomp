@@ -314,7 +314,7 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 	uint32_t ver_patch = f->get_32(); // patch number, did not start getting set to anything other than 0 until 3.2
 
 	if (version > CURRENT_PACK_FORMAT_VERSION) {
-		ERR_FAIL_V_MSG(false, "Pack version unsupported: " + itos(version) + ".");
+		ERR_FAIL_V_MSG(false, "Pack version unsupported: " + itos(version) + ". (engine version: " + itos(ver_major) + "." + itos(ver_minor) + "." + itos(ver_patch) + ")");
 	}
 
 	uint32_t pack_flags = 0;
@@ -332,9 +332,19 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 		file_base += pck_start_pos;
 	}
 
+#define DEBUG_PCK_INFO()                                                                             \
+	String("PCK version: ") + itos(version) +                                                        \
+			", engine version: " + itos(ver_major) + "." + itos(ver_minor) + "." + itos(ver_patch) + \
+			", enc_directory: " + (enc_directory ? "true" : "false") +                               \
+			", rel_filebase: " + (rel_filebase ? "true" : "false") +                                 \
+			", filebase: " + String::num_int64(file_base) +                                          \
+			", pck_start_pos: " + String::num_int64(pck_start_pos) + ")."
+
 	if (version == PACK_FORMAT_VERSION_V3) {
 		// V3: Read directory offset and skip reserved part of the header.
 		uint64_t dir_offset = f->get_64() + pck_start_pos;
+		ERR_FAIL_COND_V_MSG(dir_offset == 0, false,
+				"Directory offset is 0, this is not a valid PCK file\n" + DEBUG_PCK_INFO());
 		f->seek(dir_offset);
 	} else if (version <= PACK_FORMAT_VERSION_V2) {
 		// V2: Directory directly after the header.
@@ -342,6 +352,7 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 			f->get_32(); // Reserved.
 		}
 	}
+#undef DEBUG_PCK_INFO
 
 	uint32_t file_count = f->get_32();
 	if (enc_directory) {
