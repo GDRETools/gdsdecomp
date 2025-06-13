@@ -57,7 +57,7 @@ offset_top = 8.0
 offset_right = 286.0
 offset_bottom = 87.07999
 
-[node name="HBoxContainer" type="HBoxContainer" parent="Control"]
+[node name="InfoTextHBox" type="HBoxContainer" parent="Control"]
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.002
@@ -70,37 +70,101 @@ offset_right = 259.032
 offset_bottom = 39.315918
 grow_vertical = 0
 
-[node name="VersionLabel" type="Label" parent="Control/HBoxContainer"]
+[node name="VersionLabel" type="Label" parent="Control/InfoTextHBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Version:"
 
-[node name="VersionText" type="Label" parent="Control/HBoxContainer"]
+[node name="VersionText" type="Label" parent="Control/InfoTextHBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "0.0.0"
 
-[node name="FilesLabel" type="Label" parent="Control/HBoxContainer"]
+[node name="FilesLabel" type="Label" parent="Control/InfoTextHBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Files:"
 
-[node name="FilesText" type="Label" parent="Control/HBoxContainer"]
+[node name="FilesText" type="Label" parent="Control/InfoTextHBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "0"
 
-[node name="FileTree" type="Tree" parent="Control"]
-unique_name_in_owner = true
+[node name="MainVBox" type="VBoxContainer" parent="Control"]
 layout_mode = 1
-anchors_preset = -1
-anchor_right = 0.5
+anchors_preset = 15
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 2.0
-offset_top = 94.0
-offset_right = -12.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="SelectPackHBox" type="HBoxContainer" parent="Control/MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SelectedPck" type="LineEdit" parent="Control/MainVBox/SelectPackHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+
+[node name="SelectPckButton" type="Button" parent="Control/MainVBox/SelectPackHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+text = "Select"
+
+[node name="EmbedCheckBox" type="CheckBox" parent="Control/MainVBox/SelectPackHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Embed into EXE"
+
+[node name="HSeparator" type="HSeparator" parent="Control/MainVBox"]
+layout_mode = 2
+
+[node name="MainHBox" type="HBoxContainer" parent="Control/MainVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="PackVBox" type="VBoxContainer" parent="Control/MainVBox/MainHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="FilterHBox" type="HBoxContainer" parent="Control/MainVBox/MainHBox/PackVBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Label" type="Label" parent="Control/MainVBox/MainHBox/PackVBox/FilterHBox"]
+layout_mode = 2
+text = "PCK Files...              "
+
+[node name="Check" type="Button" parent="Control/MainVBox/MainHBox/PackVBox/FilterHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Checks all shown files"
+text = "Check"
+
+[node name="Uncheck" type="Button" parent="Control/MainVBox/MainHBox/PackVBox/FilterHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Unchecks all shown files"
+text = "Uncheck"
+
+[node name="Filter" type="LineEdit" parent="Control/MainVBox/MainHBox/PackVBox/FilterHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Filter Files"
+clear_button_enabled = true
+right_icon = ExtResource("4_gm62x")
+
+[node name="FileTree" type="Tree" parent="Control/MainVBox/MainHBox/PackVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
 column_titles_visible = true
 select_mode = 2
 script = ExtResource("3_aruht")
@@ -109,73 +173,48 @@ columnMap = Dictionary[int, int]({
 })
 metadata/_custom_type_script = "uid://cww2hw50p8q3i"
 
-[node name="SelectPackHBox" type="HBoxContainer" parent="Control"]
-layout_mode = 0
-offset_left = 5.0
-offset_top = 6.0
-offset_right = 822.0
-offset_bottom = 46.0
+[node name="PatchVBox" type="VBoxContainer" parent="Control/MainVBox/MainHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 10
 
-[node name="SelectedPck" type="LineEdit" parent="Control/SelectPackHBox"]
+[node name="FilesToPatchHBox" type="HBoxContainer" parent="Control/MainVBox/MainHBox/PatchVBox"]
+layout_mode = 2
+
+[node name="FilesToPatchLabel" type="Label" parent="Control/MainVBox/MainHBox/PatchVBox/FilesToPatchHBox"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 4
+text = "Files to patch..."
 
-[node name="SelectPckButton" type="Button" parent="Control/SelectPackHBox"]
+[node name="PatchButtonHBox" type="HBoxContainer" parent="Control/MainVBox/MainHBox/PatchVBox/FilesToPatchHBox"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_vertical = 4
-text = "Select"
+size_flags_horizontal = 8
 
-[node name="EmbedCheckBox" type="CheckBox" parent="Control/SelectPackHBox"]
+[node name="MapButton" type="Button" parent="Control/MainVBox/MainHBox/PatchVBox/FilesToPatchHBox/PatchButtonHBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Embed"
+text = "Map selected to Folder..."
 
-[node name="Filter" type="LineEdit" parent="Control"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = -1
-anchor_right = 0.5
-offset_left = 273.0
-offset_top = 58.0
-offset_right = -12.0
-offset_bottom = 89.0
-placeholder_text = "Filter Files"
-clear_button_enabled = true
-right_icon = ExtResource("4_gm62x")
+[node name="seperator" type="Container" parent="Control/MainVBox/MainHBox/PatchVBox/FilesToPatchHBox/PatchButtonHBox"]
+custom_minimum_size = Vector2(20, 0)
+layout_mode = 2
 
-[node name="Uncheck" type="Button" parent="Control"]
+[node name="SelectPatchFiles" type="Button" parent="Control/MainVBox/MainHBox/PatchVBox/FilesToPatchHBox/PatchButtonHBox"]
 unique_name_in_owner = true
-layout_mode = 0
-offset_left = 184.0
-offset_top = 58.0
-offset_right = 263.0
-offset_bottom = 89.0
-tooltip_text = "Unchecks all shown files"
-text = "Uncheck"
+layout_mode = 2
+text = "Select Files..."
 
-[node name="Check" type="Button" parent="Control"]
+[node name="PatchClearButton" type="Button" parent="Control/MainVBox/MainHBox/PatchVBox/FilesToPatchHBox/PatchButtonHBox"]
 unique_name_in_owner = true
-layout_mode = 0
-offset_left = 97.0
-offset_top = 58.0
-offset_right = 176.0
-offset_bottom = 89.0
-tooltip_text = "Checks all shown files"
-text = "Check"
+layout_mode = 2
+text = "Clear"
 
-[node name="PatchFileTree" type="Tree" parent="Control"]
+[node name="PatchFileTree" type="Tree" parent="Control/MainVBox/MainHBox/PatchVBox"]
 unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.5
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 14.0
-offset_top = 94.0
+layout_mode = 2
+size_flags_vertical = 3
 columns = 2
 column_titles_visible = true
 hide_folding = true
@@ -194,50 +233,6 @@ columnMap = Dictionary[int, int]({
 nameColumnName = "File"
 infoColumnName = "Mapping"
 metadata/_custom_type_script = "uid://cww2hw50p8q3i"
-
-[node name="FilesToPatchLabel" type="Label" parent="Control"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = 16.0
-offset_top = 56.0
-offset_right = 140.0
-offset_bottom = 87.0
-grow_horizontal = 2
-text = "Files to patch..."
-
-[node name="PatchButtonHBox" type="HBoxContainer" parent="Control"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -396.0
-offset_top = 55.0
-offset_right = 1.0
-offset_bottom = 86.0
-grow_horizontal = 0
-
-[node name="MapButton" type="Button" parent="Control/PatchButtonHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Map selected to Folder..."
-
-[node name="seperator" type="Container" parent="Control/PatchButtonHBox"]
-custom_minimum_size = Vector2(20, 0)
-layout_mode = 2
-
-[node name="SelectPatchFiles" type="Button" parent="Control/PatchButtonHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Select Files..."
-
-[node name="PatchClearButton" type="Button" parent="Control/PatchButtonHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Clear"
 
 [node name="DropFoldersConfirmation" type="AcceptDialog" parent="."]
 unique_name_in_owner = true
@@ -352,17 +347,17 @@ root_subfolder = "res://"
 [connection signal="files_selected" from="SelectPatchFilesDialog" to="." method="_on_select_patch_files_dialog_files_selected"]
 [connection signal="file_selected" from="SelectPatchMappingDialog" to="." method="_on_select_patch_mapping_dialog_file_selected"]
 [connection signal="file_selected" from="SavePckDialog" to="." method="_on_save_pck_dialog_file_selected"]
-[connection signal="pressed" from="Control/SelectPackHBox/SelectPckButton" to="." method="_on_select_pck_button_pressed"]
-[connection signal="text_changed" from="Control/Filter" to="." method="_on_filter_text_changed"]
-[connection signal="pressed" from="Control/Uncheck" to="." method="_on_uncheck_all_pressed"]
-[connection signal="pressed" from="Control/Check" to="." method="_on_check_all_pressed"]
-[connection signal="cell_selected" from="Control/PatchFileTree" to="." method="_on_patch_file_tree_cell_selected"]
-[connection signal="item_edited" from="Control/PatchFileTree" to="." method="_on_patch_file_tree_item_edited"]
-[connection signal="item_selected" from="Control/PatchFileTree" to="." method="_on_patch_file_tree_item_selected"]
-[connection signal="nothing_selected" from="Control/PatchFileTree" to="." method="_on_patch_file_tree_nothing_selected"]
-[connection signal="pressed" from="Control/PatchButtonHBox/MapButton" to="." method="_on_map_button_pressed"]
-[connection signal="pressed" from="Control/PatchButtonHBox/SelectPatchFiles" to="." method="_on_select_patch_files_pressed"]
-[connection signal="pressed" from="Control/PatchButtonHBox/PatchClearButton" to="." method="_on_patch_clear_button_pressed"]
+[connection signal="pressed" from="Control/MainVBox/SelectPackHBox/SelectPckButton" to="." method="_on_select_pck_button_pressed"]
+[connection signal="pressed" from="Control/MainVBox/MainHBox/PackVBox/FilterHBox/Check" to="." method="_on_check_all_pressed"]
+[connection signal="pressed" from="Control/MainVBox/MainHBox/PackVBox/FilterHBox/Uncheck" to="." method="_on_uncheck_all_pressed"]
+[connection signal="text_changed" from="Control/MainVBox/MainHBox/PackVBox/FilterHBox/Filter" to="." method="_on_filter_text_changed"]
+[connection signal="pressed" from="Control/MainVBox/MainHBox/PatchVBox/FilesToPatchHBox/PatchButtonHBox/MapButton" to="." method="_on_map_button_pressed"]
+[connection signal="pressed" from="Control/MainVBox/MainHBox/PatchVBox/FilesToPatchHBox/PatchButtonHBox/SelectPatchFiles" to="." method="_on_select_patch_files_pressed"]
+[connection signal="pressed" from="Control/MainVBox/MainHBox/PatchVBox/FilesToPatchHBox/PatchButtonHBox/PatchClearButton" to="." method="_on_patch_clear_button_pressed"]
+[connection signal="cell_selected" from="Control/MainVBox/MainHBox/PatchVBox/PatchFileTree" to="." method="_on_patch_file_tree_cell_selected"]
+[connection signal="item_edited" from="Control/MainVBox/MainHBox/PatchVBox/PatchFileTree" to="." method="_on_patch_file_tree_item_edited"]
+[connection signal="item_selected" from="Control/MainVBox/MainHBox/PatchVBox/PatchFileTree" to="." method="_on_patch_file_tree_item_selected"]
+[connection signal="nothing_selected" from="Control/MainVBox/MainHBox/PatchVBox/PatchFileTree" to="." method="_on_patch_file_tree_nothing_selected"]
 [connection signal="canceled" from="DropFoldersConfirmation" to="." method="_on_drop_folders_confirmation_close_requested"]
 [connection signal="close_requested" from="DropFoldersConfirmation" to="." method="_on_drop_folders_confirmation_close_requested"]
 [connection signal="confirmed" from="DropFoldersConfirmation" to="." method="_on_drop_folders_confirmation_close_requested"]
