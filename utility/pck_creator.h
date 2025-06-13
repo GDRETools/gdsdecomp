@@ -39,6 +39,8 @@ class PckCreator : public RefCounted {
 	std::atomic<int64_t> data_read = 0;
 	Vector<String> tmp_files;
 	Ref<FileAccess> f;
+	size_t pck_start_pos = 0;
+	size_t files_start = 0;
 	size_t file_base = 0;
 	Error encryption_error = OK;
 	Vector<uint8_t> key;

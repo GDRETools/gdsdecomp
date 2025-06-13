@@ -108,18 +108,20 @@ struct PckCreateListDirTaskData {
 			for (auto &d : dirs) {
 				tokens.push_back(PckCreateListDirTaskData::Token{ rel.path_join(d), {} });
 			}
-			String desc = "Reading folder " + dir + " structure...";
-			String task = "ListDirTaskData(" + dir + +")_" + String::num_int64(OS::get_singleton()->get_ticks_usec());
 
 			Ref<EditorProgressGDDC> ep;
-			TaskManager::GroupTaskID group_id;
-			ep = EditorProgressGDDC::create(nullptr, task, desc, -1, true);
-			group_id = TaskManager::get_singleton()->add_group_task(
-					this, &PckCreateListDirTaskData::do_subdir_task,
-					tokens.ptrw(), tokens.size(),
-					&PckCreateListDirTaskData::get_step_description,
-					task, desc,
-					true, -1, true, ep, 0);
+			TaskManager::GroupTaskID group_id = -1;
+			if (tokens.size() > 0) {
+				String desc = "Reading folder " + dir + " structure...";
+				String task = "ListDirTaskData(" + dir + +")_" + String::num_int64(OS::get_singleton()->get_ticks_usec());
+				ep = EditorProgressGDDC::create(nullptr, task, desc, -1, true);
+				group_id = TaskManager::get_singleton()->add_group_task(
+						this, &PckCreateListDirTaskData::do_subdir_task,
+						tokens.ptrw(), tokens.size(),
+						&PckCreateListDirTaskData::get_step_description,
+						task, desc,
+						true, -1, true, ep, 0);
+			}
 			// while we wait for the subdirs to be read, we can filter the files
 			files.sort_custom<FileNoCaseComparator>();
 			for (int64_t i = files.size() - 1; i >= 0; i--) {
@@ -130,7 +132,9 @@ struct PckCreateListDirTaskData {
 					continue;
 				}
 			}
-			TaskManager::get_singleton()->wait_for_group_task_completion(group_id);
+			if (group_id != -1) {
+				TaskManager::get_singleton()->wait_for_group_task_completion(group_id);
+			}
 			for (auto &t : tokens) {
 				ret.append_array(std::move(t.ret));
 			}
@@ -378,7 +382,7 @@ void PckCreator::_do_write_file(uint32_t i, File *files_to_pck) {
 	if (encryption_error != OK) {
 		return;
 	}
-	DEV_ASSERT(f->get_position() == file_base + files_to_pck[i].ofs);
+	DEV_ASSERT(f->get_position() == files_start + files_to_pck[i].ofs);
 	Ref<FileAccessEncrypted> fae;
 	Ref<FileAccess> ftmp = f;
 	if (encrypt) {
@@ -428,6 +432,7 @@ Error PckCreator::_create_after_process() {
 	broken_cnt = 0;
 	f = nullptr;
 	encryption_error = OK;
+	files_start = 0;
 	file_base = 0;
 	key = GDRESettings::get_singleton()->get_encryption_key();
 	uint64_t start_time = OS::get_singleton()->get_ticks_msec();
@@ -485,7 +490,7 @@ Error PckCreator::_create_after_process() {
 			f->store_8(0);
 		}
 	}
-	int64_t pck_start_pos = f->get_position();
+	pck_start_pos = f->get_position();
 
 	f->store_32(0x43504447); //GDPK
 	f->store_32(version);
@@ -612,14 +617,21 @@ Error PckCreator::_create_after_process() {
 		if (err != OK) {
 			return err;
 		}
+	} else {
+		// re-align
+		int pad = _get_pad(PCK_PADDING, f->get_position());
+		for (int i = 0; i < pad; i++) {
+			f->store_8(0);
+		}
 	}
 
-	file_base = f->get_position() - ((pack_flags & PACK_REL_FILEBASE) != 0 ? pck_start_pos : 0);
+	files_start = f->get_position();
+	file_base = files_start - ((pack_flags & PACK_REL_FILEBASE) != 0 ? pck_start_pos : 0);
 	// DEV_ASSERT(file_base == header_size + header_padding);
 	if (version >= PACK_FORMAT_VERSION_V2) {
 		f->seek(file_base_ofs);
 		f->store_64(file_base); // update files base
-		f->seek(file_base);
+		f->seek(files_start);
 	}
 
 	Error err = TaskManager::get_singleton()->run_multithreaded_group_task(
@@ -650,9 +662,14 @@ Error PckCreator::_create_after_process() {
 	}
 
 	if (version >= PACK_FORMAT_VERSION_V3) {
+		int dir_padding = _get_pad(PCK_PADDING, f->get_position());
+		for (int i = 0; i < dir_padding; i++) {
+			f->store_8(0);
+		}
+
 		uint64_t dir_offset = f->get_position();
 		f->seek(dir_base_ofs);
-		f->store_64(dir_offset); // update directory base
+		f->store_64(dir_offset - pck_start_pos); // update directory base
 		f->seek(dir_offset);
 		if (write_header() != OK) {
 			return ERR_FILE_CANT_WRITE;
