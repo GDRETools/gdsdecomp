@@ -869,7 +869,7 @@ struct VarWriter {
 		return ret;
 	}
 	// If this fails, take out the `unlikely` part below
-	static_assert(std::is_same_v<decltype(&String::resize), Error (String::*)(int)>);
+	static_assert(std::is_same_v<decltype(&String::size), int (String::*)(void) const>);
 
 	// significantly speeds up writing PackedByteArrays
 	template <class T>
@@ -888,7 +888,7 @@ struct VarWriter {
 		}
 
 		String s;
-		s.resize(str_size);
+		s.resize_uninitialized(str_size);
 		auto *ptr_s = s.ptrw();
 
 		uint64_t idx = 0;
@@ -901,7 +901,7 @@ struct VarWriter {
 			idx += unsafe_write_num64(ptr[i], ptr_s, idx);
 		}
 		ptr_s[idx] = 0;
-		s.resize(idx + 1);
+		s.resize_uninitialized(idx + 1);
 		p_store_string_func(p_store_string_ud, s);
 	}
 

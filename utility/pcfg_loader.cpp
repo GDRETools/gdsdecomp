@@ -80,7 +80,7 @@ Error ProjectConfigLoader::_load_settings_binary(Ref<FileAccess> f, const String
 	for (uint32_t i = 0; i < count; i++) {
 		uint32_t slen = f->get_32();
 		CharString cs;
-		cs.resize(slen + 1);
+		cs.resize_uninitialized(slen + 1);
 		cs[slen] = 0;
 		int bytes_read = f->get_buffer((uint8_t *)cs.ptr(), slen);
 		if (bytes_read < slen) {

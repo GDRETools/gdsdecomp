@@ -130,7 +130,7 @@ For ease of bootstrapping development, we have included launch, build, and setti
 
 ### Requirements
 
-Godot 4.0 (master branch) @ d9cd011e2fa9fa9a3011371843729f33032cee35
+Godot 4.0 (master branch) @ 318a81779be90c4dd19cc6cb2b61997e3665bf1e
 
 - Support for building on 3.x has been dropped and no new features are being pushed
   - Godot RE Tools still retains the ability to decompile 3.x and 2.x projects, however.

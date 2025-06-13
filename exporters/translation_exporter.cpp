@@ -501,7 +501,7 @@ struct KeyWorker {
 
 	CharString cs_num(int64_t num, int zero_prefix_len) {
 		CharString ret;
-		ret.resize(32);
+		ret.resize_uninitialized(32);
 		const char *format;
 		if (zero_prefix_len > 0) {
 			if (zero_prefix_len == 1) {
@@ -523,7 +523,7 @@ struct KeyWorker {
 			format = "%lld";
 		}
 		int len = snprintf(ret.ptrw(), 31, format, num);
-		ret.resize(len + 1);
+		ret.resize_uninitialized(len + 1);
 		return ret;
 	}
 
@@ -550,7 +550,7 @@ struct KeyWorker {
 		num_suffix_val = -1;
 		if (stripped_last_char) {
 			// malloc a new string
-			res_s_copy.resize(new_len + 1);
+			res_s_copy.resize_uninitialized(new_len + 1);
 			memcpy(res_s_copy.ptrw(), p_res_s, new_len);
 			res_s_copy[new_len] = '\0';
 			num_suffix_val = String(p_res_s + new_len).to_int();
@@ -582,7 +582,7 @@ struct KeyWorker {
 
 		if (stripped_last_char) {
 			res_s_copy = p_res_s;
-			res_s_copy.resize(new_len + 1);
+			res_s_copy.resize_uninitialized(new_len + 1);
 			res_s_copy[new_len] = '\0';
 			String num_str = String(p_res_s.get_data() + new_len);
 			// check how many zeros are in the num_str

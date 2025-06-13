@@ -124,7 +124,7 @@ HashMap<String, Ref<NodeDiffResult>> FileDiffResult::get_node_diff_map() const {
 }
 
 void FileDiffResult::set_node_diff(const Ref<NodeDiffResult> &p_diff) {
-	node_diffs[p_diff->get_path()] = Variant(p_diff);
+	node_diffs[String(p_diff->get_path())] = Variant(p_diff);
 }
 
 Ref<NodeDiffResult> FileDiffResult::get_node_diff(const String &p_path) const {
@@ -172,7 +172,7 @@ Ref<FileDiffResult> FileDiffResult::get_resource_diff(Ref<Resource> p_res, Ref<R
 	for (auto &path : paths) {
 		Ref<NodeDiffResult> value1 = NodeDiffResult::evaluate_node_differences(scene1, scene2, path, p_structured_changes);
 		if (value1.is_valid()) {
-			node_diffs[path] = value1;
+			node_diffs[String(path)] = value1;
 		}
 	}
 	result->set_type("scene_changed");
@@ -396,7 +396,7 @@ void NodeDiffResult::get_child_node_paths(Node *node_a, HashSet<NodePath> &paths
 Ref<NodeDiffResult> NodeDiffResult::evaluate_node_differences(Node *scene1, Node *scene2, const NodePath &path, const Dictionary &p_structured_changes) {
 	Ref<NodeDiffResult> result;
 	result.instantiate();
-	bool is_root = path == "." || path.is_empty();
+	bool is_root = path == NodePath(".") || path.is_empty();
 	Node *node1 = scene1;
 	Node *node2 = scene2;
 	if (!is_root) {

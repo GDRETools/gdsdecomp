@@ -44,7 +44,7 @@ String GDRESettings::_get_cwd() {
 	const DWORD expected_size = ::GetCurrentDirectoryW(0, nullptr);
 
 	Char16String buffer;
-	buffer.resize((int)expected_size);
+	buffer.resize_uninitialized((int)expected_size);
 	if (::GetCurrentDirectoryW(expected_size, (wchar_t *)buffer.ptrw()) == 0)
 		return ".";
 
@@ -1551,7 +1551,7 @@ Error GDRESettings::load_pack_uid_cache(bool p_reset) {
 		int64_t id = f->get_64();
 		int32_t len = f->get_32();
 		UID_Cache c;
-		c.cs.resize(len + 1);
+		c.cs.resize_uninitialized(len + 1);
 		ERR_FAIL_COND_V(c.cs.size() != len + 1, ERR_FILE_CORRUPT); // out of memory
 		c.cs[len] = 0;
 		int32_t rl = f->get_buffer((uint8_t *)c.cs.ptrw(), len);
