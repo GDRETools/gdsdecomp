@@ -1,12 +1,12 @@
-[gd_scene load_steps=6 format=3 uid="uid://xdfd5b6mnjgr"]
+[gd_scene load_steps=5 format=3 uid="uid://xdfd5b6mnjgr"]
 
 [ext_resource type="Script" uid="uid://x4uyq0hooymw" path="res://gdre_patch_pck.gd" id="1_p07vp"]
 [ext_resource type="Theme" uid="uid://crq1fwn0ajw7b" path="res://gdre_theme.tres" id="1_up5g3"]
-[ext_resource type="Script" uid="uid://cbggqwojxui00" path="res://gdre_child_dialog.gd" id="3_4k07d"]
 [ext_resource type="Script" uid="uid://cww2hw50p8q3i" path="res://gdre_file_tree.gd" id="3_aruht"]
 [ext_resource type="Texture2D" uid="uid://byablbp3l8foe" path="res://gdre_icons/gdre_Search.svg" id="4_gm62x"]
 
 [node name="GdrePatchPck" type="AcceptDialog"]
+oversampling_override = 1.0
 title = "Patch PCK"
 position = Vector2i(0, 24)
 size = Vector2i(1500, 648)
@@ -15,11 +15,13 @@ theme = ExtResource("1_up5g3")
 ok_button_text = "Patch"
 dialog_hide_on_ok = false
 script = ExtResource("1_p07vp")
-metadata/_custom_type_script = ExtResource("3_4k07d")
+metadata/_custom_type_script = "uid://cbggqwojxui00"
 
 [node name="ErrorDialog" type="AcceptDialog" parent="."]
+unique_name_in_owner = true
 
 [node name="SelectPckDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
 title = "Open a File"
 ok_button_text = "Open"
 dialog_hide_on_ok = true
@@ -29,6 +31,7 @@ filters = PackedStringArray("*.pck")
 use_native_dialog = true
 
 [node name="SelectPatchFilesDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
 title = "Open File(s)"
 ok_button_text = "Open"
 dialog_hide_on_ok = true
@@ -37,9 +40,11 @@ access = 2
 use_native_dialog = true
 
 [node name="SelectPatchMappingDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
 root_subfolder = "res://"
 
 [node name="SavePckDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
 access = 2
 
 [node name="Control" type="Control" parent="."]
@@ -49,10 +54,44 @@ anchor_right = 0.804
 anchor_bottom = 0.79
 offset_left = 8.0
 offset_top = 8.0
-offset_right = 1492.0
-offset_bottom = 599.0
+offset_right = 286.0
+offset_bottom = 87.07999
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.002
+anchor_top = 1.0
+anchor_right = 0.002
+anchor_bottom = 1.0
+offset_left = 0.031999826
+offset_top = 8.315918
+offset_right = 259.032
+offset_bottom = 39.315918
+grow_vertical = 0
+
+[node name="VersionLabel" type="Label" parent="Control/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Version:"
+
+[node name="VersionText" type="Label" parent="Control/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "0.0.0"
+
+[node name="FilesLabel" type="Label" parent="Control/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Files:"
+
+[node name="FilesText" type="Label" parent="Control/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "0"
 
 [node name="FileTree" type="Tree" parent="Control"]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = -1
 anchor_right = 0.5
@@ -68,48 +107,35 @@ script = ExtResource("3_aruht")
 columnMap = Dictionary[int, int]({
 0: 0
 })
-metadata/_custom_type_script = ExtResource("3_aruht")
+metadata/_custom_type_script = "uid://cww2hw50p8q3i"
 
-[node name="VersionLabel" type="Label" parent="Control"]
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = -6.0
-offset_top = 11.0
-offset_right = 112.0
-offset_bottom = 42.0
-grow_vertical = 0
-text = "Version:"
-
-[node name="VersionText" type="Label" parent="Control"]
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 65.0
-offset_top = 11.0
-offset_right = 148.0
-offset_bottom = 42.0001
-grow_vertical = 0
-text = "0.0.0"
-
-[node name="SelectPckButton" type="Button" parent="Control"]
+[node name="SelectPackHBox" type="HBoxContainer" parent="Control"]
 layout_mode = 0
-offset_left = 611.0
+offset_left = 5.0
 offset_top = 6.0
-offset_right = 679.0
-offset_bottom = 38.0
+offset_right = 822.0
+offset_bottom = 46.0
+theme_override_constants/separation = 10
+
+[node name="SelectedPck" type="LineEdit" parent="Control/SelectPackHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+
+[node name="SelectPckButton" type="Button" parent="Control/SelectPackHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
 text = "Select"
 
-[node name="SelectedPck" type="LineEdit" parent="Control"]
-layout_mode = 0
-offset_left = 7.0
-offset_top = 7.0
-offset_right = 593.0
-offset_bottom = 38.0
+[node name="EmbedCheckBox" type="CheckBox" parent="Control/SelectPackHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Embed"
 
 [node name="Filter" type="LineEdit" parent="Control"]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = -1
 anchor_right = 0.5
@@ -121,31 +147,8 @@ placeholder_text = "Filter Files"
 clear_button_enabled = true
 right_icon = ExtResource("4_gm62x")
 
-[node name="FilesLabel" type="Label" parent="Control"]
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 131.0
-offset_top = 11.0
-offset_right = 178.0
-offset_bottom = 42.0
-grow_vertical = 0
-text = "Files:"
-
-[node name="FilesText" type="Label" parent="Control"]
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 179.0
-offset_top = 10.0
-offset_right = 257.0
-offset_bottom = 41.0
-grow_vertical = 0
-text = "0"
-
 [node name="Uncheck" type="Button" parent="Control"]
+unique_name_in_owner = true
 layout_mode = 0
 offset_left = 184.0
 offset_top = 58.0
@@ -155,6 +158,7 @@ tooltip_text = "Unchecks all shown files"
 text = "Uncheck"
 
 [node name="Check" type="Button" parent="Control"]
+unique_name_in_owner = true
 layout_mode = 0
 offset_left = 97.0
 offset_top = 58.0
@@ -164,6 +168,7 @@ tooltip_text = "Checks all shown files"
 text = "Check"
 
 [node name="PatchFileTree" type="Tree" parent="Control"]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.5
@@ -188,11 +193,12 @@ columnMap = Dictionary[int, int]({
 })
 nameColumnName = "File"
 infoColumnName = "Mapping"
-metadata/_custom_type_script = ExtResource("3_aruht")
+metadata/_custom_type_script = "uid://cww2hw50p8q3i"
 
 [node name="FilesToPatchLabel" type="Label" parent="Control"]
+unique_name_in_owner = true
 layout_mode = 1
-anchors_preset = 5
+anchors_preset = -1
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = 16.0
@@ -203,6 +209,7 @@ grow_horizontal = 2
 text = "Files to patch..."
 
 [node name="PatchButtonHBox" type="HBoxContainer" parent="Control"]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
@@ -214,6 +221,7 @@ offset_bottom = 86.0
 grow_horizontal = 0
 
 [node name="MapButton" type="Button" parent="Control/PatchButtonHBox"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Map selected to Folder..."
 
@@ -222,27 +230,17 @@ custom_minimum_size = Vector2(20, 0)
 layout_mode = 2
 
 [node name="SelectPatchFiles" type="Button" parent="Control/PatchButtonHBox"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Select Files..."
 
 [node name="PatchClearButton" type="Button" parent="Control/PatchButtonHBox"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Clear"
 
-[node name="EmbedCheckBox" type="CheckBox" parent="Control"]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -144.0
-offset_top = 10.0
-offset_right = -62.0
-offset_bottom = 41.0
-text = "Embed"
-
 [node name="DropFoldersConfirmation" type="AcceptDialog" parent="."]
+unique_name_in_owner = true
 title = "Select Mapping"
 position = Vector2i(0, 24)
 size = Vector2i(1000, 600)
@@ -264,6 +262,7 @@ grow_vertical = 2
 theme = ExtResource("1_up5g3")
 
 [node name="ItemListA" type="Tree" parent="DropFoldersConfirmation/Control"]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = -1
 anchor_right = 0.5
@@ -278,6 +277,7 @@ column_titles_visible = true
 hide_root = true
 
 [node name="ItemListB" type="Tree" parent="DropFoldersConfirmation/Control"]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.5
@@ -292,6 +292,7 @@ column_titles_visible = true
 hide_root = true
 
 [node name="SelectA" type="Button" parent="DropFoldersConfirmation/Control"]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.25
@@ -306,6 +307,7 @@ grow_horizontal = 2
 text = "Select \"Relative To...\" Mapping"
 
 [node name="SelectB" type="Button" parent="DropFoldersConfirmation/Control"]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.742
@@ -321,6 +323,7 @@ text = "Select \"Relative From...\" Mapping
 "
 
 [node name="LabelA" type="Label" parent="DropFoldersConfirmation/Control"]
+unique_name_in_owner = true
 layout_mode = 0
 offset_left = 11.0
 offset_top = 33.0
@@ -329,6 +332,7 @@ offset_bottom = 64.0
 text = "\"Relative to...\" mapping"
 
 [node name="LabelB" type="Label" parent="DropFoldersConfirmation/Control"]
+unique_name_in_owner = true
 layout_mode = 0
 offset_left = 502.0
 offset_top = 33.0
@@ -337,6 +341,7 @@ offset_bottom = 64.0
 text = "\"Relative from...\" mapping"
 
 [node name="SelectPatchFolderMappingDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
 auto_translate_mode = 1
 title = "Open a Directory"
 ok_button_text = "Select Current Folder"
@@ -347,7 +352,7 @@ root_subfolder = "res://"
 [connection signal="files_selected" from="SelectPatchFilesDialog" to="." method="_on_select_patch_files_dialog_files_selected"]
 [connection signal="file_selected" from="SelectPatchMappingDialog" to="." method="_on_select_patch_mapping_dialog_file_selected"]
 [connection signal="file_selected" from="SavePckDialog" to="." method="_on_save_pck_dialog_file_selected"]
-[connection signal="pressed" from="Control/SelectPckButton" to="." method="_on_select_pck_button_pressed"]
+[connection signal="pressed" from="Control/SelectPackHBox/SelectPckButton" to="." method="_on_select_pck_button_pressed"]
 [connection signal="text_changed" from="Control/Filter" to="." method="_on_filter_text_changed"]
 [connection signal="pressed" from="Control/Uncheck" to="." method="_on_uncheck_all_pressed"]
 [connection signal="pressed" from="Control/Check" to="." method="_on_check_all_pressed"]

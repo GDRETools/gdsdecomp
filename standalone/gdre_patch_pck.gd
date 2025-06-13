@@ -70,7 +70,7 @@ func _on_patch_tree_button_clicked(item: TreeItem, _column: int, id: int, mouse_
 				button_clicked_item = null
 			PATCH_FILE_TREE.get_root().remove_child(item)
 			_validate()
-			
+
 			pass
 	pass
 
@@ -126,23 +126,23 @@ func map_all_to_folder(selected_items: Array):
 # MUST CALL set_root_window() first!!!
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	FILE_TREE =      $Control/FileTree
-	VERSION_TEXT =   $Control/VersionText
-	SELECTED_PCK = $Control/SelectedPck
+	FILE_TREE =      %FileTree
+	VERSION_TEXT =   %VersionText
+	SELECTED_PCK = %SelectedPck
 	SELECT_PCK_DIALOG = $SelectPckDialog
-	FILTER = $Control/Filter
-	FILES_TEXT = $Control/FilesText
-	PATCH_FILE_TREE = $Control/PatchFileTree
+	FILTER = %Filter
+	FILES_TEXT = %FilesText
+	PATCH_FILE_TREE = %PatchFileTree
 	PATCH_FILE_DIALOG = $SelectPatchFilesDialog
-	PATCH_FILE_MAPPING_DIALOG = $SelectPatchMappingDialog
-	PATCH_FOLDER_MAPPING_DIALOG = $SelectPatchFolderMappingDialog
-	MAP_SELECTED_ITEMS_BUTTON = $Control/PatchButtonHBox/MapButton
-	DROP_FOLDERS_CONFIRMATION_DIALOG = $DropFoldersConfirmation
-	DROP_FOLDERS_LIST_A = $DropFoldersConfirmation/Control/ItemListA
-	DROP_FOLDERS_LIST_B = $DropFoldersConfirmation/Control/ItemListB
-	DROP_FOLDERS_LABEL_A = $DropFoldersConfirmation/Control/LabelA
-	DROP_FOLDERS_LABEL_B = $DropFoldersConfirmation/Control/LabelB
-	EMBED_CHECKBOX = $Control/EmbedCheckBox
+	PATCH_FILE_MAPPING_DIALOG = %SelectPatchMappingDialog
+	PATCH_FOLDER_MAPPING_DIALOG = %SelectPatchFolderMappingDialog
+	MAP_SELECTED_ITEMS_BUTTON = %MapButton
+	DROP_FOLDERS_CONFIRMATION_DIALOG = %DropFoldersConfirmation
+	DROP_FOLDERS_LIST_A = %ItemListA
+	DROP_FOLDERS_LIST_B = %ItemListB
+	DROP_FOLDERS_LABEL_A = %LabelA
+	DROP_FOLDERS_LABEL_B = %LabelB
+	EMBED_CHECKBOX = %EmbedCheckBox
 	$SavePckDialog.current_dir = OS.get_system_dir(OS.SYSTEM_DIR_DESKTOP)
 
 	DROP_FOLDERS_LIST_A.set_column_title(0, "File")
@@ -253,7 +253,7 @@ func _on_select_pck_dialog_file_selected(path: String) -> void:
 
 func _on_filter_text_changed(new_text: String) -> void:
 	FILE_TREE.filter(new_text)
-	pass 
+	pass
 
 func _on_check_all_pressed() -> void:
 	FILE_TREE.check_all_shown(true)
@@ -354,7 +354,7 @@ func _validate():
 		EMBED_CHECKBOX.disabled = false
 	else:
 		EMBED_CHECKBOX.disabled = true
-		
+
 	if (!pack_loaded or not error_messages.is_empty()):
 		self.get_ok_button().disabled = true
 		return false
@@ -394,7 +394,7 @@ func confirm():
 		text = text + ".pck"
 	$SavePckDialog.current_file = text
 	$SavePckDialog.popup_centered()
-	
+
 func _on_save_pck_dialog_file_selected(path: String) -> void:
 	$SavePckDialog.hide()
 	if (not _validate()):
@@ -433,7 +433,7 @@ func _on_patch_folders_dropped(folder_paths: PackedStringArray, other_file_paths
 	# invisible roots for the lists
 	DROP_FOLDERS_LIST_A.create_item()
 	DROP_FOLDERS_LIST_B.create_item()
-	
+
 	var error_messages: PackedStringArray = []
 	var empty_folders: PackedStringArray = []
 	var added_files = false
@@ -463,7 +463,7 @@ func _on_patch_folders_dropped(folder_paths: PackedStringArray, other_file_paths
 		var mapping = "res://" + file
 		add_item_to_drop_list(DROP_FOLDERS_LIST_A, file, path, mapping)
 		add_item_to_drop_list(DROP_FOLDERS_LIST_B, file, path, mapping)
-	
+
 
 	# show the confirmation dialog
 	if added_files:
@@ -504,11 +504,11 @@ func _on_patch_file_tree_cell_selected() -> void:
 
 
 func _on_patch_file_tree_item_selected() -> void:
-	_validate_map_button() 
+	_validate_map_button()
 
 
 func _on_patch_file_tree_nothing_selected() -> void:
-	_validate_map_button() 
+	_validate_map_button()
 
 
 func _on_patch_file_tree_item_edited() -> void:
