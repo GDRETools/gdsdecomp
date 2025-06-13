@@ -17,6 +17,9 @@ TaskManager *TaskManager::get_singleton() {
 }
 
 Error TaskManager::wait_for_group_task_completion(GroupTaskID p_group_id) {
+	if (p_group_id == -1) {
+		return ERR_INVALID_PARAMETER;
+	}
 	Error err = OK;
 	{
 		std::shared_ptr<BaseTemplateTaskData> task;

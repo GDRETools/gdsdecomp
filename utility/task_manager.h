@@ -144,6 +144,9 @@ public:
 		}
 
 		String get_current_task_step_description() override {
+			if (elements == 0) {
+				return "<UNKNOWN>";
+			}
 			return (instance->*task_step_desc_callback)(last_completed > 0 ? (int)last_completed : 0, userdata);
 		}
 
@@ -301,6 +304,7 @@ public:
 			bool p_high_priority = true,
 			Ref<EditorProgressGDDC> p_preexisting_progress = nullptr,
 			int p_progress_start = 0) {
+		ERR_FAIL_COND_V_MSG(p_elements == 0, -1, "Task has 0 elements, this is not allowed!");
 		bool is_singlethreaded = GDREConfig::get_singleton()->get_setting("force_single_threaded", false);
 		auto task = std::make_shared<GroupTaskData<C, M, U, R>>(p_instance, p_method, p_userdata, p_elements, p_task_step_callback, p_task, p_label, p_can_cancel, p_tasks, p_high_priority, is_singlethreaded, true, p_preexisting_progress, p_progress_start);
 		task->start();
