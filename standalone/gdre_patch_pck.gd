@@ -475,7 +475,9 @@ func _on_patch_folders_dropped(folder_paths: PackedStringArray, other_file_paths
 		popup_error_box("\n".join(error_messages), "Error")
 
 func _on_drop_folders_confirmation_close_requested() -> void:
-	DROP_FOLDERS_CONFIRMATION_DIALOG.hide()
+	%ItemListA.clear()
+	%ItemListB.clear()
+	%DropFoldersConfirmation.hide()
 
 func get_drop_folders_list_map(list: Tree) -> Dictionary[String, String]:
 	var item = list.get_root().get_first_child()

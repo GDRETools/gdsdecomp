@@ -234,106 +234,117 @@ nameColumnName = "File"
 infoColumnName = "Mapping"
 metadata/_custom_type_script = "uid://cww2hw50p8q3i"
 
-[node name="DropFoldersConfirmation" type="AcceptDialog" parent="."]
+[node name="DropFoldersConfirmation" type="Window" parent="."]
 unique_name_in_owner = true
+oversampling_override = 1.0
 title = "Select Mapping"
 position = Vector2i(0, 24)
 size = Vector2i(1000, 600)
+visible = false
+min_size = Vector2i(700, 600)
 theme = ExtResource("1_up5g3")
-ok_button_text = "Cancel"
-dialog_hide_on_ok = false
 
-[node name="Control" type="Control" parent="DropFoldersConfirmation"]
-layout_mode = 3
+[node name="Panel" type="Panel" parent="DropFoldersConfirmation"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 8.0
-offset_right = -8.0
-offset_bottom = -49.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"LightPanel"
+
+[node name="Control" type="MarginContainer" parent="DropFoldersConfirmation"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("1_up5g3")
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
 
-[node name="ItemListA" type="Tree" parent="DropFoldersConfirmation/Control"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = -1
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 72.0
-offset_right = -6.0
-offset_bottom = -11.0
-grow_vertical = 2
-columns = 2
-column_titles_visible = true
-hide_root = true
+[node name="VBoxContainer" type="VBoxContainer" parent="DropFoldersConfirmation/Control"]
+layout_mode = 2
+theme_override_constants/separation = 16
 
-[node name="ItemListB" type="Tree" parent="DropFoldersConfirmation/Control"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.5
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 2.0
-offset_top = 72.0
-offset_right = -12.0
-offset_bottom = -11.0
-columns = 2
-column_titles_visible = true
-hide_root = true
+[node name="MainHbox" type="HBoxContainer" parent="DropFoldersConfirmation/Control/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
 
-[node name="SelectA" type="Button" parent="DropFoldersConfirmation/Control"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.25
-anchor_top = 1.0
-anchor_right = 0.25
-anchor_bottom = 1.0
-offset_left = -123.0
-offset_top = 9.0
-offset_right = 123.0
-offset_bottom = 40.0
-grow_horizontal = 2
-text = "Select \"Relative To...\" Mapping"
+[node name="LeftVBox" type="VBoxContainer" parent="DropFoldersConfirmation/Control/VBoxContainer/MainHbox"]
+layout_mode = 2
+size_flags_horizontal = 3
 
-[node name="SelectB" type="Button" parent="DropFoldersConfirmation/Control"]
+[node name="LabelA" type="Label" parent="DropFoldersConfirmation/Control/VBoxContainer/MainHbox/LeftVBox"]
 unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.742
-anchor_top = 1.0
-anchor_right = 0.742
-anchor_bottom = 1.0
-offset_left = -134.128
-offset_top = 10.0
-offset_right = 133.872
-offset_bottom = 41.0
-grow_horizontal = 2
-text = "Select \"Relative From...\" Mapping
-"
-
-[node name="LabelA" type="Label" parent="DropFoldersConfirmation/Control"]
-unique_name_in_owner = true
-layout_mode = 0
-offset_left = 11.0
-offset_top = 33.0
-offset_right = 100.0
-offset_bottom = 64.0
+layout_mode = 2
 text = "\"Relative to...\" mapping"
 
-[node name="LabelB" type="Label" parent="DropFoldersConfirmation/Control"]
+[node name="ItemListA" type="Tree" parent="DropFoldersConfirmation/Control/VBoxContainer/MainHbox/LeftVBox"]
 unique_name_in_owner = true
-layout_mode = 0
-offset_left = 502.0
-offset_top = 33.0
-offset_right = 747.0
-offset_bottom = 64.0
+layout_mode = 2
+size_flags_vertical = 3
+columns = 2
+column_titles_visible = true
+hide_root = true
+
+[node name="RightVBox" type="VBoxContainer" parent="DropFoldersConfirmation/Control/VBoxContainer/MainHbox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LabelB" type="Label" parent="DropFoldersConfirmation/Control/VBoxContainer/MainHbox/RightVBox"]
+unique_name_in_owner = true
+layout_mode = 2
 text = "\"Relative from...\" mapping"
+
+[node name="ItemListB" type="Tree" parent="DropFoldersConfirmation/Control/VBoxContainer/MainHbox/RightVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+columns = 2
+column_titles_visible = true
+hide_root = true
+
+[node name="ButtonHBox" type="Control" parent="DropFoldersConfirmation/Control/VBoxContainer"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+size_flags_vertical = 4
+
+[node name="SelectA" type="Button" parent="DropFoldersConfirmation/Control/VBoxContainer/ButtonHBox"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.24200001
+anchor_right = 0.24200001
+offset_left = -123.16002
+offset_right = 122.83998
+offset_bottom = 31.0
+text = "Select \"Relative To...\" Mapping"
+
+[node name="CancelButton" type="Button" parent="DropFoldersConfirmation/Control/VBoxContainer/ButtonHBox"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -31.0
+offset_right = 33.0
+offset_bottom = 31.0
+grow_horizontal = 2
+text = "Cancel"
+
+[node name="SelectB" type="Button" parent="DropFoldersConfirmation/Control/VBoxContainer/ButtonHBox"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.76000005
+anchor_right = 0.76000005
+offset_left = -133.80005
+offset_right = 134.19995
+offset_bottom = 31.0
+text = "Select \"Relative From...\" Mapping
+"
 
 [node name="SelectPatchFolderMappingDialog" type="FileDialog" parent="."]
 unique_name_in_owner = true
@@ -358,11 +369,10 @@ root_subfolder = "res://"
 [connection signal="item_edited" from="Control/MainVBox/MainHBox/PatchVBox/PatchFileTree" to="." method="_on_patch_file_tree_item_edited"]
 [connection signal="item_selected" from="Control/MainVBox/MainHBox/PatchVBox/PatchFileTree" to="." method="_on_patch_file_tree_item_selected"]
 [connection signal="nothing_selected" from="Control/MainVBox/MainHBox/PatchVBox/PatchFileTree" to="." method="_on_patch_file_tree_nothing_selected"]
-[connection signal="canceled" from="DropFoldersConfirmation" to="." method="_on_drop_folders_confirmation_close_requested"]
 [connection signal="close_requested" from="DropFoldersConfirmation" to="." method="_on_drop_folders_confirmation_close_requested"]
-[connection signal="confirmed" from="DropFoldersConfirmation" to="." method="_on_drop_folders_confirmation_close_requested"]
-[connection signal="pressed" from="DropFoldersConfirmation/Control/SelectA" to="." method="_on_select_a_pressed"]
-[connection signal="pressed" from="DropFoldersConfirmation/Control/SelectB" to="." method="_on_select_b_pressed"]
+[connection signal="pressed" from="DropFoldersConfirmation/Control/VBoxContainer/ButtonHBox/SelectA" to="." method="_on_select_a_pressed"]
+[connection signal="pressed" from="DropFoldersConfirmation/Control/VBoxContainer/ButtonHBox/CancelButton" to="." method="_on_drop_folders_confirmation_close_requested"]
+[connection signal="pressed" from="DropFoldersConfirmation/Control/VBoxContainer/ButtonHBox/SelectB" to="." method="_on_select_b_pressed"]
 [connection signal="canceled" from="SelectPatchFolderMappingDialog" to="." method="_on_select_patch_folder_mapping_dialog_canceled"]
 [connection signal="close_requested" from="SelectPatchFolderMappingDialog" to="." method="_on_select_patch_folder_mapping_dialog_canceled"]
 [connection signal="dir_selected" from="SelectPatchFolderMappingDialog" to="." method="_on_select_patch_folder_mapping_dialog_dir_selected"]
