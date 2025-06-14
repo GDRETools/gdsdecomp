@@ -4,7 +4,7 @@ use std::{fs::File, io::Write};
 
 use super::config::{ColorMode, Config, ConverterConfig, Hierarchical};
 use super::svg::SvgFile;
-use fastrand::Rng;
+// use fastrand::Rng;
 use visioncortex::color_clusters::{Cluster, ClusterIndex, Clusters, KeyingAction, HIERARCHICAL_MAX};
 use visioncortex::{Color, ColorImage, ColorName, PathSimplifyMode};
 
@@ -60,9 +60,20 @@ fn find_unused_color_in_image(img: &ColorImage) -> Result<Color, String> {
         Color::new(0, 255, 255),
         Color::new(255, 0, 255),
     ]);
-    let rng = Rng::new();
-    let random_colors =
-        (0..NUM_UNUSED_COLOR_ITERATIONS).map(|_| Color::new(rng.u8(..), rng.u8(..), rng.u8(..)));
+    // let rng = rand::thread_rng();
+    // let random_colors =
+    //     (0..NUM_UNUSED_COLOR_ITERATIONS).map(|_| Color::new(rng.u8(..), rng.u8(..), rng.u8(..)));
+	// just use pre-generated random numbers to avoid pulling in the rand crate
+
+	let random_colors = [
+		Color::new(253, 123, 123),
+		Color::new(250, 162, 215),
+		Color::new(186, 136, 54),
+		Color::new(211, 111, 40),
+		Color::new(149, 152, 46),
+		Color::new(157, 125, 127),
+		Color::new(15, 10, 188),
+	];
     for color in special_colors.chain(random_colors) {
         if !color_exists_in_image(img, color) {
             return Ok(color);
@@ -113,7 +124,7 @@ fn remove_pixels_from_lower_layers(clusters: &Clusters) -> Vec<Cluster>{
         let indices = cluster.indices.clone();
         let indices_size = indices.len();
         if cluster.residue_sum.average().a == 254 {
-            cluster.residue_sum.a = 255 * cluster.residue_sum.counter; 
+            cluster.residue_sum.a = 255 * cluster.residue_sum.counter;
         }
         let color = cluster.residue_color();
         for (i, index) in indices.iter().rev().enumerate() {
@@ -182,7 +193,7 @@ fn color_image_to_svg(mut img: ColorImage, config: ConverterConfig) -> Result<Sv
     let _ = &new_cluster_vec;
     let mut new_cluster_output = Vec::new();
     let mut new_cluster_indices = Vec::new();
-    
+
     let view = match config.hierarchical {
         Hierarchical::Stacked => {
             if matches!(config.mode, PathSimplifyMode::None) {
