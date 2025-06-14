@@ -8,7 +8,6 @@
 #include "core/io/dir_access.h"
 #include "core/io/file_access.h"
 #include "core/io/http_client.h"
-#include "core/io/http_client_tcp.h"
 #include "core/io/image.h"
 #include "core/io/missing_resource.h"
 #include "modules/zip/zip_reader.h"
@@ -401,8 +400,7 @@ Error gdre::wget_sync(const String &p_url, Vector<uint8_t> &response, int retrie
 		return ERR_SKIP;               \
 	}
 	WGET_CANCELLED_CHECK();
-	Ref<HTTPClientTCP> client;
-	client.instantiate();
+	Ref<HTTPClient> client = HTTPClient::create();
 	client->set_blocking_mode(true);
 	Error err;
 	String url = p_url;
