@@ -425,13 +425,14 @@ bool StdOutProgress::step(int p_step, bool p_force_refresh) {
 	float progress = (float)current_step / (float)amount;
 	size_t progress_percent = MIN((size_t)(progress * 100), 100);
 	size_t prev_progress_percent = MIN((size_t)(((float)prev_step / (float)amount) * 100), 100);
-	if (progress_percent != prev_progress_percent) {
+	if (progress_percent != prev_progress_percent || current_tick - last_progress_tick > 1000000) {
 		GDRELogger::print_status_bar(label, progress);
+		last_progress_tick = current_tick;
 	}
-	if (current_tick - last_progress_tick > 200000 && GDREProgressDialog::is_safe_to_redraw()) {
+	if (current_tick - last_iteration_tick > 200000 && GDREProgressDialog::is_safe_to_redraw()) {
 		// force the main loop to iterate; this is needed to allow for input events to be processed and the command queue to be flushed.
 		Main::iteration();
-		last_progress_tick = current_tick;
+		last_iteration_tick = current_tick;
 	}
 	return false;
 }

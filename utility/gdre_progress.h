@@ -139,7 +139,9 @@ struct StdOutProgress {
 	int amount = 0;
 	int current_step = 0;
 	int width = 30;
+	uint64_t last_iteration_tick = 0;
 	uint64_t last_progress_tick = 0;
+
 	bool step(int p_step = -1, bool p_force_refresh = true);
 	void end();
 	void print_status_bar(const String &p_status, float p_progress);
