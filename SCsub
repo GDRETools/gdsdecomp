@@ -268,6 +268,14 @@ def cargo_builder(external_dir: str, source_dir: str, build_dir: str, libs: list
     cargo_env["CARGO_TARGET_DIR"] = build_dir
     # cargo_env["CARGO_INSTALL_ROOT"] = external_dir
     cargo_env["CBINDGEN_TARGET_DIR"] = cbindgen_dir
+    if build_env["platform"] == "web":
+        # need to include -Ctarget-feature=+atomics,+bulk-memory,+mutable-globals
+        cargo_env["RUSTFLAGS"] = (
+            "-Cpanic=abort -Ctarget-feature=+atomics,+bulk-memory,+mutable-globals -Clink-arg=-fno-exceptions -Clink-arg=-sDISABLE_EXCEPTION_THROWING=1 -Clink-arg=-sDISABLE_EXCEPTION_CATCHING=1 -Cllvm-args=-enable-emscripten-cxx-exceptions=0 -Zlink-native-libraries=no"
+        )
+        cargo_cmd.append("-Zbuild-std=std,panic_abort")
+        # need to also set
+        cargo_cmd.append("-Zbuild-std-features=panic_immediate_abort")
     output = check_output(cargo_cmd, cwd=source_dir, env=cargo_env)
     print(output.decode("utf-8"))
     if env.msvc:
