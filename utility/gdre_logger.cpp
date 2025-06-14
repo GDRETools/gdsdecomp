@@ -194,16 +194,17 @@ void GDRELogger::stdout_print(const char *p_format, ...) {
 }
 
 void GDRELogger::print_status_bar(const String &p_status, float p_progress) {
-	size_t width = 30;
+	constexpr size_t width = 30;
 	size_t progress_width = MIN(width, width * p_progress);
 
-	String progress_bar;
+	char progress_bar[width + 1];
 	for (size_t i = 0; i < progress_width; i++) {
-		progress_bar += "=";
+		progress_bar[i] = '=';
 	}
 	for (size_t i = progress_width; i < width; i++) {
-		progress_bar += " ";
+		progress_bar[i] = ' ';
 	}
-	stdout_print("\r%s [%s] %d%%", p_status.utf8().get_data(), progress_bar.utf8().get_data(), (int)(p_progress * 100));
+	progress_bar[width] = '\0';
+	stdout_print("\r%s [%s] %d%%", p_status.utf8().get_data(), progress_bar, (int)(p_progress * 100));
 	just_printed_status_bar = true;
 }
