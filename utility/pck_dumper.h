@@ -10,6 +10,7 @@ class PckDumper : public RefCounted {
 	bool skip_malformed_paths = false;
 	bool skip_failed_md5 = false;
 	bool should_check_md5 = false;
+	String output_dir;
 	std::atomic<bool> encryption_error = false;
 	std::atomic<int> completed_cnt = 0;
 	std::atomic<int> skipped_cnt = 0;
@@ -21,7 +22,6 @@ class PckDumper : public RefCounted {
 	void reset();
 	struct ExtractToken {
 		Ref<PackedFileInfo> file;
-		String output_dir;
 		Error err = OK;
 	};
 	void _do_extract(uint32_t i, ExtractToken *tokens);

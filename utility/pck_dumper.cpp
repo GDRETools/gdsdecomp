@@ -49,6 +49,7 @@ void PckDumper::reset() {
 	completed_cnt = 0;
 	skipped_cnt = 0;
 	broken_cnt = 0;
+	output_dir = "";
 }
 
 Error PckDumper::_check_md5_all_files(Vector<String> &broken_files, int &checked_files) {
@@ -118,7 +119,7 @@ Error PckDumper::pck_dump_to_dir(const String &dir, const Vector<String> &files_
 
 void PckDumper::_do_extract(uint32_t i, ExtractToken *tokens) {
 	auto &file = tokens[i].file;
-	auto &dir = tokens[i].output_dir;
+	const auto &dir = output_dir;
 	Error err = OK;
 	Ref<FileAccess> pck_f = FileAccess::open(file->get_path(), FileAccess::READ, &err);
 	if (err || pck_f.is_null()) {
@@ -165,7 +166,7 @@ Error PckDumper::_pck_dump_to_dir(
 	ERR_FAIL_COND_V_MSG(!GDRESettings::get_singleton()->is_pack_loaded(), ERR_DOES_NOT_EXIST,
 			"Pack not loaded!");
 	reset();
-	Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
+	output_dir = dir;
 	auto files = GDRESettings::get_singleton()->get_file_info_list();
 
 	if (DirAccess::create(DirAccess::ACCESS_FILESYSTEM).is_null()) {
@@ -182,7 +183,7 @@ Error PckDumper::_pck_dump_to_dir(
 			continue;
 		}
 		actual++;
-		tokens.push_back({ files.get(i), dir, OK });
+		tokens.push_back({ files.get(i), OK });
 	}
 	tokens.resize(actual);
 
