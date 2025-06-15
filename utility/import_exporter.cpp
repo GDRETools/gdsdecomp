@@ -58,12 +58,12 @@ struct ReportComparator {
 } //namespace
 
 // Error remove_remap(const String &src, const String &dst, const String &output_dir);
-Error ImportExporter::handle_auto_converted_file(const String &autoconverted_file, const String &output_dir) {
+Error ImportExporter::handle_auto_converted_file(const String &autoconverted_file, const String &p_output_dir) {
 	String prefix = autoconverted_file.replace_first("res://", "");
 	if (!prefix.begins_with(".")) {
-		String old_path = output_dir.path_join(prefix);
+		String old_path = p_output_dir.path_join(prefix);
 		if (FileAccess::exists(old_path)) {
-			String new_path = output_dir.path_join(".autoconverted").path_join(prefix);
+			String new_path = p_output_dir.path_join(".autoconverted").path_join(prefix);
 			Error err = gdre::ensure_dir(new_path.get_base_dir());
 			ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to create directory for remap " + new_path);
 			Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
@@ -74,13 +74,13 @@ Error ImportExporter::handle_auto_converted_file(const String &autoconverted_fil
 	return OK;
 }
 
-Error ImportExporter::remove_remap_and_autoconverted(const String &source_file, const String &autoconverted_file, const String &output_dir) {
+Error ImportExporter::remove_remap_and_autoconverted(const String &source_file, const String &autoconverted_file, const String &p_output_dir) {
 	if (get_settings()->has_remap(source_file, autoconverted_file)) {
-		Error err = get_settings()->remove_remap(source_file, autoconverted_file, output_dir);
+		Error err = get_settings()->remove_remap(source_file, autoconverted_file, p_output_dir);
 		if (err != ERR_FILE_NOT_FOUND) {
 			ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to remove remap for " + source_file + " -> " + autoconverted_file);
 		}
-		return handle_auto_converted_file(autoconverted_file, output_dir);
+		return handle_auto_converted_file(autoconverted_file, p_output_dir);
 	}
 	return OK;
 }
@@ -152,7 +152,6 @@ void save_filesystem_cache(const Vector<Ref<ExportReport>> &reports, String outp
 
 void ImportExporter::rewrite_metadata(ExportToken &token) {
 	auto &report = token.report;
-	const auto &output_dir = token.output_dir;
 	ERR_FAIL_COND_MSG(report.is_null(), "Cannot rewrite metadata for null report");
 	Error err = report->get_error();
 	auto iinfo = report->get_import_info();
@@ -176,11 +175,11 @@ void ImportExporter::rewrite_metadata(ExportToken &token) {
 	bool not_in_res_tree = !iinfo->get_source_file().begins_with("res://");
 	bool export_matches_source = report->get_source_path() == report->get_new_source_path();
 	if (err == OK && iinfo->is_import() && (not_in_res_tree || !export_matches_source)) {
-		if (iinfo->get_ver_major() <= 2 && token.opt_rewrite_imd_v2) {
+		if (iinfo->get_ver_major() <= 2 && opt_rewrite_imd_v2) {
 			// TODO: handle v2 imports with more than one source, like atlas textures
 			err = rewrite_import_source(report->get_new_source_path(), output_dir, iinfo);
 			if_err_func();
-		} else if (not_in_res_tree && iinfo->get_ver_major() >= 3 && token.opt_rewrite_imd_v3 && (iinfo->get_source_file().find(report->get_new_source_path().replace("res://", "")) != -1)) {
+		} else if (not_in_res_tree && iinfo->get_ver_major() >= 3 && opt_rewrite_imd_v3 && (iinfo->get_source_file().find(report->get_new_source_path().replace("res://", "")) != -1)) {
 			// Currently, we only rewrite the import data for v3 if the source file was somehow recorded as an absolute file path,
 			// But is still in the project structure
 			err = rewrite_import_source(report->get_new_source_path(), output_dir, iinfo);
@@ -207,7 +206,7 @@ void ImportExporter::rewrite_metadata(ExportToken &token) {
 	if (mdat == ExportReport::FAILED || mdat == ExportReport::NOT_IMPORTABLE) {
 		return;
 	}
-	if (token.opt_write_md5_files && iinfo->is_import() && err == OK && iinfo->get_ver_major() > 2) {
+	if (opt_write_md5_files && iinfo->is_import() && err == OK && iinfo->get_ver_major() > 2) {
 		err = ERR_LINK_FAILED;
 		Ref<ImportInfoModern> modern_iinfo = iinfo;
 		if (modern_iinfo.is_valid()) {
@@ -310,7 +309,7 @@ void ImportExporter::_do_export(uint32_t i, ExportToken *tokens) {
 		return;
 	}
 
-	tokens[i].report = Exporter::export_resource(tokens[i].output_dir, tokens[i].iinfo);
+	tokens[i].report = Exporter::export_resource(output_dir, tokens[i].iinfo);
 	rewrite_metadata(tokens[i]);
 	if (tokens[i].supports_multithread) {
 		tokens[i].report->append_error_messages(GDRELogger::get_thread_errors());
@@ -392,7 +391,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	report = Ref<ImportExporterReport>(memnew(ImportExporterReport(get_settings()->get_version_string())));
 	report->log_file_location = get_settings()->get_log_file_path();
 	ERR_FAIL_COND_V_MSG(!get_settings()->is_pack_loaded(), ERR_DOES_NOT_EXIST, "pack/dir not loaded!");
-	const String output_dir = !p_out_dir.is_empty() ? p_out_dir : get_settings()->get_project_path();
+	output_dir = !p_out_dir.is_empty() ? p_out_dir : get_settings()->get_project_path();
 	Error err = OK;
 	// TODO: make this use "copy"
 	Array _files = get_settings()->get_import_files();
@@ -498,15 +497,15 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		}
 		if (is_high_priority) {
 			if (supports_multithreading) {
-				tokens.insert(0, { iinfo, nullptr, output_dir, supports_multithreading, opt_rewrite_imd_v2, opt_rewrite_imd_v3, opt_write_md5_files });
+				tokens.insert(0, { iinfo, nullptr, supports_multithreading });
 			} else {
-				non_multithreaded_tokens.insert(0, { iinfo, nullptr, output_dir, supports_multithreading, opt_rewrite_imd_v2, opt_rewrite_imd_v3, opt_write_md5_files });
+				non_multithreaded_tokens.insert(0, { iinfo, nullptr, supports_multithreading });
 			}
 		} else {
 			if (supports_multithreading) {
-				tokens.push_back({ iinfo, nullptr, output_dir, supports_multithreading, opt_rewrite_imd_v2, opt_rewrite_imd_v3, opt_write_md5_files });
+				tokens.push_back({ iinfo, nullptr, supports_multithreading });
 			} else {
-				non_multithreaded_tokens.push_back({ iinfo, nullptr, output_dir, supports_multithreading, opt_rewrite_imd_v2, opt_rewrite_imd_v3, opt_write_md5_files });
+				non_multithreaded_tokens.push_back({ iinfo, nullptr, supports_multithreading });
 			}
 		}
 	}
@@ -711,7 +710,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	return OK;
 }
 
-Error ImportExporter::recreate_plugin_config(const String &output_dir, const String &plugin_dir) {
+Error ImportExporter::recreate_plugin_config(const String &p_output_dir, const String &plugin_dir) {
 	Error err;
 	if (GDRESettings::get_singleton()->get_bytecode_revision() == 0) {
 		return ERR_UNCONFIGURED;
@@ -742,7 +741,7 @@ Error ImportExporter::recreate_plugin_config(const String &output_dir, const Str
 			"author=\"Unknown\"\n" +
 			"version=\"1.0\"\n" +
 			"script=\"" + main_script + "\"";
-	String output_plugin_path = output_dir.path_join(rel_plugin_path);
+	String output_plugin_path = p_output_dir.path_join(rel_plugin_path);
 	gdre::ensure_dir(output_plugin_path);
 	Ref<FileAccess> f = FileAccess::open(output_plugin_path.path_join("plugin.cfg"), FileAccess::WRITE, &err);
 	ERR_FAIL_COND_V_MSG(err || f.is_null(), ERR_FILE_CANT_WRITE, "can't open plugin.cfg for writing");
@@ -752,7 +751,7 @@ Error ImportExporter::recreate_plugin_config(const String &output_dir, const Str
 }
 
 // Recreates the "plugin.cfg" files for each plugin to avoid loading errors.
-Error ImportExporter::recreate_plugin_configs(const String &output_dir, const Vector<String> &plugin_dirs) {
+Error ImportExporter::recreate_plugin_configs(const String &p_output_dir, const Vector<String> &plugin_dirs) {
 	Error err;
 	if (!DirAccess::exists("res://addons")) {
 		return OK;
@@ -775,7 +774,7 @@ Error ImportExporter::recreate_plugin_configs(const String &output_dir, const Ve
 			continue;
 		}
 		String dir = dirs[i].get_file();
-		err = recreate_plugin_config(output_dir, dir);
+		err = recreate_plugin_config(p_output_dir, dir);
 		if (err) {
 			WARN_PRINT("Failed to recreate plugin.cfg for " + dir);
 			report->failed_plugin_cfg_create.push_back(dir);
@@ -788,10 +787,10 @@ Error ImportExporter::recreate_plugin_configs(const String &output_dir, const Ve
 // TODO: For Godot v3-v4, we have to rewrite any resources that have this resource as a dependency to remap to the new destination
 // However, we currently only rewrite the import data if the source file was recorded as an absolute file path,
 // but is still in the project directory structure, which means no resource rewriting is necessary
-Error ImportExporter::rewrite_import_source(const String &rel_dest_path, const String &output_dir, const Ref<ImportInfo> &iinfo) {
+Error ImportExporter::rewrite_import_source(const String &rel_dest_path, const String &p_output_dir, const Ref<ImportInfo> &iinfo) {
 	String new_source = rel_dest_path;
-	String new_import_file = output_dir.path_join(iinfo->get_import_md_path().replace("res://", ""));
-	String abs_file_path = output_dir.path_join(new_source.replace("res://", ""));
+	String new_import_file = p_output_dir.path_join(iinfo->get_import_md_path().replace("res://", ""));
+	String abs_file_path = p_output_dir.path_join(new_source.replace("res://", ""));
 	Ref<ImportInfo> new_import = ImportInfo::copy(iinfo);
 	new_import->set_source_and_md5(new_source, FileAccess::get_md5(abs_file_path));
 	return new_import->save_to(new_import_file);

@@ -101,36 +101,32 @@ class ImportExporter : public RefCounted {
 	bool opt_write_md5_files = true;
 	std::atomic<int> last_completed = 0;
 	std::atomic<bool> cancelled = false;
+	String output_dir;
 
 	struct ExportToken {
 		Ref<ImportInfo> iinfo;
 		Ref<ExportReport> report;
-		String output_dir;
 		bool supports_multithread;
-		bool opt_rewrite_imd_v2;
-		bool opt_rewrite_imd_v3;
-		bool opt_write_md5_files;
 	};
 
 	Ref<ImportExporterReport> report;
 	void _do_export(uint32_t i, ExportToken *tokens);
 	String get_export_token_description(uint32_t i, ExportToken *tokens);
-	Error handle_auto_converted_file(const String &autoconverted_file, const String &output_dir);
-	Error rewrite_import_source(const String &rel_dest_path, const String &output_dir, const Ref<ImportInfo> &iinfo);
+	Error handle_auto_converted_file(const String &autoconverted_file);
+	Error rewrite_import_source(const String &rel_dest_path, const Ref<ImportInfo> &iinfo);
 	void report_unsupported_resource(const String &type, const String &format_name, const String &import_path);
-	Error remove_remap_and_autoconverted(const String &src, const String &dst, const String &output_dir);
+	Error remove_remap_and_autoconverted(const String &src, const String &dst);
 	void rewrite_metadata(ExportToken &token);
-	Error unzip_and_copy_addon(const Ref<ImportInfoGDExt> &iinfo, const String &zip_path, const String &output_dir);
+	Error unzip_and_copy_addon(const Ref<ImportInfoGDExt> &iinfo, const String &zip_path);
 	Error _reexport_translations(Vector<ExportToken> &non_multithreaded_tokens, size_t token_size, Ref<EditorProgressGDDC> pr);
-	void recreate_uid_file(const String &output_dir, const String &src_path, bool is_import, const HashSet<String> &files_to_export_set);
+	void recreate_uid_file(const String &src_path, bool is_import, const HashSet<String> &files_to_export_set);
+	Error recreate_plugin_config(const String &plugin_dir);
+	Error recreate_plugin_configs(const Vector<String> &plugin_dirs = {});
 
 protected:
 	static void _bind_methods();
 
 public:
-	Error recreate_plugin_config(const String &output_dir, const String &plugin_dir);
-	Error recreate_plugin_configs(const String &output_dir, const Vector<String> &plugin_dirs = {});
-
 	Error export_imports(const String &output_dir = "", const Vector<String> &files_to_export = {});
 	Ref<ImportExporterReport> get_report();
 	void reset_log();
