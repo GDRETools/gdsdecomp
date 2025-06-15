@@ -10,7 +10,6 @@ class PckDumper : public RefCounted {
 	bool skip_malformed_paths = false;
 	bool skip_failed_md5 = false;
 	bool should_check_md5 = false;
-	bool opt_multi_thread = true;
 	std::atomic<bool> encryption_error = false;
 	std::atomic<int> completed_cnt = 0;
 	std::atomic<int> skipped_cnt = 0;
@@ -40,7 +39,6 @@ public:
 	Error _pck_dump_to_dir(const String &dir, const Vector<String> &files_to_extract, String &error_string);
 	Error pck_dump_to_dir(const String &dir, const Vector<String> &files_to_extract);
 
-	void set_multi_thread(bool multi_thread) { opt_multi_thread = multi_thread; }
 	//Error pck_dump_to_dir(const String &dir, const Vector<String> &files_to_extract);
 };
 

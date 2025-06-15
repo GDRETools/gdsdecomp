@@ -69,26 +69,14 @@ Error PckDumper::_check_md5_all_files(Vector<String> &broken_files, int &checked
 	} else {
 		task_desc = RTR("Reading PCK archive, click cancel to skip MD5 checking...");
 	}
-	if (opt_multi_thread) {
-		Vector<String> paths_to_check;
-		err = TaskManager::get_singleton()->run_multithreaded_group_task(
-				this,
-				&PckDumper::_do_md5_check,
-				files.ptrw(),
-				files.size(),
-				&PckDumper::get_file_description,
-				"PckDumper::_check_md5_all_files",
-				task_desc, true, -1, true);
-	} else {
-		err = TaskManager::get_singleton()->run_task_on_current_thread(
-				this,
-				&PckDumper::_do_md5_check,
-				files.ptrw(),
-				files.size(),
-				&PckDumper::get_file_description,
-				"PckDumper::_check_md5_all_files",
-				task_desc, true);
-	}
+	err = TaskManager::get_singleton()->run_multithreaded_group_task(
+			this,
+			&PckDumper::_do_md5_check,
+			files.ptrw(),
+			files.size(),
+			&PckDumper::get_file_description,
+			"PckDumper::_check_md5_all_files",
+			task_desc, true, -1, true);
 	if (encryption_error) {
 		GDRESettings::get_singleton()->_set_error_encryption(encryption_error);
 	}
@@ -198,28 +186,17 @@ Error PckDumper::_pck_dump_to_dir(
 	}
 	tokens.resize(actual);
 
-	if (opt_multi_thread) {
-		err = TaskManager::get_singleton()->run_multithreaded_group_task(
-				this,
-				&PckDumper::_do_extract,
-				tokens.ptrw(),
-				tokens.size(),
-				&PckDumper::get_extract_token_description,
-				"PckDumper::_pck_dump_to_dir",
-				RTR("Extracting files..."),
-				true,
-				-1,
-				true);
-	} else {
-		err = TaskManager::get_singleton()->run_task_on_current_thread(this,
-				&PckDumper::_do_extract,
-				tokens.ptrw(),
-				tokens.size(),
-				&PckDumper::get_extract_token_description,
-				"PckDumper::_pck_dump_to_dir",
-				RTR("Extracting files..."),
-				true);
-	}
+	err = TaskManager::get_singleton()->run_multithreaded_group_task(
+			this,
+			&PckDumper::_do_extract,
+			tokens.ptrw(),
+			tokens.size(),
+			&PckDumper::get_extract_token_description,
+			"PckDumper::_pck_dump_to_dir",
+			RTR("Extracting files..."),
+			true,
+			-1,
+			true);
 	files_extracted = completed_cnt;
 	if (broken_cnt > 0) {
 		err = ERR_BUG;
@@ -267,6 +244,5 @@ String PckDumper::get_extract_token_description(int64_t p_index, ExtractToken *p
 void PckDumper::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("check_md5_all_files"), &PckDumper::check_md5_all_files);
 	ClassDB::bind_method(D_METHOD("pck_dump_to_dir", "dir", "files_to_extract"), &PckDumper::pck_dump_to_dir, DEFVAL(Vector<String>()));
-	ClassDB::bind_method(D_METHOD("set_multi_thread", "multi_thread"), &PckDumper::set_multi_thread);
 	//ClassDB::bind_method(D_METHOD("get_dumped_files"), &PckDumper::get_dumped_files);
 }

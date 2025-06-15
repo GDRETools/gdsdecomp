@@ -99,7 +99,6 @@ class ImportExporter : public RefCounted {
 	bool opt_decompile = true;
 	bool opt_only_decompile = false;
 	bool opt_write_md5_files = true;
-	bool opt_multi_thread = true;
 	std::atomic<int> last_completed = 0;
 	std::atomic<bool> cancelled = false;
 
@@ -131,7 +130,6 @@ protected:
 public:
 	Error recreate_plugin_config(const String &output_dir, const String &plugin_dir);
 	Error recreate_plugin_configs(const String &output_dir, const Vector<String> &plugin_dirs = {});
-	void set_multi_thread(bool p_enable);
 
 	Error export_imports(const String &output_dir = "", const Vector<String> &files_to_export = {});
 	Ref<ImportExporterReport> get_report();

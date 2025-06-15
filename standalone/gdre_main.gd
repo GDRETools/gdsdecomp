@@ -3,7 +3,6 @@ extends GodotREEditorStandalone
 var ver_major = 0
 var ver_minor = 0
 var scripts_only = false
-var disable_multi_threading = false
 var config: ConfigFile = null
 var last_error = ""
 var CONFIG_PATH = "user://gdre_settings.cfg"
@@ -690,7 +689,6 @@ func test_decomp(fname):
 
 func export_imports(output_dir:String, files: PackedStringArray):
 	var importer:ImportExporter = ImportExporter.new()
-	importer.set_multi_thread(not disable_multi_threading)
 	importer.export_imports(output_dir, files)
 	importer.reset()
 
@@ -699,7 +697,6 @@ func dump_files(output_dir:String, files: PackedStringArray, ignore_checksum_err
 	var err:int = OK;
 	var pckdump = PckDumper.new()
 	# var start_time = Time.get_ticks_msec()
-	pckdump.set_multi_thread(not disable_multi_threading)
 	err = pckdump.check_md5_all_files()
 	if err != OK:
 		if (err != ERR_SKIP and not ignore_checksum_errors):
@@ -1353,7 +1350,8 @@ func handle_cli(args: PackedStringArray) -> bool:
 		elif arg.begins_with("--translation-only"):
 			translation_only = true
 		elif arg.begins_with("--disable-multithreading"):
-			disable_multi_threading = true
+			GDREConfig.set_setting("force_single_threaded", true)
+			set_setting = true
 		elif arg.begins_with("--enable-experimental-plugin-downloading"):
 			GDREConfig.set_setting("download_plugins", true)
 			set_setting = true
@@ -1504,7 +1502,6 @@ func patch_pck(src_file: String, dest_pck:String, patch_file_map: Dictionary, in
 			pck_file = "res://" + pck_file
 		patch_file_map[pck_file] = pck_file
 	var pck_patcher = _start_patch_pck(dest_pck, pack_infos[0], embed_pck)
-	pck_patcher.set_multi_thread(false)
 	var err = pck_patcher.add_files(patch_file_map)
 	if (err != OK):
 		print("Error: failed to add files to patch PCK: " + pck_patcher.get_error_message())

@@ -285,9 +285,7 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 	}
 	String pck_path = p_path.replace("_GDRE_a_really_dumb_hack", "");
 	Ref<FileAccess> f = FileAccess::open(pck_path, FileAccess::READ);
-	if (f.is_null()) {
-		return false;
-	}
+	ERR_FAIL_COND_V_MSG(f.is_null(), false, "Failed to open pack file: " + pck_path);
 
 	f->seek(p_offset);
 

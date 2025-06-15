@@ -487,7 +487,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		} else {
 			iinfo->set_export_dest(iinfo->get_source_file());
 		}
-		bool supports_multithreading = opt_multi_thread;
+		bool supports_multithreading = !GDREConfig::get_singleton()->get_setting("force_single_threaded", false);
 		bool is_high_priority = importer == "gdextension" || importer == "gdnative";
 		if (exporter_map.has(importer)) {
 			if (!exporter_map.get(importer)->supports_multithread()) {
@@ -513,10 +513,9 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	int64_t num_multithreaded_tokens = tokens.size();
 	// ***** Export resources *****
 	GDRELogger::clear_error_queues();
-	if (opt_multi_thread && tokens.size() > 0) {
+	if (tokens.size() > 0) {
 		last_completed = -1;
 		cancelled = false;
-		print_line("Exporting resources in parallel...");
 		Error err = TaskManager::get_singleton()->run_multithreaded_group_task(
 				this,
 				&ImportExporter::_do_export,
@@ -807,14 +806,9 @@ void ImportExporter::report_unsupported_resource(const String &type, const Strin
 	print_verbose("Did not convert " + type + " resource " + import_path);
 }
 
-void ImportExporter::set_multi_thread(bool p_enable) {
-	opt_multi_thread = p_enable;
-}
-
 void ImportExporter::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("export_imports", "p_out_dir", "files_to_export"), &ImportExporter::export_imports, DEFVAL(""), DEFVAL(PackedStringArray()));
 	ClassDB::bind_method(D_METHOD("get_report"), &ImportExporter::get_report);
-	ClassDB::bind_method(D_METHOD("set_multi_thread", "p_enable"), &ImportExporter::set_multi_thread);
 	ClassDB::bind_method(D_METHOD("reset"), &ImportExporter::reset);
 }
 

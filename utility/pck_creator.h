@@ -10,7 +10,6 @@
 class PckCreator : public RefCounted {
 	GDCLASS(PckCreator, RefCounted)
 
-	bool opt_multi_thread = true;
 	String pck_path;
 	int version = 2;
 	int ver_major = 4;
@@ -71,8 +70,6 @@ public:
 	Error finish_pck();
 	Error pck_create(const String &p_pck_path, const String &p_dir, const Vector<String> &include_filters, const Vector<String> &exclude_filters);
 	Error _create_after_process();
-	void set_multi_thread(bool multi_thread) { opt_multi_thread = multi_thread; }
-	bool get_multi_thread() const { return opt_multi_thread; }
 	void set_pack_version(int ver) { version = ver; }
 	int get_pack_version() const { return version; }
 	void set_ver_major(int ver) { ver_major = ver; }

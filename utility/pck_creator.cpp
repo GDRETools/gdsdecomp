@@ -294,22 +294,16 @@ Error PckCreator::_add_files(
 		}
 	}
 	Error err = OK;
-	if (opt_multi_thread) {
-		err = TaskManager::get_singleton()->run_multithreaded_group_task(
-				this,
-				&PckCreator::_do_process_folder,
-				files_to_pck.ptrw(),
-				files_to_pck.size(),
-				&PckCreator::get_file_description,
-				"PckCreator::_do_process_folder",
-				"Getting file info...");
-		if (err == ERR_SKIP) {
-			return ERR_SKIP;
-		}
-	} else {
-		for (size_t i = 0; i < files_to_pck.size(); i++) {
-			_do_process_folder(i, files_to_pck.ptrw());
-		}
+	err = TaskManager::get_singleton()->run_multithreaded_group_task(
+			this,
+			&PckCreator::_do_process_folder,
+			files_to_pck.ptrw(),
+			files_to_pck.size(),
+			&PckCreator::get_file_description,
+			"PckCreator::_do_process_folder",
+			"Getting file info...");
+	if (err == ERR_SKIP) {
+		return ERR_SKIP;
 	}
 	if (broken_cnt > 0) {
 		err = ERR_BUG;
@@ -759,8 +753,6 @@ void PckCreator::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("start_pck", "pck_path", "pck_version", "ver_major", "ver_minor", "ver_rev", "encrypt", "embed", "exe_to_embed", "watermark"), &PckCreator::start_pck, DEFVAL(false), DEFVAL(false), DEFVAL(""), DEFVAL(""));
 	ClassDB::bind_method(D_METHOD("add_files", "file_paths_to_pack"), &PckCreator::add_files);
 	ClassDB::bind_method(D_METHOD("finish_pck"), &PckCreator::finish_pck);
-	ClassDB::bind_method(D_METHOD("set_multi_thread", "multi_thread"), &PckCreator::set_multi_thread);
-	ClassDB::bind_method(D_METHOD("get_multi_thread"), &PckCreator::get_multi_thread);
 	ClassDB::bind_method(D_METHOD("set_pack_version", "ver"), &PckCreator::set_pack_version);
 	ClassDB::bind_method(D_METHOD("get_pack_version"), &PckCreator::get_pack_version);
 	ClassDB::bind_method(D_METHOD("set_ver_major", "ver"), &PckCreator::set_ver_major);
@@ -779,7 +771,6 @@ void PckCreator::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_watermark"), &PckCreator::get_watermark);
 	ClassDB::bind_method(D_METHOD("get_error_message"), &PckCreator::get_error_message);
 
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "multi_thread"), "set_multi_thread", "get_multi_thread");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "pack_version"), "set_pack_version", "get_pack_version");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "ver_major"), "set_ver_major", "get_ver_major");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "ver_minor"), "set_ver_minor", "get_ver_minor");
