@@ -1,4 +1,5 @@
 import base64
+import shutil
 import sys
 import os
 import json
@@ -46,7 +47,7 @@ def get_godot_arch():
     else:
         raise ValueError(f"Unsupported architecture: {platform.machine()}")
 
-DEV_MODE = os.getenv("DEV_MODE", "0") != "0"
+DEV_MODE = True  # os.getenv("DEV_MODE", "0") != "0"
 GODOT_EXE = os.path.join(BIN_DIR, f"godot.{get_godot_platform()}.editor.{('dev.' if DEV_MODE else '')}{get_godot_arch()}")
 ARGS = [GODOT_EXE, "--headless", "--path", STANDALONE_DIR]
 
@@ -80,21 +81,29 @@ def generate_header_file():
 
 
 def generate_json_file():
-    asset_lib_base64s = get_json_dicts_from_dir(ASSET_LIB_PRECACHE_DIR)
-    github_base64s = get_json_dicts_from_dir(GITHUB_PRECACHE_DIR)
-    gitlab_base64s = get_json_dicts_from_dir(GITLAB_PRECACHE_DIR)
-    asset_lib_base64s = [(get_asset_lib_plugin_name(file_path), base64) for file_path, base64 in asset_lib_base64s]
-    github_base64s = [(get_plugin_name_from_file(file_path), base64) for file_path, base64 in github_base64s]
-    gitlab_base64s = [(get_plugin_name_from_file(file_path), base64) for file_path, base64 in gitlab_base64s]
-    asset_lib_base64_dict = {plugin_name: base64 for plugin_name, base64 in asset_lib_base64s}
-    github_base64_dict = {plugin_name: base64 for plugin_name, base64 in github_base64s}
-    gitlab_base64_dict = {plugin_name: base64 for plugin_name, base64 in gitlab_base64s}
-    main_dict = {
-        "asset_lib": asset_lib_base64_dict,
-        "github": github_base64_dict,
-        "gitlab": gitlab_base64_dict
-    }
+
+    # asset_lib_base64s = get_json_dicts_from_dir(ASSET_LIB_PRECACHE_DIR)
+    # github_base64s = get_json_dicts_from_dir(GITHUB_PRECACHE_DIR)
+    # gitlab_base64s = get_json_dicts_from_dir(GITLAB_PRECACHE_DIR)
+    # asset_lib_base64s = [(get_asset_lib_plugin_name(file_path), base64) for file_path, base64 in asset_lib_base64s]
+    # github_base64s = [(get_plugin_name_from_file(file_path), base64) for file_path, base64 in github_base64s]
+    # gitlab_base64s = [(get_plugin_name_from_file(file_path), base64) for file_path, base64 in gitlab_base64s]
+    # asset_lib_base64_dict = {plugin_name: base64 for plugin_name, base64 in asset_lib_base64s}
+    # github_base64_dict = {plugin_name: base64 for plugin_name, base64 in github_base64s}
+    # gitlab_base64_dict = {plugin_name: base64 for plugin_name, base64 in gitlab_base64s}
+    # main_dict = {
+    #     "asset_lib": asset_lib_base64_dict,
+    #     "github": github_base64_dict,
+    #     "gitlab": gitlab_base64_dict
+    # }
     previous_file_size = 0
+
+    # just get plugin_versions.json from the cache dir
+    plugin_versions_json: str = os.path.join(TEMP_CACHE_DIR, "plugin_versions.json")
+    if not os.path.exists(plugin_versions_json):
+        print("Plugin versions json not found, aborting")
+        sys.exit(1)
+    main_dict = json.load(open(plugin_versions_json))
     dest_path = JSON_DST_PATH
     already_exists = os.path.exists(JSON_DST_PATH)
     if already_exists:

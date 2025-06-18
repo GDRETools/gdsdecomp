@@ -21,9 +21,14 @@ private:
 	static Ref<PluginSource> sources[MAX_SOURCES];
 	static int source_count;
 	static bool prepopping;
+	static HashMap<String, PluginVersion> plugin_version_cache;
+	static Mutex plugin_version_cache_mutex;
 
 	// Source management
 	static Ref<PluginSource> get_source(const String &plugin_name);
+	static void load_plugin_version_cache_file(const String &cache_file);
+	static void load_plugin_version_cache();
+	static void save_plugin_version_cache();
 
 protected:
 	static void _bind_methods();
@@ -38,6 +43,12 @@ public:
 	static void save_cache();
 	static void prepop_cache(const Vector<String> &plugin_names, bool multithread = true);
 	static bool is_prepopping();
+	// PluginVersion cache management
+	static PluginVersion get_cached_plugin_version(const String &cache_key);
+	static void cache_plugin_version(const String &cache_key, const PluginVersion &version);
+	static String get_cache_key(const String &plugin_source, uint64_t primary_id, uint64_t secondary_id);
+	static PluginVersion populate_plugin_version_from_release(const ReleaseInfo &release_info);
+	static Error populate_plugin_version_hashes(PluginVersion &plugin_version);
 	// Source management
 	static void register_source(Ref<PluginSource> source, bool at_front = false);
 	static void unregister_source(Ref<PluginSource> source);

@@ -70,19 +70,15 @@ protected:
 	};
 
 	HashMap<String, GHReleaseCache> release_cache;
-	HashMap<String, HashMap<uint64_t, HashMap<uint64_t, PluginVersion>>> non_asset_lib_cache; // plugin_name -> tag -> asset_id -> PluginVersion
 
 	bool should_skip_tag(const String &plugin_name, const String &tag);
 	bool should_skip_release(const String &plugin_name, const String &release);
 	String get_repo_url(const String &plugin_name);
 
-	bool _get_cached_version(const String &plugin_name, uint64_t release_id, uint64_t asset_id, PluginVersion &version);
 	Vector<Dictionary> get_list_of_releases(const String &plugin_name);
 
-	bool init_plugin_version_from_release(Dictionary release_entry, uint64_t gh_asset_id, PluginVersion &version);
 	Dictionary get_release_dict(const String &plugin_name, uint64_t release_id);
 	Vector<Pair<uint64_t, uint64_t>> get_gh_asset_pairs(const String &plugin_name);
-	PluginVersion get_plugin_version_gh(const String &plugin_name, uint64_t release_id, uint64_t asset_id);
 
 	virtual bool recache_release_list(const String &plugin_name);
 
@@ -95,16 +91,14 @@ public:
 	~GitHubSource();
 
 	// PluginSource interface implementation
-	PluginVersion get_plugin_version(const String &plugin_name, const String &version) override;
-	String get_plugin_download_url(const String &plugin_name, const Vector<String> &hashes) override;
 	Vector<String> get_plugin_version_numbers(const String &plugin_name) override;
+	ReleaseInfo get_release_info(const String &plugin_name, const String &version_key) override;
 	String get_plugin_name() override;
 	void load_cache_internal() override;
 	void save_cache() override;
-	void prepop_cache(const Vector<String> &plugin_names, bool multithread = false) override;
 	bool handles_plugin(const String &plugin_name) override;
 	bool is_default() override { return false; }
-	void load_cache_data(const String &plugin_name, const Dictionary &data) override;
+	// void load_cache_data(const String &plugin_name, const Dictionary &data) override; // Deprecated
 };
 
 #endif // GITHUB_SOURCE_H

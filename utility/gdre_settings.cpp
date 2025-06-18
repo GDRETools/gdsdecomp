@@ -1936,7 +1936,7 @@ void GDRESettings::get_resource_strings(HashSet<String> &r_strings) const {
 }
 
 void GDRESettings::prepop_plugin_cache(const Vector<String> &plugins) {
-	PluginManager::prepop_cache(plugins, true);
+	PluginManager::prepop_cache(plugins, !GDREConfig::get_singleton()->get_setting("force_single_threaded", false));
 }
 
 Vector<String> GDRESettings::get_errors() {

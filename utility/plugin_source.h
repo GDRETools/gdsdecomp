@@ -16,19 +16,15 @@ protected:
 	Mutex cache_mutex;
 
 public:
-	Error populate_plugin_version_hashes(PluginVersion &plugin_version);
+	// Error populate_plugin_version_hashes(PluginVersion &plugin_version); // Moved to PluginManager
 	static PluginBin get_plugin_bin(const String &path, const SharedObject &obj);
-	void load_static_precache(const Dictionary &d);
 
 	virtual String get_plugin_name();
-	virtual PluginVersion get_plugin_version(const String &plugin_name, const String &version);
-	virtual String get_plugin_download_url(const String &plugin_name, const Vector<String> &hashes);
 	virtual Vector<String> get_plugin_version_numbers(const String &plugin_name);
+	virtual ReleaseInfo get_release_info(const String &plugin_name, const String &version_key);
 	void load_cache();
 	virtual void load_cache_internal();
-	virtual void load_cache_data(const String &plugin_name, const Dictionary &json_data);
 	virtual void save_cache();
-	virtual void prepop_cache(const Vector<String> &plugin_names, bool multithread = false);
 	virtual bool handles_plugin(const String &plugin_name);
 	virtual bool is_default();
 	// Helper method for cache expiration

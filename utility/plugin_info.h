@@ -2,7 +2,7 @@
 #include "core/variant/variant.h"
 #include "utility/godotver.h"
 
-static constexpr int CACHE_VERSION = 0;
+static constexpr int CACHE_VERSION = 1;
 
 struct PluginBin {
 	String name;
@@ -68,17 +68,68 @@ struct GDExtInfo {
 	}
 };
 
-struct PluginVersion {
-	uint64_t asset_id = 0;
-	uint64_t release_id = 0; // edit_id or github asset id
-	bool from_asset_lib = true;
-	int cache_version = CACHE_VERSION;
-	String plugin_name;
+// break this up into multiple structs
+// COMPLETED:
+// - PluginVersion
+//   - cache_version
+//   - plugin_name
+//   - min_godot_version
+//   - max_godot_version
+//   - base_folder
+//   - gdexts
+//   - ReleaseInfo
+//     - asset_id - renamed to primary_id in cache keys
+//     - release_id - renamed to secondary_id in cache keys
+//     - changed from_asset_lib to plugin_source
+//     - version
+//     - engine_ver_major
+//     - release_date
+//     - download_url
+// - Changed CACHE_VERSION from 0 to 1
+// - Plugin sources now return ReleaseInfo structs and don't cache PluginVersion structs
+// - PluginManager caches PluginVersion structs with keys: plugin_source-primary_id-secondary_id
+// - PluginVersion structs are populated from ReleaseInfo structs and analysis
+
+struct ReleaseInfo {
+	String plugin_source;
+	uint64_t primary_id = 0; // assetlib asset id or github release id
+	uint64_t secondary_id = 0; // assetlib edit_id or github asset id
 	String version;
-	String min_godot_version;
-	String max_godot_version;
+	int engine_ver_major = 0;
 	String release_date;
 	String download_url;
+
+	Dictionary to_json() const {
+		Dictionary d;
+		d["plugin_source"] = plugin_source;
+		d["primary_id"] = primary_id;
+		d["secondary_id"] = secondary_id;
+		d["version"] = version;
+		d["engine_ver_major"] = engine_ver_major;
+		d["release_date"] = release_date;
+		d["download_url"] = download_url;
+		return d;
+	}
+
+	static ReleaseInfo from_json(Dictionary d) {
+		ReleaseInfo info;
+		info.plugin_source = d.get("plugin_source", "");
+		info.primary_id = d.get("primary_id", 0);
+		info.secondary_id = d.get("secondary_id", 0);
+		info.version = d.get("version", "");
+		info.engine_ver_major = d.get("engine_ver_major", 0);
+		info.release_date = d.get("release_date", "");
+		info.download_url = d.get("download_url", "");
+		return info;
+	}
+};
+
+struct PluginVersion {
+	int cache_version = CACHE_VERSION;
+	String plugin_name;
+	ReleaseInfo release_info;
+	String min_godot_version;
+	String max_godot_version;
 	String base_folder;
 	Vector<GDExtInfo> gdexts;
 	bool is_compatible(const Ref<GodotVer> &ver) const {
@@ -99,16 +150,12 @@ struct PluginVersion {
 
 	Dictionary to_json() const {
 		Dictionary d;
-		d["asset_id"] = asset_id;
-		d["release_id"] = release_id;
-		d["from_asset_lib"] = from_asset_lib;
 		d["cache_version"] = cache_version;
 		d["plugin_name"] = plugin_name;
-		d["version"] = version;
+		d["release_info"] = release_info.to_json();
 		d["min_godot_version"] = min_godot_version;
 		d["max_godot_version"] = max_godot_version;
-		d["release_date"] = release_date;
-		d["download_url"] = download_url;
+		d["base_folder"] = base_folder;
 		Array gdexts_arr;
 		for (const auto &gdext : gdexts) {
 			gdexts_arr.push_back(gdext.to_json());
@@ -119,16 +166,12 @@ struct PluginVersion {
 
 	static PluginVersion from_json(Dictionary d) {
 		PluginVersion version;
-		version.asset_id = d.get("asset_id", 0);
-		version.release_id = d.get("release_id", 0);
-		version.from_asset_lib = d.get("from_asset_lib", true);
-		version.cache_version = d.get("cache_version", 0);
+		version.cache_version = d.get("cache_version", CACHE_VERSION);
 		version.plugin_name = d.get("plugin_name", "");
-		version.version = d.get("version", "");
+		version.release_info = ReleaseInfo::from_json(d.get("release_info", {}));
 		version.min_godot_version = d.get("min_godot_version", "");
 		version.max_godot_version = d.get("max_godot_version", "");
-		version.release_date = d.get("release_date", "");
-		version.download_url = d.get("download_url", "");
+		version.base_folder = d.get("base_folder", "");
 		Array gdexts_arr = d.get("gdexts", {});
 		for (int i = 0; i < gdexts_arr.size(); i++) {
 			version.gdexts.push_back(GDExtInfo::from_json(gdexts_arr[i]));

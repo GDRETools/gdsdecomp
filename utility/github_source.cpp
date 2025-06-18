@@ -224,61 +224,56 @@ bool is_empty_or_null(const String &str) {
 }
 } //namespace
 
-bool GitHubSource::init_plugin_version_from_release(Dictionary release_entry, uint64_t gh_asset_id, PluginVersion &version) {
-	Array assets = release_entry.get("assets", {});
-	if (assets.is_empty()) {
-		return false;
-	}
-	uint64_t release_id = release_entry.get("id", 0);
-	if (release_id == 0) {
-		return false;
-	}
-	for (int i = 0; i < assets.size(); i++) {
-		Dictionary asset = assets[i];
-		if (uint64_t(asset.get("id", 0)) != gh_asset_id) {
-			continue;
-		}
-		String name = asset.get("name", "");
-		if (is_empty_or_null(name)) {
-			break;
-		}
-		String download_url = asset.get("browser_download_url", "");
-		String ext = download_url.get_file().get_extension().to_lower();
-		if (ext.is_empty()) {
-			ext = name.get_extension().to_lower();
-		}
-		// TODO: other files?
-		if (ext == "zip") {
-			if (is_empty_or_null(download_url)) {
-				continue;
-			}
-			String tag_name = release_entry.get("tag_name", "");
-			print_line("Got version info for " + name + " version: " + tag_name + ", download_url: " + download_url);
-			version.download_url = download_url;
-			version.asset_id = release_id; // TODO: rename plugin version asset_id and release_id to something like "primary_id" and "secondary_id"
-			version.release_id = gh_asset_id;
-			version.from_asset_lib = false;
-			version.version = tag_name;
-			version.release_date = asset.get("created_at", "");
-			return true;
-		}
-	}
-	return false;
-}
-
-// bool _get_cached_version(const String &plugin_name, const String &version_tag, PluginVersion &version);
-
-PluginVersion GitHubSource::get_plugin_version(const String &plugin_name, const String &version_tag) {
-	auto parts = version_tag.split("-");
+ReleaseInfo GitHubSource::get_release_info(const String &plugin_name, const String &version_key) {
+	auto parts = version_key.split("-");
 	if (parts.size() != 2) {
-		return PluginVersion();
+		return ReleaseInfo();
 	}
 	auto release_id = parts[0].to_int();
 	auto asset_id = parts[1].to_int();
 	if (release_id == 0 || asset_id == 0) {
-		return PluginVersion();
+		return ReleaseInfo();
 	}
-	return get_plugin_version_gh(plugin_name, release_id, asset_id);
+
+	auto release = get_release_dict(plugin_name, release_id);
+	if (release.is_empty()) {
+		return ReleaseInfo();
+	}
+
+	Array assets = release.get("assets", {});
+	for (int i = 0; i < assets.size(); i++) {
+		Dictionary asset = assets[i];
+		if (uint64_t(asset.get("id", 0)) == asset_id) {
+			String name = asset.get("name", "");
+			if (is_empty_or_null(name)) {
+				continue;
+			}
+			String download_url = asset.get("browser_download_url", "");
+			String ext = download_url.get_file().get_extension().to_lower();
+			if (ext.is_empty()) {
+				ext = name.get_extension().to_lower();
+			}
+			if (ext == "zip") {
+				if (is_empty_or_null(download_url)) {
+					continue;
+				}
+				String tag_name = release.get("tag_name", "");
+
+				ReleaseInfo release_info;
+				release_info.plugin_source = get_plugin_name();
+				release_info.primary_id = release_id;
+				release_info.secondary_id = asset_id;
+				release_info.version = tag_name;
+				release_info.engine_ver_major = 0; // Will be determined during analysis
+				release_info.release_date = asset.get("created_at", "");
+				release_info.download_url = download_url;
+
+				return release_info;
+			}
+		}
+	}
+
+	return ReleaseInfo();
 }
 
 Vector<Dictionary> GitHubSource::get_list_of_releases(const String &plugin_name) {
@@ -318,20 +313,6 @@ Vector<Pair<uint64_t, uint64_t>> GitHubSource::get_gh_asset_pairs(const String &
 	return release_asset_pairs;
 }
 
-bool GitHubSource::_get_cached_version(const String &plugin_name, uint64_t release_id, uint64_t asset_id, PluginVersion &version) {
-	{
-		MutexLock lock(cache_mutex);
-		if (non_asset_lib_cache.has(plugin_name) && non_asset_lib_cache[plugin_name].has(release_id)) {
-			auto &release = non_asset_lib_cache[plugin_name][release_id];
-			if (release.has(asset_id)) {
-				version = release[asset_id];
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
 Dictionary GitHubSource::get_release_dict(const String &plugin_name, uint64_t release_id) {
 	if (!recache_release_list(plugin_name)) {
 		return Dictionary();
@@ -348,77 +329,6 @@ Dictionary GitHubSource::get_release_dict(const String &plugin_name, uint64_t re
 	return Dictionary();
 }
 
-PluginVersion GitHubSource::get_plugin_version_gh(const String &plugin_name, uint64_t release_id, uint64_t asset_id) {
-	PluginVersion version;
-	if (_get_cached_version(plugin_name, release_id, asset_id, version)) {
-		return version;
-	}
-	if (!recache_release_list(plugin_name)) {
-		return version;
-	}
-
-	auto release = get_release_dict(plugin_name, release_id);
-	if (release.is_empty()) {
-		return PluginVersion();
-	}
-	Array assets = release.get("assets", {});
-	for (int i = 0; i < assets.size(); i++) {
-		Dictionary asset = assets[i];
-		if (uint64_t(asset.get("id", 0)) == asset_id) {
-			if (init_plugin_version_from_release(release, asset_id, version)) {
-				break;
-			}
-		}
-	}
-	if (version.asset_id == 0) {
-		return PluginVersion();
-	}
-	if (populate_plugin_version_hashes(version) != OK) {
-		return PluginVersion();
-	}
-	if (plugin_name != version.plugin_name) {
-		if (version.gdexts.size() > 0) {
-			WARN_PRINT("Plugin name mismatch: " + plugin_name + " != " + version.plugin_name + ", forcing...");
-		}
-		version.plugin_name = plugin_name;
-	}
-	{
-		MutexLock lock(cache_mutex);
-		if (!non_asset_lib_cache.has(plugin_name)) {
-			non_asset_lib_cache[plugin_name] = {};
-		}
-		if (!non_asset_lib_cache[plugin_name].has(release_id)) {
-			non_asset_lib_cache[plugin_name][release_id] = {};
-		}
-		non_asset_lib_cache[plugin_name][release_id][asset_id] = version;
-	}
-	return version;
-}
-
-String GitHubSource::get_plugin_download_url(const String &plugin_name, const Vector<String> &hashes) {
-	auto pairs = get_gh_asset_pairs(plugin_name);
-	for (auto &pair : pairs) {
-		if (TaskManager::get_singleton()->is_current_group_task_canceled()) {
-			return "";
-		}
-		auto plugin_version = get_plugin_version_gh(plugin_name, pair.first, pair.second);
-		if (plugin_version.asset_id == 0) {
-			continue;
-		}
-		for (auto &gdext : plugin_version.gdexts) {
-			for (auto &bin : gdext.bins) {
-				for (auto &hash : hashes) {
-					if (bin.md5 == hash) {
-						print_line("Detected plugin " + plugin_name + ", version: " + plugin_version.version + ", download url: " + plugin_version.download_url);
-						return plugin_version.download_url;
-					}
-				}
-			}
-		}
-	}
-	return "";
-}
-
 Vector<String> GitHubSource::get_plugin_version_numbers(const String &plugin_name) {
 	auto pairs = get_gh_asset_pairs(plugin_name);
 	Vector<String> versions;
@@ -429,20 +339,6 @@ Vector<String> GitHubSource::get_plugin_version_numbers(const String &plugin_nam
 }
 
 void GitHubSource::load_cache_internal() {
-	auto cache_folder = get_plugin_cache_path();
-	auto files = Glob::rglob(cache_folder.path_join("**/*.json"), true);
-	MutexLock lock(cache_mutex);
-	for (auto &file : files) {
-		if (file.get_file().ends_with("_release_cache.json")) {
-			continue;
-		}
-		auto fa = FileAccess::open(file, FileAccess::READ);
-		ERR_CONTINUE_MSG(fa.is_null(), "Failed to open file for reading: " + file);
-		String json = fa->get_as_text();
-		auto plugin_name = file.get_file().replace(".json", "");
-		Dictionary d = JSON::parse_string(json);
-		load_cache_data(plugin_name, d);
-	}
 	_load_release_cache();
 }
 
@@ -452,6 +348,7 @@ String GitHubSource::_get_release_cache_file_name() {
 
 // Doing this because GitHub rate limits after only 60 requests per hour
 void GitHubSource::_load_release_cache() {
+	MutexLock lock(cache_mutex);
 	auto file = _get_release_cache_file_name();
 	if (!FileAccess::exists(file)) {
 		return;
@@ -468,6 +365,7 @@ void GitHubSource::_load_release_cache() {
 }
 
 void GitHubSource::_save_release_cache() {
+	MutexLock lock(cache_mutex);
 	auto file = _get_release_cache_file_name();
 	auto fa = FileAccess::open(file, FileAccess::WRITE);
 	ERR_FAIL_COND_MSG(fa.is_null(), "Failed to open file for writing: " + file);
@@ -481,34 +379,11 @@ void GitHubSource::_save_release_cache() {
 void GitHubSource::save_cache() {
 	auto cache_folder = get_plugin_cache_path();
 	ERR_FAIL_COND_MSG(gdre::ensure_dir(cache_folder), "Failed to create cache directory: " + cache_folder);
-	MutexLock lock(cache_mutex);
-	for (auto &E : non_asset_lib_cache) {
-		auto &plugin_name = E.key;
-		auto &releases = E.value;
-		Dictionary plugin_dict;
-		for (auto &R : releases) {
-			auto &release_id = R.key;
-			plugin_dict[release_id] = Dictionary();
-			auto &assets = R.value;
-			for (auto &A : assets) {
-				((Dictionary)plugin_dict[release_id])[A.key] = A.value.to_json();
-			}
-		}
-		auto plugin_file = cache_folder.path_join(plugin_name + ".json");
-		String json = JSON::stringify(plugin_dict, " ", false, true);
-		auto fa = FileAccess::open(plugin_file, FileAccess::WRITE);
-		ERR_FAIL_COND_MSG(fa.is_null(), "Failed to open file for writing: " + plugin_file);
-		fa->store_string(json);
-		fa->close();
-	}
+
+	// Only save release cache - PluginManager handles PluginVersion cache
 	_save_release_cache();
 }
 
-void GitHubSource::prepop_cache(const Vector<String> &plugin_names, bool multithread) {
-	for (const String &plugin_name : plugin_names) {
-		recache_release_list(plugin_name);
-	}
-}
 
 bool GitHubSource::handles_plugin(const String &plugin_name) {
 	return get_plugin_repo_map().has(plugin_name);
@@ -518,26 +393,6 @@ String GitHubSource::get_plugin_name() {
 	return "github";
 }
 
-void GitHubSource::load_cache_data(const String &plugin_name, const Dictionary &d) {
-	ERR_FAIL_COND_MSG(d.is_empty(), "Failed to parse json string for plugin: " + plugin_name);
-	if (!handles_plugin(plugin_name)) {
-		return;
-	}
-	if (!non_asset_lib_cache.has(plugin_name)) {
-		non_asset_lib_cache[plugin_name] = {};
-	}
-	for (auto &key : d.keys()) {
-		uint64_t release_id = key;
-		non_asset_lib_cache[plugin_name][release_id] = {};
-		Dictionary assets = d[key];
-		for (auto &A : assets.keys()) {
-			uint64_t asset_id = A;
-			Dictionary asset = assets[A];
-			PluginVersion version = PluginVersion::from_json(asset);
-			if (version.cache_version != CACHE_VERSION) {
-				continue;
-			}
-			non_asset_lib_cache[plugin_name][release_id][asset_id] = version;
-		}
-	}
-}
+// void GitHubSource::load_cache_data(const String &plugin_name, const Dictionary &d) {
+// 	// This method is deprecated - PluginManager now handles PluginVersion cache loading
+// }
