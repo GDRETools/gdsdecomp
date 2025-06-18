@@ -6,12 +6,18 @@
 
 struct EditListCache {
 	double retrieved_time = 0;
+	uint64_t asset_id = 0;
 	Vector<Dictionary> edit_list;
+	Dictionary to_json() const;
+	static EditListCache from_json(const Dictionary &json);
 };
 
 struct EditCache {
 	double retrieved_time = 0;
+	uint64_t edit_id = 0;
 	Dictionary edit;
+	Dictionary to_json() const;
+	static EditCache from_json(const Dictionary &json);
 };
 
 class AssetLibrarySource : public PluginSource {
@@ -30,6 +36,10 @@ private:
 	Vector<int> search_for_asset_ids(const String &plugin_name, int ver_major = 0);
 	Vector<Dictionary> get_assets_for_plugin(const String &plugin_name);
 	Vector<String> get_version_strings_for_asset(int asset_id);
+	void load_edit_list_cache();
+	void load_edit_cache();
+	void save_edit_list_cache();
+	void save_edit_cache();
 
 public:
 	// Implementation of PluginSource interface

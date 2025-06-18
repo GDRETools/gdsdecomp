@@ -122,7 +122,7 @@ Vector<Dictionary> AssetLibrarySource::get_list_of_edits(int asset_id) {
 
 	{
 		MutexLock lock(cache_mutex);
-		edit_list_cache[asset_id] = { now, edits_vec };
+		edit_list_cache[asset_id] = { now, (uint64_t)asset_id, edits_vec };
 	}
 
 	return edits_vec;
@@ -130,10 +130,11 @@ Vector<Dictionary> AssetLibrarySource::get_list_of_edits(int asset_id) {
 
 Dictionary AssetLibrarySource::get_edit(int edit_id) {
 	{
+		constexpr time_t EDIT_EXPIRY_TIME = 24 * 3600; // 1 day in seconds
 		MutexLock lock(cache_mutex);
 		if (edit_cache.has(edit_id)) {
 			auto &cache = edit_cache[edit_id];
-			if (!is_cache_expired(cache.retrieved_time)) {
+			if (!cache.retrieved_time + EDIT_EXPIRY_TIME <= OS::get_singleton()->get_unix_time()) {
 				return cache.edit;
 			}
 		}
@@ -143,17 +144,21 @@ Dictionary AssetLibrarySource::get_edit(int edit_id) {
 	URL = URL.replace("{0}", itos(edit_id));
 	Vector<uint8_t> response;
 	Error err = gdre::wget_sync(URL, response);
-	if (err) {
+	if (err || response.size() == 0) {
 		return Dictionary();
 	}
 	String response_str;
 	response_str.append_utf8((const char *)response.ptr(), response.size());
 	Dictionary response_obj = JSON::parse_string(response_str);
+	if (response_obj.is_empty()) {
+		return Dictionary();
+	}
 
 	{
 		MutexLock lock(cache_mutex);
 		edit_cache[edit_id] = {
 			OS::get_singleton()->get_unix_time(),
+			(uint64_t)edit_id,
 			response_obj
 		};
 	}
@@ -269,14 +274,81 @@ Vector<String> AssetLibrarySource::get_plugin_version_numbers(const String &plug
 	return versions;
 }
 
+void AssetLibrarySource::load_edit_list_cache() {
+	MutexLock lock(cache_mutex);
+	String edit_list_cache_file = PluginManager::get_plugin_cache_path().path_join("asset_lib_edit_list_release_cache.json");
+	if (!FileAccess::exists(edit_list_cache_file)) {
+		return;
+	}
+	auto file = FileAccess::open(edit_list_cache_file, FileAccess::READ);
+	if (file.is_null()) {
+		return;
+	}
+	Dictionary json = JSON::parse_string(file->get_as_text());
+	for (auto &E : json) {
+		edit_list_cache[E.key] = EditListCache::from_json(E.value);
+	}
+	file->close();
+}
+
+void AssetLibrarySource::load_edit_cache() {
+	MutexLock lock(cache_mutex);
+	String edit_cache_file = PluginManager::get_plugin_cache_path().path_join("asset_lib_edits_release_cache.json");
+	if (!FileAccess::exists(edit_cache_file)) {
+		return;
+	}
+	auto file = FileAccess::open(edit_cache_file, FileAccess::READ);
+	if (file.is_null()) {
+		return;
+	}
+	Dictionary json = JSON::parse_string(file->get_as_text());
+	for (auto &E : json) {
+		edit_cache[E.key] = EditCache::from_json(E.value);
+	}
+	file->close();
+}
+
 void AssetLibrarySource::load_cache_internal() {
-	// PluginManager now handles PluginVersion cache loading
-	// Only load release/edit cache if needed
+	load_edit_list_cache();
+	load_edit_cache();
+}
+
+void AssetLibrarySource::save_edit_list_cache() {
+	MutexLock lock(cache_mutex);
+	String edit_list_cache_file = PluginManager::get_plugin_cache_path().path_join("asset_lib_edit_list_release_cache.json");
+	auto file = FileAccess::open(edit_list_cache_file, FileAccess::WRITE);
+	if (file.is_null()) {
+		return;
+	}
+	Dictionary json;
+	for (auto &E : edit_list_cache) {
+		json[E.key] = E.value.to_json();
+	}
+	file->store_string(JSON::stringify(json));
+	file->close();
+	json.clear();
+}
+
+void AssetLibrarySource::save_edit_cache() {
+	MutexLock lock(cache_mutex);
+	String edit_cache_file = PluginManager::get_plugin_cache_path().path_join("asset_lib_edits_release_cache.json");
+	auto file = FileAccess::open(edit_cache_file, FileAccess::WRITE);
+	if (file.is_null()) {
+		return;
+	}
+
+	Dictionary json;
+	for (auto &E : edit_cache) {
+		json[E.key] = E.value.to_json();
+	}
+	file->store_string(JSON::stringify(json));
+	file->close();
+	json.clear();
 }
 
 void AssetLibrarySource::save_cache() {
-	// PluginManager now handles PluginVersion cache saving
-	// Only save release/edit cache if needed
+	save_edit_list_cache();
+	save_edit_cache();
 }
 
 bool AssetLibrarySource::handles_plugin(const String &plugin_name) {
@@ -285,4 +357,36 @@ bool AssetLibrarySource::handles_plugin(const String &plugin_name) {
 
 String AssetLibrarySource::get_plugin_name() {
 	return "asset_lib";
+}
+
+EditListCache EditListCache::from_json(const Dictionary &json) {
+	EditListCache cache;
+	cache.retrieved_time = json.get("retrieved_time", 0);
+	cache.asset_id = json.get("asset_id", 0);
+	cache.edit_list = gdre::array_to_vector<Dictionary>(json.get("edit_list", Array()));
+	return cache;
+}
+
+Dictionary EditListCache::to_json() const {
+	return {
+		{ "retrieved_time", retrieved_time },
+		{ "asset_id", asset_id },
+		{ "edit_list", gdre::vector_to_array(edit_list) }
+	};
+}
+
+EditCache EditCache::from_json(const Dictionary &json) {
+	EditCache cache;
+	cache.retrieved_time = json.get("retrieved_time", 0);
+	cache.edit_id = json.get("edit_id", 0);
+	cache.edit = json.get("edit", Dictionary());
+	return cache;
+}
+
+Dictionary EditCache::to_json() const {
+	return {
+		{ "retrieved_time", retrieved_time },
+		{ "edit_id", edit_id },
+		{ "edit", edit }
+	};
 }
