@@ -129,6 +129,16 @@ Vector<Dictionary> AssetLibrarySource::get_list_of_edits(int asset_id) {
 }
 
 Dictionary AssetLibrarySource::get_edit(int edit_id) {
+	{
+		MutexLock lock(cache_mutex);
+		if (edit_cache.has(edit_id)) {
+			auto &cache = edit_cache[edit_id];
+			if (!is_cache_expired(cache.retrieved_time)) {
+				return cache.edit;
+			}
+		}
+	}
+
 	String URL = "https://godotengine.org/asset-library/api/asset/edit/{0}";
 	URL = URL.replace("{0}", itos(edit_id));
 	Vector<uint8_t> response;
@@ -139,6 +149,15 @@ Dictionary AssetLibrarySource::get_edit(int edit_id) {
 	String response_str;
 	response_str.append_utf8((const char *)response.ptr(), response.size());
 	Dictionary response_obj = JSON::parse_string(response_str);
+
+	{
+		MutexLock lock(cache_mutex);
+		edit_cache[edit_id] = {
+			OS::get_singleton()->get_unix_time(),
+			response_obj
+		};
+	}
+
 	return response_obj;
 }
 

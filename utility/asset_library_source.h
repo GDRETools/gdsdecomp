@@ -9,6 +9,11 @@ struct EditListCache {
 	Vector<Dictionary> edit_list;
 };
 
+struct EditCache {
+	double retrieved_time = 0;
+	Dictionary edit;
+};
+
 class AssetLibrarySource : public PluginSource {
 	GDCLASS(AssetLibrarySource, PluginSource)
 
@@ -16,6 +21,7 @@ private:
 	static HashMap<String, String> GODOT_VERSION_RELEASE_DATES;
 
 	HashMap<uint64_t, EditListCache> edit_list_cache;
+	HashMap<uint64_t, EditCache> edit_cache;
 
 	// Helper methods
 	Vector<Dictionary> get_list_of_edits(int asset_id);
