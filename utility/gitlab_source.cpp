@@ -23,10 +23,6 @@ GitLabSource::~GitLabSource() {
 	// Clean up any resources
 }
 
-String GitLabSource::get_plugin_cache_path() {
-	return PluginManager::get_plugin_cache_path().path_join("gitlab");
-}
-
 const HashMap<String, String> &GitLabSource::get_plugin_repo_map() {
 	return plugin_map;
 }

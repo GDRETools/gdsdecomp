@@ -74,10 +74,6 @@ const HashMap<String, Vector<String>> &GitHubSource::get_plugin_release_file_exc
 	return release_file_exclude_masks;
 }
 
-String GitHubSource::get_plugin_cache_path() {
-	return PluginManager::get_plugin_cache_path().path_join("github");
-}
-
 bool GitHubSource::should_skip_tag(const String &plugin_name, const String &tag) {
 	if (get_plugin_tag_masks().has(plugin_name)) {
 		const auto &suffixes = get_plugin_tag_masks()[plugin_name];
@@ -343,7 +339,7 @@ void GitHubSource::load_cache_internal() {
 }
 
 String GitHubSource::_get_release_cache_file_name() {
-	return get_plugin_cache_path().path_join("..").simplify_path().path_join(get_plugin_name() + "_release_cache.json");
+	return PluginManager::get_plugin_cache_path().path_join(get_plugin_name() + "_release_cache.json");
 }
 
 // Doing this because GitHub rate limits after only 60 requests per hour
@@ -377,13 +373,8 @@ void GitHubSource::_save_release_cache() {
 }
 
 void GitHubSource::save_cache() {
-	auto cache_folder = get_plugin_cache_path();
-	ERR_FAIL_COND_MSG(gdre::ensure_dir(cache_folder), "Failed to create cache directory: " + cache_folder);
-
-	// Only save release cache - PluginManager handles PluginVersion cache
 	_save_release_cache();
 }
-
 
 bool GitHubSource::handles_plugin(const String &plugin_name) {
 	return get_plugin_repo_map().has(plugin_name);
