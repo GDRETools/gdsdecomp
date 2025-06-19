@@ -47,7 +47,7 @@ def get_godot_arch():
     else:
         raise ValueError(f"Unsupported architecture: {platform.machine()}")
 
-DEV_MODE = True  # os.getenv("DEV_MODE", "0") != "0"
+DEV_MODE = os.getenv("DEV_MODE", "0") != "0"
 GODOT_EXE = os.path.join(BIN_DIR, f"godot.{get_godot_platform()}.editor.{('dev.' if DEV_MODE else '')}{get_godot_arch()}")
 ARGS = [GODOT_EXE, "--headless", "--path", STANDALONE_DIR]
 
