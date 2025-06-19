@@ -100,9 +100,9 @@ Error TextureExporter::save_image(const String &dest_path, const Ref<Image> &img
 	}
 	GDRE_ERR_DECOMPRESS_OR_FAIL(img);
 	if (dest_ext == "jpg" || dest_ext == "jpeg") {
-		err = gdre::save_image_as_jpeg(dest_path, img);
+		err = img->save_jpg(dest_path, 1.0);
 	} else if (dest_ext == "webp") {
-		err = gdre::save_image_as_webp(dest_path, img, lossy);
+		err = img->save_webp(dest_path, lossy, 1.0);
 	} else if (dest_ext == "png") {
 		err = img->save_png(dest_path);
 	} else if (dest_ext == "tga") {

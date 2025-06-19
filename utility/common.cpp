@@ -224,6 +224,8 @@ Error gdre::save_image_as_tga(const String &p_path, const Ref<Image> &p_img) {
 Error gdre::save_image_as_svg(const String &p_path, const Ref<Image> &p_img) {
 	VTracerConfig config;
 	vtracer_set_default_config(&config);
+	// this config converts the raster image to a vector image with a box for each pixel
+	// this will ensure that the image will match the original image when re-imported into Godot
 	config.color_mode = V_TRACER_COLOR_MODE_COLOR;
 	config.hierarchical = V_TRACER_HIERARCHICAL_STACKED;
 	config.mode = V_TRACER_PATH_SIMPLIFY_MODE_NONE;
@@ -257,33 +259,6 @@ Error gdre::save_image_as_svg(const String &p_path, const Ref<Image> &p_img) {
 	}
 	ERR_FAIL_COND_V_MSG(!err_msg.is_empty(), ERR_CANT_CREATE, err_msg);
 	return OK;
-}
-
-Error gdre::save_image_as_webp(const String &p_path, const Ref<Image> &p_img, bool lossy) {
-	Ref<Image> source_image = p_img->duplicate();
-	Error err = OK;
-	GDRE_ERR_DECOMPRESS_OR_FAIL(source_image);
-	Vector<uint8_t> buffer;
-	if (lossy) {
-		buffer = Image::webp_lossy_packer(source_image, 1);
-	} else {
-		buffer = Image::webp_lossless_packer(source_image);
-	}
-	Ref<FileAccess> file = FileAccess::open(p_path, FileAccess::WRITE, &err);
-	ERR_FAIL_COND_V_MSG(err, err, vformat("Can't save WEBP at path: '%s'.", p_path));
-
-	file->store_buffer(buffer.ptr(), buffer.size());
-	if (file->get_error() != OK && file->get_error() != ERR_FILE_EOF) {
-		return ERR_CANT_CREATE;
-	}
-	return OK;
-}
-
-Error gdre::save_image_as_jpeg(const String &p_path, const Ref<Image> &p_img) {
-	Vector<uint8_t> buffer;
-	Ref<Image> source_image = p_img->duplicate();
-	GDRE_ERR_DECOMPRESS_OR_FAIL(source_image);
-	return source_image->save_jpg(p_path, 1.0f);
 }
 
 void gdre::get_strings_from_variant(const Variant &p_var, Vector<String> &r_strings, const String &engine_version) {
@@ -948,8 +923,7 @@ void GDRECommon::_bind_methods() {
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("dir_has_any_matching_wildcards", "dir", "wildcards"), &gdre::dir_has_any_matching_wildcards);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("ensure_dir", "dir"), &gdre::ensure_dir);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("save_image_as_tga", "path", "img"), &gdre::save_image_as_tga);
-	ClassDB::bind_static_method("GDRECommon", D_METHOD("save_image_as_webp", "path", "img", "lossy"), &gdre::save_image_as_webp);
-	ClassDB::bind_static_method("GDRECommon", D_METHOD("save_image_as_jpeg", "path", "img"), &gdre::save_image_as_jpeg);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("save_image_as_svg", "path", "img"), &gdre::save_image_as_svg);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_md5", "dir", "ignore_code_signature"), &gdre::get_md5);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_md5_for_dir", "dir", "ignore_code_signature"), &gdre::get_md5_for_dir);
 	// string_has_whitespace, string_is_ascii, detect_utf8, remove_chars, remove_whitespace, split_multichar, rsplit_multichar, has_chars_in_set, get_chars_in_set
