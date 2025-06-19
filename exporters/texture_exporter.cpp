@@ -427,7 +427,7 @@ Error TextureExporter::_convert_tex(const String &p_path, const String &dest_pat
 Error TextureExporter::_convert_atex(const String &p_path, const String &dest_path, bool lossy, String &image_format, Ref<ExportReport> report) {
 	Error err;
 	String dst_dir = dest_path.get_base_dir();
-	Ref<AtlasTexture> atex = ResourceCompatLoader::custom_load(p_path, "", ResourceInfo::GLTF_LOAD, &err, false, ResourceFormatLoader::CACHE_MODE_IGNORE);
+	Ref<AtlasTexture> atex = ResourceCompatLoader::custom_load(p_path, "", ResourceInfo::GLTF_LOAD, &err, false, ResourceFormatLoader::CACHE_MODE_IGNORE_DEEP);
 	// deprecated format
 	if (err == ERR_UNAVAILABLE) {
 		// TODO: Not reporting here because we can't get the deprecated format type yet,
@@ -444,7 +444,6 @@ Error TextureExporter::_convert_atex(const String &p_path, const String &dest_pa
 	ERR_FAIL_COND_V_MSG(img->is_empty(), ERR_FILE_EOF, "Image data is empty for texture " + p_path + ", not saving");
 	image_format = Image::get_format_name(img->get_format());
 
-	img = img->duplicate();
 	if (img->is_compressed() && img->has_mipmaps()) {
 		img->clear_mipmaps();
 	}
@@ -508,8 +507,7 @@ Error preprocess_images(
 	if (layer_count > 0) {
 		ref_img = images[0];
 		if (!ref_img.is_null()) {
-			ref_img = ref_img->duplicate();
-			// another dupe to avoid modifying the original
+			// dupe to avoid modifying the original
 			if (ref_img->is_compressed()) {
 				Ref<Image> dupe = ref_img->duplicate();
 				GDRE_ERR_DECOMPRESS_OR_FAIL(dupe);
@@ -945,7 +943,7 @@ Error TextureExporter::_convert_layered_2d(const String &p_path, const String &d
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to preprocess images for texture " + p_path);
 	int width = tex->get_width();
 	int height = tex->get_height();
-#if 0
+#if 0 // This was an attempt at fixing incorrectly imported cubemaps; if it was incorrectly imported by the original author, we should just leave it be.
 	if (mode == TextureLayered::LAYERED_TYPE_CUBEMAP || mode == TextureLayered::LAYERED_TYPE_CUBEMAP_ARRAY) {
 		Vector<Ref<Image>> fixed_images = fix_cross_cubemaps(images, width, height, layer_count, detected_alpha);
 	}
