@@ -323,7 +323,6 @@ void gdre::get_strings_from_variant(const Variant &p_var, Vector<String> &r_stri
 				get_strings_from_variant(obj->get_meta(name), r_strings, engine_version);
 			}
 			if (!engine_version.is_empty()) {
-				Ref<MissingResource> mr = p_var;
 				if (obj->get_save_class() == "GDScript") {
 					String code = obj->get("script/source");
 					if (!code.is_empty()) {
