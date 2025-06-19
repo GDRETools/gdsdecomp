@@ -1,7 +1,5 @@
 # Godot RE Tools
 
-_This software in an alpha stage. Please report any bugs on the github page._
-
 ## Introduction
 
 ![Code Screenshot](images/screenshot.png)

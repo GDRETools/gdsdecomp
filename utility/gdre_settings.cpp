@@ -1816,7 +1816,7 @@ String GDRESettings::get_disclaimer_body() {
 			"The authors and copyright holders of this software do neither encourage nor condone " +
 			"the use of this software, and disclaim any liability for use of the software in violation of " +
 			"applicable laws.\n\n" +
-			"This software in an alpha stage. Please report any bugs to the GitHub repository\n");
+			"Please report any bugs to the GitHub repository\n");
 }
 
 // bool has_resource_strings() const;

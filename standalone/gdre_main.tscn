@@ -213,7 +213,7 @@ text = "Resources, binary code and source code might be protected by copyright a
 
 The authors and copyright holders of this software do neither encourage nor condone the use of this software, and disclaim any liability for use of the software in violation of applicable laws.
 
-This software in an alpha stage. Please report any bugs to the GitHub repository
+Please report any bugs to the GitHub repository.
 "
 autowrap_mode = 3
 
