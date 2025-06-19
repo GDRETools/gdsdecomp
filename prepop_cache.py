@@ -82,7 +82,8 @@ def generate_header_file():
 
 def generate_json_file():
 
-    # asset_lib_base64s = get_json_dicts_from_dir(ASSET_LIB_PRECACHE_DIR)
+    jsons = get_json_dicts_from_dir(os.path.join(TEMP_CACHE_DIR, "plugin_versions"))
+    main_dict = {}
     # github_base64s = get_json_dicts_from_dir(GITHUB_PRECACHE_DIR)
     # gitlab_base64s = get_json_dicts_from_dir(GITLAB_PRECACHE_DIR)
     # asset_lib_base64s = [(get_asset_lib_plugin_name(file_path), base64) for file_path, base64 in asset_lib_base64s]
@@ -97,13 +98,19 @@ def generate_json_file():
     #     "gitlab": gitlab_base64_dict
     # }
     previous_file_size = 0
-
-    # just get plugin_versions.json from the cache dir
-    plugin_versions_json: str = os.path.join(TEMP_CACHE_DIR, "plugin_versions.json")
-    if not os.path.exists(plugin_versions_json):
-        print("Plugin versions json not found, aborting")
-        sys.exit(1)
-    main_dict = json.load(open(plugin_versions_json))
+    for _, blob in jsons:
+        for _, json_dict in blob.items():
+            release_info = json_dict["release_info"]
+            key = (
+                release_info["plugin_source"]
+                + "-"
+                + str(release_info["primary_id"])
+                + "-"
+                + str(release_info["secondary_id"])
+            )
+            main_dict[key] = json_dict
+    # sort dict
+    main_dict = dict(sorted(main_dict.items()))
     dest_path = JSON_DST_PATH
     already_exists = os.path.exists(JSON_DST_PATH)
     if already_exists:
@@ -112,12 +119,12 @@ def generate_json_file():
         dest_path = JSON_DST_PATH + ".tmp"
     with open(dest_path, "w") as f:
         json.dump(main_dict, f)
-    if os.path.getsize(dest_path) < previous_file_size:
-        print("File size decreased, aborting")
-        # remove the tmp file
-        os.remove(dest_path)
-        sys.exit(1)
-    elif already_exists:
+    # if os.path.getsize(dest_path) < previous_file_size:
+    #     print("File size decreased, aborting")
+    #     # remove the tmp file
+    #     os.remove(dest_path)
+    #     sys.exit(1)
+    if already_exists:
         # rename the tmp file to the original file
         os.rename(dest_path, JSON_DST_PATH)
 

@@ -208,7 +208,7 @@ struct PrePopTask {
 			PluginVersion cached_version = PluginManager::get_cached_plugin_version(cache_key);
 			if (cached_version.plugin_name.is_empty()) {
 				PluginVersion plugin_version = PluginManager::populate_plugin_version_from_release(release_info);
-				if (plugin_version.cache_version != 0) {
+				if (!plugin_version.plugin_name.is_empty()) {
 					PluginManager::cache_plugin_version(cache_key, plugin_version);
 				}
 			}
@@ -432,14 +432,18 @@ Error PluginManager::populate_plugin_version_hashes(PluginVersion &plugin_versio
 }
 
 void PluginManager::load_plugin_version_cache() {
-	String cache_file = get_plugin_cache_path().path_join("plugin_versions.json");
-	if (!FileAccess::exists(cache_file)) {
+	String cache_dir = get_plugin_cache_path().path_join("plugin_versions");
+	if (!DirAccess::exists(cache_dir)) {
 		return;
 	}
-	load_plugin_version_cache_file(cache_file);
+	auto files = Glob::rglob(cache_dir.path_join("**/*.json"), true);
+	for (auto &file : files) {
+		load_plugin_version_cache_file(file);
+	}
 }
 
 void PluginManager::load_plugin_version_cache_file(const String &cache_file) {
+	// this works with both the static and dynamic cache files
 	auto file = FileAccess::open(cache_file, FileAccess::READ);
 	if (file.is_null()) {
 		ERR_PRINT("Failed to open plugin version cache file!");
@@ -451,38 +455,57 @@ void PluginManager::load_plugin_version_cache_file(const String &cache_file) {
 
 	MutexLock lock(plugin_version_cache_mutex);
 	for (auto &E : data.keys()) {
-		String cache_key = E;
-		Dictionary version_data = data[cache_key];
+		Dictionary version_data = data[E];
 		PluginVersion version = PluginVersion::from_json(version_data);
-		if (version.cache_version == CACHE_VERSION) {
+		if (version.cache_version == CACHE_VERSION && !version.plugin_name.is_empty()) {
+			String cache_key = get_cache_key(version.release_info.plugin_source, version.release_info.primary_id, version.release_info.secondary_id);
 			plugin_version_cache[cache_key] = version;
 		}
 	}
 }
 
 void PluginManager::save_plugin_version_cache() {
-	String cache_file = get_plugin_cache_path().path_join("plugin_versions.json");
-	auto file = FileAccess::open(cache_file, FileAccess::WRITE);
-	if (file.is_null()) {
-		ERR_PRINT("Failed to open plugin version cache file for writing!");
-		return;
-	}
-
-	Dictionary data;
+	String cache_dir = get_plugin_cache_path().path_join("plugin_versions");
+	gdre::ensure_dir(cache_dir);
+	HashMap<String, HashMap<String, Dictionary>> data;
 	{
 		MutexLock lock(plugin_version_cache_mutex);
 		for (auto &E : plugin_version_cache) {
 			String cache_key = E.key;
 			PluginVersion version = E.value;
 			if (version.cache_version == CACHE_VERSION) {
-				data[cache_key] = version.to_json();
+				Dictionary version_json = version.to_json();
+				String source = version.release_info.plugin_source;
+				String primary_id = itos(version.release_info.primary_id);
+				String secondary_id = itos(version.release_info.secondary_id);
+				if (!data.has(source)) {
+					data[source] = HashMap<String, Dictionary>();
+				}
+				if (!data[source].has(primary_id)) {
+					data[source][primary_id] = Dictionary();
+				}
+				data[source][primary_id][secondary_id] = version_json;
 			}
 		}
 	}
 
-	String json = JSON::stringify(data, " ", false, true);
-	file->store_string(json);
-	file->flush();
+	for (auto &source : data) {
+		for (auto &primary_id : source.value) {
+			// source/primary_id.json - with secondary_id as the key
+			String file_name = source.key + "/" + primary_id.key + ".json";
+			String path = cache_dir.path_join(file_name);
+			gdre::ensure_dir(path.get_base_dir());
+			auto file = FileAccess::open(path, FileAccess::WRITE);
+			if (file.is_null()) {
+				ERR_PRINT("Failed to open plugin version cache file for writing: " + file_name);
+				continue;
+			}
+			String json = JSON::stringify(primary_id.value, " ", false, true);
+			file->store_string(json);
+			file->flush();
+			file->close();
+		}
+	}
 	data.clear();
 }
 

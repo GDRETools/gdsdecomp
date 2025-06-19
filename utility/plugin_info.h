@@ -166,7 +166,7 @@ struct PluginVersion {
 
 	static PluginVersion from_json(Dictionary d) {
 		PluginVersion version;
-		version.cache_version = d.get("cache_version", CACHE_VERSION);
+		version.cache_version = d.get("cache_version", 0);
 		version.plugin_name = d.get("plugin_name", "");
 		version.release_info = ReleaseInfo::from_json(d.get("release_info", {}));
 		version.min_godot_version = d.get("min_godot_version", "");
