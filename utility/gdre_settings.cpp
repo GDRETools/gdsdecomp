@@ -145,7 +145,7 @@ bool GDRESettings::check_if_dir_is_v2() {
 }
 
 int GDRESettings::get_ver_major_from_dir() {
-	if (FileAccess::exists("res://engine.cfb") || FileAccess::exists("res://engine.cfg")) {
+	if (check_if_dir_is_v2() && (FileAccess::exists("res://engine.cfb") || FileAccess::exists("res://engine.cfg"))) {
 		return 2;
 	}
 	if (check_if_dir_is_v4())
@@ -1783,15 +1783,16 @@ bool GDRESettings::pack_has_project_config() {
 		return false;
 	}
 	if (get_ver_major() == 2) {
-		if (has_path_loaded("res://engine.cfb")) {
+		if (has_path_loaded("res://engine.cfb") || has_path_loaded("res://engine.cfg")) {
 			return true;
 		}
 	} else if (get_ver_major() == 3 || get_ver_major() == 4) {
-		if (has_path_loaded("res://project.binary")) {
+		if (has_path_loaded("res://project.binary") || has_path_loaded("res://project.godot")) {
 			return true;
 		}
 	} else {
-		if (has_path_loaded("res://engine.cfb") || has_path_loaded("res://project.binary")) {
+		if (has_path_loaded("res://engine.cfb") || has_path_loaded("res://engine.cfg") ||
+				has_path_loaded("res://project.binary") || has_path_loaded("res://project.godot")) {
 			return true;
 		}
 	}
