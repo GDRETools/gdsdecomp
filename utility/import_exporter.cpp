@@ -909,14 +909,6 @@ Dictionary ImportExporterReport::get_session_notes() {
 		unsupported["details"] = list;
 		notes["unsupported_types"] = unsupported;
 	}
-	if (exported_scenes) {
-		Dictionary export_scenes_note;
-		export_scenes_note["title"] = "Experimental Scene Export";
-		export_scenes_note["message"] = "Scene export is EXPERIMENTAL and exported scenes may be inaccurate.\n"
-										"Thus, all exported scenes have been saved to the .assets directory, which will not be picked up by the editor for import.\n"
-										"Please report any issues you encounter with exported scenes to the Github page Github.";
-		notes["export_scenes"] = export_scenes_note;
-	}
 
 	if (had_encryption_error) {
 		// notes["encryption_error"] = "Failed to decompile encrypted scripts!\nSet the correct key and try again!";
