@@ -13,3 +13,17 @@ drivers/* linguist-vendored
 *.yml eol=lf
 *.md eol=lf
 *.gd eol=lf
+*.tres eol=lf
+*.tscn eol=lf
+*.json eol=lf
+*.godot eol=lf
+*.uid eol=lf
+*.cfg eol=lf
+*.svg eol=lf
+*.import eol=lf
+*.rs eol=lf
+*.toml eol=lf
+*.lock eol=lf
+*.pyi eol=lf
+LICENSE-* eol=lf
+LICENSE eol=lf
