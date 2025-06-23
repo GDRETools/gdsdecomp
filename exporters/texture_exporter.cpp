@@ -113,6 +113,8 @@ Error TextureExporter::save_image(const String &dest_path, const Ref<Image> &img
 		err = img->save_dds(dest_path);
 	} else if (dest_ext == "exr") {
 		err = img->save_exr(dest_path);
+	} else if (dest_ext == "bmp") {
+		err = gdre::save_image_as_bmp(dest_path, img);
 	} else {
 		ERR_FAIL_V_MSG(ERR_FILE_BAD_PATH, "Invalid file name: " + dest_path);
 	}
@@ -1049,6 +1051,8 @@ Ref<ExportReport> TextureExporter::export_resource(const String &output_dir, Ref
 			} else if (source_ext == "dds") {
 				lossy = false;
 			} else if (source_ext == "exr") {
+				lossy = false;
+			} else if (source_ext == "bmp") {
 				lossy = false;
 			} else {
 				iinfo->set_export_dest(iinfo->get_export_dest().get_basename() + ".png");

@@ -163,6 +163,130 @@ public:
 	}
 };
 
+Error gdre::save_image_as_bmp(const String &p_path, const Ref<Image> &p_img) {
+	// Microsoft BMP format - BGR ordering
+	Ref<Image> source_image = p_img->duplicate();
+	GDRE_ERR_DECOMPRESS_OR_FAIL(source_image);
+
+	int width = source_image->get_width();
+	int height = source_image->get_height();
+
+	// Convert to RGBA8 if needed
+	bool has_alpha = source_image->detect_alpha();
+	if (source_image->get_format() != Image::FORMAT_RGBA8 && source_image->get_format() != Image::FORMAT_RGB8) {
+		if (has_alpha) {
+			source_image->convert(Image::FORMAT_RGBA8);
+		} else {
+			source_image->convert(Image::FORMAT_RGB8);
+		}
+	} else if (!has_alpha && source_image->get_format() == Image::FORMAT_RGBA8) {
+		source_image->convert(Image::FORMAT_RGB8);
+	}
+	int pixel_stride = has_alpha ? 4 : 3;
+
+	// Determine BMP format based on alpha presence
+	bool use_32bit = has_alpha;
+	int bytes_per_pixel = use_32bit ? 4 : 3;
+	int row_size = width * bytes_per_pixel;
+	int padding_size = use_32bit ? 0 : (4 - (row_size % 4)) % 4; // 32-bit has no padding
+	int padded_row_size = row_size + padding_size;
+
+	// BMP file header (14 bytes)
+	uint32_t info_header_size = use_32bit ? 108 : 40; // V4 header (108 bytes) for 32-bit, V3 header (40 bytes) for 24-bit
+	uint32_t file_size = 14 + info_header_size + (padded_row_size * height);
+	uint32_t pixel_data_offset = 14 + info_header_size;
+
+	// BMP info header
+	uint16_t planes = 1;
+	uint16_t bits_per_pixel = use_32bit ? 32 : 24;
+	uint32_t compression = use_32bit ? 3 : 0; // BI_BITFIELDS for 32-bit, BI_RGB for 24-bit
+	uint32_t image_size = padded_row_size * height;
+	uint32_t x_pixels_per_meter = 2835; // 72 DPI
+	uint32_t y_pixels_per_meter = 2835; // 72 DPI
+	uint32_t colors_used = 0;
+	uint32_t important_colors = 0;
+
+	Ref<FileAccess> fa = FileAccess::open(p_path, FileAccess::WRITE);
+	if (fa.is_null()) {
+		return ERR_FILE_CANT_WRITE;
+	}
+
+	// Write file header
+	fa->store_16(0x4D42); // "BM" signature
+	fa->store_32(file_size);
+	fa->store_16(0); // Reserved
+	fa->store_16(0); // Reserved
+	fa->store_32(pixel_data_offset);
+
+	// Write info header
+	fa->store_32(info_header_size);
+	fa->store_32(width);
+	fa->store_32(height);
+	fa->store_16(planes);
+	fa->store_16(bits_per_pixel);
+	fa->store_32(compression);
+	fa->store_32(image_size);
+	fa->store_32(x_pixels_per_meter);
+	fa->store_32(y_pixels_per_meter);
+	fa->store_32(colors_used);
+	fa->store_32(important_colors);
+
+	// Write V4 header fields for 32-bit format
+	if (use_32bit) {
+		// Color masks (same as V3 but in V4 header)
+		fa->store_32(0x00FF0000); // Blue mask
+		fa->store_32(0x0000FF00); // Green mask
+		fa->store_32(0x000000FF); // Red mask
+		fa->store_32(0xFF000000); // Alpha mask
+
+		// Color space type (linear RGB = 0x4C494E45)
+		fa->store_32(0x4C494E45); // "LINE"
+
+		// CIEXYZTRIPLE for endpoints (unused for linear RGB)
+		for (int i = 0; i < 9; i++) {
+			fa->store_32(0); // 3 endpoints × 3 coordinates × 4 bytes each
+		}
+
+		// Gamma values (unused for linear RGB)
+		fa->store_32(0); // Red gamma
+		fa->store_32(0); // Green gamma
+		fa->store_32(0); // Blue gamma
+	}
+
+	// Write pixel data (BMP stores rows bottom-up)
+	Vector<uint8_t> image_data = source_image->get_data();
+	constexpr uint8_t padding[4] = { 0, 0, 0, 0 }; // Padding bytes
+
+	for (int y = height - 1; y >= 0; y--) { // Bottom-up order
+		for (int x = 0; x < width; x++) {
+			int src_index = (y * width + x) * pixel_stride;
+			uint8_t r = image_data[src_index + 0];
+			uint8_t g = image_data[src_index + 1];
+			uint8_t b = image_data[src_index + 2];
+
+			if (use_32bit) {
+				uint8_t a = image_data[src_index + 3];
+				fa->store_8(b);
+				fa->store_8(g);
+				fa->store_8(r);
+				fa->store_8(a);
+			} else {
+				fa->store_8(b);
+				fa->store_8(g);
+				fa->store_8(r);
+			}
+		}
+
+		// Write row padding (only for 24-bit format)
+		if (!use_32bit && padding_size > 0) {
+			fa->store_buffer(padding, padding_size);
+		}
+	}
+
+	fa->close();
+	return OK;
+}
+
 Error gdre::save_image_as_tga(const String &p_path, const Ref<Image> &p_img) {
 	Vector<uint8_t> buffer;
 	Ref<Image> source_image = p_img->duplicate();
@@ -924,6 +1048,7 @@ void GDRECommon::_bind_methods() {
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("ensure_dir", "dir"), &gdre::ensure_dir);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("save_image_as_tga", "path", "img"), &gdre::save_image_as_tga);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("save_image_as_svg", "path", "img"), &gdre::save_image_as_svg);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("save_image_as_bmp", "path", "img"), &gdre::save_image_as_bmp);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_md5", "dir", "ignore_code_signature"), &gdre::get_md5);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_md5_for_dir", "dir", "ignore_code_signature"), &gdre::get_md5_for_dir);
 	// string_has_whitespace, string_is_ascii, detect_utf8, remove_chars, remove_whitespace, split_multichar, rsplit_multichar, has_chars_in_set, get_chars_in_set

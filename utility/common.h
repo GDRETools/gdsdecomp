@@ -14,6 +14,7 @@ bool dir_has_any_matching_wildcards(const String &dir, const Vector<String> &wil
 
 bool check_header(const Vector<uint8_t> &p_buffer, const char *p_expected_header, int p_expected_len);
 Error ensure_dir(const String &dst_dir);
+Error save_image_as_bmp(const String &p_path, const Ref<Image> &p_img);
 Error save_image_as_tga(const String &p_path, const Ref<Image> &p_img);
 Error save_image_as_svg(const String &p_path, const Ref<Image> &p_img);
 void get_strings_from_variant(const Variant &p_var, Vector<String> &r_strings, const String &engine_version = "");
