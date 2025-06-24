@@ -932,7 +932,7 @@ static etcpak_force_inline void DecodeRSignedPart( uint64_t r, uint32_t* dst, ui
     // The base codeword is then multiplied by 8 by shifting it left three steps.
     //
     // This is the only difference between the signed and unsigned R11 EAC formats.
-    const int32_t base = (( r >> 56 ) <= -128 ? -127 : ( r >> 56 )) * 8;
+    const int32_t base = (((int8_t)( r >> 56 )) <= -128 ? -127 : ((int8_t)( r >> 56 ))) * 8;
     const int32_t mul = ( r >> 52 ) & 0xF;
     const auto atbl = g_alpha[( r >> 48 ) & 0xF];
 
@@ -953,11 +953,11 @@ static etcpak_force_inline void DecodeRGSignedPart( uint64_t r, uint64_t g, uint
     g = _bswap64( g );
 
     // Both 64-bit integers are decoded in the same way as signed R11 EAC described in Section 22.7
-    const int32_t rbase = (( r >> 56 ) <= -128 ? -127 : ( r >> 56 )) * 8;
+    const int32_t rbase = (((int8_t)( r >> 56 )) <= -128 ? -127 : ((int8_t)( r >> 56 ))) * 8;
     const int32_t rmul = ( r >> 52 ) & 0xF;
     const auto rtbl = g_alpha[( r >> 48 ) & 0xF];
 
-    const int32_t gbase = (( g >> 56 ) <= -128 ? -127 : ( g >> 56 )) * 8;
+    const int32_t gbase = (((int8_t)( g >> 56 )) <= -128 ? -127 : ((int8_t)( g >> 56 ))) * 8;
     const int32_t gmul = ( g >> 52 ) & 0xF;
     const auto gtbl = g_alpha[( g >> 48 ) & 0xF];
 
