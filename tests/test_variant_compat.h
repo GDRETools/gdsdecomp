@@ -160,9 +160,9 @@ TEST_CASE("[GDSDecomp][VariantCompat] int") {
 }
 
 TEST_CASE("[GDSDecomp][VariantCompat] int64_t") {
-	test_variant_write_v4<int64_t>("0", 0);
-	test_variant_write_v4<int64_t>("INT64_MAX", INT64_MAX);
-	test_variant_write_v4<int64_t>("INT64_MIN", INT64_MIN);
+	test_variant_write_all<int64_t>("0", 0, "0", "0");
+	test_variant_write_all<int64_t>("INT64_MAX", INT64_MAX, "9223372036854775807", "9223372036854775807");
+	test_variant_write_all<int64_t>("INT64_MIN", INT64_MIN, "-9223372036854775808", "-9223372036854775808");
 }
 
 TEST_CASE("[GDSDecomp][VariantCompat] float") {
