@@ -576,7 +576,6 @@ Error ImportInfov2::_load(const String &p_path) {
 	if (err) {
 		ERR_FAIL_V_MSG(err, "Could not load resource info from " + p_path);
 	}
-	String dest;
 	String source_file;
 	String importer;
 	// This is an import file, possibly has import metadata
@@ -617,10 +616,15 @@ Error ImportInfov2::_load(const String &p_path) {
 		}
 	} else {
 		auto_converted_export = true;
-		// if this doesn't match "filename.ext.converted.newext"
-		ERR_FAIL_COND_V_MSG(spl.size() != 4, ERR_CANT_RESOLVE, "Can't open imported file " + p_path);
-		source_file = p_path.get_base_dir().path_join(spl[0] + "." + spl[1]);
-		importer = "autoconverted";
+		source_file = GDRESettings::get_singleton()->get_remapped_source_path(p_path);
+		if (source_file.is_empty()) {
+			// if this doesn't match "filename.ext.converted.newext"
+			ERR_FAIL_COND_V_MSG(spl.size() != 4, ERR_CANT_RESOLVE, "Can't open imported file " + p_path);
+			source_file = p_path.get_base_dir().path_join(spl[0] + "." + spl[1]);
+		}
+		if (!res_info->get_type().to_lower().contains("texture")) {
+			importer = "autoconverted";
+		}
 	}
 
 	not_an_import = true;
@@ -649,7 +653,7 @@ Error ImportInfov2::_load(const String &p_path) {
 		} else if (old_ext == "gdc" || old_ext == "gde") {
 			importer = "script_bytecode";
 		} else {
-			importer = "none";
+			importer = "";
 		}
 	}
 	v2metadata.instantiate();
