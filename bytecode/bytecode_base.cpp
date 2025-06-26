@@ -2089,3 +2089,129 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 	do_vmap_thing("End Lines", state1.end_lines, state2.end_lines);
 	return err;
 }
+
+bool GDScriptDecomp::token_is_keyword(GlobalToken p_token) {
+	// all the PR and CF tokens, + G_TK_OP_IN, G_TK_OP_AND, G_TK_OP_OR, G_TK_OP_NOT
+	switch (p_token) {
+		case G_TK_OP_IN:
+		case G_TK_OP_AND:
+		case G_TK_OP_OR:
+		case G_TK_OP_NOT:
+		case G_TK_CF_IF:
+		case G_TK_CF_ELIF:
+		case G_TK_CF_ELSE:
+		case G_TK_CF_FOR:
+		case G_TK_CF_WHILE:
+		case G_TK_CF_BREAK:
+		case G_TK_CF_CONTINUE:
+		case G_TK_CF_PASS:
+		case G_TK_CF_RETURN:
+		case G_TK_CF_MATCH:
+		case G_TK_PR_FUNCTION:
+		case G_TK_PR_CLASS:
+		case G_TK_PR_CLASS_NAME:
+		case G_TK_PR_EXTENDS:
+		case G_TK_PR_IS:
+		case G_TK_PR_ONREADY:
+		case G_TK_PR_TOOL:
+		case G_TK_PR_STATIC:
+		case G_TK_PR_EXPORT:
+		case G_TK_PR_SETGET:
+		case G_TK_PR_CONST:
+		case G_TK_PR_VAR:
+		case G_TK_PR_AS:
+		case G_TK_PR_VOID:
+		case G_TK_PR_ENUM:
+		case G_TK_PR_PRELOAD:
+		case G_TK_PR_ASSERT:
+		case G_TK_PR_YIELD:
+		case G_TK_PR_SIGNAL:
+		case G_TK_PR_BREAKPOINT:
+		case G_TK_PR_REMOTE:
+		case G_TK_PR_SYNC:
+		case G_TK_PR_MASTER:
+		case G_TK_PR_SLAVE:
+		case G_TK_PR_PUPPET:
+		case G_TK_PR_REMOTESYNC:
+		case G_TK_PR_MASTERSYNC:
+		case G_TK_PR_PUPPETSYNC:
+		case G_TK_PR_SLAVESYNC:
+		case G_TK_CF_DO:
+		case G_TK_CF_CASE:
+		case G_TK_CF_SWITCH:
+		case G_TK_CF_WHEN:
+		case G_TK_PR_AWAIT:
+		case G_TK_PR_NAMESPACE:
+		case G_TK_PR_SUPER:
+		case G_TK_PR_TRAIT:
+		case G_TK_ABSTRACT:
+		case G_TK_SELF:
+		case G_TK_CONST_PI:
+		case G_TK_CONST_TAU:
+		case G_TK_CONST_INF:
+		case G_TK_CONST_NAN:
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool GDScriptDecomp::token_is_control_flow_keyword(GlobalToken p_token) {
+	switch (p_token) {
+		case G_TK_CF_IF:
+		case G_TK_CF_ELIF:
+		case G_TK_CF_ELSE:
+		case G_TK_CF_FOR:
+		case G_TK_CF_WHILE:
+		case G_TK_CF_BREAK:
+		case G_TK_CF_CONTINUE:
+		case G_TK_CF_PASS:
+		case G_TK_CF_RETURN:
+		case G_TK_CF_MATCH:
+		case G_TK_CF_WHEN:
+		case G_TK_CF_DO:
+		case G_TK_CF_CASE:
+		case G_TK_CF_SWITCH:
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool GDScriptDecomp::token_is_constant(GlobalToken p_token) {
+	switch (p_token) {
+		case G_TK_CONST_PI:
+		case G_TK_CONST_TAU:
+		case G_TK_CONST_INF:
+		case G_TK_CONST_NAN:
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool GDScriptDecomp::token_is_operator_keyword(GlobalToken p_token) {
+	switch (p_token) {
+		case G_TK_OP_IN:
+		case G_TK_OP_AND:
+		case G_TK_OP_OR:
+		case G_TK_OP_NOT:
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool GDScriptDecomp::token_is_keyword_called_like_function(GlobalToken p_token) {
+	switch (p_token) {
+		case G_TK_PR_PRELOAD:
+		case G_TK_PR_ASSERT:
+		case G_TK_PR_YIELD:
+		case G_TK_PR_AWAIT:
+		case G_TK_PR_NAMESPACE:
+		case G_TK_PR_SUPER:
+			return true;
+		default:
+			return false;
+	}
+}

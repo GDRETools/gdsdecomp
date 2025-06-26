@@ -254,6 +254,12 @@ public:
 	String get_constant_string(Vector<Variant> &constants, uint32_t constId);
 	Vector<String> get_compile_errors(const Vector<uint8_t> &p_buffer);
 	Error test_bytecode_match(const Vector<uint8_t> &p_buffer1, const Vector<uint8_t> &p_buffer2);
+
+	static bool token_is_keyword(GlobalToken p_token);
+	static bool token_is_keyword_called_like_function(GlobalToken p_token);
+	static bool token_is_control_flow_keyword(GlobalToken p_token);
+	static bool token_is_constant(GlobalToken p_token);
+	static bool token_is_operator_keyword(GlobalToken p_token);
 };
 
 VARIANT_ENUM_CAST(GDScriptDecomp::BytecodeTestResult)

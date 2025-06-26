@@ -3,7 +3,10 @@
 
 #include "../bytecode/bytecode_base.h"
 #include "bytecode/bytecode_versions.h"
+#include "bytecode/gdscript_tokenizer_compat.h"
 #include "core/io/image.h"
+#include "core/math/quaternion.h"
+#include "modules/gdscript/gdscript_tokenizer.h"
 #include "test_common.h"
 #include "tests/test_macros.h"
 #include <compat/resource_compat_text.h>
@@ -67,7 +70,7 @@ static const ScriptToRevision tests[] = {
 	{ nullptr, 0 },
 };
 
-static const char *test_unique_id_modulo = R"(
+static constexpr const char *test_unique_id_modulo = R"(
 extends AnimationPlayer
 
 func _ready() -> void :
@@ -75,6 +78,30 @@ func _ready() -> void :
     var thingy = 10 % 3
     var thingy2 = 10 % thingy
     var thingy3 = thingy % 20
+)";
+
+// should pass on all versions of GDScript
+static constexpr const char *test_reserved_word_as_accessor_name = R"(
+extends Object
+
+
+func _ready():
+	var thingy = {}
+	thingy["func"] = "bar"
+	thingy["enum"] = "foo"
+	thingy["preload"] = "foo"
+	thingy["yield"] = "foo"
+	thingy["sin"] = "foo"
+	thingy["static"] = "foo"
+	thingy["pass"] = "foo"
+	foo.sin()
+	print(thingy.func)
+	print(thingy.enum)
+	print(thingy.preload)
+	print(thingy.yield)
+	print(thingy.sin)
+	print(thingy.static)
+	print(thingy.pass)
 )";
 
 inline void test_script_binary(const String &script_name, const Vector<uint8_t> &bytecode, const String &helper_script_text, int revision, bool helper_script, bool no_text_equality_check, bool compare_whitespace = false) {
@@ -251,6 +278,115 @@ TEST_CASE("[GDSDecomp][Bytecode] Test sample GDScript bytecode") {
 				test_script_binary(original_file, bytecode, original_script_text, revision, false, true);
 			}
 		}
+	}
+}
+
+void simple_pass_fail_test(const String &script_name, const String &helper_script_text, int revision, bool expect_fail) {
+	SUBCASE(vformat("Testing %s, revision %07x", script_name, revision).utf8().get_data()) {
+		auto decomp = GDScriptDecomp::create_decomp_for_commit(revision);
+		CHECK(decomp.is_valid());
+		auto bytecode = decomp->compile_code_string(helper_script_text);
+		CHECK(decomp->get_error_message() == "");
+		CHECK(bytecode.size() > 0);
+		auto result = decomp->test_bytecode(bytecode, false);
+		if (!expect_fail) {
+			CHECK(decomp->get_error_message() == "");
+			CHECK(result == GDScriptDecomp::BYTECODE_TEST_UNKNOWN);
+		} else {
+			CHECK(result == GDScriptDecomp::BYTECODE_TEST_FAIL);
+		}
+	}
+}
+
+TEST_CASE("[GDSDecomp][Bytecode] Test reserved words as global function names") {
+	// get all the decomp versions for 2.x and 3.x (GDScript 1.0)
+
+	Vector<GDScriptDecompVersion> versions = get_decomp_versions(true, 0);
+
+	static constexpr const char *test_global_function_name = R"(
+extends Object
+
+func %s():
+	pass
+)";
+	static constexpr const char *func_call_fragment = R"(
+func _ready():
+	%s()
+)";
+
+	// TODO: We should test all reserved words to see if they're being used in a function declaration in _test_bytecode
+	Vector<Pair<bool, String>> keywords_to_test = {
+		// { true, "func" },
+		{ true, "enum" },
+		// { false, "preload" },
+		// { false, "yield" },
+		// { false, "sin" },
+		{ true, "static" },
+		// { false, "pass" },
+	};
+
+	for (int i = 0; i < keywords_to_test.size(); i++) {
+		auto &keyword = keywords_to_test[i];
+		String test_name = keyword.second;
+		String test_script = vformat(test_global_function_name, test_name);
+		if (keyword.first) {
+			test_script += vformat(func_call_fragment, test_name);
+		}
+		for (const GDScriptDecompVersion &version : versions) {
+			int revision = version.commit;
+			bool expect_fail = version.bytecode_version >= GDScriptDecomp::GDSCRIPT_2_0_VERSION;
+
+			simple_pass_fail_test(test_name, test_script, revision, expect_fail);
+		}
+	}
+}
+
+TEST_CASE("[GDSDecomp][Bytecode] Test reserved words as member function names") {
+	static constexpr const char *test_member_function_name = R"(
+extends Object
+
+class test_class:
+	func %s():
+		pass
+)";
+	static constexpr const char *func_call_fragment = R"(
+func _ready():
+	var test = test_class.new()
+	test.%s()
+)";
+
+	auto versions = get_decomp_versions(true, 0);
+	Vector<Pair<bool, String>> keywords_to_test = {
+		// { true, "func" },
+		{ true, "enum" },
+		// { false, "preload" },
+		// { false, "yield" },
+		// { false, "sin" },
+		{ true, "static" },
+		// { false, "pass" },
+	};
+
+	for (int i = 0; i < keywords_to_test.size(); i++) {
+		auto &keyword = keywords_to_test[i];
+		String test_name = keyword.second;
+		String test_script = vformat(test_member_function_name, test_name);
+		if (keyword.first) {
+			test_script += vformat(func_call_fragment, test_name);
+		}
+		for (const GDScriptDecompVersion &version : versions) {
+			int revision = version.commit;
+			bool expect_fail = version.bytecode_version >= GDScriptDecomp::GDSCRIPT_2_0_VERSION;
+
+			simple_pass_fail_test(test_name, test_script, revision, expect_fail);
+		}
+	}
+}
+
+TEST_CASE("[GDSDecomp][Bytecode] Test reserved words as accessor names") {
+	auto versions = get_decomp_versions(true, 0);
+	for (const GDScriptDecompVersion &version : versions) {
+		int revision = version.commit;
+		simple_pass_fail_test("all", test_reserved_word_as_accessor_name, revision, false);
 	}
 }
 
