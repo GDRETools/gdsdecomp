@@ -1707,6 +1707,11 @@ Error GDRESettings::load_import_files() {
 		tokens.push_back({ resource_files[i], nullptr, (int)get_ver_major(), (int)get_ver_minor() });
 	}
 
+	if (tokens.size() == 0) {
+		print_line("No import files found!");
+		return OK;
+	}
+
 	Error err = TaskManager::get_singleton()->run_multithreaded_group_task(
 			this,
 			&GDRESettings::_do_import_load,
