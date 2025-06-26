@@ -1217,9 +1217,6 @@ bool GDScriptDecomp::is_token_builtin_func(int p_pos, const Vector<uint32_t> &p_
 	// TODO: Handle TK_PR_ASSERT, TK_PR_YIELD, TK_PR_SYNC, TK_PR_MASTER, TK_PR_SLAVE, TK_PR_PUPPET, TK_PR_REMOTESYNC, TK_PR_MASTERSYNC, TK_PR_PUPPETSYNC, TK_PR_SLAVESYNC
 	switch (curr_token) {
 		case G_TK_BUILT_IN_FUNC:
-		case G_TK_PR_PRELOAD:
-		case G_TK_PR_ASSERT:
-		case G_TK_PR_YIELD:
 			break;
 		default:
 			return false;
@@ -1286,9 +1283,12 @@ GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t
 		return 0U;
 	});
 
-	// reserved words can be used as class members in GDScript 2.0. Hooray.
-	auto is_accessor = [&](int i) {
-		return check_prev_token(i, tokens, G_TK_PERIOD);
+	// reserved words can be used as member accessors in all versions of GDScript, and used as function names in GDScript 1.0
+	auto is_not_actually_reserved_word = [&](int i) {
+		return (check_prev_token(i, tokens, G_TK_PERIOD) ||
+				(bytecode_version < GDSCRIPT_2_0_VERSION &&
+						(check_prev_token(i, tokens, G_TK_PR_FUNCTION) ||
+								is_token_func_call(i, tokens))));
 	};
 
 	for (int i = 0; i < tokens.size(); i++) {
@@ -1307,7 +1307,7 @@ GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t
 			// Functions go like:
 			// `func <literally_fucking_anything_resembling_an_identifier_including_keywords_and_built-in_funcs>(<arguments>)`
 			case G_TK_PR_FUNCTION: {
-				if (is_accessor(i)) {
+				if (is_not_actually_reserved_word(i)) {
 					break;
 				}
 				SIZE_CHECK(2);
@@ -1320,7 +1320,7 @@ GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t
 				}
 			} break;
 			case G_TK_CF_PASS: {
-				if (is_accessor(i)) {
+				if (is_not_actually_reserved_word(i)) {
 					break;
 				}
 				if (bytecode_version < GDSCRIPT_2_0_VERSION) {
@@ -1338,19 +1338,19 @@ GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t
 				}
 			} break;
 			case G_TK_PR_STATIC: {
-				if (is_accessor(i)) {
+				if (is_not_actually_reserved_word(i)) {
 					break;
 				}
 
 				SIZE_CHECK(1);
-				// STATIC requires TK_PR_FUNCTION as the next token
+				// STATIC requires TK_PR_FUNCTION as the next token (GDScript 2.0 also allows TK_PR_VAR)
 				GlobalToken next_token = get_global_token(tokens[i + 1]);
 				if (next_token != G_TK_PR_FUNCTION && (bytecode_version < GDSCRIPT_2_0_VERSION || next_token != G_TK_PR_VAR)) {
 					ERR_TEST_FAILED(String("Static declaration error, next token isn't function or var: ") + g_token_str[next_token]);
 				}
 			} break;
 			case G_TK_PR_ENUM: { // not added until 2.1.3, but valid for all versions after
-				if (is_accessor(i)) {
+				if (is_not_actually_reserved_word(i)) {
 					break;
 				}
 
@@ -1376,7 +1376,9 @@ GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t
 			} break;
 			// TODO: handle YIELD, ASSERT
 			case G_TK_PR_PRELOAD: // Preload is like a function with 1 argument
-				if (!is_token_builtin_func(i, tokens)) {
+				// You can declare reserved words like `preload` as functions in GDScript 1.0, but you can't actually call them with the incorrect number of arguments
+				if (check_prev_token(i, tokens, G_TK_PERIOD) ||
+						(get_bytecode_version() < GDSCRIPT_2_0_VERSION && check_prev_token(i, tokens, G_TK_PR_FUNCTION))) {
 					break;
 				}
 				arg_count = { 1, 1 };
