@@ -231,6 +231,32 @@ void ImportExporter::rewrite_metadata(ExportToken &token) {
 		report->import_modified_time = FileAccess::get_modified_time(new_md_path);
 		report->modified_time = FileAccess::get_modified_time(report->get_saved_path());
 	}
+	if (!err && iinfo->get_ver_major() >= 4 && iinfo->get_metadata_prop().get("has_editor_variant", false)) {
+		// we need to make a copy of the resource with the editor variant
+		String editor_variant_path = iinfo->get_path();
+		if (FileAccess::exists(editor_variant_path)) {
+			String ext = editor_variant_path.get_extension();
+			editor_variant_path = editor_variant_path.trim_suffix("." + ext) + ".editor." + ext;
+			String output_path = output_dir.path_join(editor_variant_path.trim_prefix("res://"));
+			String output_md_path = output_path.trim_suffix(output_path.get_extension()) + "meta";
+			if (!FileAccess::exists(output_path)) {
+				gdre::ensure_dir(output_path.get_base_dir());
+				Vector<uint8_t> buf = FileAccess::get_file_as_bytes(iinfo->get_path());
+				Ref<FileAccess> f = FileAccess::open(output_path, FileAccess::WRITE);
+				if (!f.is_null()) {
+					f->store_buffer(buf);
+				}
+			}
+			if (!FileAccess::exists(output_md_path)) {
+				gdre::ensure_dir(output_md_path.get_base_dir());
+				Ref<FileAccess> f = FileAccess::open(output_md_path, FileAccess::WRITE);
+				if (!f.is_null()) {
+					// empty dictionary
+					store_var_compat(f, Dictionary(), iinfo->get_ver_major());
+				}
+			}
+		}
+	}
 }
 
 Error ImportExporter::unzip_and_copy_addon(const Ref<ImportInfoGDExt> &iinfo, const String &zip_path) {

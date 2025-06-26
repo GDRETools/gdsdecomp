@@ -1,5 +1,6 @@
 #include "utility/common.h"
 #include "bytecode/bytecode_base.h"
+#include "compat/variant_decoder_compat.h"
 #include "external/tga/tga.h"
 #include "utility/glob.h"
 
@@ -1038,6 +1039,21 @@ Error gdre::copy_dir(const String &src, const String &dst) {
 	ERR_FAIL_COND_V_MSG(da.is_null(), ERR_FILE_CANT_OPEN, "Failed to open source directory: " + src);
 	gdre::ensure_dir(dst);
 	return da->copy_dir(src, dst);
+}
+
+bool gdre::store_var_compat(Ref<FileAccess> f, const Variant &p_var, int ver_major, bool p_full_objects) {
+	int len;
+	Error err = VariantDecoderCompat::encode_variant_compat(ver_major, p_var, nullptr, len, p_full_objects);
+	ERR_FAIL_COND_V_MSG(err != OK, false, "Error when trying to encode Variant.");
+
+	Vector<uint8_t> buff;
+	buff.resize(len);
+
+	uint8_t *w = buff.ptrw();
+	err = VariantDecoderCompat::encode_variant_compat(ver_major, p_var, &w[0], len, p_full_objects);
+	ERR_FAIL_COND_V_MSG(err != OK, false, "Error when trying to encode Variant.");
+
+	return f->store_32(uint32_t(len)) && f->store_buffer(buff);
 }
 
 void GDRECommon::_bind_methods() {

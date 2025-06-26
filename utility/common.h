@@ -8,6 +8,7 @@
 #include <core/variant/typed_dictionary.h>
 
 class Image;
+class FileAccess;
 namespace gdre {
 Vector<String> get_recursive_dir_list(const String &dir, const Vector<String> &wildcards = {}, const bool absolute = true, const String &rel = "");
 bool dir_has_any_matching_wildcards(const String &dir, const Vector<String> &wildcards = {});
@@ -27,6 +28,7 @@ Error download_file_sync(const String &url, const String &output_path, float *p_
 Error rimraf(const String &dir);
 bool dir_is_empty(const String &dir);
 Error touch_file(const String &path);
+bool store_var_compat(Ref<FileAccess> f, const Variant &p_var, int ver_major, bool p_full_objects = false);
 
 String num_scientific(double p_num);
 String num_scientific(float p_num);
