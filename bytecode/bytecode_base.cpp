@@ -1304,17 +1304,19 @@ GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t
 
 		// All of these assumptions should apply for all bytecodes that we have support for
 		switch (curr_token) {
-			// Functions go like:
+			// Functions go like this for GDScript 1.0 scripts:
 			// `func <literally_fucking_anything_resembling_an_identifier_including_keywords_and_built-in_funcs>(<arguments>)`
 			case G_TK_PR_FUNCTION: {
 				if (is_not_actually_reserved_word(i)) {
 					break;
 				}
 				SIZE_CHECK(2);
-				// ignore the next_token because it can be anything
-				// get the one after
 				GlobalToken next_token = get_global_token(tokens[i + 1]);
 				GlobalToken nextnext_token = get_global_token(tokens[i + 2]);
+				// GDScript Version 2.0+ requires the next token to be a parenthesis open (lambdas) or an identifier
+				if (bytecode_version >= GDSCRIPT_2_0_VERSION && next_token != G_TK_PARENTHESIS_OPEN && next_token != G_TK_IDENTIFIER) {
+					ERR_TEST_FAILED(String("Function declaration error: ") + g_token_str[curr_token] + " " + g_token_str[next_token] + " " + g_token_str[nextnext_token]);
+				}
 				if (nextnext_token != G_TK_PARENTHESIS_OPEN && (bytecode_version < GDSCRIPT_2_0_VERSION || next_token != G_TK_PARENTHESIS_OPEN)) {
 					ERR_TEST_FAILED(String("Function declaration error: ") + g_token_str[curr_token] + " " + g_token_str[next_token] + " " + g_token_str[nextnext_token]);
 				}
