@@ -292,6 +292,7 @@ public:
 	String get_home_dir();
 	ResourceUID::ID get_uid_for_path(const String &p_path) const;
 	String get_game_name() const;
+	String get_remapped_source_path(const String &p_dst) const;
 
 	Vector<String> get_errors();
 

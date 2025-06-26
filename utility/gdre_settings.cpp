@@ -1206,13 +1206,34 @@ Dictionary GDRESettings::get_remaps(bool include_imports) const {
 
 bool has_old_remap(const Vector<String> &remaps, const String &src, const String &dst) {
 	int idx = remaps.find(src);
-	if (idx != -1) {
+	if (idx != -1 && idx % 2 == 0) {
 		if (dst.is_empty()) {
 			return true;
 		}
-		return idx + 1 == remaps.size() ? false : remaps[idx + 1] == dst;
+		return idx + 1 >= remaps.size() ? false : remaps[idx + 1] == dst;
 	}
 	return false;
+}
+
+String GDRESettings::get_remapped_source_path(const String &p_dst) const {
+	if (is_pack_loaded()) {
+		if (get_ver_major() >= 3) {
+			for (auto E : remap_iinfo) {
+				if (E.value->get_path() == p_dst) {
+					return E.key;
+				}
+			}
+		}
+		String setting = get_ver_major() < 3 ? "remap/all" : "path_remap/remapped_paths";
+		if (is_project_config_loaded() && current_project->pcfg->has_setting(setting)) {
+			PackedStringArray remaps = current_project->pcfg->get_setting(setting, PackedStringArray());
+			int idx = remaps.find(p_dst);
+			if (idx != -1 && idx % 2 == 1 && idx - 1 >= 0) {
+				return remaps[idx - 1];
+			}
+		}
+	}
+	return "";
 }
 
 String GDRESettings::get_mapped_path(const String &p_src) const {
@@ -1278,7 +1299,7 @@ String GDRESettings::get_remap(const String &src) const {
 		if (is_project_config_loaded() && current_project->pcfg->has_setting(setting)) {
 			PackedStringArray remaps = current_project->pcfg->get_setting(setting, PackedStringArray());
 			int idx = remaps.find(local_src);
-			if (idx != -1 && idx + 1 < remaps.size()) {
+			if (idx != -1 && idx + 1 < remaps.size() && idx % 2 == 0) {
 				return remaps[idx + 1];
 			}
 		}
