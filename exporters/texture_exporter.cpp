@@ -429,7 +429,7 @@ Error TextureExporter::_convert_tex(const String &p_path, const String &dest_pat
 Error TextureExporter::_convert_atex(const String &p_path, const String &dest_path, bool lossy, String &image_format, Ref<ExportReport> report) {
 	Error err;
 	String dst_dir = dest_path.get_base_dir();
-	Ref<AtlasTexture> atex = ResourceCompatLoader::custom_load(p_path, "", ResourceInfo::GLTF_LOAD, &err, false, ResourceFormatLoader::CACHE_MODE_IGNORE_DEEP);
+	Ref<Texture2D> loaded_tex = ResourceCompatLoader::custom_load(p_path, "", ResourceInfo::GLTF_LOAD, &err, false, ResourceFormatLoader::CACHE_MODE_IGNORE_DEEP);
 	// deprecated format
 	if (err == ERR_UNAVAILABLE) {
 		// TODO: Not reporting here because we can't get the deprecated format type yet,
@@ -437,7 +437,12 @@ Error TextureExporter::_convert_atex(const String &p_path, const String &dest_pa
 		image_format = "Unknown deprecated image format";
 		return err;
 	}
-	ERR_FAIL_COND_V_MSG(err != OK || atex.is_null(), err, "Failed to load texture " + p_path);
+	ERR_FAIL_COND_V_MSG(err != OK || loaded_tex.is_null(), err, "Failed to load texture " + p_path);
+	Ref<AtlasTexture> atex = loaded_tex;
+	if (atex.is_null()) {
+		// this is not an AtlasTexture, return TextureExporter::_convert_tex
+		return _convert_tex(p_path, dest_path, lossy, image_format, report);
+	}
 	Ref<Texture2D> tex = atex->get_atlas();
 	ERR_FAIL_COND_V_MSG(tex.is_null(), ERR_PARSE_ERROR, "Failed to load atlas texture " + p_path);
 	Ref<Image> img = tex->get_image();
@@ -1096,7 +1101,7 @@ Ref<ExportReport> TextureExporter::export_resource(const String &output_dir, Ref
 		err = _convert_layered_2d(path, dest_path, lossy, img_format, report);
 	} else if (importer == "3d_texture" || importer == "texture_3d") {
 		err = _convert_3d(path, dest_path, lossy, img_format, report);
-	} else if (importer == "texture") {
+	} else if (importer == "texture" || importer == "texture_2d") {
 		err = _convert_tex(path, dest_path, lossy, img_format, report);
 	} else {
 		report->set_error(ERR_UNAVAILABLE);
@@ -1155,6 +1160,7 @@ void TextureExporter::get_handled_types(List<String> *out) const {
 
 void TextureExporter::get_handled_importers(List<String> *out) const {
 	out->push_back("texture");
+	out->push_back("texture_2d");
 	out->push_back("bitmap");
 	out->push_back("image");
 	out->push_back("texture_atlas");
