@@ -232,13 +232,21 @@ Error FakeGDScript::parse_script() {
 						(decomp->check_prev_token(i, tokens, GT::G_TK_PR_FUNCTION) ||
 								decomp->is_token_func_call(i, tokens))));
 	};
+	bool func_used = false;
+	bool class_used = false;
+	bool var_used = false;
+	bool const_used = false;
+	bool extends_used = false;
+	bool class_name_used = false;
 
 	for (int i = 0; i < tokens.size(); i++) {
 		uint32_t local_token = tokens[i] & GDScriptDecomp::TOKEN_MASK;
 		GlobalToken curr_token = decomp->get_global_token(local_token);
 		switch (curr_token) {
 			case GT::G_TK_ANNOTATION: {
-				if (first_annotation) {
+				// in GDScript 2.0, the "@tool" annotation has to be the first expression in the file
+				// (i.e. before the class body and 'extends' or 'class_name' keywords)
+				if (!func_used && !class_used && !var_used && !const_used && !extends_used && !class_name_used) {
 					uint32_t a_id = tokens[i] >> GDScriptDecomp::TOKEN_BITS;
 					ERR_FAIL_COND_V(a_id >= (uint32_t)identifiers.size(), ERR_INVALID_DATA);
 
@@ -249,14 +257,33 @@ Error FakeGDScript::parse_script() {
 				}
 				first_annotation = false;
 			} break;
+			case GT::G_TK_PR_FUNCTION: {
+				if (!is_not_actually_reserved_word(i)) {
+					func_used = true;
+				}
+			} break;
+			case GT::G_TK_PR_VAR: {
+				if (!is_not_actually_reserved_word(i)) {
+					var_used = true;
+				}
+			} break;
+			case GT::G_TK_PR_CONST: {
+				if (!is_not_actually_reserved_word(i)) {
+					const_used = true;
+				}
+			} break;
 			case GT::G_TK_PR_EXPORT: {
 			} break;
 			case GT::G_TK_PR_TOOL: {
+				// "tool" can be used literally anywhere in GDScript 1, so we only check it if it's actually a reserved word
 				if (!is_not_actually_reserved_word(i)) {
 					tool = true;
 				}
 			} break;
 			case GT::G_TK_PR_CLASS: {
+				if (!is_not_actually_reserved_word(i)) {
+					class_used = true;
+				}
 				// if (decomp->check_next_token(i, tokens, GT::G_TK_IDENTIFIER)) {
 				// 	curr_class = get_identifier_func(i + 1);
 				// 	curr_class_indent = indent;
@@ -265,6 +292,8 @@ Error FakeGDScript::parse_script() {
 				// }
 			} break;
 			case GT::G_TK_PR_CLASS_NAME: {
+				// "class_name" can be used literally anywhere in GDScript 1, so we only check it if it's actually a reserved word
+				class_name_used = true;
 				if (global_name.is_empty() && !is_not_actually_reserved_word(i) && decomp->check_next_token(i, tokens, GT::G_TK_IDENTIFIER)) {
 					uint32_t identifier = tokens[i + 1] >> GDScriptDecomp::TOKEN_BITS;
 					ERR_FAIL_COND_V(identifier >= (uint32_t)identifiers.size(), ERR_INVALID_DATA);
@@ -273,7 +302,9 @@ Error FakeGDScript::parse_script() {
 				}
 			} break;
 			case GT::G_TK_PR_EXTENDS: {
-				if (base_type.is_empty() && !is_not_actually_reserved_word(i)) {
+				// "extends" is only valid for the global class if it's not in the body (class_name and tool can be used before it)
+				// This applies to all versions of GDScript
+				if (base_type.is_empty() && !func_used && !class_used && !var_used && !const_used && !extends_used && !is_not_actually_reserved_word(i)) {
 					if (decomp->check_next_token(i, tokens, GT::G_TK_CONSTANT)) {
 						uint32_t constant = tokens[i + 1] >> GDScriptDecomp::TOKEN_BITS;
 						ERR_FAIL_COND_V(constant >= (uint32_t)constants.size(), ERR_INVALID_DATA);
@@ -292,6 +323,10 @@ Error FakeGDScript::parse_script() {
 			}
 		}
 		// prev_token = curr_token;
+	}
+
+	if (base_type.is_empty()) {
+		base_type = decomp->get_variant_ver_major() < 4 ? "Reference" : "RefCounted";
 	}
 
 	return OK;
