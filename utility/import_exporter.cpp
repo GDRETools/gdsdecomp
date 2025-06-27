@@ -565,8 +565,8 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		new_dest = new_dest.get_basename() + pre_suffix + suffix + ext;
 		int j = 1;
 		while (export_dest_to_iinfo.has(new_dest)) {
-			suffix = "." + String::num_int64(j);
 			new_dest = new_dest.trim_suffix(ext).trim_suffix(suffix).trim_suffix(pre_suffix);
+			suffix = "." + String::num_int64(j);
 			new_dest += pre_suffix + suffix + ext;
 			j++;
 		}
@@ -972,7 +972,7 @@ Error ImportExporter::rewrite_import_source(const String &rel_dest_path, const R
 			String new_import_file = output_dir.path_join(dest_files[i].replace("res://", ""));
 			new_import->set_source_and_md5(new_import_file, source_md5);
 			Error err = new_import->save_to(new_import_file);
-			ERR_FAIL_V_MSG(err, "Failed to save import data for " + new_import_file);
+			ERR_FAIL_COND_V_MSG(err, err, "Failed to save import data for " + new_import_file);
 		}
 		return OK;
 	}

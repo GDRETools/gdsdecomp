@@ -3167,6 +3167,32 @@ Ref<ResourceInfo> ResourceFormatLoaderCompatBinary::get_resource_info(const Stri
 }
 
 //	Error rewrite_v2_import_metadata(const String &p_path, const String &p_dst, Ref<ResourceImportMetadatav2> imd) const;
+namespace {
+bool require_whole_resave(Variant var) {
+	switch (var.get_type()) {
+		case Variant::NODE_PATH:
+		case Variant::OBJECT:
+			return true;
+		case Variant::DICTIONARY:
+			for (auto &kv : var.operator Dictionary()) {
+				if (require_whole_resave(kv.key) || require_whole_resave(kv.value)) {
+					return true;
+				}
+			}
+			break;
+		case Variant::ARRAY:
+			for (auto &v : var.operator Array()) {
+				if (require_whole_resave(v)) {
+					return true;
+				}
+			}
+			break;
+		default:
+			break;
+	}
+	return false;
+}
+} //namespace
 
 Error ResourceFormatLoaderCompatBinary::rewrite_v2_import_metadata(const String &p_path, const String &p_dst, Ref<ResourceImportMetadatav2> imd) {
 	Error err;
@@ -3179,26 +3205,9 @@ Error ResourceFormatLoaderCompatBinary::rewrite_v2_import_metadata(const String 
 	imd->get_options(&options);
 	// we need to check if any of the options are nodepaths (requires rewriting string map) or resources (requires rewriting internal/external resources)
 	for (auto &key : options) {
-		auto var = imd->get_option(key);
-		// if it's a nodepath or a resource, we need to resave the whole file
-		if (var.get_type() == Variant::NODE_PATH || var.get_type() == Variant::OBJECT) {
+		if (require_whole_resave(imd->get_option(key))) {
 			requires_whole_resave = true;
 			break;
-		} else if (var.get_type() == Variant::DICTIONARY) {
-			for (auto &kv : var.operator Dictionary()) {
-				if (kv.key.get_type() == Variant::NODE_PATH || kv.key.get_type() == Variant::OBJECT ||
-						kv.value.get_type() == Variant::NODE_PATH || kv.value.get_type() == Variant::OBJECT) {
-					requires_whole_resave = true;
-					break;
-				}
-			}
-		} else if (var.get_type() == Variant::ARRAY) {
-			for (auto &v : var.operator Array()) {
-				if (v.get_type() == Variant::NODE_PATH || v.get_type() == Variant::OBJECT) {
-					requires_whole_resave = true;
-					break;
-				}
-			}
 		}
 	}
 
@@ -3283,8 +3292,7 @@ Error ResourceFormatLoaderCompatBinary::rewrite_v2_import_metadata(const String 
 	if (da->file_exists(p_dst)) {
 		da->remove(p_dst);
 	}
-	da->rename(dest, p_dst);
-	return OK;
+	return da->rename(dest, p_dst);
 }
 
 struct ConnectionData {
