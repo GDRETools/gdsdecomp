@@ -17,6 +17,17 @@ String ImportInfo::as_text(bool full) {
 	s += "\n\ttype: " + get_type();
 	s += "\n\timporter: " + get_importer();
 	s += "\n\tsource_file: " + get_source_file();
+	auto additional_sources = get_additional_sources();
+	if (additional_sources.size() > 0) {
+		s += "\n\tadditional_sources: [";
+		for (int i = 0; i < additional_sources.size(); i++) {
+			if (i > 0) {
+				s += ", ";
+			}
+			s += " " + additional_sources[i];
+		}
+		s += " ]";
+	}
 	s += "\n\tdest_files: [";
 	Vector<String> dest_files = get_dest_files();
 	for (int i = 0; i < dest_files.size(); i++) {
@@ -26,6 +37,14 @@ String ImportInfo::as_text(bool full) {
 		s += " " + dest_files[i];
 	}
 	s += " ]";
+	Dictionary metadata_prop = get_metadata_prop();
+	if (!metadata_prop.is_empty()) {
+		s += "\n\tremap_metadata: {";
+		for (auto &E : metadata_prop) {
+			s += "\n\t\t" + E.key.to_json_string() + ": " + E.value.to_json_string();
+		}
+		s += "\n\t}";
+	}
 	s += "\n\tparams: {";
 	Dictionary params = get_params();
 	auto keys = params.get_key_list();

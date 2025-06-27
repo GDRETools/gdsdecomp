@@ -87,6 +87,10 @@ func pop_resource_info(path: String):
 		var type = info["type"]
 		var format = info["format_type"]
 		%ResourceInfo.text = RESOURCE_INFO_TEXT_FORMAT % [path, type, format]
+		if (info["ver_major"] <= 2):
+			var iinfo = GDRESettings.get_import_info_by_dest(path)
+			if iinfo:
+				%ResourceInfo.text += "\n" + iinfo.to_string()
 	else:
 		%ResourceInfo.text = "[b]Path:[/b] " + path
 
