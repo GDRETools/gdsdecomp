@@ -1601,7 +1601,8 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_3>::write_compa
 			LocalVector<Variant> keys = dict.get_key_list();
 			keys.sort();
 
-			p_store_string_func(p_store_string_ud, "{\n");
+			// no newlines in pcfg
+			p_store_string_func(p_store_string_ud, is_pcfg && ver_major == 2 ? "{" : "{\n");
 			for (size_t i = 0; i < keys.size(); i++) {
 				const Variant &E = keys[i];
 				/*
@@ -1612,10 +1613,10 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_3>::write_compa
 				p_store_string_func(p_store_string_ud, ": ");
 				write_compat_v2_v3(dict[E], p_store_string_func, p_store_string_ud, p_encode_res_func, p_encode_res_ud);
 				if (i < keys.size() - 1)
-					p_store_string_func(p_store_string_ud, ",\n");
+					p_store_string_func(p_store_string_ud, is_pcfg && ver_major == 2 ? ", " : ",\n");
 			}
 
-			p_store_string_func(p_store_string_ud, "\n}");
+			p_store_string_func(p_store_string_ud, is_pcfg && ver_major == 2 ? "}" : "\n}");
 
 		} break;
 		case Variant::ARRAY: {
