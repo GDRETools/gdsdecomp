@@ -58,13 +58,26 @@ func set_viewer_text(text: String):
 	var prev_line = text.find("\n")
 	var next_line = text.find("\n", prev_line + 1)
 	var disabled = false
+	var too_long = false
 	while next_line != -1:
 		if (next_line - prev_line) > 4000: # greater than 4000 characters really chugs the editor when wrapping
 			CODE_VIEWER.wrap_mode = TextEdit.LINE_WRAPPING_NONE
 			disabled = true
+		if (next_line - prev_line) > 12000:
+			too_long = true
 			break
 		prev_line = next_line
 		next_line = text.find("\n", prev_line + 1)
+	if too_long:
+		# split it into lines, truncate lines > 12000 characters
+		var lines = text.split("\n")
+		var truncated_text = ""
+		for line in lines:
+			if line.length() > 12000:
+				truncated_text += line.left(12000) + " <TRUNCATED...>\n"
+			else:
+				truncated_text += line + "\n"
+		text = truncated_text
 	if disabled:
 		disable_word_wrap_option()
 	else:
