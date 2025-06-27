@@ -1797,11 +1797,15 @@ Ref<ImportInfo> GDRESettings::get_import_info_by_dest(const String &p_path) cons
 	Ref<ImportInfo> iinfo;
 	for (int i = 0; i < import_files.size(); i++) {
 		iinfo = import_files[i];
-		if (iinfo->get_path() == p_path) {
+		// for (auto &dest : iinfo->get_dest_files()) {
+		// 	if (dest.to_lower() == p_path.to_lower()) {
+		// 		return iinfo;
+		// 	}
+		// }
+		if (iinfo->get_dest_files().has(p_path)) {
 			return iinfo;
 		}
 	}
-	// not found
 	return Ref<ImportInfo>();
 }
 bool GDRESettings::pack_has_project_config() {
