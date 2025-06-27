@@ -226,8 +226,11 @@ Error FakeGDScript::parse_script() {
 
 	bool first_annotation = true;
 	// reserved words can be used as class members in GDScript. Hooray.
-	auto is_accessor = [&](int i) {
-		return decomp->check_prev_token(i, tokens, GT::G_TK_PERIOD);
+	auto is_not_actually_reserved_word = [&](int i) {
+		return (decomp->check_prev_token(i, tokens, GT::G_TK_PERIOD) ||
+				(script_state.bytecode_version < GDScriptDecomp::GDSCRIPT_2_0_VERSION &&
+						(decomp->check_prev_token(i, tokens, GT::G_TK_PR_FUNCTION) ||
+								decomp->is_token_func_call(i, tokens))));
 	};
 
 	for (int i = 0; i < tokens.size(); i++) {
@@ -249,7 +252,7 @@ Error FakeGDScript::parse_script() {
 			case GT::G_TK_PR_EXPORT: {
 			} break;
 			case GT::G_TK_PR_TOOL: {
-				if (!is_accessor(i)) {
+				if (!is_not_actually_reserved_word(i)) {
 					tool = true;
 				}
 			} break;
@@ -262,7 +265,7 @@ Error FakeGDScript::parse_script() {
 				// }
 			} break;
 			case GT::G_TK_PR_CLASS_NAME: {
-				if (global_name.is_empty() && !is_accessor(i) && decomp->check_next_token(i, tokens, GT::G_TK_IDENTIFIER)) {
+				if (global_name.is_empty() && !is_not_actually_reserved_word(i) && decomp->check_next_token(i, tokens, GT::G_TK_IDENTIFIER)) {
 					uint32_t identifier = tokens[i + 1] >> GDScriptDecomp::TOKEN_BITS;
 					ERR_FAIL_COND_V(identifier >= (uint32_t)identifiers.size(), ERR_INVALID_DATA);
 					global_name = identifiers[identifier];
@@ -270,7 +273,7 @@ Error FakeGDScript::parse_script() {
 				}
 			} break;
 			case GT::G_TK_PR_EXTENDS: {
-				if (base_type.is_empty() && !is_accessor(i)) {
+				if (base_type.is_empty() && !is_not_actually_reserved_word(i)) {
 					if (decomp->check_next_token(i, tokens, GT::G_TK_CONSTANT)) {
 						uint32_t constant = tokens[i + 1] >> GDScriptDecomp::TOKEN_BITS;
 						ERR_FAIL_COND_V(constant >= (uint32_t)constants.size(), ERR_INVALID_DATA);
