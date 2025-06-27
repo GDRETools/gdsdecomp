@@ -2040,6 +2040,7 @@ Error ResourceFormatSaverCompatTextInstance::save(const String &p_path, const Re
 			format_version = 3;
 		} else {
 			switch (ver_major) {
+				case 1: // v1 did not have text format, but we'll convert it anyway to the v2 format for the previewer
 				case 2:
 					format_version = 1;
 					break;
