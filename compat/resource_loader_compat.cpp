@@ -66,8 +66,10 @@ static Vector<Pair<String, Vector<String>>> core_recognized_extensions_v2 = {
 	{ "mmsh", { "MultiMesh", "Object", "MultiMesh", "Resource", "Reference" } },
 	{ "room", { "RoomBounds", "RoomBounds", "Object", "Resource", "Reference" } },
 	{ "mtl", { "Material", "FixedMaterial", "Object", "ShaderMaterial", "Resource", "Reference", "Material" } },
-	{ "pbm", { "BitMap", "Object", "BitMap", "Resource", "Reference" } },
-	{ "shd", { "Shader", "Object", "CanvasItemShader", "MaterialShader", "Resource", "ShaderGraph", "Reference", "CanvasItemShaderGraph", "Shader", "MaterialShaderGraph" } },
+	// not a res, discrete image type
+	// { "pbm", { "BitMap", "Object", "BitMap", "Resource", "Reference" } },
+	// "shd" is its own special text format that we don't support
+	// { "shd", { "Shader", "Object", "CanvasItemShader", "MaterialShader", "Resource", "ShaderGraph", "Reference", "CanvasItemShaderGraph", "Shader", "MaterialShaderGraph" } },
 	{ "smp", { "Sample", "Object", "Sample", "Resource", "Reference" } },
 	{ "fnt", { "BitmapFont", "BitmapFont", "Object", "Font", "Resource", "Reference" } },
 	{ "msh", { "Mesh", "Mesh", "Object", "Resource", "Reference" } },
