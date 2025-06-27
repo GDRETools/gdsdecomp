@@ -75,14 +75,11 @@ Error ImportExporter::handle_auto_converted_file(const String &autoconverted_fil
 }
 
 Error ImportExporter::remove_remap_and_autoconverted(const String &source_file, const String &autoconverted_file) {
-	if (get_settings()->has_remap(source_file, autoconverted_file)) {
-		Error err = get_settings()->remove_remap(source_file, autoconverted_file, output_dir);
-		if (err != ERR_FILE_NOT_FOUND) {
-			ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to remove remap for " + source_file + " -> " + autoconverted_file);
-		}
-		return handle_auto_converted_file(autoconverted_file);
+	Error err = get_settings()->remove_remap(source_file, autoconverted_file, output_dir);
+	if (err != ERR_FILE_NOT_FOUND) {
+		ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to remove remap for " + source_file + " -> " + autoconverted_file);
 	}
-	return OK;
+	return handle_auto_converted_file(autoconverted_file);
 }
 
 void _save_filesystem_cache(const Vector<Ref<ExportReport>> &reports, Ref<FileAccess> p_file) {
@@ -164,7 +161,7 @@ void ImportExporter::rewrite_metadata(ExportToken &token) {
 	};
 	String new_md_path = output_dir.path_join(iinfo->get_import_md_path().replace("res://", ""));
 
-	if (report->get_rewrote_metadata() == ExportReport::NOT_IMPORTABLE) {
+	if (report->get_rewrote_metadata() == ExportReport::NOT_IMPORTABLE || !iinfo->is_import()) {
 		return;
 	}
 
@@ -178,7 +175,7 @@ void ImportExporter::rewrite_metadata(ExportToken &token) {
 	// ****REWRITE METADATA****
 	bool not_in_res_tree = !iinfo->get_source_file().begins_with("res://");
 	bool export_matches_source = report->get_source_path() == report->get_new_source_path();
-	if (err == OK && iinfo->is_import() && (not_in_res_tree || !export_matches_source)) {
+	if (err == OK && (not_in_res_tree || !export_matches_source)) {
 		if (iinfo->get_ver_major() <= 2 && opt_rewrite_imd_v2) {
 			// TODO: handle v2 imports with more than one source, like atlas textures
 			err = rewrite_import_source(report->get_new_source_path(), iinfo);
@@ -210,7 +207,7 @@ void ImportExporter::rewrite_metadata(ExportToken &token) {
 	if (mdat == ExportReport::FAILED || mdat == ExportReport::NOT_IMPORTABLE) {
 		return;
 	}
-	if (opt_write_md5_files && iinfo->is_import() && err == OK && iinfo->get_ver_major() > 2) {
+	if (opt_write_md5_files && err == OK && iinfo->get_ver_major() > 2) {
 		err = ERR_LINK_FAILED;
 		Ref<ImportInfoModern> modern_iinfo = iinfo;
 		if (modern_iinfo.is_valid()) {
@@ -220,7 +217,7 @@ void ImportExporter::rewrite_metadata(ExportToken &token) {
 			report->set_rewrote_metadata(ExportReport::MD5_FAILED);
 		}
 	}
-	if (!err && iinfo->get_ver_major() >= 4 && export_matches_source && iinfo->is_import() && report->get_rewrote_metadata() != ExportReport::NOT_IMPORTABLE) {
+	if (!err && iinfo->get_ver_major() >= 4 && export_matches_source && report->get_rewrote_metadata() != ExportReport::NOT_IMPORTABLE) {
 		String resource_script_class;
 		List<String> deps;
 		auto path = iinfo->get_path();
@@ -475,13 +472,13 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	Vector<ExportToken> tokens;
 	Vector<ExportToken> non_multithreaded_tokens;
 	HashSet<String> files_to_export_set = vector_to_hashset(files_to_export);
-	HashMap<String, Ref<ImportInfo>> src_to_iinfo;
+	HashMap<String, Vector<Ref<ImportInfo>>> export_dest_to_iinfo;
+	HashSet<String> dupes;
 	for (int i = 0; i < _files.size(); i++) {
 		Ref<ImportInfo> iinfo = _files[i];
 		if (partial_export && !hashset_intersects_vector(files_to_export_set, iinfo->get_dest_files())) {
 			continue;
 		}
-		src_to_iinfo.insert(iinfo->get_source_file(), iinfo);
 		String importer = iinfo->get_importer();
 		if (importer == ImportInfo::NO_IMPORTER) {
 			continue;
@@ -498,12 +495,21 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 				continue;
 			}
 		}
+		if (iinfo->get_source_file().is_empty()) {
+			continue;
+		}
 		// ***** Set export destination *****
 		// This is a Godot asset that was imported outside of project directory
 		if (!iinfo->get_source_file().begins_with("res://")) {
 			if (get_ver_major() <= 2) {
 				// import_md_path is the resource path in v2
-				iinfo->set_export_dest(String("res://.assets").path_join(iinfo->get_import_md_path().get_base_dir().path_join(iinfo->get_source_file().get_file()).replace("res://", "")));
+				auto src = iinfo->get_source_file().simplify_path();
+				if (!src.is_empty() && src.is_relative_path() && !src.begins_with("..")) {
+					// just tack on "res://"
+					iinfo->set_export_dest(String("res://").path_join(src));
+				} else {
+					iinfo->set_export_dest(String("res://.assets").path_join(iinfo->get_import_md_path().get_base_dir().path_join(iinfo->get_source_file().get_file()).replace("res://", "")));
+				}
 			} else {
 				// import_md_path is the .import/.remap path in v3-v4
 				// If the source_file path was not actually in the project structure, save it elsewhere
@@ -538,7 +544,121 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 				non_multithreaded_tokens.push_back({ iinfo, nullptr, supports_multithreading });
 			}
 		}
+		if (export_dest_to_iinfo.has(iinfo->get_export_dest())) {
+			export_dest_to_iinfo[iinfo->get_export_dest()].push_back(iinfo);
+			dupes.insert(iinfo->get_export_dest());
+		} else {
+			export_dest_to_iinfo.insert(iinfo->get_export_dest(), Vector<Ref<ImportInfo>>({ iinfo }));
+		}
 	}
+
+	HashMap<String, String> dupe_to_orig_src;
+	auto rewrite_dest = [&](const String &dest, const Ref<ImportInfo> &iinfo, bool is_autoconverted) {
+		String curr_dest = iinfo->get_export_dest();
+		String ext = "." + curr_dest.get_extension();
+		String new_dest = curr_dest;
+		if (!new_dest.begins_with("res://.assets")) {
+			new_dest = String("res://.assets").path_join(new_dest.trim_prefix("res://"));
+		}
+		String pre_suffix = is_autoconverted ? ".converted" : "";
+		String suffix = "";
+		new_dest = new_dest.get_basename() + pre_suffix + suffix + ext;
+		int j = 1;
+		while (export_dest_to_iinfo.has(new_dest)) {
+			suffix = "." + String::num_int64(j);
+			new_dest = new_dest.trim_suffix(ext).trim_suffix(suffix).trim_suffix(pre_suffix);
+			new_dest += pre_suffix + suffix + ext;
+			j++;
+		}
+		iinfo->set_export_dest(new_dest);
+		export_dest_to_iinfo.insert(new_dest, Vector<Ref<ImportInfo>>({ iinfo }));
+		dupe_to_orig_src[new_dest] = curr_dest;
+	};
+
+	// duplicate export destinations for resources
+	// usually only crops up in Godot 2.x
+	if (dupes.size() > 0 && get_ver_major() > 2) {
+		// if it pops up in >= 3.x, we want to know about it.
+		WARN_PRINT("Found duplicate export destinations for resources! de-duping...");
+	}
+	for (auto &dup : dupes) {
+		auto &iinfos = export_dest_to_iinfo[dup];
+		if (iinfos.size() > 1) {
+			String importer = iinfos[0]->get_importer();
+			if (importer == "csv_translation" || importer == "translation_csv" || importer == "translation") {
+				if (get_ver_major() <= 2) {
+					// HACK: just add all the dest files to iinfos[0] and remove the duplicate tokens
+					auto iinfo_copy = ImportInfo::copy(iinfos[0]);
+					auto dest_files = iinfo_copy->get_dest_files();
+					// remove the duplicate tokens
+					for (int i = iinfos.size() - 1; i >= 1; i--) {
+						dest_files.append_array(iinfos[i]->get_dest_files());
+						iinfos.remove_at(i);
+					}
+					for (int i = non_multithreaded_tokens.size() - 1; i >= 0; i--) {
+						if (non_multithreaded_tokens[i].iinfo == iinfos[0]) {
+							non_multithreaded_tokens.write[i].iinfo = iinfo_copy;
+						} else if (dest_files.has(non_multithreaded_tokens[i].iinfo->get_path())) {
+							non_multithreaded_tokens.remove_at(i);
+						}
+					}
+
+					iinfo_copy->set_dest_files(dest_files);
+				} else {
+					WARN_PRINT("DUPLICATE TRANSLATION CSV?!?!?!");
+				}
+				continue;
+			}
+			Vector<Ref<ImportInfo>> autoconverted;
+			for (int i = iinfos.size() - 1; i >= 0; i--) {
+				// auto-generated AtlasTexture spritesheet
+				if (iinfos[i]->get_additional_sources().size() > 0) {
+					autoconverted.push_back(iinfos[i]);
+					iinfos.remove_at(i);
+				}
+				if (iinfos.size() == 1) {
+					break;
+				}
+			}
+
+			if (iinfos.size() > 1) {
+				for (int i = 0; i < iinfos.size(); i++) {
+					if (iinfos[i]->is_auto_converted()) {
+						autoconverted.push_back(iinfos[i]);
+						iinfos.remove_at(i);
+					}
+					if (iinfos.size() == 1) {
+						break;
+					}
+				}
+			}
+
+			if (iinfos.size() > 1) {
+				for (int i = iinfos.size() - 1; i >= 0; i--) {
+					// The reason we check for auto-converts before non-imports is because
+					// non-imports are usually higher quality than auto-converts in Godot 2.x
+					if (!iinfos[i]->is_import()) {
+						autoconverted.push_back(iinfos[i]);
+						iinfos.remove_at(i);
+					}
+					if (iinfos.size() == 1) {
+						break;
+					}
+				}
+			}
+
+			for (int i = 0; i < autoconverted.size(); i++) {
+				auto &iinfo = autoconverted[i];
+				rewrite_dest(dup, iinfo, iinfo->is_auto_converted());
+			}
+			if (iinfos.size() > 1) {
+				for (int i = 1; i < iinfos.size(); i++) {
+					rewrite_dest(dup, iinfos[i], false);
+				}
+			}
+		}
+	}
+
 	int64_t num_multithreaded_tokens = tokens.size();
 	// ***** Export resources *****
 	GDRELogger::clear_error_queues();
@@ -584,6 +704,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	report->session_files_total = tokens.size();
 	// add to report
 	bool has_remaps = GDRESettings::get_singleton()->has_any_remaps();
+	HashSet<String> success_paths;
 	for (int i = 0; i < tokens.size(); i++) {
 		const ExportToken &token = tokens[i];
 		Ref<ImportInfo> iinfo = token.iinfo;
@@ -648,7 +769,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 				}
 			}
 #endif
-		} else if (iinfo->get_importer() == "csv_translation") {
+		} else if (iinfo->get_importer() == "csv_translation" || iinfo->get_importer() == "translation_csv" || iinfo->get_importer() == "translation") {
 			report->translation_export_message += ret->get_message();
 		} else if (iinfo->get_importer() == "script_bytecode") {
 			report->decompiled_scripts.push_back(iinfo->get_path());
@@ -695,9 +816,28 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 			}
 		}
 		report->success.push_back(ret);
-		// remove remaps
-		if (!err && has_remaps) {
-			remove_remap_and_autoconverted(iinfo->get_export_dest(), iinfo->get_path());
+		success_paths.insert(iinfo->get_export_dest());
+	}
+
+	// remove remaps
+	if (has_remaps) {
+		for (auto &token : tokens) {
+			auto &iinfo = token.iinfo;
+			auto err = token.report.is_null() ? ERR_BUG : token.report->get_error();
+			if (iinfo.is_valid() && !err) {
+				auto src = iinfo->get_export_dest();
+				if (success_paths.has(src)) {
+					auto dest = iinfo->get_path();
+					if (get_settings()->has_remap(src, dest)) {
+						remove_remap_and_autoconverted(src, dest);
+					} else if (iinfo->is_auto_converted() && dupe_to_orig_src.has(src)) {
+						auto &orig_src = dupe_to_orig_src[src];
+						if (success_paths.has(orig_src) && get_settings()->has_remap(orig_src, dest)) {
+							remove_remap_and_autoconverted(orig_src, dest);
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -819,10 +959,26 @@ Error ImportExporter::recreate_plugin_configs(const Vector<String> &plugin_dirs)
 // but is still in the project directory structure, which means no resource rewriting is necessary
 Error ImportExporter::rewrite_import_source(const String &rel_dest_path, const Ref<ImportInfo> &iinfo) {
 	String new_source = rel_dest_path;
-	String new_import_file = output_dir.path_join(iinfo->get_import_md_path().replace("res://", ""));
 	String abs_file_path = output_dir.path_join(new_source.replace("res://", ""));
+	String source_md5 = FileAccess::get_md5(abs_file_path);
+	// hack for v2 translations
+	if (iinfo->get_ver_major() <= 2 && iinfo->get_dest_files().size() > 1) {
+		// dest files in v2 are the import_md files
+		auto dest_files = iinfo->get_dest_files();
+		for (int i = 0; i < dest_files.size(); i++) {
+			Ref<ImportInfo> new_import = ImportInfo::copy(GDRESettings::get_singleton()->get_import_info_by_dest(dest_files[i]));
+			ERR_CONTINUE_MSG(new_import.is_null(), "Failed to copy import info for " + dest_files[i]);
+			new_import->set_params(iinfo->get_params());
+			String new_import_file = output_dir.path_join(dest_files[i].replace("res://", ""));
+			new_import->set_source_and_md5(new_import_file, source_md5);
+			Error err = new_import->save_to(new_import_file);
+			ERR_FAIL_V_MSG(err, "Failed to save import data for " + new_import_file);
+		}
+		return OK;
+	}
+	String new_import_file = output_dir.path_join(iinfo->get_import_md_path().replace("res://", ""));
 	Ref<ImportInfo> new_import = ImportInfo::copy(iinfo);
-	new_import->set_source_and_md5(new_source, FileAccess::get_md5(abs_file_path));
+	new_import->set_source_and_md5(new_source, source_md5);
 	return new_import->save_to(new_import_file);
 }
 
