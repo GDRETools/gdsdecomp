@@ -622,7 +622,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 			}
 
 			if (iinfos.size() > 1) {
-				for (int i = 0; i < iinfos.size(); i++) {
+				for (int i = iinfos.size() - 1; i >= 0; i--) {
 					if (iinfos[i]->is_auto_converted()) {
 						autoconverted.push_back(iinfos[i]);
 						iinfos.remove_at(i);
