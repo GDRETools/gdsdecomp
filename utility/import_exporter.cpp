@@ -164,6 +164,10 @@ void ImportExporter::rewrite_metadata(ExportToken &token) {
 	};
 	String new_md_path = output_dir.path_join(iinfo->get_import_md_path().replace("res://", ""));
 
+	if (report->get_rewrote_metadata() == ExportReport::NOT_IMPORTABLE) {
+		return;
+	}
+
 	if (err != OK) {
 		if ((err == ERR_UNAVAILABLE || err == ERR_PRINTER_ON_FIRE) && iinfo->get_ver_major() >= 4 && iinfo->is_dirty()) {
 			iinfo->save_to(new_md_path);
