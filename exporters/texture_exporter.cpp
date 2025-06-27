@@ -1106,7 +1106,14 @@ Ref<ExportReport> TextureExporter::export_resource(const String &output_dir, Ref
 				}
 			}
 		} else { //version 2
-			iinfo->set_export_dest(iinfo->get_export_dest().get_basename() + ".png");
+			if (!iinfo->is_import()) {
+				if (source_ext == "webp" || source_ext == "svg" || source_ext == "jpg" || source_ext == "jpeg") {
+					lossy = true;
+					report->set_loss_type(ImportInfo::STORED_LOSSY);
+				}
+			} else {
+				iinfo->set_export_dest(iinfo->get_export_dest().get_basename() + ".png");
+			}
 		}
 	}
 	report->set_new_source_path(iinfo->get_export_dest());
