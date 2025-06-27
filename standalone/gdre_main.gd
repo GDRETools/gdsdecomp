@@ -1350,7 +1350,11 @@ func handle_cli(args: PackedStringArray) -> bool:
 		elif arg.begins_with("--translation-only"):
 			translation_only = true
 		elif arg.begins_with("--disable-multithreading"):
-			GDREConfig.set_setting("force_single_threaded", true)
+			var val: bool = true
+			if arg.contains("="):
+				var str_val = get_arg_value(arg).to_lower()
+				val = str_val == "true" or str_val == "1" or str_val == "yes" or str_val == "on" or str_val == "y"
+			GDREConfig.set_setting("force_single_threaded", val)
 			set_setting = true
 		elif arg.begins_with("--enable-experimental-plugin-downloading"):
 			GDREConfig.set_setting("download_plugins", true)
