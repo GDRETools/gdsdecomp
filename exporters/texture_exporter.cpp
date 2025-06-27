@@ -11,6 +11,7 @@
 #include "scene/resources/atlas_texture.h"
 #include "scene/resources/compressed_texture.h"
 #include "utility/resource_info.h"
+#include <cstdint>
 namespace {
 bool get_bit(const Vector<uint8_t> &bitmask, int width, int p_x, int p_y) {
 	int ofs = width * p_y + p_x;
@@ -501,7 +502,8 @@ Error preprocess_images(
 		bool lossy,
 		Vector<Ref<Image>> &images,
 		bool &had_mipmaps,
-		bool &detected_alpha) {
+		bool &detected_alpha,
+		bool ignore_dimensions = false) {
 	ERR_FAIL_COND_V_MSG(images.size() == 0, ERR_PARSE_ERROR, "No images to concat");
 	int layer_count = num_images_w * num_images_h;
 	int width = images[0]->get_width();
@@ -548,7 +550,9 @@ Error preprocess_images(
 			formats.push_back(img->get_format());
 			images_data.push_back(img->get_data());
 		}
-		ERR_FAIL_COND_V_MSG(img->get_width() != width || img->get_height() != height, ERR_PARSE_ERROR, "Image " + p_path + " has incorrect dimensions");
+		if (!ignore_dimensions) {
+			ERR_FAIL_COND_V_MSG(img->get_width() != width || img->get_height() != height, ERR_PARSE_ERROR, "Image " + p_path + " has incorrect dimensions");
+		}
 	}
 
 	if (!is_hdr || gdre::vector_to_hashset(formats).size() > 1) {
@@ -578,26 +582,30 @@ Error preprocess_images(
 	return OK;
 }
 
-Error save_image_with_mipmaps(const String &dest_path, const Vector<Ref<Image>> &images, int num_images_w, int num_images_h, bool lossy, bool had_mipmaps) {
-	int width = images[0]->get_width();
-	int height = images[0]->get_height();
+Error save_image_with_mipmaps(const String &dest_path, const Vector<Ref<Image>> &images, int num_images_w, int num_images_h, bool lossy, bool had_mipmaps, int override_width = -1, int override_height = -1) {
 	auto new_format = images[0]->get_format();
 	int pixel_size = Image::get_format_pixel_size(new_format);
 	Vector<Vector<uint8_t>> images_data;
+	int max_height = 0;
 	for (int i = 0; i < images.size(); i++) {
+		ERR_FAIL_COND_V_MSG(images[i].is_null(), ERR_PARSE_ERROR, "Image " + dest_path.get_file() + " is null");
 		images_data.push_back(images[i]->get_data());
+		max_height = MAX(max_height, images[i]->get_height());
 	}
 
 	Vector<uint8_t> new_image_data;
-	size_t new_width = width * num_images_w;
-	size_t new_height = height * num_images_h;
+	size_t new_width = override_width != -1 ? override_width : images[0]->get_width() * num_images_w;
+	size_t new_height = override_height != -1 ? override_height : images[0]->get_height() * num_images_h;
 	size_t new_data_size = Image::get_image_data_size(new_width, new_height, new_format, false);
 	new_image_data.resize(new_data_size);
 	size_t current_offset = 0;
-	size_t copy_size = width * pixel_size;
 	for (int row_idx = 0; row_idx < num_images_h; row_idx++) {
-		for (int i = 0; i < height; i++) {
+		for (int i = 0; i < max_height; i++) {
 			for (int img_idx = row_idx * num_images_w; img_idx < (row_idx + 1) * num_images_w; img_idx++) {
+				if (images[img_idx]->get_height() <= i) {
+					continue;
+				}
+				size_t copy_size = images[img_idx]->get_width() * pixel_size;
 				// We're concatenating the images horizontally; so we have to take a width-sized slice of the image
 				// and copy it into the new image data
 				size_t start_idx = i * copy_size;
@@ -864,7 +872,7 @@ Error TextureExporter::_convert_layered_2d(const String &p_path, const String &d
 		images.push_back(tex->get_layer_data(i));
 	}
 	ERR_FAIL_COND_V_MSG(images.size() == 0, ERR_PARSE_ERROR, "No images to concat");
-#ifdef DEBUG_ENABLED
+#if 0
 	for (int i = 0; i < layer_count; i++) {
 		Ref<Image> img = images[i];
 		auto new_dest = dest_path.get_basename() + "_" + String::num_int64(i) + "." + dest_path.get_extension();
@@ -877,12 +885,18 @@ Error TextureExporter::_convert_layered_2d(const String &p_path, const String &d
 	int64_t arrangement = -1;
 	int64_t layout = -1;
 	int64_t amount = -1;
+	int64_t override_width = -1;
+	int64_t override_height = -1;
 	auto mode = tex->get_layered_type();
 	Dictionary params;
 	if (iinfo.is_valid()) {
 		params = iinfo->get_params();
 	}
+	// get the resource info
+	Ref<ResourceInfo> res_info = ResourceInfo::get_info_from_resource(tex);
 	bool had_valid_params = false;
+	bool ignore_dimensions = res_info.is_valid() && res_info->get_ver_major() <= 2;
+
 	if (mode == TextureLayered::LAYERED_TYPE_2D_ARRAY) {
 		// get the square root of the number of layers; if it's a whole number, then we have a square
 		if (iinfo.is_valid()) {
@@ -890,7 +904,22 @@ Error TextureExporter::_convert_layered_2d(const String &p_path, const String &d
 			num_images_h = params.get("slices/vertical", -1);
 			had_valid_params = num_images_w != -1 && num_images_h != -1;
 		}
-		if (!had_valid_params) {
+		if (res_info.is_valid() && res_info->get_type() == "LargeTexture") {
+			Vector<Vector2> offsets = res_info->get_extra().get("offsets", Vector<Vector2>());
+			Vector2 whole_size = res_info->get_extra().get("whole_size", Vector2(-1, -1));
+			override_width = whole_size.x;
+			override_height = whole_size.y;
+			// get the number of unique individual x and y values
+			HashSet<int64_t> unique_x;
+			HashSet<int64_t> unique_y;
+			for (int i = 0; i < offsets.size(); i++) {
+				unique_x.insert(offsets[i].x);
+				unique_y.insert(offsets[i].y);
+			}
+			num_images_w = unique_x.size();
+			num_images_h = unique_y.size();
+			had_valid_params = true;
+		} else if (!had_valid_params) {
 			if (layer_count == 64) {
 				num_images_w = 8;
 				num_images_h = 8;
@@ -946,7 +975,7 @@ Error TextureExporter::_convert_layered_2d(const String &p_path, const String &d
 	}
 	bool had_mipmaps = layer_count != images.size();
 	bool detected_alpha = false;
-	err = preprocess_images(p_path, dest_path, num_images_w, num_images_h, lossy, images, had_mipmaps, detected_alpha);
+	err = preprocess_images(p_path, dest_path, num_images_w, num_images_h, lossy, images, had_mipmaps, detected_alpha, ignore_dimensions);
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to preprocess images for texture " + p_path);
 	int width = tex->get_width();
 	int height = tex->get_height();
@@ -955,7 +984,7 @@ Error TextureExporter::_convert_layered_2d(const String &p_path, const String &d
 		Vector<Ref<Image>> fixed_images = fix_cross_cubemaps(images, width, height, layer_count, detected_alpha);
 	}
 #endif
-	err = save_image_with_mipmaps(dest_path, images, num_images_w, num_images_h, lossy, had_mipmaps);
+	err = save_image_with_mipmaps(dest_path, images, num_images_w, num_images_h, lossy, had_mipmaps, override_width, override_height);
 	image_format = Image::get_format_name(images[0]->get_format());
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to concat images for texture " + p_path);
 	set_tex_params(iinfo, tex, ref_img, iinfo->get_ver_major(), TEXTURE_LAYERED);
@@ -1082,7 +1111,7 @@ Ref<ExportReport> TextureExporter::export_resource(const String &output_dir, Ref
 	}
 	report->set_new_source_path(iinfo->get_export_dest());
 
-	Error err;
+	Error err = OK;
 	String img_format = "bitmap";
 	String importer = iinfo->get_importer();
 	String dest_path = output_dir.path_join(iinfo->get_export_dest().replace("res://", ""));
@@ -1108,7 +1137,7 @@ Ref<ExportReport> TextureExporter::export_resource(const String &output_dir, Ref
 		}
 	} else if (importer == "bitmap") {
 		err = _convert_bitmap(path, dest_path, lossy);
-	} else if (importer == "2d_array_texture" || importer == "cubemap_array_texture" || importer == "cubemap_texture" || importer == "texture_array") {
+	} else if (importer == "texture_large" || importer == "2d_array_texture" || importer == "cubemap_array_texture" || importer == "cubemap_texture" || importer == "texture_array") {
 		err = _convert_layered_2d(path, dest_path, lossy, img_format, report);
 	} else if (importer == "3d_texture" || importer == "texture_3d") {
 		err = _convert_3d(path, dest_path, lossy, img_format, report);
@@ -1156,6 +1185,7 @@ void TextureExporter::get_handled_types(List<String> *out) const {
 	out->push_back("StreamTexture");
 	out->push_back("CompressedTexture2D");
 	out->push_back("BitMap");
+	out->push_back("LargeTexture");
 	out->push_back("AtlasTexture");
 	out->push_back("StreamTexture");
 	out->push_back("StreamTexture3D");
@@ -1175,6 +1205,7 @@ void TextureExporter::get_handled_importers(List<String> *out) const {
 	out->push_back("bitmap");
 	out->push_back("image");
 	out->push_back("texture_atlas");
+	out->push_back("texture_large");
 	out->push_back("texture_array");
 	out->push_back("cubemap_texture");
 	out->push_back("2d_array_texture");

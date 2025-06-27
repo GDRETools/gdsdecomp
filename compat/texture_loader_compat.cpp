@@ -1242,3 +1242,120 @@ Ref<ImageTexture> TextureLoaderCompat::create_image_texture(const String &p_path
 	}
 	return texture;
 }
+struct Piece {
+	Point2 offset;
+	Ref<Texture2D> texture;
+};
+
+struct CustomPieceSort {
+	static bool compare(const Piece &a, const Piece &b) {
+		// [0], [1], [2], [3]
+		// [4], [5], [6], [7]
+		if (a.offset.y != b.offset.y) {
+			return a.offset.y < b.offset.y;
+		}
+		return a.offset.x < b.offset.x;
+	}
+
+	bool operator()(const Piece &a, const Piece &b) const {
+		return compare(a, b);
+	}
+};
+
+Ref<Resource> LargeTextureConverterCompat::convert(const Ref<MissingResource> &res, ResourceInfo::LoadType p_type, int ver_major, Error *r_error) {
+	Ref<CompressedTexture2DArray> texture;
+	Array data = res->get("_data");
+	Ref<ResourceInfo> info = ResourceInfo::get_info_from_resource(res);
+	Vector<Piece> pieces;
+	Size2i max_piece_size = Size2i(0, 0);
+	// last element is the whole size
+	for (int i = 0; i < data.size() - 1; i += 2) {
+		Point2 offset = data[i];
+		Ref<Resource> texture_res = data[i + 1];
+		Ref<MissingResource> missing_res = texture_res;
+		Ref<Texture2D> image_texture;
+		if (missing_res.is_valid() && missing_res->get_original_class() == "ImageTexture") {
+			ImageTextureConverterCompat ic;
+			image_texture = ic.convert(missing_res, p_type, ver_major, r_error);
+			ERR_FAIL_COND_V_MSG(!image_texture.is_valid(), Ref<Resource>(), "LargeTextureConverterCompat: Failed to convert ImageTexture in array data of LargeTexture " + res->get_path());
+		} else {
+			image_texture = texture_res;
+		}
+		ERR_FAIL_COND_V_MSG(!image_texture.is_valid(), Ref<Resource>(), "LargeTextureConverterCompat: Failed to convert ImageTexture in array data of LargeTexture " + res->get_path());
+		auto image_size = image_texture->get_image()->get_size();
+		max_piece_size.x = MAX(max_piece_size.x, image_size.x);
+		max_piece_size.y = MAX(max_piece_size.y, image_size.y);
+		pieces.push_back({ offset, image_texture });
+	}
+	pieces.sort_custom<CustomPieceSort>();
+	Vector<Ref<Image>> images;
+	Vector2 whole_size = data[data.size() - 1];
+	Vector<Vector2> offsets;
+	// LargeTextures leave gaps where the whole texture is transparent, so we need to find the portions of the whole texture that we actually have pieces for
+	int64_t expected_x = 0;
+	int64_t expected_y = 0;
+	auto pos = Point2(0, 0);
+
+	for (int i = 0; i < pieces.size(); i++) {
+		auto image = pieces[i].texture->get_image();
+		pos = pieces[i].offset;
+		while (pos.x != expected_x || pos.y != expected_y) {
+			Size2i gap_size = max_piece_size;
+			if (expected_x + gap_size.x > whole_size.x) {
+				gap_size.x = whole_size.x - expected_x;
+			}
+			if (expected_y + gap_size.y > whole_size.y) {
+				gap_size.y = whole_size.y - expected_y;
+			}
+			offsets.push_back(Vector2(expected_x, expected_y));
+			// create a new image with the size of the gap
+			Ref<Image> gap_image = Image::create_empty(gap_size.x, gap_size.y, image->has_mipmaps(), image->get_format());
+			images.push_back(gap_image);
+			expected_x += gap_size.x;
+			if (expected_x >= whole_size.x) {
+				expected_x = 0;
+				expected_y += max_piece_size.y;
+			}
+		}
+		expected_x = pos.x + image->get_width();
+		if (expected_x >= whole_size.x) {
+			expected_x = 0;
+			expected_y += max_piece_size.y;
+		}
+		offsets.push_back(pos);
+		images.push_back(image);
+	}
+
+	while (expected_y < whole_size.y) {
+		Size2i gap_size = max_piece_size;
+		if (expected_x + gap_size.x > whole_size.x) {
+			gap_size.x = whole_size.x - expected_x;
+		}
+		if (expected_y + gap_size.y > whole_size.y) {
+			gap_size.y = whole_size.y - expected_y;
+		}
+		offsets.push_back(Vector2(expected_x, expected_y));
+		// create a new image with the size of the gap
+		Ref<Image> gap_image = Image::create_empty(gap_size.x, gap_size.y, images[0]->has_mipmaps(), images[0]->get_format());
+		images.push_back(gap_image);
+		expected_x += gap_size.x;
+		if (expected_x >= whole_size.x) {
+			expected_x = 0;
+			expected_y += max_piece_size.y;
+		}
+	}
+
+	texture = ResourceFormatLoaderCompatTextureLayered::_set_tex(res->get_path(), p_type, whole_size.x, whole_size.y, images.size(), RS::TEXTURE_LAYERED_2D_ARRAY, false, images);
+	auto new_info = TextureLoaderCompat::_get_resource_info(res->get_path(), TextureLoaderCompat::FORMAT_V2_LARGE_TEXTURE);
+	new_info->extra["offsets"] = offsets;
+	new_info->extra["whole_size"] = whole_size;
+	if (info.is_valid()) {
+		new_info = merge_resource_info(new_info, info, 0);
+	}
+	new_info->set_on_resource(texture);
+	return texture;
+}
+
+bool LargeTextureConverterCompat::handles_type(const String &p_type, int ver_major) const {
+	return p_type == "LargeTexture";
+}

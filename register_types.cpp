@@ -82,6 +82,7 @@ static Ref<ResourceConverterTexture2D> texture_converter = nullptr;
 static Ref<ImageConverterCompat> image_converter = nullptr;
 static Ref<ImageTextureConverterCompat> image_texture_converter = nullptr;
 static Ref<OggStreamConverterCompat> ogg_converter = nullptr;
+static Ref<LargeTextureConverterCompat> large_texture_converter = nullptr;
 
 //exporters
 static Ref<AutoConvertedExporter> auto_converted_exporter = nullptr;
@@ -127,6 +128,7 @@ void init_loaders() {
 	image_converter = memnew(ImageConverterCompat);
 	image_texture_converter = memnew(ImageTextureConverterCompat);
 	ogg_converter = memnew(OggStreamConverterCompat);
+	large_texture_converter = memnew(LargeTextureConverterCompat);
 	ResourceCompatLoader::add_resource_format_loader(binary_loader, true);
 	ResourceCompatLoader::add_resource_format_loader(text_loader, true);
 	ResourceCompatLoader::add_resource_format_loader(texture_loader, true);
@@ -138,6 +140,7 @@ void init_loaders() {
 	ResourceCompatLoader::add_resource_object_converter(image_converter, true);
 	ResourceCompatLoader::add_resource_object_converter(image_texture_converter, true);
 	ResourceCompatLoader::add_resource_object_converter(ogg_converter, true);
+	ResourceCompatLoader::add_resource_object_converter(large_texture_converter, true);
 }
 
 void init_exporters() {
@@ -273,6 +276,9 @@ void deinit_loaders() {
 	if (ogg_converter.is_valid()) {
 		ResourceCompatLoader::remove_resource_object_converter(ogg_converter);
 	}
+	if (large_texture_converter.is_valid()) {
+		ResourceCompatLoader::remove_resource_object_converter(large_texture_converter);
+	}
 	text_loader = nullptr;
 	binary_loader = nullptr;
 	texture_loader = nullptr;
@@ -284,6 +290,7 @@ void deinit_loaders() {
 	image_converter = nullptr;
 	image_texture_converter = nullptr;
 	ogg_converter = nullptr;
+	large_texture_converter = nullptr;
 }
 
 void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
@@ -338,6 +345,7 @@ void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
 	ClassDB::register_class<ResourceFormatLoaderCompatTexture3D>();
 	ClassDB::register_class<ResourceFormatLoaderCompatTextureLayered>();
 	ClassDB::register_class<ResourceFormatGDScriptLoader>();
+	ClassDB::register_class<LargeTextureConverterCompat>();
 	// TODO: make ResourceCompatConverter non-abstract
 	ClassDB::register_abstract_class<ResourceCompatConverter>();
 	ClassDB::register_class<SampleConverterCompat>();

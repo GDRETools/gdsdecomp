@@ -78,6 +78,14 @@ public:
 	virtual bool handles_type(const String &p_type, int ver_major) const override;
 };
 
+class LargeTextureConverterCompat : public ResourceCompatConverter {
+	GDCLASS(LargeTextureConverterCompat, ResourceCompatConverter);
+
+public:
+	virtual Ref<Resource> convert(const Ref<MissingResource> &res, ResourceInfo::LoadType p_type, int ver_major, Error *r_error = nullptr) override;
+	virtual bool handles_type(const String &p_type, int ver_major) const override;
+};
+
 class ResourceFormatLoaderCompatTexture2D : public CompatFormatLoader {
 	GDCLASS(ResourceFormatLoaderCompatTexture2D, CompatFormatLoader);
 
