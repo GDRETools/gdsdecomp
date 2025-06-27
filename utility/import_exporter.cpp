@@ -825,7 +825,7 @@ Error ImportExporter::rewrite_import_source(const String &rel_dest_path, const R
 void ImportExporter::report_unsupported_resource(const String &type, const String &format_name, const String &import_path) {
 	String type_format_str = type + "%" + format_name.to_lower();
 	if (report->unsupported_types.find(type_format_str) == -1) {
-		WARN_PRINT("Conversion for Resource of type " + type + " and format " + format_name + " not implemented");
+		WARN_PRINT("Conversion for Resource of type " + type + " and format " + format_name + " not implemented for " + import_path);
 		report->unsupported_types.push_back(type_format_str);
 	}
 	print_verbose("Did not convert " + type + " resource " + import_path);
@@ -1159,7 +1159,9 @@ String ImportExporterReport::get_report_string() {
 	if (not_converted.size() > 0) {
 		report += "------\n";
 		report += "\nThe following files were not converted because support has not been implemented yet:" + String("\n");
-		report += get_to_string(not_converted);
+		for (auto &info : not_converted) {
+			report += info->get_path() + " ( importer: " + info->get_import_info()->get_importer() + ", type: " + info->get_import_info()->get_type() + ", format: " + info->get_unsupported_format_type() + ") to " + info->get_new_source_path().get_file() + String("\n");
+		}
 	}
 	if (failed.size() > 0) {
 		report += "------\n";
