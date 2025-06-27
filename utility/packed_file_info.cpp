@@ -27,6 +27,9 @@ void PackedFileInfo::fix_path() {
 	} else if (path.begins_with("local://")) {
 		path = path.replace_first("local://", "");
 		prefix = "local://";
+	} else if (path.begins_with("user://")) {
+		path = path.replace_first("user://", "");
+		prefix = "user://";
 	}
 
 	while (path.begins_with("~")) {

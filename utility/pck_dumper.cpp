@@ -128,7 +128,11 @@ void PckDumper::_do_extract(uint32_t i, ExtractToken *tokens) {
 		tokens[i].err = ERR_FILE_CANT_OPEN;
 		return;
 	}
-	String target_name = dir.path_join(file->get_path().replace("res://", ""));
+	String path = file->get_path();
+	if (path.begins_with("user://")) {
+		path = path.replace_first("user://", ".user/");
+	}
+	String target_name = dir.path_join(path.trim_prefix("res://"));
 	err = gdre::ensure_dir(target_name.get_base_dir());
 	if (err != OK) {
 		broken_cnt++;
