@@ -1511,7 +1511,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 	if (!set_all_externals || has_script || has_shader) {
 		err = ERR_PRINTER_ON_FIRE;
 	}
-	return OK;
+	return err;
 }
 
 Error SceneExporter::export_file(const String &p_dest_path, const String &p_src_path) {
