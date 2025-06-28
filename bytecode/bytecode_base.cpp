@@ -38,6 +38,16 @@
 		error_message = RTR("Condition \"" _STR(m_cond) "\" is true. Returning: " _STR(m_retval)); \
 		ERR_FAIL_COND_V(m_cond, m_retval);                                                         \
 	}
+
+Vector<uint8_t> GDScriptDecomp::_get_buffer_encrypted(const String &p_path, int engine_ver_major, Vector<uint8_t> p_key) {
+	Vector<uint8_t> bytecode;
+	Error err = get_buffer_encrypted(p_path, engine_ver_major, p_key, bytecode);
+	if (err != OK) {
+		return {};
+	}
+	return bytecode;
+}
+
 void GDScriptDecomp::_bind_methods() {
 	BIND_ENUM_CONSTANT(BYTECODE_TEST_CORRUPT);
 	BIND_ENUM_CONSTANT(BYTECODE_TEST_FAIL);
@@ -64,6 +74,7 @@ void GDScriptDecomp::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_godot_ver"), &GDScriptDecomp::get_godot_ver);
 	ClassDB::bind_method(D_METHOD("get_parent"), &GDScriptDecomp::get_parent);
 
+	ClassDB::bind_static_method("GDScriptDecomp", D_METHOD("get_buffer_encrypted", "path", "engine_ver_major", "key"), &GDScriptDecomp::_get_buffer_encrypted);
 	ClassDB::bind_static_method("GDScriptDecomp", D_METHOD("create_decomp_for_commit", "commit_hash"), &GDScriptDecomp::create_decomp_for_commit);
 	ClassDB::bind_static_method("GDScriptDecomp", D_METHOD("create_decomp_for_version", "ver", "p_force"), &GDScriptDecomp::create_decomp_for_version, DEFVAL(false));
 	ClassDB::bind_static_method("GDScriptDecomp", D_METHOD("read_bytecode_version", "path"), &GDScriptDecomp::read_bytecode_version);

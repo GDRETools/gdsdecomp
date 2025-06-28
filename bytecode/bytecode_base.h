@@ -210,6 +210,8 @@ protected:
 	// GDScript version 2.0
 	Error get_ids_consts_tokens_v2(const Vector<uint8_t> &p_buffer, Vector<StringName> &r_identifiers, Vector<Variant> &r_constants, Vector<uint32_t> &r_tokens, HashMap<uint32_t, uint32_t> &lines, HashMap<uint32_t, uint32_t> &end_lines, HashMap<uint32_t, uint32_t> &columns);
 
+	static Vector<uint8_t> _get_buffer_encrypted(const String &p_path, int engine_ver_major, Vector<uint8_t> p_key);
+
 public:
 	static Vector<String> get_bytecode_versions();
 
