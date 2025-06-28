@@ -1,6 +1,7 @@
 [gd_resource type="CodeHighlighter" format=3 uid="uid://bgbfmyk1q82jx"]
 
 [resource]
+resource_local_to_scene = true
 number_color = Color(0.631373, 1, 0.878431, 1)
 symbol_color = Color(0.670588, 0.788235, 1, 1)
 function_color = Color(0.4, 0.901961, 1, 1)

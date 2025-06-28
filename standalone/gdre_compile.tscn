@@ -1,11 +1,11 @@
-[gd_scene load_steps=5 format=3 uid="uid://cnhcpronl4bps"]
+[gd_scene load_steps=4 format=3 uid="uid://cnhcpronl4bps"]
 
 [ext_resource type="Theme" uid="uid://crq1fwn0ajw7b" path="res://gdre_theme.tres" id="1_uacfi"]
 [ext_resource type="Script" uid="uid://c7lxsiwyifr8f" path="res://gdre_compile.gd" id="2_uacfi"]
-[ext_resource type="Script" uid="uid://cbggqwojxui00" path="res://gdre_child_dialog.gd" id="3_0kuxk"]
 [ext_resource type="Texture2D" uid="uid://70wmkccoq7gp" path="res://gdre_icons/gdre_GuiTabMenuHl.svg" id="4_rcglc"]
 
 [node name="GdreCompile" type="AcceptDialog"]
+oversampling_override = 1.0
 title = "Compile GDScript"
 position = Vector2i(0, 24)
 size = Vector2i(1360, 594)
@@ -14,7 +14,7 @@ theme = ExtResource("1_uacfi")
 ok_button_text = "Compile"
 dialog_hide_on_ok = false
 script = ExtResource("2_uacfi")
-metadata/_custom_type_script = ExtResource("3_0kuxk")
+metadata/_custom_type_script = "uid://cbggqwojxui00"
 
 [node name="Box" type="Control" parent="."]
 layout_mode = 3
@@ -23,8 +23,8 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 8.0
 offset_top = 8.0
-offset_right = 1352.0
-offset_bottom = 545.0
+offset_right = -8.0
+offset_bottom = -49.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -37,33 +37,41 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="ScriptFilesLabel" type="Label" parent="Box/VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Script Files"
 
 [node name="FileList" type="ItemList" parent="Box/VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 
 [node name="ButtonHBox" type="HBoxContainer" parent="Box/VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 
 [node name="AddFilesButton" type="Button" parent="Box/VBoxContainer/ButtonHBox"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Add Files..."
 
 [node name="RemoveFilesButton" type="Button" parent="Box/VBoxContainer/ButtonHBox"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Remove Files"
 
 [node name="ClearFilesButton" type="Button" parent="Box/VBoxContainer/ButtonHBox"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Clear files"
 
 [node name="ScriptBytecodeVersionLabel" type="Label" parent="Box/VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Script bytecode version:"
 
 [node name="BytecodeSelector" type="OptionButton" parent="Box/VBoxContainer"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 item_count = 1
@@ -71,17 +79,21 @@ popup/item_0/text = "--- Please select bytecode version ---"
 popup/item_0/id = 0
 
 [node name="DestinationFolderLabel" type="Label" parent="Box/VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Destination folder:"
 
 [node name="DestinationFolderHBox" type="HBoxContainer" parent="Box/VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 
 [node name="DestinationFolder" type="LineEdit" parent="Box/VBoxContainer/DestinationFolderHBox"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="DestinationFolderButton" type="Button" parent="Box/VBoxContainer/DestinationFolderHBox"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
 icon = ExtResource("4_rcglc")
@@ -89,6 +101,7 @@ icon_alignment = 1
 expand_icon = true
 
 [node name="AddFilesDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
 title = "Open File(s)"
 ok_button_text = "Open"
 file_mode = 1
@@ -98,6 +111,7 @@ show_hidden_files = true
 use_native_dialog = true
 
 [node name="DestinationFolderDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
 title = "Open a Directory"
 ok_button_text = "Select Current Folder"
 file_mode = 2
