@@ -157,9 +157,6 @@ String GDScriptDecomp::get_constant_string(Vector<Variant> &constants, uint32_t 
 	GDSDECOMP_FAIL_COND_V_MSG(constId >= constants.size(), "", "Invalid constant ID.");
 	Error err = VariantWriterCompat::write_to_string_script(constants[constId], constString, get_variant_ver_major());
 	GDSDECOMP_FAIL_COND_V_MSG(err, "", "Error when trying to encode Variant.");
-	if (constants[constId].get_type() == Variant::Type::STRING) {
-		constString = constString.replace("\n", "\\n");
-	}
 	return constString;
 }
 
