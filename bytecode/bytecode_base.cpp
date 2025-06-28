@@ -407,128 +407,128 @@ int GDScriptDecomp::read_bytecode_version_encrypted(const String &p_path, int en
 
 // constant array of string literals of the global token enum values
 const char *g_token_str[] = {
-	"TK_EMPTY",
-	"TK_IDENTIFIER",
-	"TK_CONSTANT",
-	"TK_SELF",
-	"TK_BUILT_IN_TYPE",
-	"TK_BUILT_IN_FUNC",
-	"TK_OP_IN",
-	"TK_OP_EQUAL", // "EQUAL_EQUAL" in 4.2
-	"TK_OP_NOT_EQUAL", // "BANG_EQUAL" in 4.2
-	"TK_OP_LESS",
-	"TK_OP_LESS_EQUAL",
-	"TK_OP_GREATER",
-	"TK_OP_GREATER_EQUAL",
-	"TK_OP_AND",
-	"TK_OP_OR",
-	"TK_OP_NOT",
-	"TK_OP_ADD",
-	"TK_OP_SUB",
-	"TK_OP_MUL",
-	"TK_OP_DIV",
-	"TK_OP_MOD",
-	"TK_OP_SHIFT_LEFT", // "LESS_LESS" in 4.2
-	"TK_OP_SHIFT_RIGHT", // "GREATER_GREATER" in 4.2
-	"TK_OP_ASSIGN", // "EQUAL" in 4.2
-	"TK_OP_ASSIGN_ADD", // "PLUS_EQUAL" in 4.2
-	"TK_OP_ASSIGN_SUB", // "MINUS_EQUAL" in 4.2
-	"TK_OP_ASSIGN_MUL", // "STAR_EQUAL" in 4.2
-	"TK_OP_ASSIGN_DIV", // "SLASH_EQUAL" in 4.2
-	"TK_OP_ASSIGN_MOD", // "PERCENT_EQUAL" in 4.2
-	"TK_OP_ASSIGN_SHIFT_LEFT", // "LESS_LESS_EQUAL" in 4.2
-	"TK_OP_ASSIGN_SHIFT_RIGHT", // "GREATER_GREATER_EQUAL" in 4.2
-	"TK_OP_ASSIGN_BIT_AND", // "AMPERSAND_EQUAL" in 4.2
-	"TK_OP_ASSIGN_BIT_OR", // "PIPE_EQUAL" in 4.2
-	"TK_OP_ASSIGN_BIT_XOR", // "CARET_EQUAL" in 4.2
-	"TK_OP_BIT_AND", // "AMPERSAND" in 4.2
-	"TK_OP_BIT_OR", // "PIPE" in 4.2
-	"TK_OP_BIT_XOR", // "CARET" in 4.2
-	"TK_OP_BIT_INVERT", // "TILDE" in 4.2
-	"TK_CF_IF",
-	"TK_CF_ELIF",
-	"TK_CF_ELSE",
-	"TK_CF_FOR",
-	"TK_CF_WHILE",
-	"TK_CF_BREAK",
-	"TK_CF_CONTINUE",
-	"TK_CF_PASS",
-	"TK_CF_RETURN",
-	"TK_CF_MATCH",
-	"TK_PR_FUNCTION",
-	"TK_PR_CLASS",
-	"TK_PR_CLASS_NAME",
-	"TK_PR_EXTENDS",
-	"TK_PR_IS",
-	"TK_PR_ONREADY",
-	"TK_PR_TOOL",
-	"TK_PR_STATIC",
-	"TK_PR_EXPORT",
-	"TK_PR_SETGET",
-	"TK_PR_CONST",
-	"TK_PR_VAR",
-	"TK_PR_AS",
-	"TK_PR_VOID",
-	"TK_PR_ENUM",
-	"TK_PR_PRELOAD",
-	"TK_PR_ASSERT",
-	"TK_PR_YIELD",
-	"TK_PR_SIGNAL",
-	"TK_PR_BREAKPOINT",
-	"TK_PR_REMOTE",
-	"TK_PR_SYNC",
-	"TK_PR_MASTER",
-	"TK_PR_SLAVE",
-	"TK_PR_PUPPET",
-	"TK_PR_REMOTESYNC",
-	"TK_PR_MASTERSYNC",
-	"TK_PR_PUPPETSYNC",
-	"TK_BRACKET_OPEN",
-	"TK_BRACKET_CLOSE",
-	"TK_CURLY_BRACKET_OPEN",
-	"TK_CURLY_BRACKET_CLOSE",
-	"TK_PARENTHESIS_OPEN",
-	"TK_PARENTHESIS_CLOSE",
-	"TK_COMMA",
-	"TK_SEMICOLON",
-	"TK_PERIOD",
-	"TK_QUESTION_MARK",
-	"TK_COLON",
-	"TK_DOLLAR",
-	"TK_FORWARD_ARROW",
-	"TK_NEWLINE",
-	"TK_CONST_PI",
-	"TK_CONST_TAU",
-	"TK_WILDCARD",
-	"TK_CONST_INF",
-	"TK_CONST_NAN",
-	"TK_ERROR",
-	"TK_EOF",
-	"TK_CURSOR",
-	"TK_PR_SLAVESYNC", //renamed to puppet sync in most recent versions
-	"TK_CF_DO", // removed in 3.1
-	"TK_CF_CASE",
-	"TK_CF_SWITCH",
-	"TK_ANNOTATION", // added in 4.3
-	"TK_AMPERSAND_AMPERSAND", // added in 4.3
-	"TK_PIPE_PIPE", // added in 4.3
-	"TK_BANG", // added in 4.3
-	"TK_STAR_STAR", // added in 4.3
-	"TK_STAR_STAR_EQUAL", // added in 4.3
-	"TK_CF_WHEN", // added in 4.3
-	"TK_PR_AWAIT", // added in 4.3
-	"TK_PR_NAMESPACE", // added in 4.3
-	"TK_PR_SUPER", // added in 4.3
-	"TK_PR_TRAIT", // added in 4.3
-	"TK_PERIOD_PERIOD", // added in 4.3
-	"TK_UNDERSCORE", // added in 4.3
-	"TK_INDENT", // added in 4.3
-	"TK_DEDENT", // added in 4.3
-	"TK_VCS_CONFLICT_MARKER", // added in 4.3
-	"TK_BACKTICK", // added in 4.3
-	"TK_ABSTRACT", // added in 4.5
-	"TK_PERIOD_PERIOD_PERIOD", // added in 4.5
-	"TK_MAX",
+	"EMPTY",
+	"IDENTIFIER",
+	"CONSTANT",
+	"SELF",
+	"BUILT_IN_TYPE",
+	"BUILT_IN_FUNC",
+	"IN",
+	"EQUAL", // "EQUAL_EQUAL" in 4.2
+	"NOT_EQUAL", // "BANG_EQUAL" in 4.2
+	"LESS",
+	"LESS_EQUAL",
+	"GREATER",
+	"GREATER_EQUAL",
+	"AND",
+	"OR",
+	"NOT",
+	"ADD",
+	"SUB",
+	"MUL",
+	"DIV",
+	"MOD",
+	"SHIFT_LEFT", // "LESS_LESS" in 4.2
+	"SHIFT_RIGHT", // "GREATER_GREATER" in 4.2
+	"ASSIGN", // "EQUAL" in 4.2
+	"ASSIGN_ADD", // "PLUS_EQUAL" in 4.2
+	"ASSIGN_SUB", // "MINUS_EQUAL" in 4.2
+	"ASSIGN_MUL", // "STAR_EQUAL" in 4.2
+	"ASSIGN_DIV", // "SLASH_EQUAL" in 4.2
+	"ASSIGN_MOD", // "PERCENT_EQUAL" in 4.2
+	"ASSIGN_SHIFT_LEFT", // "LESS_LESS_EQUAL" in 4.2
+	"ASSIGN_SHIFT_RIGHT", // "GREATER_GREATER_EQUAL" in 4.2
+	"ASSIGN_BIT_AND", // "AMPERSAND_EQUAL" in 4.2
+	"ASSIGN_BIT_OR", // "PIPE_EQUAL" in 4.2
+	"ASSIGN_BIT_XOR", // "CARET_EQUAL" in 4.2
+	"BIT_AND", // "AMPERSAND" in 4.2
+	"BIT_OR", // "PIPE" in 4.2
+	"BIT_XOR", // "CARET" in 4.2
+	"BIT_INVERT", // "TILDE" in 4.2
+	"IF",
+	"ELIF",
+	"ELSE",
+	"FOR",
+	"WHILE",
+	"BREAK",
+	"CONTINUE",
+	"PASS",
+	"RETURN",
+	"MATCH",
+	"FUNCTION",
+	"CLASS",
+	"CLASS_NAME",
+	"EXTENDS",
+	"IS",
+	"ONREADY",
+	"TOOL",
+	"STATIC",
+	"EXPORT",
+	"SETGET",
+	"CONST",
+	"VAR",
+	"AS",
+	"VOID",
+	"ENUM",
+	"PRELOAD",
+	"ASSERT",
+	"YIELD",
+	"SIGNAL",
+	"BREAKPOINT",
+	"REMOTE",
+	"SYNC",
+	"MASTER",
+	"SLAVE",
+	"PUPPET",
+	"REMOTESYNC",
+	"MASTERSYNC",
+	"PUPPETSYNC",
+	"BRACKET_OPEN",
+	"BRACKET_CLOSE",
+	"CURLY_BRACKET_OPEN",
+	"CURLY_BRACKET_CLOSE",
+	"PARENTHESIS_OPEN",
+	"PARENTHESIS_CLOSE",
+	"COMMA",
+	"SEMICOLON",
+	"PERIOD",
+	"QUESTION_MARK",
+	"COLON",
+	"DOLLAR",
+	"FORWARD_ARROW",
+	"NEWLINE",
+	"CONST_PI",
+	"CONST_TAU",
+	"WILDCARD",
+	"CONST_INF",
+	"CONST_NAN",
+	"ERROR",
+	"EOF",
+	"CURSOR",
+	"SLAVESYNC", //renamed to puppet sync in most recent versions
+	"DO", // removed in 3.1
+	"CASE",
+	"SWITCH",
+	"ANNOTATION", // added in 4.3
+	"AMPERSAND_AMPERSAND", // added in 4.3
+	"PIPE_PIPE", // added in 4.3
+	"BANG", // added in 4.3
+	"STAR_STAR", // added in 4.3
+	"STAR_STAR_EQUAL", // added in 4.3
+	"WHEN", // added in 4.3
+	"AWAIT", // added in 4.3
+	"NAMESPACE", // added in 4.3
+	"SUPER", // added in 4.3
+	"TRAIT", // added in 4.3
+	"PERIOD_PERIOD", // added in 4.3
+	"UNDERSCORE", // added in 4.3
+	"INDENT", // added in 4.3
+	"DEDENT", // added in 4.3
+	"VCS_CONFLICT_MARKER", // added in 4.3
+	"BACKTICK", // added in 4.3
+	"ABSTRACT", // added in 4.5
+	"PERIOD_PERIOD_PERIOD", // added in 4.5
+	"MAX",
 };
 static_assert(sizeof(g_token_str) / sizeof(g_token_str[0]) == GDScriptDecomp::GlobalToken::G_TK_MAX + 1, "g_token_str size mismatch");
 
@@ -1239,11 +1239,11 @@ bool GDScriptDecomp::is_token_builtin_func(int p_pos, const Vector<uint32_t> &p_
 }
 
 GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t> p_buffer, int &r_tok_max, int &r_func_max, bool print_verbosely) {
-#define ERR_TEST_FAILED(x)            \
-	error_message = x;                \
-	if (print_verbosely) {            \
-		print_failed_verbose_func(x); \
-	}                                 \
+#define ERR_TEST_FAILED(x)                                                \
+	error_message = "Line " + String::num_int64(line) + ": " + String(x); \
+	if (print_verbosely) {                                                \
+		print_failed_verbose_func(x);                                     \
+	}                                                                     \
 	return BytecodeTestResult::BYTECODE_TEST_FAIL;
 
 #define SIZE_CHECK(x)                                                     \
@@ -1325,10 +1325,10 @@ GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t
 				GlobalToken nextnext_token = get_global_token(tokens[i + 2]);
 				// GDScript Version 2.0+ requires the next token to be a parenthesis open (lambdas) or an identifier
 				if (bytecode_version >= GDSCRIPT_2_0_VERSION && next_token != G_TK_PARENTHESIS_OPEN && next_token != G_TK_IDENTIFIER) {
-					ERR_TEST_FAILED(String("Function declaration error: ") + g_token_str[curr_token] + " " + g_token_str[next_token] + " " + g_token_str[nextnext_token]);
+					ERR_TEST_FAILED(vformat("Function declaration error: %s %s (expected %s [%s or %s])", g_token_str[curr_token], g_token_str[next_token], g_token_str[G_TK_PR_FUNCTION], g_token_str[G_TK_PARENTHESIS_OPEN], g_token_str[G_TK_IDENTIFIER]));
 				}
 				if (nextnext_token != G_TK_PARENTHESIS_OPEN && (bytecode_version < GDSCRIPT_2_0_VERSION || next_token != G_TK_PARENTHESIS_OPEN)) {
-					ERR_TEST_FAILED(String("Function declaration error: ") + g_token_str[curr_token] + " " + g_token_str[next_token] + " " + g_token_str[nextnext_token]);
+					ERR_TEST_FAILED(vformat("Function declaration error: %s %s %s (expected %s <identifier> %s)", g_token_str[curr_token], g_token_str[next_token], g_token_str[nextnext_token], g_token_str[G_TK_PR_FUNCTION], g_token_str[G_TK_PARENTHESIS_OPEN]));
 				}
 			} break;
 			case G_TK_CF_PASS: {
