@@ -42,7 +42,6 @@ void GDScriptDecomp::_bind_methods() {
 	BIND_ENUM_CONSTANT(BYTECODE_TEST_CORRUPT);
 	BIND_ENUM_CONSTANT(BYTECODE_TEST_FAIL);
 	BIND_ENUM_CONSTANT(BYTECODE_TEST_PASS);
-	BIND_ENUM_CONSTANT(BYTECODE_TEST_UNKNOWN);
 	ClassDB::bind_method(D_METHOD("decompile_byte_code", "path"), &GDScriptDecomp::decompile_byte_code);
 	ClassDB::bind_method(D_METHOD("decompile_byte_code_encrypted", "path", "key"), &GDScriptDecomp::decompile_byte_code_encrypted);
 	ClassDB::bind_method(D_METHOD("test_bytecode", "buffer", "print_verbose"), &GDScriptDecomp::test_bytecode, DEFVAL(false));
@@ -1422,7 +1421,7 @@ GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t
 		}
 	}
 
-	return BYTECODE_TEST_UNKNOWN;
+	return BYTECODE_TEST_PASS;
 #undef SIZE_CHECK
 #undef ERR_TEST_FAILED
 #undef FAILED_PRINT
