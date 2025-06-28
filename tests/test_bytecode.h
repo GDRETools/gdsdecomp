@@ -108,8 +108,7 @@ inline void test_script_binary(const String &script_name, const Vector<uint8_t> 
 	auto decomp = GDScriptDecomp::create_decomp_for_commit(revision);
 	CHECK(decomp.is_valid());
 	auto result = decomp->test_bytecode(bytecode, false);
-	// TODO: remove BYTECODE_TEST_UNKNOWN and just make it PASS, there are no proper pass cases now
-	CHECK(result == GDScriptDecomp::BYTECODE_TEST_UNKNOWN);
+	CHECK(result == GDScriptDecomp::BYTECODE_TEST_PASS);
 	if (helper_script && decomp->get_parent() != 0) {
 		// Test our previously compiled bytecode against the parent
 		auto parent = GDScriptDecomp::create_decomp_for_commit(decomp->get_parent());
@@ -153,7 +152,7 @@ inline void test_script_binary(const String &script_name, const Vector<uint8_t> 
 	CHECK(decomp->get_error_message() == "");
 	CHECK(recompiled_bytecode.size() > 0);
 	auto recompiled_result = decomp->test_bytecode(recompiled_bytecode, false);
-	CHECK(recompiled_result == GDScriptDecomp::BYTECODE_TEST_UNKNOWN);
+	CHECK(recompiled_result == GDScriptDecomp::BYTECODE_TEST_PASS);
 	err = decomp->test_bytecode_match(bytecode, recompiled_bytecode);
 #if DEBUG_ENABLED
 	if (err) {
@@ -291,7 +290,7 @@ void simple_pass_fail_test(const String &script_name, const String &helper_scrip
 		auto result = decomp->test_bytecode(bytecode, false);
 		if (!expect_fail) {
 			CHECK(decomp->get_error_message() == "");
-			CHECK(result == GDScriptDecomp::BYTECODE_TEST_UNKNOWN);
+			CHECK(result == GDScriptDecomp::BYTECODE_TEST_PASS);
 		} else {
 			CHECK(result == GDScriptDecomp::BYTECODE_TEST_FAIL);
 		}

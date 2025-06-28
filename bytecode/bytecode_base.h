@@ -156,7 +156,6 @@ public:
 		BYTECODE_TEST_PASS,
 		BYTECODE_TEST_FAIL,
 		BYTECODE_TEST_CORRUPT,
-		BYTECODE_TEST_UNKNOWN,
 	};
 	enum : uint32_t {
 		TOKEN_BYTE_MASK = 0x80,
@@ -210,6 +209,8 @@ protected:
 	Error get_ids_consts_tokens(const Vector<uint8_t> &p_buffer, Vector<StringName> &r_identifiers, Vector<Variant> &r_constants, Vector<uint32_t> &r_tokens, HashMap<uint32_t, uint32_t> &lines, HashMap<uint32_t, uint32_t> &columns);
 	// GDScript version 2.0
 	Error get_ids_consts_tokens_v2(const Vector<uint8_t> &p_buffer, Vector<StringName> &r_identifiers, Vector<Variant> &r_constants, Vector<uint32_t> &r_tokens, HashMap<uint32_t, uint32_t> &lines, HashMap<uint32_t, uint32_t> &end_lines, HashMap<uint32_t, uint32_t> &columns);
+
+	static Vector<uint8_t> _get_buffer_encrypted(const String &p_path, int engine_ver_major, Vector<uint8_t> p_key);
 
 public:
 	static Vector<String> get_bytecode_versions();

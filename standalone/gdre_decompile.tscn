@@ -2,93 +2,132 @@
 
 [ext_resource type="Theme" uid="uid://crq1fwn0ajw7b" path="res://gdre_theme.tres" id="1_7ifdu"]
 [ext_resource type="Script" uid="uid://cpaht3hkp5dqf" path="res://gdre_decompile.gd" id="1_vihwl"]
-[ext_resource type="Script" uid="uid://cbggqwojxui00" path="res://gdre_child_dialog.gd" id="2_7ifdu"]
 [ext_resource type="Texture2D" uid="uid://70wmkccoq7gp" path="res://gdre_icons/gdre_GuiTabMenuHl.svg" id="4_hil8r"]
+[ext_resource type="PackedScene" uid="uid://ckg8dycpxer5o" path="res://gdre_text_editor.tscn" id="4_p6tj5"]
 
 [node name="GdreDecompile" type="AcceptDialog"]
+oversampling_override = 1.0
 title = "Decompile GDScript"
-position = Vector2i(0, 24)
+initial_position = 1
 size = Vector2i(1360, 594)
 visible = true
 theme = ExtResource("1_7ifdu")
 ok_button_text = "Decompile"
 dialog_hide_on_ok = false
 script = ExtResource("1_vihwl")
-metadata/_custom_type_script = ExtResource("2_7ifdu")
+metadata/_custom_type_script = "uid://cbggqwojxui00"
 
-[node name="Box" type="Control" parent="."]
-layout_mode = 3
+[node name="MainSplit" type="HSplitContainer" parent="."]
+unique_name_in_owner = true
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 8.0
 offset_top = 8.0
-offset_right = 1352.0
-offset_bottom = 545.0
+offset_right = -8.0
+offset_bottom = -49.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Box"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="VBoxContainer" type="VBoxContainer" parent="MainSplit"]
+layout_mode = 2
+size_flags_horizontal = 3
 
-[node name="ScriptFilesLabel" type="Label" parent="Box/VBoxContainer"]
+[node name="ScriptFilesLabel" type="Label" parent="MainSplit/VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Script Files"
 
-[node name="FileList" type="ItemList" parent="Box/VBoxContainer"]
+[node name="FileList" type="ItemList" parent="MainSplit/VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="ButtonHBox" type="HBoxContainer" parent="Box/VBoxContainer"]
+[node name="ButtonHBox" type="HBoxContainer" parent="MainSplit/VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
+theme_override_constants/separation = 10
 
-[node name="AddFilesButton" type="Button" parent="Box/VBoxContainer/ButtonHBox"]
+[node name="AddFilesButton" type="Button" parent="MainSplit/VBoxContainer/ButtonHBox"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Add Files..."
 
-[node name="RemoveFilesButton" type="Button" parent="Box/VBoxContainer/ButtonHBox"]
+[node name="RemoveFilesButton" type="Button" parent="MainSplit/VBoxContainer/ButtonHBox"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Remove Files"
 
-[node name="ClearFilesButton" type="Button" parent="Box/VBoxContainer/ButtonHBox"]
+[node name="ClearFilesButton" type="Button" parent="MainSplit/VBoxContainer/ButtonHBox"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Clear files"
 
-[node name="ScriptBytecodeVersionLabel" type="Label" parent="Box/VBoxContainer"]
+[node name="ForceEnableBox" type="CheckBox" parent="MainSplit/VBoxContainer/ButtonHBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Force Enable All Versions"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MainSplit/VBoxContainer/ButtonHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 2
+
+[node name="PreviewButton" type="Button" parent="MainSplit/VBoxContainer/ButtonHBox/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "Show Preview..."
+
+[node name="ErrorLabel" type="Label" parent="MainSplit/VBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+
+[node name="ScriptBytecodeVersionLabel" type="Label" parent="MainSplit/VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Script bytecode version:"
 
-[node name="BytecodeSelector" type="OptionButton" parent="Box/VBoxContainer"]
+[node name="BytecodeSelector" type="OptionButton" parent="MainSplit/VBoxContainer"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
+fit_to_longest_item = false
 item_count = 1
 popup/item_0/text = "--- Please select bytecode version ---"
 popup/item_0/id = 0
 
-[node name="DestinationFolderLabel" type="Label" parent="Box/VBoxContainer"]
+[node name="DestinationFolderLabel" type="Label" parent="MainSplit/VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Destination folder:"
 
-[node name="DestinationFolderHBox" type="HBoxContainer" parent="Box/VBoxContainer"]
+[node name="DestinationFolderHBox" type="HBoxContainer" parent="MainSplit/VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 
-[node name="DestinationFolder" type="LineEdit" parent="Box/VBoxContainer/DestinationFolderHBox"]
+[node name="DestinationFolder" type="LineEdit" parent="MainSplit/VBoxContainer/DestinationFolderHBox"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="DestinationFolderButton" type="Button" parent="Box/VBoxContainer/DestinationFolderHBox"]
+[node name="DestinationFolderButton" type="Button" parent="MainSplit/VBoxContainer/DestinationFolderHBox"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
 icon = ExtResource("4_hil8r")
 icon_alignment = 1
 expand_icon = true
 
+[node name="GDRETextEditor" parent="MainSplit" instance=ExtResource("4_p6tj5")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
 [node name="AddFilesDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
 title = "Open File(s)"
 ok_button_text = "Open"
 file_mode = 1
@@ -98,9 +137,14 @@ show_hidden_files = true
 use_native_dialog = true
 
 [node name="DestinationFolderDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
 title = "Open a Directory"
 ok_button_text = "Select Current Folder"
 file_mode = 2
 access = 2
 show_hidden_files = true
 use_native_dialog = true
+
+[connection signal="item_selected" from="MainSplit/VBoxContainer/FileList" to="." method="_on_file_list_item_selected"]
+[connection signal="toggled" from="MainSplit/VBoxContainer/ButtonHBox/ForceEnableBox" to="." method="_on_check_box_toggled"]
+[connection signal="toggled" from="MainSplit/VBoxContainer/ButtonHBox/HBoxContainer/PreviewButton" to="." method="_on_show_resource_preview_toggled"]

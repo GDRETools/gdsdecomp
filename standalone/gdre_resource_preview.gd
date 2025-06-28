@@ -110,7 +110,7 @@ func load_mesh(path):
 	return true
 
 
-func load_resource(path: String) -> void:
+func load_resource(path: String, override_bytecode_revision: int = 0) -> void:
 	reset()
 	var ext = path.get_extension().to_lower()
 	var error_opening = false
@@ -119,7 +119,7 @@ func load_resource(path: String) -> void:
 		%TextView.load_gdshader(path)
 		%TextView.visible = true
 	elif (is_code(ext)):
-		error_opening = not %TextView.load_code(path)
+		error_opening = not %TextView.load_code(path, override_bytecode_revision)
 		%TextView.visible = true
 	elif (is_sample(ext)):
 		error_opening = not %MediaPlayer.load_sample(path)

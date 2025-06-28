@@ -894,15 +894,26 @@ Error ImportExporter::recreate_plugin_config(const String &plugin_dir) {
 		return OK;
 	}
 
+	bool tool_scripts_found = false;
+
 	for (int j = 0; j < gd_scripts.size(); j++) {
 		String gd_script_abs_path = String("res://").path_join(rel_plugin_path).path_join(gd_scripts[j]);
 		Ref<FakeGDScript> gd_script = ResourceCompatLoader::non_global_load(gd_script_abs_path, "", &err);
-		if (gd_script.is_valid() && gd_script->get_instance_base_type() == "EditorPlugin") {
-			main_script = gd_scripts[j].get_basename() + ".gd";
-			break;
+		if (gd_script.is_valid()) {
+			if (gd_script->get_instance_base_type() == "EditorPlugin") {
+				main_script = gd_scripts[j].get_basename() + ".gd";
+				break;
+			}
+			if (gd_script->is_tool()) {
+				tool_scripts_found = true;
+			}
 		}
 	}
 	if (main_script == "") {
+		// No tool scripts found, this is not a plugin
+		if (!tool_scripts_found) {
+			return OK;
+		}
 		return ERR_UNAVAILABLE;
 	}
 	String plugin_cfg_text = String("[plugin]\n\n") +

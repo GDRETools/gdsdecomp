@@ -100,7 +100,7 @@ void FakeGDScript::set_source_code(const String &p_code) {
 
 Error FakeGDScript::reload(bool p_keep_state) {
 	error_message.clear();
-	auto revision = GDRESettings::get_singleton()->get_bytecode_revision();
+	auto revision = override_bytecode_revision != 0 ? override_bytecode_revision : GDRESettings::get_singleton()->get_bytecode_revision();
 	FAKEGDSCRIPT_FAIL_COND_V_MSG(!revision, ERR_UNCONFIGURED, "No bytecode revision set");
 
 	decomp = GDScriptDecomp::create_decomp_for_commit(revision);
@@ -224,18 +224,28 @@ Error FakeGDScript::parse_script() {
 	Vector<Variant> &constants = script_state.constants;
 	Vector<uint32_t> &tokens = script_state.tokens;
 
-	bool first_annotation = true;
 	// reserved words can be used as class members in GDScript. Hooray.
-	auto is_accessor = [&](int i) {
-		return decomp->check_prev_token(i, tokens, GT::G_TK_PERIOD);
+	auto is_not_actually_reserved_word = [&](int i) {
+		return (decomp->check_prev_token(i, tokens, GT::G_TK_PERIOD) ||
+				(script_state.bytecode_version < GDScriptDecomp::GDSCRIPT_2_0_VERSION &&
+						(decomp->check_prev_token(i, tokens, GT::G_TK_PR_FUNCTION) ||
+								decomp->is_token_func_call(i, tokens))));
 	};
+	bool func_used = false;
+	bool class_used = false;
+	bool var_used = false;
+	bool const_used = false;
+	bool extends_used = false;
+	bool class_name_used = false;
 
 	for (int i = 0; i < tokens.size(); i++) {
 		uint32_t local_token = tokens[i] & GDScriptDecomp::TOKEN_MASK;
 		GlobalToken curr_token = decomp->get_global_token(local_token);
 		switch (curr_token) {
 			case GT::G_TK_ANNOTATION: {
-				if (first_annotation) {
+				// in GDScript 2.0, the "@tool" annotation has to be the first expression in the file
+				// (i.e. before the class body and 'extends' or 'class_name' keywords)
+				if (!func_used && !class_used && !var_used && !const_used && !extends_used && !class_name_used) {
 					uint32_t a_id = tokens[i] >> GDScriptDecomp::TOKEN_BITS;
 					ERR_FAIL_COND_V(a_id >= (uint32_t)identifiers.size(), ERR_INVALID_DATA);
 
@@ -244,16 +254,34 @@ Error FakeGDScript::parse_script() {
 						tool = true;
 					}
 				}
-				first_annotation = false;
+			} break;
+			case GT::G_TK_PR_FUNCTION: {
+				if (!is_not_actually_reserved_word(i)) {
+					func_used = true;
+				}
+			} break;
+			case GT::G_TK_PR_VAR: {
+				if (!is_not_actually_reserved_word(i)) {
+					var_used = true;
+				}
+			} break;
+			case GT::G_TK_PR_CONST: {
+				if (!is_not_actually_reserved_word(i)) {
+					const_used = true;
+				}
 			} break;
 			case GT::G_TK_PR_EXPORT: {
 			} break;
 			case GT::G_TK_PR_TOOL: {
-				if (!is_accessor(i)) {
+				// "tool" can be used literally anywhere in GDScript 1, so we only check it if it's actually a reserved word
+				if (!is_not_actually_reserved_word(i)) {
 					tool = true;
 				}
 			} break;
 			case GT::G_TK_PR_CLASS: {
+				if (!is_not_actually_reserved_word(i)) {
+					class_used = true;
+				}
 				// if (decomp->check_next_token(i, tokens, GT::G_TK_IDENTIFIER)) {
 				// 	curr_class = get_identifier_func(i + 1);
 				// 	curr_class_indent = indent;
@@ -262,7 +290,9 @@ Error FakeGDScript::parse_script() {
 				// }
 			} break;
 			case GT::G_TK_PR_CLASS_NAME: {
-				if (global_name.is_empty() && !is_accessor(i) && decomp->check_next_token(i, tokens, GT::G_TK_IDENTIFIER)) {
+				// "class_name" can be used literally anywhere in GDScript 1, so we only check it if it's actually a reserved word
+				class_name_used = true;
+				if (global_name.is_empty() && !is_not_actually_reserved_word(i) && decomp->check_next_token(i, tokens, GT::G_TK_IDENTIFIER)) {
 					uint32_t identifier = tokens[i + 1] >> GDScriptDecomp::TOKEN_BITS;
 					ERR_FAIL_COND_V(identifier >= (uint32_t)identifiers.size(), ERR_INVALID_DATA);
 					global_name = identifiers[identifier];
@@ -270,7 +300,9 @@ Error FakeGDScript::parse_script() {
 				}
 			} break;
 			case GT::G_TK_PR_EXTENDS: {
-				if (base_type.is_empty() && !is_accessor(i)) {
+				// "extends" is only valid for the global class if it's not in the body (class_name and tool can be used before it)
+				// This applies to all versions of GDScript
+				if (base_type.is_empty() && !func_used && !class_used && !var_used && !const_used && !extends_used && !is_not_actually_reserved_word(i)) {
 					if (decomp->check_next_token(i, tokens, GT::G_TK_CONSTANT)) {
 						uint32_t constant = tokens[i + 1] >> GDScriptDecomp::TOKEN_BITS;
 						ERR_FAIL_COND_V(constant >= (uint32_t)constants.size(), ERR_INVALID_DATA);
@@ -289,6 +321,10 @@ Error FakeGDScript::parse_script() {
 			}
 		}
 		// prev_token = curr_token;
+	}
+
+	if (base_type.is_empty()) {
+		base_type = decomp->get_variant_ver_major() < 4 ? "Reference" : "RefCounted";
 	}
 
 	return OK;
@@ -319,6 +355,11 @@ Variant FakeGDScript::callp(const StringName &p_method, const Variant **p_args, 
 }
 
 void FakeGDScript::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_script_path"), &FakeGDScript::get_script_path);
+	ClassDB::bind_method(D_METHOD("load_source_code", "path"), &FakeGDScript::load_source_code);
+	ClassDB::bind_method(D_METHOD("get_error_message"), &FakeGDScript::get_error_message);
+	ClassDB::bind_method(D_METHOD("set_override_bytecode_revision", "revision"), &FakeGDScript::set_override_bytecode_revision);
+	ClassDB::bind_method(D_METHOD("get_override_bytecode_revision"), &FakeGDScript::get_override_bytecode_revision);
 }
 
 String FakeGDScript::get_script_path() const {
@@ -332,6 +373,14 @@ Error FakeGDScript::load_source_code(const String &p_path) {
 
 String FakeGDScript::get_error_message() const {
 	return error_message;
+}
+
+int FakeGDScript::get_override_bytecode_revision() const {
+	return override_bytecode_revision;
+}
+
+void FakeGDScript::set_override_bytecode_revision(int p_revision) {
+	override_bytecode_revision = p_revision;
 }
 
 // FakeEmbeddedScript

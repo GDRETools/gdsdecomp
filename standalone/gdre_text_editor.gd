@@ -46,6 +46,8 @@ var text_size_minus_id: int = 0
 
 
 func reset():
+	set_text_viewer_props()
+	set_viewer_text("")
 	pass
 
 func set_viewer_text(text: String):
@@ -86,16 +88,22 @@ func set_viewer_text(text: String):
 	CODE_VIEWER.scroll_vertical = 0
 	CODE_VIEWER.scroll_horizontal = 0
 
-func load_code(path):
+func load_code(path, override_bytecode_revision: int = 0):
 	var code_text = ""
 	if path.get_extension().to_lower() == "gd":
 		code_text = FileAccess.get_file_as_string(path)
+		set_code_viewer_props()
 	else:
-		var code: FakeGDScript = ResourceCompatLoader.non_global_load(path)
-		if (code == null):
-			return false
-		code_text = code.get_source_code()
-	set_code_viewer_props()
+		var script: FakeGDScript = FakeGDScript.new()
+		if (override_bytecode_revision > 0):
+			script.set_override_bytecode_revision(override_bytecode_revision)
+		script.load_source_code(path)
+		if (script.get_error_message() != ""):
+			code_text = "Error loading script:\n" + script.get_error_message()
+			set_text_viewer_props()
+		else:
+			code_text = script.get_source_code()
+			set_code_viewer_props()
 	set_viewer_text(code_text)
 	return true
 
@@ -251,4 +259,4 @@ func _ready():
 	_add_items_to_popup_menu(menu)
 	CODE_VIWER_OPTIONS_POPUP = CODE_VIWER_OPTIONS.get_popup()
 	_add_items_to_popup_menu(CODE_VIWER_OPTIONS_POPUP)
-	set_code_viewer_props()
+	reset()

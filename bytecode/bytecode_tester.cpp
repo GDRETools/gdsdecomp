@@ -227,11 +227,8 @@ uint64_t BytecodeTester::generic_test(const Vector<String> &p_paths, int ver_maj
 uint64_t BytecodeTester::test_files_2_1(const Vector<String> &p_paths) {
 	uint64_t rev = 0;
 	bool ed80f45_failed = false;
-	bool ed80f45_passed = false;
 	bool _85585c7_failed = false;
-	bool _85585c7_passed = false;
 	bool _7124599_failed = false;
-	bool _7124599_passed = false;
 	Ref<GDScriptDecomp_ed80f45> decomp_ed80f45 = memnew(GDScriptDecomp_ed80f45);
 	Ref<GDScriptDecomp_85585c7> decomp_85585c7 = memnew(GDScriptDecomp_85585c7);
 	Ref<GDScriptDecomp_7124599> decomp_7124599 = memnew(GDScriptDecomp_7124599);
@@ -242,16 +239,11 @@ uint64_t BytecodeTester::test_files_2_1(const Vector<String> &p_paths) {
 		if (data.size() == 0) {
 			continue;
 		}
-		if (!ed80f45_failed && !ed80f45_passed) {
+		if (!ed80f45_failed) {
 			auto test_result = decomp_ed80f45->_test_bytecode(data, token_max, func_max);
 			switch (test_result) {
 				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_FAIL:
 					ed80f45_failed = true;
-					break;
-				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_PASS:
-					// we don't need to test further, this revision is the highest possible for bytecode version 10
-					ed80f45_passed = true;
-					rev = 0xed80f45;
 					break;
 				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_CORRUPT:
 					WARN_PRINT("BYTECODE_TEST_CORRUPT test result for ed80f45, script " + path);
@@ -261,18 +253,11 @@ uint64_t BytecodeTester::test_files_2_1(const Vector<String> &p_paths) {
 					break;
 			}
 		}
-		if (!_85585c7_failed && !_85585c7_passed) {
+		if (!_85585c7_failed) {
 			auto test_result = decomp_85585c7->_test_bytecode(data, token_max, func_max);
 			switch (test_result) {
 				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_FAIL:
 					_85585c7_failed = true;
-					break;
-				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_PASS:
-					_85585c7_passed = true;
-					if (ed80f45_failed) {
-						// no need to go further
-						rev = 0x85585c7;
-					}
 					break;
 				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_CORRUPT:
 					WARN_PRINT("BYTECODE_TEST_CORRUPT test result for 85585c7, script " + path);
@@ -282,14 +267,11 @@ uint64_t BytecodeTester::test_files_2_1(const Vector<String> &p_paths) {
 					break;
 			}
 		}
-		if (!_7124599_failed && !_7124599_passed) {
+		if (!_7124599_failed) {
 			auto test_result = decomp_7124599->_test_bytecode(data, token_max, func_max);
 			switch (test_result) {
 				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_FAIL:
 					_7124599_failed = true;
-					break;
-				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_PASS:
-					_7124599_passed = true; // doesn't currently have a pass case
 					break;
 				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_CORRUPT:
 					WARN_PRINT("BYTECODE_TEST_CORRUPT test result for 7124599, script " + path);
@@ -309,10 +291,7 @@ uint64_t BytecodeTester::test_files_2_1(const Vector<String> &p_paths) {
 	}
 	if (rev == 0) {
 		if (!ed80f45_failed) {
-			if (_85585c7_passed) {
-				rev = 0x85585c7;
-				// major token changes in ed80f45, the others should have failed
-			} else if (_7124599_failed && _85585c7_failed) {
+			if (_7124599_failed && _85585c7_failed) {
 				rev = 0xed80f45;
 			}
 		} else if (ed80f45_failed) {
@@ -344,9 +323,7 @@ uint64_t BytecodeTester::test_files_3_1(const Vector<String> &p_paths, const Vec
 	uint64_t rev = 0;
 	bool _514a3fb_failed = false;
 	bool _1a36141_failed = false;
-	bool _1a36141_passed = false;
 	bool _1ca61a3_failed = false;
-	bool _1ca61a3_passed = false;
 
 	Ref<GDScriptDecomp_514a3fb> decomp_514a3fb = memnew(GDScriptDecomp_514a3fb);
 	Ref<GDScriptDecomp_1a36141> decomp_1a36141 = memnew(GDScriptDecomp_1a36141);
@@ -372,10 +349,6 @@ uint64_t BytecodeTester::test_files_3_1(const Vector<String> &p_paths, const Vec
 				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_FAIL:
 					_514a3fb_failed = true;
 					break;
-				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_PASS:
-					// we don't need to test further, this revision is the highest possible for bytecode version 13 (3.1)
-					rev = 0x514a3fb;
-					break;
 				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_CORRUPT:
 					WARN_PRINT("BYTECODE_TEST_CORRUPT test result for 514a3fb, script " + path);
 					_514a3fb_failed = true;
@@ -384,19 +357,11 @@ uint64_t BytecodeTester::test_files_3_1(const Vector<String> &p_paths, const Vec
 					break;
 			}
 		}
-		if (!_1a36141_failed && !_1a36141_passed) {
+		if (!_1a36141_failed) {
 			auto test_result = decomp_1a36141->_test_bytecode(data, token_max, func_max);
 			switch (test_result) {
 				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_FAIL:
 					_1a36141_failed = true;
-					break;
-				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_PASS:
-					_1a36141_passed = true;
-					if (_514a3fb_failed) {
-						// no need to go further
-						rev = 0x1a36141;
-						break;
-					}
 					break;
 				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_CORRUPT:
 					WARN_PRINT("BYTECODE_TEST_CORRUPT test result for 1a36141, script " + path);
@@ -406,19 +371,11 @@ uint64_t BytecodeTester::test_files_3_1(const Vector<String> &p_paths, const Vec
 					break;
 			}
 		}
-		if (!_1ca61a3_failed && !_1ca61a3_passed) {
+		if (!_1ca61a3_failed) {
 			auto test_result = decomp_1ca61a3->_test_bytecode(data, token_max, func_max);
 			switch (test_result) {
 				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_FAIL:
 					_1ca61a3_failed = true;
-					break;
-				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_PASS:
-					_1ca61a3_passed = true;
-					if (_514a3fb_failed && _1a36141_failed) {
-						// no need to go further
-						rev = 0x1ca61a3;
-						break;
-					}
 					break;
 				case GDScriptDecomp::BytecodeTestResult::BYTECODE_TEST_CORRUPT:
 					WARN_PRINT("BYTECODE_TEST_CORRUPT test result for 1ca61a3, script " + path);
@@ -439,11 +396,7 @@ uint64_t BytecodeTester::test_files_3_1(const Vector<String> &p_paths, const Vec
 	}
 
 	if (rev == 0) {
-		if (!_514a3fb_failed && _1a36141_passed) {
-			rev = 0x1a36141;
-		} else if ((!_514a3fb_failed || !_1a36141_failed) && _1ca61a3_passed) {
-			rev = 0x1ca61a3;
-		} else if (!_514a3fb_failed && !_1a36141_failed && _1ca61a3_failed) { // there were major token changes in 3.1-beta, 1ca61a3 should have failed if the others didn't
+		if (!_514a3fb_failed && !_1a36141_failed && _1ca61a3_failed) { // there were major token changes in 3.1-beta, 1ca61a3 should have failed if the others didn't
 			// The smoothstep shift happens pretty early in the function table;
 			// We may have gotten unlucky and not found any discontinuities in the scripts we tested.
 			// Check if we can safely decompile with either.
