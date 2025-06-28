@@ -29,6 +29,7 @@ class FakeGDScript : public Script {
 	Vector<Variant> static_variables; // Static variable values.
 
 	String source;
+	int override_bytecode_revision = 0;
 	// Vector<uint8_t> binary_tokens;
 	GDScriptDecomp::ScriptState script_state;
 	String script_path;
@@ -123,6 +124,9 @@ public:
 	Error load_source_code(const String &p_path);
 
 	String get_error_message() const;
+
+	void set_override_bytecode_revision(int p_revision);
+	int get_override_bytecode_revision() const;
 };
 
 class FakeEmbeddedScript : public Script {

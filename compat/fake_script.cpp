@@ -100,7 +100,7 @@ void FakeGDScript::set_source_code(const String &p_code) {
 
 Error FakeGDScript::reload(bool p_keep_state) {
 	error_message.clear();
-	auto revision = GDRESettings::get_singleton()->get_bytecode_revision();
+	auto revision = override_bytecode_revision != 0 ? override_bytecode_revision : GDRESettings::get_singleton()->get_bytecode_revision();
 	FAKEGDSCRIPT_FAIL_COND_V_MSG(!revision, ERR_UNCONFIGURED, "No bytecode revision set");
 
 	decomp = GDScriptDecomp::create_decomp_for_commit(revision);
@@ -224,7 +224,6 @@ Error FakeGDScript::parse_script() {
 	Vector<Variant> &constants = script_state.constants;
 	Vector<uint32_t> &tokens = script_state.tokens;
 
-	bool first_annotation = true;
 	// reserved words can be used as class members in GDScript. Hooray.
 	auto is_not_actually_reserved_word = [&](int i) {
 		return (decomp->check_prev_token(i, tokens, GT::G_TK_PERIOD) ||
@@ -255,7 +254,6 @@ Error FakeGDScript::parse_script() {
 						tool = true;
 					}
 				}
-				first_annotation = false;
 			} break;
 			case GT::G_TK_PR_FUNCTION: {
 				if (!is_not_actually_reserved_word(i)) {
@@ -357,6 +355,11 @@ Variant FakeGDScript::callp(const StringName &p_method, const Variant **p_args, 
 }
 
 void FakeGDScript::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_script_path"), &FakeGDScript::get_script_path);
+	ClassDB::bind_method(D_METHOD("load_source_code", "path"), &FakeGDScript::load_source_code);
+	ClassDB::bind_method(D_METHOD("get_error_message"), &FakeGDScript::get_error_message);
+	ClassDB::bind_method(D_METHOD("set_override_bytecode_revision", "revision"), &FakeGDScript::set_override_bytecode_revision);
+	ClassDB::bind_method(D_METHOD("get_override_bytecode_revision"), &FakeGDScript::get_override_bytecode_revision);
 }
 
 String FakeGDScript::get_script_path() const {
@@ -370,6 +373,14 @@ Error FakeGDScript::load_source_code(const String &p_path) {
 
 String FakeGDScript::get_error_message() const {
 	return error_message;
+}
+
+int FakeGDScript::get_override_bytecode_revision() const {
+	return override_bytecode_revision;
+}
+
+void FakeGDScript::set_override_bytecode_revision(int p_revision) {
+	override_bytecode_revision = p_revision;
 }
 
 // FakeEmbeddedScript
