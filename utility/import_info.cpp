@@ -896,6 +896,7 @@ Error ImportInfoModern::save_md5_file(const String &output_dir) {
 
 void ImportInfo::_bind_methods() {
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("load_from_file", "path", "ver_major", "ver_minor"), &ImportInfo::load_from_file, DEFVAL(0), DEFVAL(0));
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("copy", "import_info"), &ImportInfo::copy);
 
 	ClassDB::bind_method(D_METHOD("get_iitype"), &ImportInfo::get_iitype);
 

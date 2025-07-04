@@ -148,6 +148,9 @@ public:
 class ResourceFormatLoaderCompatBinary : public CompatFormatLoader {
 	GDCLASS(ResourceFormatLoaderCompatBinary, CompatFormatLoader);
 
+protected:
+	static void _bind_methods();
+
 public:
 	static Error get_ver_major_minor(const String &p_path, uint32_t &r_ver_major, uint32_t &r_ver_minor, bool &r_suspicious);
 	static bool is_binary_resource(const String &p_path);

@@ -3458,3 +3458,7 @@ Error ResourceFormatLoaderCompatBinary::get_ver_major_minor(const String &p_path
 	ResourceLoaderCompatBinary loader;
 	return loader.get_ver_major_minor(f, r_ver_major, r_ver_minor, r_suspicious) ? OK : loader.error;
 }
+
+void ResourceFormatLoaderCompatBinary::_bind_methods() {
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("is_binary_resource", "p_path"), &ResourceFormatLoaderCompatBinary::is_binary_resource);
+}
