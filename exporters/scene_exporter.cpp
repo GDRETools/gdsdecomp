@@ -1602,12 +1602,17 @@ Ref<ExportReport> SceneExporter::export_resource(const String &output_dir, Ref<I
 		// TODO: fix errors where some models aren't being textured?
 		// move the file to the correct location
 		auto new_dest = output_dir.path_join(orignal_export_dest.replace("res://", ""));
+		gdre::ensure_dir(new_dest.get_base_dir());
 		auto da = DirAccess::create_for_path(new_dest.get_base_dir());
 		if (da.is_valid() && da->rename(dest_path, new_dest) == OK) {
 			iinfo->set_export_dest(orignal_export_dest);
 			report->set_new_source_path(orignal_export_dest);
 			report->set_saved_path(new_dest);
+		} else {
+			report->set_saved_path(dest_path);
 		}
+	} else if (err == OK) {
+		report->set_saved_path(dest_path);
 	}
 
 #if DEBUG_ENABLED
