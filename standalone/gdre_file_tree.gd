@@ -714,7 +714,6 @@ func _get_checked_files(p_item: TreeItem):
 
 func _clear():
 	if (userroot != null):
-		userroot.clear()
 		userroot = null
 	self.clear()
 	num_files = 0
