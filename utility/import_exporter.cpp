@@ -896,8 +896,14 @@ Error ImportExporter::recreate_plugin_config(const String &plugin_dir) {
 	}
 
 	bool tool_scripts_found = false;
+	bool cant_decompile = false;
 
 	for (int j = 0; j < gd_scripts.size(); j++) {
+		auto ext = gd_scripts[j].get_extension().to_lower();
+		if ((ext == "gde" || ext == "gdc") && GDRESettings::get_singleton()->get_bytecode_revision() == 0) {
+			cant_decompile = true;
+			continue;
+		}
 		String gd_script_abs_path = String("res://").path_join(rel_plugin_path).path_join(gd_scripts[j]);
 		Ref<FakeGDScript> gd_script = ResourceCompatLoader::non_global_load(gd_script_abs_path, "", &err);
 		if (gd_script.is_valid()) {
@@ -912,7 +918,7 @@ Error ImportExporter::recreate_plugin_config(const String &plugin_dir) {
 	}
 	if (main_script == "") {
 		// No tool scripts found, this is not a plugin
-		if (!tool_scripts_found) {
+		if (!tool_scripts_found && !cant_decompile) {
 			return OK;
 		}
 		return ERR_UNAVAILABLE;
