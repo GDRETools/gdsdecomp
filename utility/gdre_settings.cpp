@@ -1864,39 +1864,59 @@ void GDRESettings::_do_string_load(uint32_t i, StringLoadToken *tokens) {
 	if (src_ext == "gd" || src_ext == "gdc" || src_ext == "gde") {
 		tokens[i].err = GDScriptDecomp::get_script_strings(tokens[i].path, tokens[i].engine_version, tokens[i].strings);
 		return;
-	} else if (src_ext == "csv") {
+	} else if (src_ext == "csv" || src_ext == "json") {
 		Ref<FileAccess> f = FileAccess::open(tokens[i].path, FileAccess::READ, &tokens[i].err);
 		ERR_FAIL_COND_MSG(f.is_null(), "Failed to open file " + tokens[i].path);
-		// get the first line
-		String header = f->get_line();
-		String delimiter = ",";
-		if (!header.contains(",")) {
-			if (header.contains(";")) {
-				delimiter = ";";
-			} else if (header.contains("|")) {
-				delimiter = "|";
-			} else if (header.contains("\t")) {
-				delimiter = "\t";
-			}
-		}
-		f->seek(0);
-		while (!f->eof_reached()) {
-			Vector<String> line = f->get_csv_line(delimiter);
-			for (int j = 0; j < line.size(); j++) {
-				if (!line[j].is_numeric()) {
-					tokens[i].strings.append(line[j]);
-				}
-			}
-		}
-		return;
-	} else if (src_ext == "json") {
-		String jstring = FileAccess::get_file_as_string(tokens[i].path, &tokens[i].err);
-		ERR_FAIL_COND_MSG(tokens[i].err, "Failed to open file " + tokens[i].path);
-		if (jstring.strip_edges().is_empty()) {
+		uint8_t file_len = f->get_length();
+		if (file_len == 0) {
 			return;
 		}
-		Variant var = JSON::parse_string(jstring);
-		gdre::get_strings_from_variant(var, tokens[i].strings, tokens[i].engine_version);
+		Vector<uint8_t> file_buf;
+		file_buf.resize(file_len);
+		f->get_buffer(file_buf.ptrw(), file_len);
+		// check first 8000 bytes for null bytes
+		for (int j = 0; j < MIN(file_len, 8000); j++) {
+			if (file_buf[j] == 0) {
+				return;
+			}
+		}
+		if (!gdre::detect_utf8(file_buf)) {
+			return;
+		}
+
+		if (src_ext == "csv") {
+			f->seek(0);
+			// get the first line
+			String header = f->get_line();
+			String delimiter = ",";
+			if (!header.contains(",")) {
+				if (header.contains(";")) {
+					delimiter = ";";
+				} else if (header.contains("|")) {
+					delimiter = "|";
+				} else if (header.contains("\t")) {
+					delimiter = "\t";
+				}
+			}
+			f->seek(0);
+			while (!f->eof_reached()) {
+				Vector<String> line = f->get_csv_line(delimiter);
+				for (int j = 0; j < line.size(); j++) {
+					if (!line[j].is_numeric()) {
+						tokens[i].strings.append(line[j]);
+					}
+				}
+			}
+		} else if (src_ext == "json") {
+			String jstring;
+			tokens[i].err = jstring.append_utf8((const char *)file_buf.ptr(), file_len);
+			ERR_FAIL_COND_MSG(tokens[i].err, "Failed to open file " + tokens[i].path);
+			if (jstring.strip_edges().is_empty()) {
+				return;
+			}
+			Variant var = JSON::parse_string(jstring);
+			gdre::get_strings_from_variant(var, tokens[i].strings, tokens[i].engine_version);
+		}
 		return;
 	}
 	auto res = ResourceCompatLoader::fake_load(tokens[i].path, "", &tokens[i].err);
