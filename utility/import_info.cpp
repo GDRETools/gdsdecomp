@@ -153,6 +153,7 @@ Ref<ResourceImportMetadatav2> copy_imd_v2(Ref<ResourceImportMetadatav2> p_cf) {
 }
 
 Ref<ImportInfo> ImportInfo::copy(const Ref<ImportInfo> &p_iinfo) {
+	ERR_FAIL_COND_V_MSG(p_iinfo.is_null(), Ref<ImportInfo>(), "ImportInfo is null");
 	Ref<ImportInfo> r_iinfo;
 	switch (p_iinfo->iitype) {
 		case IInfoType::MODERN:
