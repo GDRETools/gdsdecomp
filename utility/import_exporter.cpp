@@ -854,6 +854,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		if (get_settings()->save_project_config(output_dir) != OK) {
 			print_line("ERROR: Failed to save project config!");
 		} else {
+			print_line("Saved project config.");
 			// Remove binary project config, as editors will load from it instead of the text one
 			dir->remove(get_settings()->get_project_config_path().get_file());
 		}

@@ -252,7 +252,6 @@ Error ProjectConfigLoader::_save_settings_text(const String &p_file, const RBMap
 			file->store_string(F->get().property_name_encode() + "=" + vstr + "\n");
 		}
 	}
-	print_line("Saved project config " + p_file.get_file() + ".");
 	return OK;
 }
 
