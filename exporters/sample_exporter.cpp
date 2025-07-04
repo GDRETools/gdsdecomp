@@ -306,3 +306,7 @@ void SampleExporter::get_handled_importers(List<String> *out) const {
 String SampleExporter::get_name() const {
 	return "WAV";
 }
+
+String SampleExporter::get_default_export_extension(const String &res_path) const {
+	return "wav";
+}

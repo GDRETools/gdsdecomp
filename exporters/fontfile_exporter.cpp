@@ -33,3 +33,7 @@ void FontFileExporter::get_handled_importers(List<String> *out) const {
 String FontFileExporter::get_name() const {
 	return "FontFile";
 }
+
+String FontFileExporter::get_default_export_extension(const String &res_path) const {
+	return "ttf";
+}

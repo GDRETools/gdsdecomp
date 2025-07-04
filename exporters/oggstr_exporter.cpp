@@ -190,3 +190,7 @@ void OggStrExporter::get_handled_importers(List<String> *out) const {
 String OggStrExporter::get_name() const {
 	return "OggVorbis";
 }
+
+String OggStrExporter::get_default_export_extension(const String &res_path) const {
+	return "ogg";
+}

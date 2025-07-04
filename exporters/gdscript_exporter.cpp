@@ -91,3 +91,7 @@ bool GDScriptExporter::supports_multithread() const {
 String GDScriptExporter::get_name() const {
 	return "GDScript";
 }
+
+String GDScriptExporter::get_default_export_extension(const String &res_path) const {
+	return "gd";
+}

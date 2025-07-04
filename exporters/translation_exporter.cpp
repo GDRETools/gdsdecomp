@@ -1384,3 +1384,7 @@ void TranslationExporter::get_handled_importers(List<String> *out) const {
 String TranslationExporter::get_name() const {
 	return "Translation";
 }
+
+String TranslationExporter::get_default_export_extension(const String &res_path) const {
+	return "csv";
+}

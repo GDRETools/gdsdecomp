@@ -66,3 +66,7 @@ void Mp3StrExporter::get_handled_importers(List<String> *out) const {
 String Mp3StrExporter::get_name() const {
 	return "MP3";
 }
+
+String Mp3StrExporter::get_default_export_extension(const String &res_path) const {
+	return "mp3";
+}

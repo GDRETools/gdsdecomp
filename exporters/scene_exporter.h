@@ -21,4 +21,5 @@ public:
 	virtual bool supports_multithread() const override { return false; }
 	virtual String get_name() const override;
 	virtual bool supports_nonpack_export() const override { return false; }
+	virtual String get_default_export_extension(const String &res_path) const override;
 };

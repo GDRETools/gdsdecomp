@@ -22,6 +22,7 @@ public:
 	virtual void get_handled_importers(List<String> *out) const;
 	virtual bool supports_multithread() const;
 	virtual bool supports_nonpack_export() const;
+	virtual String get_default_export_extension(const String &res_path) const;
 };
 
 class Exporter : public Object {
@@ -43,5 +44,7 @@ public:
 	static Ref<ExportReport> export_resource(const String &output_dir, Ref<ImportInfo> import_infos);
 	static Error export_file(const String &out_path, const String &res_path);
 	static Ref<ResourceExporter> get_exporter(const String &importer, const String &type);
-	static Ref<ResourceExporter> get_nonpack_exporter_from_path(const String &res_path);
+	static Ref<ResourceExporter> get_exporter_from_path(const String &res_path, bool p_nonpack_export = false);
+	static bool is_exportable_resource(const String &res_path);
+	static String get_default_export_extension(const String &res_path);
 };

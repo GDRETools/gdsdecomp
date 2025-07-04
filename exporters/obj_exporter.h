@@ -36,6 +36,7 @@ public:
 	virtual void get_handled_importers(List<String> *r_importers) const override;
 	virtual Ref<ExportReport> export_resource(const String &p_output_dir, Ref<ImportInfo> p_import_info) override;
 	virtual bool supports_multithread() const override;
+	virtual String get_default_export_extension(const String &res_path) const override;
 };
 
 #endif // OBJ_EXPORTER_H

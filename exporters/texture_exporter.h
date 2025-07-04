@@ -22,4 +22,5 @@ public:
 	virtual void get_handled_types(List<String> *out) const override;
 	virtual void get_handled_importers(List<String> *out) const override;
 	virtual String get_name() const override;
+	virtual String get_default_export_extension(const String &res_path) const override;
 };

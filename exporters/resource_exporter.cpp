@@ -76,12 +76,17 @@ bool ResourceExporter::supports_nonpack_export() const {
 	return true;
 }
 
+String ResourceExporter::get_default_export_extension(const String &res_path) const {
+	ERR_FAIL_V_MSG(String(), "Not implemented");
+}
+
 void ResourceExporter::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_name"), &ResourceExporter::get_name);
 	ClassDB::bind_method(D_METHOD("supports_nonpack_export"), &ResourceExporter::supports_nonpack_export);
 	ClassDB::bind_method(D_METHOD("export_file", "out_path", "src_path"), &ResourceExporter::export_file);
 	ClassDB::bind_method(D_METHOD("export_resource", "output_dir", "import_infos"), &ResourceExporter::export_resource);
 	ClassDB::bind_method(D_METHOD("handles_import", "importer", "resource_type"), &ResourceExporter::handles_import);
+	ClassDB::bind_method(D_METHOD("get_default_export_extension", "res_path"), &ResourceExporter::get_default_export_extension);
 }
 
 void Exporter::add_exporter(Ref<ResourceExporter> exporter, bool at_front) {
@@ -150,16 +155,29 @@ Error Exporter::export_file(const String &out_path, const String &res_path) {
 	return exporter->export_file(out_path, res_path);
 }
 
-Ref<ResourceExporter> Exporter::get_nonpack_exporter_from_path(const String &res_path) {
+Ref<ResourceExporter> Exporter::get_exporter_from_path(const String &res_path, bool p_nonpack_export) {
+	if (!ResourceCompatLoader::handles_resource(res_path, "")) {
+		return Ref<ResourceExporter>();
+	}
+
 	String importer = "";
 	Ref<ResourceInfo> info = ResourceCompatLoader::get_resource_info(res_path, importer);
 	String type = info.is_valid() ? info->type : "";
 	for (int i = 0; i < exporter_count; ++i) {
-		if (exporters[i]->handles_import(importer, type) && exporters[i]->supports_nonpack_export()) {
+		if (exporters[i]->handles_import(importer, type) && (!p_nonpack_export || exporters[i]->supports_nonpack_export())) {
 			return exporters[i];
 		}
 	}
 	return Ref<ResourceExporter>();
+}
+
+bool Exporter::is_exportable_resource(const String &res_path) {
+	return !get_exporter_from_path(res_path, false).is_null();
+}
+
+String Exporter::get_default_export_extension(const String &res_path) {
+	auto exporter = get_exporter_from_path(res_path, false);
+	return exporter.is_null() ? "" : exporter->get_default_export_extension(res_path);
 }
 
 void Exporter::_bind_methods() {
@@ -167,5 +185,7 @@ void Exporter::_bind_methods() {
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("remove_exporter", "exporter"), &Exporter::remove_exporter);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("export_resource", "output_dir", "import_infos"), &Exporter::export_resource);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("export_file", "out_path", "res_path"), &Exporter::export_file);
-	ClassDB::bind_static_method(get_class_static(), D_METHOD("get_nonpack_exporter_from_path", "res_path"), &Exporter::get_nonpack_exporter_from_path);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("get_exporter_from_path", "res_path", "nonpack_export"), &Exporter::get_exporter_from_path, DEFVAL(true));
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("is_exportable_resource", "res_path"), &Exporter::is_exportable_resource);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("get_default_export_extension", "res_path"), &Exporter::get_default_export_extension);
 }

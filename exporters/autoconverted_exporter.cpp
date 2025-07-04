@@ -34,3 +34,10 @@ void AutoConvertedExporter::get_handled_importers(List<String> *out) const {
 String AutoConvertedExporter::get_name() const {
 	return "AutoConverted";
 }
+
+String AutoConvertedExporter::get_default_export_extension(const String &res_path) const {
+	if (res_path.get_extension().to_lower() == "scn") {
+		return "tscn";
+	}
+	return "tres";
+}

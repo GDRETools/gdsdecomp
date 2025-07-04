@@ -193,3 +193,7 @@ void GDExtensionExporter::get_handled_importers(List<String> *out) const {
 String GDExtensionExporter::get_name() const {
 	return "GDExtension";
 }
+
+String GDExtensionExporter::get_default_export_extension(const String &res_path) const {
+	return "gdext";
+}

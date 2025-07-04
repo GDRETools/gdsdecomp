@@ -608,3 +608,7 @@ bool ObjExporter::supports_multithread() const {
 String ObjExporter::get_name() const {
 	return "Wavefront OBJ";
 }
+
+String ObjExporter::get_default_export_extension(const String &res_path) const {
+	return "obj";
+}
