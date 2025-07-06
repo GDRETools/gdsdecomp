@@ -1057,6 +1057,11 @@ struct KeyWorker {
 			return pop_keys();
 		}
 
+		// Stage 1.25: try the messages themselves
+		for (const String &message : default_messages) {
+			try_key(message);
+		}
+
 		// Stage 1.5: Previous keys found
 		if (key_to_message.size() != default_messages.size()) {
 			for (const String &key : previous_keys_found) {
