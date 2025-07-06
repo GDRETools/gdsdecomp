@@ -1299,6 +1299,30 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 			ERR_FAIL_V_MSG(report, "No default translation found for " + iinfo->get_path());
 		}
 	}
+	// check default_messages for empty strings
+	size_t empty_strings = 0;
+	for (auto &message : default_messages) {
+		if (message.is_empty()) {
+			empty_strings++;
+		}
+	}
+	// if >20% of the strings are empty, this probably isn't the default translation; search the rest of the translations for a non-empty string
+	if (empty_strings > default_messages.size() * 0.2) {
+		size_t best_empty_strings = empty_strings;
+		for (int i = 0; i < translations.size(); i++) {
+			size_t empty_strings = 0;
+			for (auto &message : translation_messages[i]) {
+				if (message.is_empty()) {
+					empty_strings++;
+				}
+			}
+			if (empty_strings < best_empty_strings) {
+				best_empty_strings = empty_strings;
+				default_translation = translations[i];
+				default_messages = translation_messages[i];
+			}
+		}
+	}
 	// We can't recover the keys from Optimized translations, we have to guess
 	int missing_keys = 0;
 	bool is_optimized = keys.size() == 0;
