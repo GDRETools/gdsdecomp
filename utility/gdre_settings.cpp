@@ -1867,7 +1867,7 @@ void GDRESettings::_do_string_load(uint32_t i, StringLoadToken *tokens) {
 	} else if (src_ext == "csv" || src_ext == "json") {
 		Ref<FileAccess> f = FileAccess::open(tokens[i].path, FileAccess::READ, &tokens[i].err);
 		ERR_FAIL_COND_MSG(f.is_null(), "Failed to open file " + tokens[i].path);
-		uint8_t file_len = f->get_length();
+		uint64_t file_len = f->get_length();
 		if (file_len == 0) {
 			return;
 		}
