@@ -74,7 +74,7 @@ void GDRELogger::logv(const char *p_format, va_list p_list, bool p_err) {
 		}
 
 		if (inGuiMode() && !is_gdscript_backtrace) {
-			GDRESettings::get_singleton()->call_deferred(SNAME("emit_signal"), "write_log_message", String::utf8(buf));
+			GodotREEditorStandalone::get_singleton()->call_deferred(SNAME("write_log_message"), String::utf8(buf));
 		}
 		if (file.is_valid()) {
 			file->store_buffer((uint8_t *)buf, len);

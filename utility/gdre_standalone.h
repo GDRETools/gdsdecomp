@@ -13,6 +13,8 @@ class GodotREEditorStandalone : public Control {
 	HBoxContainer *menu_hb = nullptr;
 	GDREProgressDialog *progress_dialog = nullptr;
 	GDREAudioStreamPreviewGeneratorNode *audio_stream_preview_generator_node = nullptr;
+	uint64_t last_log_message_time = 0;
+	Vector<String> log_message_buffer;
 
 protected:
 	void _notification(int p_notification);
@@ -26,7 +28,7 @@ public:
 	static void tree_set_edit_checkbox_cell_only_when_checkbox_is_pressed(Tree *p_tree, bool enabled);
 
 	void pck_select_request(const Vector<String> &p_path);
-	void _write_log_message(String p_message);
+	void write_log_message(const String &p_message);
 	String get_version();
 	static GodotREEditorStandalone *get_singleton() { return singleton; }
 

@@ -414,34 +414,6 @@ func _on_PCKMenu_item_selected(index):
 		PckMenuID.PATCH_PCK:
 			launch_patch_pck_window()
 
-var _cooldown = false
-var timeout: SceneTreeTimer = null
-var buffer: PackedStringArray = []
-
-func _on_cooldown():
-	var new_text = "".join(buffer)
-	buffer.clear()
-	if not new_text.is_empty():
-		$log_window.text += new_text
-		$log_window.scroll_to_line($log_window.get_line_count() - 1)
-	_cooldown = false
-
-func _on_re_editor_standalone_write_log_message(message):
-	if timeout:
-		timeout.time_left = 0.02
-	if _cooldown:
-		buffer.append(message)
-		return
-	timeout = get_tree().create_timer(0.02)
-	timeout.timeout.connect(self._on_cooldown)
-
-	_cooldown = true
-	var new_text = "".join(buffer) + message
-	buffer.clear()
-	$log_window.text += new_text
-	$log_window.scroll_to_line($log_window.get_line_count() - 1)
-	buffer.clear()
-
 func register_dropped_files():
 	pass
 	var window = get_viewport()
@@ -626,7 +598,6 @@ func _ready():
 	REAL_ROOT_WINDOW = get_window()
 	var popup_menu_gdremenu: PopupMenu = $MenuContainer/REToolsMenu.get_popup()
 	popup_menu_gdremenu.connect("id_pressed", self._on_REToolsMenu_item_selected)
-	GDRESettings.connect("write_log_message", self._on_re_editor_standalone_write_log_message)
 	$MenuContainer/PCKMenu.get_popup().connect("id_pressed", self._on_PCKMenu_item_selected)
 	$MenuContainer/GDScriptMenu.get_popup().connect("id_pressed", self._on_GDScriptMenu_item_selected)
 	$MenuContainer/ResourcesMenu.get_popup().connect("id_pressed", self._on_ResourcesMenu_item_selected)

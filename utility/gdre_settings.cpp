@@ -2053,7 +2053,6 @@ void GDRESettings::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_home_dir"), &GDRESettings::get_home_dir);
 	ClassDB::bind_method(D_METHOD("get_errors"), &GDRESettings::get_errors);
 	ClassDB::bind_method(D_METHOD("get_auto_display_scale"), &GDRESettings::get_auto_display_scale);
-	ADD_SIGNAL(MethodInfo("write_log_message", PropertyInfo(Variant::STRING, "message")));
 }
 
 // This is at the bottom to account for the platform header files pulling in their respective OS headers and creating all sorts of issues
