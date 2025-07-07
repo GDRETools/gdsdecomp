@@ -29,6 +29,7 @@ oversampling_override = 1.0
 title = "Project Recovery"
 position = Vector2i(0, 24)
 size = Vector2i(1400, 800)
+min_size = Vector2i(730, 500)
 theme = ExtResource("1_ljbdy")
 script = ExtResource("2_edjtc")
 
@@ -72,51 +73,44 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_type_variation = &"LightPanel"
 
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
+[node name="MarginContainer" type="MarginContainer" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 16
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="HSplitContainer" type="HSplitContainer" parent="VBoxContainer"]
+[node name="HSplitContainer" type="HSplitContainer" parent="MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 split_offset = 1152
 drag_area_highlight_in_editor = true
 
-[node name="Control" type="Control" parent="VBoxContainer/HSplitContainer"]
-z_index = 1
-custom_minimum_size = Vector2(730, 300)
+[node name="TreeViewVBox" type="VBoxContainer" parent="MarginContainer/VBoxContainer/HSplitContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="top_hbox" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox"]
 layout_mode = 2
 
-[node name="FileTree" type="Tree" parent="VBoxContainer/HSplitContainer/Control"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = -1
-anchor_right = 0.998
-anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 102.0
-offset_right = 0.271973
-offset_bottom = -47.0
-grow_horizontal = 2
-grow_vertical = 2
-columns = 2
-column_titles_visible = true
-select_mode = 2
-script = ExtResource("2_02dmf")
-metadata/_custom_type_script = "uid://cww2hw50p8q3i"
+[node name="info_hbox" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/top_hbox"]
+layout_mode = 2
+size_flags_horizontal = 2
+theme_override_constants/separation = 8
 
-[node name="VersionLabel" type="RichTextLabel" parent="VBoxContainer/HSplitContainer/Control"]
+[node name="VersionLabel" type="RichTextLabel" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/top_hbox/info_hbox"]
 unique_name_in_owner = true
-layout_mode = 0
-offset_left = 16.0
-offset_top = 64.0
-offset_right = 94.0
-offset_bottom = 94.0
+clip_contents = false
+layout_mode = 2
 theme_override_font_sizes/bold_font_size = 16
 theme_override_styles/normal = SubResource("StyleBoxEmpty_1bn3y")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_47yxm")
@@ -124,23 +118,23 @@ theme_override_styles/background = SubResource("StyleBoxEmpty_p7bby")
 theme_override_styles/fill = SubResource("StyleBoxEmpty_avhe5")
 bbcode_enabled = true
 text = "[b]Version:[/b]"
+fit_content = true
+scroll_active = false
+autowrap_mode = 0
+vertical_alignment = 1
 
-[node name="VersionText" type="Label" parent="VBoxContainer/HSplitContainer/Control"]
+[node name="VersionText" type="Label" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/top_hbox/info_hbox"]
 unique_name_in_owner = true
-layout_mode = 0
-offset_left = 92.0
-offset_top = 61.0
-offset_right = 175.0
-offset_bottom = 92.0
+layout_mode = 2
 text = "0.0.0"
 
-[node name="InfoLabel" type="RichTextLabel" parent="VBoxContainer/HSplitContainer/Control"]
+[node name="VSeparator" type="VSeparator" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/top_hbox/info_hbox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="InfoLabel" type="RichTextLabel" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/top_hbox/info_hbox"]
 unique_name_in_owner = true
-layout_mode = 0
-offset_left = 194.0
-offset_top = 65.0
-offset_right = 272.0
-offset_bottom = 95.0
+layout_mode = 2
 theme_override_font_sizes/bold_font_size = 16
 theme_override_styles/normal = SubResource("StyleBoxEmpty_y2b6b")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_au50u")
@@ -148,169 +142,125 @@ theme_override_styles/background = SubResource("StyleBoxEmpty_jbkrx")
 theme_override_styles/fill = SubResource("StyleBoxEmpty_3os3m")
 bbcode_enabled = true
 text = "[b]Info:[/b]"
+fit_content = true
+scroll_active = false
+autowrap_mode = 0
+vertical_alignment = 1
 
-[node name="InfoText" type="Label" parent="VBoxContainer/HSplitContainer/Control"]
+[node name="InfoText" type="Label" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/top_hbox/info_hbox"]
 unique_name_in_owner = true
-layout_mode = 0
-offset_left = 241.0
-offset_top = 62.0
-offset_right = 434.0
-offset_bottom = 144.0
+layout_mode = 2
 text = "<info text>"
 
-[node name="Filter" type="LineEdit" parent="VBoxContainer/HSplitContainer/Control"]
+[node name="filter_hbox" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/top_hbox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+alignment = 2
+
+[node name="Check" type="Button" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/top_hbox/filter_hbox"]
 unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.5
-anchor_right = 0.997
-offset_left = 264.0
-offset_top = 63.0
-offset_right = 0.407959
-offset_bottom = 94.0
+layout_mode = 2
+tooltip_text = "Checks all shown files"
+text = "Check all"
+
+[node name="Uncheck" type="Button" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/top_hbox/filter_hbox"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Unchecks all shown files"
+text = "Uncheck all"
+
+[node name="Filter" type="LineEdit" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/top_hbox/filter_hbox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 31)
+layout_mode = 2
+size_flags_horizontal = 3
 placeholder_text = "Filter Files"
 clear_button_enabled = true
 right_icon = ExtResource("3_i5ujv")
 
-[node name="Uncheck" type="Button" parent="VBoxContainer/HSplitContainer/Control"]
+[node name="FileTree" type="Tree" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox"]
 unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = 154.0
-offset_top = 63.0
-offset_right = 255.0
-offset_bottom = 94.0
-grow_horizontal = 2
-tooltip_text = "Unchecks all shown files"
-text = "Uncheck all"
+layout_mode = 2
+size_flags_vertical = 3
+columns = 2
+column_titles_visible = true
+select_mode = 2
+script = ExtResource("2_02dmf")
+metadata/_custom_type_script = "uid://cww2hw50p8q3i"
 
-[node name="Check" type="Button" parent="VBoxContainer/HSplitContainer/Control"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = 63.0
-offset_top = 64.0
-offset_right = 144.0
-offset_bottom = 95.0
-grow_horizontal = 0
-tooltip_text = "Checks all shown files"
-text = "Check all"
+[node name="dir_hbox" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
 
-[node name="Directory" type="LineEdit" parent="VBoxContainer/HSplitContainer/Control"]
+[node name="DirectoryLabel" type="Label" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/dir_hbox"]
 unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 119.0
-offset_top = -37.0
-offset_right = -96.0
-offset_bottom = -6.0
-
-[node name="DirectoryButton" type="Button" parent="VBoxContainer/HSplitContainer/Control"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -83.0
-offset_top = -37.0
-offset_right = -3.0
-offset_bottom = -6.0
-grow_horizontal = 0
-grow_vertical = 0
-text = "Select"
-
-[node name="DirectoryLabel" type="Label" parent="VBoxContainer/HSplitContainer/Control"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 9.0
-offset_top = -37.0
-offset_right = 105.0
-offset_bottom = -6.0
+layout_mode = 2
 text = "Extract to..."
 
-[node name="ShowResourcePreview" type="Button" parent="VBoxContainer/HSplitContainer/Control"]
+[node name="Directory" type="LineEdit" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/dir_hbox"]
 unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.992
-anchor_right = 0.992
-offset_left = -207.912
-offset_top = 8.0
-offset_right = 0.0878906
-offset_bottom = 47.0
-toggle_mode = true
-text = "Show Resource Preview..."
+layout_mode = 2
+size_flags_horizontal = 3
 
-[node name="GdreResourcePreview" parent="VBoxContainer/HSplitContainer" instance=ExtResource("5_ljbdy")]
+[node name="DirectoryButton" type="Button" parent="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/dir_hbox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Select"
+
+[node name="GdreResourcePreview" parent="MarginContainer/VBoxContainer/HSplitContainer" instance=ExtResource("5_ljbdy")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HBoxContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="Control" type="Control" parent="VBoxContainer/HBoxContainer"]
-custom_minimum_size = Vector2(0, 40)
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
+alignment = 1
 
-[node name="RadioButtons" type="HBoxContainer" parent="VBoxContainer/HBoxContainer/Control"]
+[node name="RadioButtons" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer/HBoxContainer"]
 unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 0.187
-anchor_bottom = 0.187
-offset_left = 9.0
-offset_top = -15.4800005
-offset_right = 297.0
-offset_bottom = 15.5199995
+layout_mode = 2
+size_flags_horizontal = 2
 
-[node name="ExtractOnly" type="CheckBox" parent="VBoxContainer/HBoxContainer/Control/RadioButtons"]
+[node name="ExtractOnly" type="CheckBox" parent="MarginContainer/VBoxContainer/HBoxContainer/HBoxContainer/RadioButtons"]
 unique_name_in_owner = true
 layout_mode = 2
 button_group = SubResource("ButtonGroup_bvmre")
 text = "Extract Only"
 
-[node name="FullRecovery" type="CheckBox" parent="VBoxContainer/HBoxContainer/Control/RadioButtons"]
+[node name="FullRecovery" type="CheckBox" parent="MarginContainer/VBoxContainer/HBoxContainer/HBoxContainer/RadioButtons"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 button_group = SubResource("ButtonGroup_bvmre")
 text = "Full Recovery"
 
-[node name="ExtractButton" type="Button" parent="VBoxContainer/HBoxContainer/Control"]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.48100004
-anchor_top = -0.125
-anchor_right = 0.48100004
-anchor_bottom = -0.125
-offset_left = -37.400024
-offset_top = -1.0
-offset_right = 38.599976
-offset_bottom = 29.0
+[node name="ExtractButton" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer/HBoxContainer"]
+layout_mode = 2
 text = "Extract"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 10
+
+[node name="ShowResourcePreview" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer/HBoxContainer/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "Show Resource Preview..."
 
 [connection signal="close_requested" from="." to="." method="cancelled"]
 [connection signal="canceled" from="DownloadConfirmDialog" to="." method="_on_download_confirm_dialog_canceled"]
 [connection signal="confirmed" from="DownloadConfirmDialog" to="." method="_on_download_confirm_dialog_confirmed"]
-[connection signal="cell_selected" from="VBoxContainer/HSplitContainer/Control/FileTree" to="." method="_on_file_tree_item_selected"]
-[connection signal="item_selected" from="VBoxContainer/HSplitContainer/Control/FileTree" to="." method="_on_file_tree_item_selected"]
-[connection signal="text_changed" from="VBoxContainer/HSplitContainer/Control/Filter" to="." method="_on_filter_text_changed"]
-[connection signal="pressed" from="VBoxContainer/HSplitContainer/Control/Uncheck" to="." method="_on_uncheck_all_pressed"]
-[connection signal="pressed" from="VBoxContainer/HSplitContainer/Control/Check" to="." method="_on_check_all_pressed"]
-[connection signal="pressed" from="VBoxContainer/HSplitContainer/Control/DirectoryButton" to="." method="_on_directory_button_pressed"]
-[connection signal="toggled" from="VBoxContainer/HSplitContainer/Control/ShowResourcePreview" to="." method="_on_show_resource_preview_toggled"]
-[connection signal="pressed" from="VBoxContainer/HBoxContainer/Control/ExtractButton" to="." method="confirm"]
+[connection signal="pressed" from="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/top_hbox/filter_hbox/Check" to="." method="_on_check_all_pressed"]
+[connection signal="pressed" from="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/top_hbox/filter_hbox/Uncheck" to="." method="_on_uncheck_all_pressed"]
+[connection signal="text_changed" from="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/top_hbox/filter_hbox/Filter" to="." method="_on_filter_text_changed"]
+[connection signal="cell_selected" from="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/FileTree" to="." method="_on_file_tree_item_selected"]
+[connection signal="item_selected" from="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/FileTree" to="." method="_on_file_tree_item_selected"]
+[connection signal="pressed" from="MarginContainer/VBoxContainer/HSplitContainer/TreeViewVBox/dir_hbox/DirectoryButton" to="." method="_on_directory_button_pressed"]
+[connection signal="pressed" from="MarginContainer/VBoxContainer/HBoxContainer/HBoxContainer/ExtractButton" to="." method="confirm"]
+[connection signal="toggled" from="MarginContainer/VBoxContainer/HBoxContainer/HBoxContainer/HBoxContainer/ShowResourcePreview" to="." method="_on_show_resource_preview_toggled"]
