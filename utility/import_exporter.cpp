@@ -382,7 +382,7 @@ Error ImportExporter::_reexport_translations(Vector<ImportExporter::ExportToken>
 		size_t start = token_size + non_multithreaded_tokens.size() - incomplete_translation_tokens.size() - 1;
 		print_line("Re-exporting translations...");
 		pr->step("Re-exporting translations...", start, true);
-		err = TaskManager::get_singleton()->run_task_on_current_thread(
+		err = TaskManager::get_singleton()->run_group_task_on_current_thread(
 				this,
 				&ImportExporter::_do_export,
 				incomplete_translation_tokens.ptrw(),
@@ -680,7 +680,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		}
 	}
 	GDRELogger::clear_error_queues();
-	err = TaskManager::get_singleton()->run_task_on_current_thread(
+	err = TaskManager::get_singleton()->run_group_task_on_current_thread(
 			this,
 			&ImportExporter::_do_export,
 			non_multithreaded_tokens.ptrw(),

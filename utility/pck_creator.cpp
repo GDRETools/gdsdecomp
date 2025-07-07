@@ -110,7 +110,7 @@ struct PckCreateListDirTaskData {
 			}
 
 			Ref<EditorProgressGDDC> ep;
-			TaskManager::GroupTaskID group_id = -1;
+			TaskManager::TaskManagerID group_id = -1;
 			if (tokens.size() > 0) {
 				String desc = "Reading folder " + dir + " structure...";
 				String task = "ListDirTaskData(" + dir + +")_" + String::num_int64(OS::get_singleton()->get_ticks_usec());
@@ -133,7 +133,7 @@ struct PckCreateListDirTaskData {
 				}
 			}
 			if (group_id != -1) {
-				TaskManager::get_singleton()->wait_for_group_task_completion(group_id);
+				TaskManager::get_singleton()->wait_for_task_completion(group_id);
 			}
 			for (auto &t : tokens) {
 				ret.append_array(std::move(t.ret));

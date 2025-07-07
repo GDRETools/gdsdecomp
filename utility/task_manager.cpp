@@ -16,7 +16,7 @@ TaskManager *TaskManager::get_singleton() {
 	return singleton;
 }
 
-Error TaskManager::wait_for_group_task_completion(GroupTaskID p_group_id) {
+Error TaskManager::wait_for_task_completion(TaskManagerID p_group_id) {
 	if (p_group_id == -1) {
 		return ERR_INVALID_PARAMETER;
 	}
@@ -72,7 +72,7 @@ void TaskManager::DownloadTaskData::wait_for_task_completion_internal() {
 	}
 }
 
-bool TaskManager::DownloadTaskData::is_done() {
+bool TaskManager::DownloadTaskData::is_done() const {
 	return done;
 }
 
@@ -115,6 +115,7 @@ void TaskManager::DownloadQueueThread::main_loop() {
 				worker_cv.notify_all();
 			}
 		});
+		ERR_CONTINUE_MSG(!task, "Download task ID " + itos(item) + " not found");
 		while (!task->is_done() && !task->is_waiting) {
 			task->update_progress();
 			OS::get_singleton()->delay_usec(10000);
@@ -221,7 +222,7 @@ TaskManager::DownloadQueueThread::~DownloadQueueThread() {
 	tasks.clear();
 }
 
-bool TaskManager::is_current_group_task_canceled() {
+bool TaskManager::is_current_task_canceled() {
 	bool canceled = false;
 	group_id_to_description.for_each([&](auto &v) {
 		if (v.second->is_canceled()) {
