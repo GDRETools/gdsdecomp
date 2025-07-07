@@ -1283,7 +1283,9 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 			String error_string;
 			// load it just to verify that it's valid
 			p_err = load_model(p_dest_path, model, error_string);
-			ERR_FAIL_COND_V_MSG(p_err, ERR_FILE_CORRUPT, "Failed to load glTF document from " + p_dest_path + ": " + error_string);
+			if (p_err != OK) {
+				return ERR_FILE_CORRUPT;
+			}
 			return OK;
 		};
 		err = _export_scene();
