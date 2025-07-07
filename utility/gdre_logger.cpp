@@ -47,11 +47,14 @@ void GDRELogger::logv(const char *p_format, va_list p_list, bool p_err) {
 			vsnprintf(buf, len + 1, p_format, list_copy);
 		}
 		va_end(list_copy);
+
+		bool is_gdscript_backtrace = false;
 		if (p_err) {
 			String str = String::utf8(buf);
 			String lstripped = str.strip_edges(true, false);
+			is_gdscript_backtrace = lstripped.begins_with("GDScript backtrace");
 			// If it's the follow-up stacktrace line of an error, don't count it.
-			bool is_stacktrace = lstripped.begins_with("at:") || lstripped.begins_with("GDScript backtrace");
+			bool is_stacktrace = lstripped.begins_with("at:") || is_gdscript_backtrace;
 			if (!is_stacktrace) {
 				if (len >= 8 && lstripped.begins_with("WARNING:")) {
 					warning_count++;
@@ -70,7 +73,7 @@ void GDRELogger::logv(const char *p_format, va_list p_list, bool p_err) {
 			previous_was_error = false;
 		}
 
-		if (inGuiMode()) {
+		if (inGuiMode() && !is_gdscript_backtrace) {
 			GDRESettings::get_singleton()->call_deferred(SNAME("emit_signal"), "write_log_message", String::utf8(buf));
 		}
 		if (file.is_valid()) {
