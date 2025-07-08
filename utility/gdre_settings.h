@@ -164,10 +164,8 @@ private:
 	ParallelFlatHashMap<String, ResourceUID::ID> path_to_uid;
 	HashMap<String, Dictionary> script_cache;
 
-	uint8_t old_key[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-	bool set_key = false;
 	Vector<uint8_t> enc_key;
-	String enc_key_str = "";
+
 	bool in_editor = false;
 	bool first_load = true;
 	bool error_encryption = false;
@@ -206,6 +204,10 @@ private:
 
 	static ResourceUID::ID _get_uid_for_path(const String &p_path, bool _generate = false);
 
+
+	void load_encryption_key();
+	void unload_encryption_key();
+
 protected:
 	static void _bind_methods();
 
@@ -217,11 +219,12 @@ public:
 	String get_gdre_resource_path() const;
 	String get_gdre_user_path() const;
 
-	Vector<uint8_t> get_encryption_key();
-	String get_encryption_key_string();
 	bool is_pack_loaded() const;
 
 	bool had_encryption_error() const;
+
+	Vector<uint8_t> get_encryption_key();
+	String get_encryption_key_string();
 	void _set_error_encryption(bool is_encryption_error);
 	Error set_encryption_key(Vector<uint8_t> key);
 	Error set_encryption_key_string(const String &key);

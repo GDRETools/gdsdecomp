@@ -277,12 +277,6 @@ String GDRESettings::get_gdre_user_path() const {
 	return gdre_user_path;
 }
 
-Vector<uint8_t> GDRESettings::get_encryption_key() {
-	return enc_key;
-}
-String GDRESettings::get_encryption_key_string() {
-	return enc_key_str;
-}
 bool GDRESettings::is_pack_loaded() const {
 	return current_project.is_valid();
 }
@@ -351,16 +345,7 @@ void GDRESettings::remove_current_pack() {
 	packs.clear();
 	import_files.clear();
 	remap_iinfo.clear();
-	reset_encryption_key();
-}
-
-void GDRESettings::reset_encryption_key() {
-	if (set_key) {
-		memcpy(script_encryption_key, old_key, 32);
-		set_key = false;
-		enc_key_str = "";
-		enc_key.clear();
-	}
+	unload_encryption_key();
 }
 
 String get_standalone_pck_path() {
@@ -512,6 +497,7 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 		logger->start_prebuffering();
 		log_sysinfo();
 	}
+	load_encryption_key();
 
 	Error err = ERR_CANT_OPEN;
 	Vector<String> pck_files = p_paths;
@@ -965,6 +951,41 @@ bool GDRESettings::had_encryption_error() const {
 void GDRESettings::_set_error_encryption(bool is_encryption_error) {
 	error_encryption = is_encryption_error;
 }
+
+void GDRESettings::load_encryption_key() {
+	if (enc_key.size() == 32) {
+		memcpy(script_encryption_key, enc_key.ptr(), 32);
+	} else {
+		memset(script_encryption_key, 0, 32);
+	}
+}
+
+void GDRESettings::unload_encryption_key() {
+	memset(script_encryption_key, 0, 32);
+}
+
+Vector<uint8_t> GDRESettings::get_encryption_key() {
+	return enc_key;
+}
+
+String GDRESettings::get_encryption_key_string() {
+	if (enc_key.is_empty()) {
+		return "";
+	}
+	return String::hex_encode_buffer(enc_key.ptr(), enc_key.size());
+}
+
+Error GDRESettings::set_encryption_key(Vector<uint8_t> key) {
+	if (key.size() != 32) {
+		return ERR_INVALID_PARAMETER;
+	}
+	enc_key = key;
+	if (is_pack_loaded()) {
+		load_encryption_key();
+	}
+	return OK;
+}
+
 Error GDRESettings::set_encryption_key_string(const String &key_str) {
 	String skey = key_str.replace_first("0x", "");
 	ERR_FAIL_COND_V_MSG(!skey.is_valid_hex_number(false) || skey.size() < 64, ERR_INVALID_PARAMETER, "not a valid key");
@@ -996,16 +1017,11 @@ Error GDRESettings::set_encryption_key_string(const String &key_str) {
 	return OK;
 }
 
-Error GDRESettings::set_encryption_key(Vector<uint8_t> key) {
-	ERR_FAIL_COND_V_MSG(key.size() < 32, ERR_INVALID_PARAMETER, "Key must be 32 bytes!");
-	if (!set_key) {
-		memcpy(old_key, script_encryption_key, 32);
+void GDRESettings::reset_encryption_key() {
+	enc_key.clear();
+	if (is_pack_loaded()) {
+		load_encryption_key();
 	}
-	memcpy(script_encryption_key, key.ptr(), 32);
-	set_key = true;
-	enc_key = key;
-	enc_key_str = String::hex_encode_buffer(key.ptr(), 32);
-	return OK;
 }
 
 Vector<String> GDRESettings::get_file_list(const Vector<String> &filters) {
