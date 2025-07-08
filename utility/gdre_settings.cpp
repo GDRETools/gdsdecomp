@@ -871,10 +871,10 @@ Error GDRESettings::load_project_config() {
 	ERR_FAIL_COND_V_MSG(is_project_config_loaded(), ERR_ALREADY_IN_USE, "Project config is already loaded!");
 	ERR_FAIL_COND_V_MSG(!pack_has_project_config(), ERR_FILE_NOT_FOUND, "Could not find project config!");
 	if (get_ver_major() == 2) {
-		err = current_project->pcfg->load_cfb("res://engine.cfb", get_ver_major(), get_ver_minor());
+		err = current_project->pcfg->load_cfb(has_path_loaded("res://engine.cfb") ? "res://engine.cfb" : "res://engine.cfg", get_ver_major(), get_ver_minor());
 		ERR_FAIL_COND_V_MSG(err, err, "Failed to load project config!");
-	} else if (get_ver_major() == 3 || get_ver_major() == 4) {
-		err = current_project->pcfg->load_cfb("res://project.binary", get_ver_major(), get_ver_minor());
+	} else if (get_ver_major() >= 3) {
+		err = current_project->pcfg->load_cfb(has_path_loaded("res://project.binary") ? "res://project.binary" : "res://project.godot", get_ver_major(), get_ver_minor());
 		ERR_FAIL_COND_V_MSG(err, err, "Failed to load project config!");
 	} else {
 		ERR_FAIL_V_MSG(ERR_FILE_UNRECOGNIZED,
