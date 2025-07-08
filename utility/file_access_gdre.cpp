@@ -715,7 +715,9 @@ bool DirAccessGDRE::file_exists(String p_file) {
 	if (proxy.is_valid()) {
 		return proxy->file_exists(p_file);
 	}
-	p_file = fix_path(p_file);
+	if (!p_file.begins_with("res://") && !p_file.begins_with("user://")) {
+		p_file = fix_path(p_file);
+	}
 
 	GDREPackedData::PackedDir *pd = _find_dir(p_file.get_base_dir());
 	if (!pd) {
@@ -728,7 +730,10 @@ bool DirAccessGDRE::dir_exists(String p_dir) {
 	if (proxy.is_valid()) {
 		return proxy->dir_exists(p_dir);
 	}
-	p_dir = fix_path(p_dir);
+
+	if (!p_dir.begins_with("res://") && !p_dir.begins_with("user://")) {
+		p_dir = fix_path(p_dir);
+	}
 
 	return _find_dir(p_dir) != nullptr;
 }
