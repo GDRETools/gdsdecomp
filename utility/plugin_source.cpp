@@ -20,11 +20,6 @@ PluginBin PluginSource::get_plugin_bin(const String &path, const SharedObject &o
 	return bin;
 }
 
-// Error PluginSource::populate_plugin_version_hashes(PluginVersion &plugin_version) {
-// 	// This method has been moved to PluginManager
-// 	return ERR_METHOD_NOT_FOUND;
-// }
-
 bool PluginSource::handles_plugin(const String &plugin_name) {
 	ERR_FAIL_V_MSG(false, "Not implemented");
 }

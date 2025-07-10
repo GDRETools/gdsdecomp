@@ -384,7 +384,3 @@ bool GitHubSource::handles_plugin(const String &plugin_name) {
 String GitHubSource::get_plugin_name() {
 	return "github";
 }
-
-// void GitHubSource::load_cache_data(const String &plugin_name, const Dictionary &d) {
-// 	// This method is deprecated - PluginManager now handles PluginVersion cache loading
-// }

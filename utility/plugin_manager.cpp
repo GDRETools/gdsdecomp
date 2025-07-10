@@ -72,12 +72,12 @@ void PluginManager::unregister_source(Ref<PluginSource> source) {
 
 PluginVersion PluginManager::get_plugin_version(const String &plugin_name, const String &version) {
 	Ref<PluginSource> source = get_source(plugin_name);
-	ERR_FAIL_COND_V_MSG(source.is_null(), PluginVersion(), "No source found for plugin: " + plugin_name);
+	ERR_FAIL_COND_V_MSG(source.is_null(), PluginVersion::invalid(), "No source found for plugin: " + plugin_name);
 
 	// Get ReleaseInfo from the source
 	ReleaseInfo release_info = source->get_release_info(plugin_name, version);
 	if (release_info.plugin_source.is_empty()) {
-		return PluginVersion(); // No release info available
+		return PluginVersion::invalid(); // No release info available
 	}
 
 	// Generate cache key
@@ -91,8 +91,8 @@ PluginVersion PluginManager::get_plugin_version(const String &plugin_name, const
 
 	// Populate PluginVersion from ReleaseInfo
 	PluginVersion plugin_version = populate_plugin_version_from_release(release_info);
-	if (plugin_version.cache_version == 0) {
-		return PluginVersion(); // Return empty version on error
+	if (!plugin_version.is_valid()) {
+		return PluginVersion::invalid(); // Return empty version on error
 	}
 
 	// Cache the result
@@ -113,7 +113,7 @@ String PluginManager::get_plugin_download_url(const String &plugin_name, const V
 			PluginVersion cached_version = E.value;
 
 			// Check if this cached version is for the requested plugin
-			if (cached_version.plugin_name == plugin_name) {
+			if (cached_version.is_valid() && cached_version.plugin_name == plugin_name) {
 				// Check if any of the hashes match
 				for (auto &gdext : cached_version.gdexts) {
 					for (auto &bin : gdext.bins) {
@@ -147,7 +147,7 @@ String PluginManager::get_plugin_download_url(const String &plugin_name, const V
 
 		// Populate PluginVersion from ReleaseInfo
 		PluginVersion plugin_version = populate_plugin_version_from_release(release_info);
-		if (plugin_version.cache_version == 0) {
+		if (!plugin_version.is_valid()) {
 			continue; // Skip if population failed
 		}
 
@@ -206,9 +206,9 @@ struct PrePopTask {
 		if (!release_info.plugin_source.is_empty()) {
 			String cache_key = PluginManager::get_cache_key(release_info.plugin_source, release_info.primary_id, release_info.secondary_id);
 			PluginVersion cached_version = PluginManager::get_cached_plugin_version(cache_key);
-			if (cached_version.plugin_name.is_empty()) {
+			if (!cached_version.is_valid()) {
 				PluginVersion plugin_version = PluginManager::populate_plugin_version_from_release(release_info);
-				if (!plugin_version.plugin_name.is_empty()) {
+				if (plugin_version.is_valid()) {
 					PluginManager::cache_plugin_version(cache_key, plugin_version);
 				}
 			}
@@ -268,7 +268,7 @@ PluginVersion PluginManager::get_cached_plugin_version(const String &cache_key) 
 	if (plugin_version_cache.has(cache_key)) {
 		return plugin_version_cache[cache_key];
 	}
-	return PluginVersion();
+	return PluginVersion::invalid();
 }
 
 void PluginManager::cache_plugin_version(const String &cache_key, const PluginVersion &version) {
@@ -287,7 +287,7 @@ PluginVersion PluginManager::populate_plugin_version_from_release(const ReleaseI
 	// Download and analyze the plugin using the new method
 	Error err = populate_plugin_version_hashes(version);
 	if (err != OK) {
-		return PluginVersion(); // Return empty version on error
+		return PluginVersion::invalid(); // Return empty version on error
 	}
 
 	return version;
@@ -457,7 +457,7 @@ void PluginManager::load_plugin_version_cache_file(const String &cache_file) {
 	for (auto &E : data.keys()) {
 		Dictionary version_data = data[E];
 		PluginVersion version = PluginVersion::from_json(version_data);
-		if (version.cache_version == CACHE_VERSION && !version.plugin_name.is_empty()) {
+		if (version.is_valid()) {
 			String cache_key = get_cache_key(version.release_info.plugin_source, version.release_info.primary_id, version.release_info.secondary_id);
 			plugin_version_cache[cache_key] = version;
 		}
@@ -473,7 +473,7 @@ void PluginManager::save_plugin_version_cache() {
 		for (auto &E : plugin_version_cache) {
 			String cache_key = E.key;
 			PluginVersion version = E.value;
-			if (version.cache_version == CACHE_VERSION) {
+			if (version.is_valid()) {
 				Dictionary version_json = version.to_json();
 				String source = version.release_info.plugin_source;
 				String primary_id = itos(version.release_info.primary_id);

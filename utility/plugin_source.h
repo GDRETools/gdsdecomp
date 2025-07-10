@@ -16,7 +16,6 @@ protected:
 	Mutex cache_mutex;
 
 public:
-	// Error populate_plugin_version_hashes(PluginVersion &plugin_version); // Moved to PluginManager
 	static PluginBin get_plugin_bin(const String &path, const SharedObject &obj);
 
 	virtual String get_plugin_name();

@@ -132,6 +132,17 @@ struct PluginVersion {
 	String max_godot_version;
 	String base_folder;
 	Vector<GDExtInfo> gdexts;
+
+	static PluginVersion invalid() {
+		PluginVersion version;
+		version.cache_version = -1;
+		return version;
+	}
+
+	bool is_valid() const {
+		return cache_version == CACHE_VERSION && !plugin_name.is_empty();
+	}
+
 	bool is_compatible(const Ref<GodotVer> &ver) const {
 		auto min_ver = GodotVer::parse(min_godot_version);
 		if (ver->get_major() != min_ver->get_major()) {
@@ -166,7 +177,7 @@ struct PluginVersion {
 
 	static PluginVersion from_json(Dictionary d) {
 		PluginVersion version;
-		version.cache_version = d.get("cache_version", 0);
+		version.cache_version = d.get("cache_version", -1);
 		version.plugin_name = d.get("plugin_name", "");
 		version.release_info = ReleaseInfo::from_json(d.get("release_info", {}));
 		version.min_godot_version = d.get("min_godot_version", "");
