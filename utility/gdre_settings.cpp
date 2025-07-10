@@ -273,6 +273,10 @@ String GDRESettings::get_gdre_resource_path() const {
 	return gdre_resource_path;
 }
 
+String GDRESettings::get_gdre_tmp_path() const {
+	return gdre_user_path.path_join(".tmp");
+}
+
 String GDRESettings::get_gdre_user_path() const {
 	return gdre_user_path;
 }

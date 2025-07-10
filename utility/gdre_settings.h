@@ -217,6 +217,7 @@ public:
 	Error unload_project();
 	String get_gdre_resource_path() const;
 	String get_gdre_user_path() const;
+	String get_gdre_tmp_path() const;
 
 	bool is_pack_loaded() const;
 
