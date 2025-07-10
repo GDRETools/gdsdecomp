@@ -34,6 +34,7 @@ static const HashMap<String, Vector<String>> release_file_exclude_masks = {
 };
 
 static const HashMap<String, String> plugin_map = {
+	{ "godotgif", "https://github.com/BOTLANNER/godot-gif" },
 	{ "godot-rapier3d", "https://github.com/appsinacup/godot-rapier-physics" },
 	{ "godot-rapier2d", "https://github.com/appsinacup/godot-rapier-physics" },
 	{ "native_dialogs", "https://github.com/98teg/NativeDialogs" },
