@@ -294,9 +294,9 @@ PluginVersion PluginManager::populate_plugin_version_from_release(const ReleaseI
 }
 
 Error PluginManager::populate_plugin_version_hashes(PluginVersion &plugin_version) {
-	auto temp_folder = GDRESettings::get_singleton()->get_gdre_user_path().path_join(".tmp").path_join(itos(plugin_version.release_info.primary_id));
+	auto temp_folder = GDRESettings::get_singleton()->get_gdre_tmp_path();
 	String url = plugin_version.release_info.download_url;
-	String new_temp_foldr = temp_folder.path_join(itos(plugin_version.release_info.secondary_id));
+	String new_temp_foldr = temp_folder.path_join(itos(plugin_version.release_info.primary_id) + "_" + itos(plugin_version.release_info.secondary_id));
 	String zip_path = new_temp_foldr.path_join("plugin.zip");
 
 	Error err = OK;
@@ -427,7 +427,7 @@ Error PluginManager::populate_plugin_version_hashes(PluginVersion &plugin_versio
 	}
 
 	close_and_remove_zip();
-	gdre::rimraf(unzupped_path);
+	gdre::rimraf(new_temp_foldr);
 	return OK;
 }
 
