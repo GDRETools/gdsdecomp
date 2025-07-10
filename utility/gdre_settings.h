@@ -204,7 +204,6 @@ private:
 
 	static ResourceUID::ID _get_uid_for_path(const String &p_path, bool _generate = false);
 
-
 	void load_encryption_key();
 	void unload_encryption_key();
 
