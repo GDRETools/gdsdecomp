@@ -404,9 +404,16 @@ void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
 }
 
 void uninitialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
+	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
+		return;
+	}
 	uninitialize_etcpak_decompress_module(p_level);
 	deinit_exporters();
 	deinit_loaders();
+	if (gdre_config) {
+		memdelete(gdre_config);
+		gdre_config = nullptr;
+	}
 	if (gdre_singleton) {
 		memdelete(gdre_singleton);
 		gdre_singleton = nullptr;
