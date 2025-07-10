@@ -7,7 +7,28 @@ import platform
 import subprocess
 import glob
 
-PLUGINS_TO_PREPOP = ["imgui-godot", "godot-rapier3d", "godot-rapier2d", "native_dialogs", "ffmpeg", "discord-sdk-gd", "discord-rpc-gd", "godot-steam-audio", "m_terrain", "steam_api", "orchestrator", "limboai", "fmod", "godot-sqlite", "godotsteam", "godot-jolt", "debug_draw_3d", "terrain_3d", "sg-physics-2d"]
+PLUGINS_TO_PREPOP = [
+    "godotgif",
+    "imgui-godot",
+    "godot-rapier3d",
+    "godot-rapier2d",
+    "native_dialogs",
+    "ffmpeg",
+    "discord-sdk-gd",
+    "discord-rpc-gd",
+    "godot-steam-audio",
+    "m_terrain",
+    "steam_api",
+    "orchestrator",
+    "limboai",
+    "fmod",
+    "godot-sqlite",
+    "godotsteam",
+    "godot-jolt",
+    "debug_draw_3d",
+    "terrain_3d",
+    "sg-physics-2d",
+]
 
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
