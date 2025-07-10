@@ -147,16 +147,19 @@ Ref<ExportReport> GDExtensionExporter::export_resource(const String &output_dir,
 			}
 		}
 		if (!hashes.is_empty()) {
-			String url = PluginManager::get_plugin_download_url(plugin_name, hashes);
+			Dictionary info = PluginManager::get_plugin_info(plugin_name, hashes);
 			if (TaskManager::get_singleton()->is_current_task_canceled()) {
 				report->set_error(ERR_SKIP);
 				return report;
 			}
-			if (!url.is_empty()) {
+			PluginVersion version = PluginVersion::from_json(info);
+			if (version.is_valid()) {
+				String url = version.release_info.download_url;
 				String zip_path = output_dir.path_join(".tmp").path_join(plugin_name + ".zip");
 				auto task_id = TaskManager::get_singleton()->add_download_task(url, zip_path);
 				report->set_download_task_id(task_id);
 				report->set_saved_path(zip_path);
+				report->set_extra_info(info);
 				return report;
 			}
 		}

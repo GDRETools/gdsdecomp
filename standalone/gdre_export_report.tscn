@@ -14,41 +14,41 @@ bg_color = Color(0.196078, 0.231373, 0.309804, 1)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ito0v"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_lf4mi"]
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_gj7d4"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_c3jhm"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_wkive"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_c3jhm"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_gj7d4"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_lf4mi"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_w0jew"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_76kox"]
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_7fdsg"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_qfeic"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_5o50s"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_qfeic"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_7fdsg"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_76kox"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_07ynx"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_g10qc"]
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_lyhke"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ql6qo"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_e2r7w"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ql6qo"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_lyhke"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_hhhhu"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_g10qc"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ld4nm"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_n6if2"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_b202p"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_n6if2"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ld4nm"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_hhhhu"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_jnjsh"]
 
@@ -104,15 +104,15 @@ theme_override_styles/separator = SubResource("StyleBoxEmpty_ito0v")
 [node name="LogFileLabel" type="RichTextLabel" parent="Control/parentVBOX/VBoxContainer/HBoxContainer/VBoxText"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_font_sizes/normal_font_size = 18
+theme_override_font_sizes/bold_font_size = 18
 theme_override_font_sizes/bold_italics_font_size = 18
 theme_override_font_sizes/italics_font_size = 18
 theme_override_font_sizes/mono_font_size = 18
-theme_override_font_sizes/normal_font_size = 18
-theme_override_font_sizes/bold_font_size = 18
-theme_override_styles/fill = SubResource("StyleBoxEmpty_lf4mi")
-theme_override_styles/background = SubResource("StyleBoxEmpty_gj7d4")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_wkive")
 theme_override_styles/normal = SubResource("StyleBoxEmpty_c3jhm")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_wkive")
+theme_override_styles/background = SubResource("StyleBoxEmpty_gj7d4")
+theme_override_styles/fill = SubResource("StyleBoxEmpty_lf4mi")
 bbcode_enabled = true
 text = "Log file written to <LOG_FILE_URI>
 [b]Please include this file when reporting an issue![/b]"
@@ -126,15 +126,15 @@ theme_override_styles/separator = SubResource("StyleBoxEmpty_w0jew")
 [node name="EditorMessageLabel" type="RichTextLabel" parent="Control/parentVBOX/VBoxContainer/HBoxContainer/VBoxText"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_font_sizes/normal_font_size = 18
+theme_override_font_sizes/bold_font_size = 18
 theme_override_font_sizes/bold_italics_font_size = 18
 theme_override_font_sizes/italics_font_size = 18
 theme_override_font_sizes/mono_font_size = 18
-theme_override_font_sizes/normal_font_size = 18
-theme_override_font_sizes/bold_font_size = 18
-theme_override_styles/fill = SubResource("StyleBoxEmpty_76kox")
-theme_override_styles/background = SubResource("StyleBoxEmpty_7fdsg")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_5o50s")
 theme_override_styles/normal = SubResource("StyleBoxEmpty_qfeic")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_5o50s")
+theme_override_styles/background = SubResource("StyleBoxEmpty_7fdsg")
+theme_override_styles/fill = SubResource("StyleBoxEmpty_76kox")
 bbcode_enabled = true
 text = "[b]Use Godot editor version <GODOT_VER> to edit the project.[/b]
 Note: Detection for custom Godot builds has not been implemented yet."
@@ -150,10 +150,10 @@ theme_override_styles/separator = SubResource("StyleBoxEmpty_07ynx")
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
-theme_override_styles/fill = SubResource("StyleBoxEmpty_lf4mi")
-theme_override_styles/background = SubResource("StyleBoxEmpty_gj7d4")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_wkive")
 theme_override_styles/normal = SubResource("StyleBoxEmpty_c3jhm")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_wkive")
+theme_override_styles/background = SubResource("StyleBoxEmpty_gj7d4")
+theme_override_styles/fill = SubResource("StyleBoxEmpty_lf4mi")
 bbcode_enabled = true
 text = "Certain assets have been written to the .assets directory!"
 fit_content = true
@@ -181,10 +181,10 @@ size_flags_vertical = 3
 [node name="NotesLabel" type="RichTextLabel" parent="Control/parentVBOX/VBoxContainer/VSplitContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
-theme_override_styles/fill = SubResource("StyleBoxEmpty_g10qc")
-theme_override_styles/background = SubResource("StyleBoxEmpty_lyhke")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_e2r7w")
 theme_override_styles/normal = SubResource("StyleBoxEmpty_ql6qo")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_e2r7w")
+theme_override_styles/background = SubResource("StyleBoxEmpty_lyhke")
+theme_override_styles/fill = SubResource("StyleBoxEmpty_g10qc")
 bbcode_enabled = true
 text = "[b]Important Notes[/b]"
 
@@ -201,10 +201,10 @@ size_flags_vertical = 3
 [node name="TotalsLabel" type="RichTextLabel" parent="Control/parentVBOX/VBoxContainer/VSplitContainer/VBoxContainer2"]
 custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
-theme_override_styles/fill = SubResource("StyleBoxEmpty_hhhhu")
-theme_override_styles/background = SubResource("StyleBoxEmpty_ld4nm")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_b202p")
 theme_override_styles/normal = SubResource("StyleBoxEmpty_n6if2")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_b202p")
+theme_override_styles/background = SubResource("StyleBoxEmpty_ld4nm")
+theme_override_styles/fill = SubResource("StyleBoxEmpty_hhhhu")
 bbcode_enabled = true
 text = "[b]Totals[/b]"
 

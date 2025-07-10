@@ -813,6 +813,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 					report->failed_gdnative_copy.push_back(ret->get_saved_path());
 					continue;
 				}
+				report->downloaded_plugins.push_back(ret->get_extra_info());
 			}
 		}
 		report->success.push_back(ret);
@@ -1208,6 +1209,7 @@ Dictionary ImportExporterReport::get_section_labels() {
 	labels["failed_plugin_cfg_create"] = "Failed to create plugin.cfg";
 	labels["failed_gdnative_copy"] = "Failed to copy GDExtension libraries";
 	labels["unsupported_types"] = "Unsupported types";
+	labels["downloaded_plugins"] = "Downloaded plugins";
 	return labels;
 }
 
@@ -1268,6 +1270,14 @@ Dictionary ImportExporterReport::get_report_sections() {
 		sections["rewrote_metadata"] = Dictionary();
 		Dictionary rewrote_metadata_dict = sections["rewrote_metadata"];
 		add_to_dict(rewrote_metadata_dict, rewrote_metadata);
+	}
+
+	if (!downloaded_plugins.is_empty()) {
+		sections["downloaded_plugins"] = Dictionary();
+		Dictionary downloaded_plugins_dict = sections["downloaded_plugins"];
+		for (int i = 0; i < downloaded_plugins.size(); i++) {
+			downloaded_plugins_dict[downloaded_plugins[i]["plugin_name"]] = downloaded_plugins[i];
+		}
 	}
 
 	sections["success"] = Dictionary();
@@ -1438,32 +1448,36 @@ TypedArray<ImportInfo> iinfo_vector_to_typedarray(const Vector<Ref<ImportInfo>> 
 	return arr;
 }
 
-TypedArray<ImportInfo> ImportExporterReport::get_successes() const {
+TypedArray<ExportReport> ImportExporterReport::get_successes() const {
 	return vector_to_typed_array(success);
 }
 
-TypedArray<ImportInfo> ImportExporterReport::get_failed() const {
+TypedArray<ExportReport> ImportExporterReport::get_failed() const {
 	return vector_to_typed_array(failed);
 }
 
-TypedArray<ImportInfo> ImportExporterReport::get_not_converted() const {
+TypedArray<ExportReport> ImportExporterReport::get_not_converted() const {
 	return vector_to_typed_array(not_converted);
 }
 
-TypedArray<ImportInfo> ImportExporterReport::get_lossy_imports() const {
+TypedArray<ExportReport> ImportExporterReport::get_lossy_imports() const {
 	return vector_to_typed_array(lossy_imports);
 }
 
-TypedArray<ImportInfo> ImportExporterReport::get_rewrote_metadata() const {
+TypedArray<ExportReport> ImportExporterReport::get_rewrote_metadata() const {
 	return vector_to_typed_array(rewrote_metadata);
 }
 
-TypedArray<ImportInfo> ImportExporterReport::get_failed_rewrite_md() const {
+TypedArray<ExportReport> ImportExporterReport::get_failed_rewrite_md() const {
 	return vector_to_typed_array(failed_rewrite_md);
 }
 
-TypedArray<ImportInfo> ImportExporterReport::get_failed_rewrite_md5() const {
+TypedArray<ExportReport> ImportExporterReport::get_failed_rewrite_md5() const {
 	return vector_to_typed_array(failed_rewrite_md5);
+}
+
+TypedArray<Dictionary> ImportExporterReport::get_downloaded_plugins() const {
+	return vector_to_typed_array(downloaded_plugins);
 }
 
 Vector<String> ImportExporterReport::get_failed_plugin_cfg_create() const {

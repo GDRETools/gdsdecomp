@@ -27,7 +27,17 @@ const skippable_keys: PackedStringArray = ["rewrote_metadata", "failed_rewrite_m
 
 signal report_done()
 
+enum TotalsTreeButton {
+	DOWNLOAD_URL
+}
 
+func _on_totals_tree_button_clicked(item: TreeItem, _column: int, id: int, mouse_button_index: int):
+	if (mouse_button_index != MOUSE_BUTTON_LEFT):
+		return
+	match id:
+		TotalsTreeButton.DOWNLOAD_URL:
+			OS.shell_open(item.get_text(_column))
+	pass
 # MUST CALL set_root_window() first!!!
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -49,8 +59,9 @@ func _ready():
 	# The children are not already in the window for ease of GUI creation
 	clear()
 
-	#if _is_test:
-		#load_test()
+	if _is_test:
+		load_test()
+	TOTALS_TREE.connect("button_clicked", self._on_totals_tree_button_clicked)
 
 	pass # Replace with function body.
 
@@ -81,22 +92,7 @@ func get_url_for_tag(tag: String, is_steam_release: bool = false):
 		return "https://github.com/godotengine/godot-builds/releases/tag/" + tag
 
 func load_test():
-	const path = "/Users/nikita/Workspace/godot-test-bins/megaloot/Megaloot.exe"
-	# const path = "/Users/nikita/Workspace/godot-test-bins/satryn.apk"
-	# const output_dir = "/Users/nikita/Workspace/godot-test-bins/test_satyrn_extract"
-	const output_dir = "/Users/nikita/Workspace/godot-test-bins/test_megaloot"
-	var _log_path = "/Users/nikita/Workspace/godot-test-bins/test_satyrn_extract/gdre_export.log"
-	# convert log_path to URI
-	var err = GDRESettings.load_project([path])
-	assert(err == OK)
-	var pckdump = PckDumper.new()
-	err = pckdump.check_md5_all_files()
-	GDRESettings.open_log_file(output_dir)
-	err = pckdump.pck_dump_to_dir(output_dir)
-	var import_exporter = ImportExporter.new()
-	import_exporter.export_imports(output_dir)
-	add_report(import_exporter.get_report())
-	show_win()
+	add_report_sections(TEST_REPORT, {})
 
 func add_ver_string(ver_string: String):
 	var ver = GodotVer.parse_godotver(ver_string)
@@ -138,6 +134,28 @@ func get_note_header_item_icon(_key: String) -> Texture2D:
 		#return info_icon
 	return null
 
+
+func add_dictionary_item(parent_key: TreeItem, item_name: String, dict: Dictionary):
+	var item = TOTALS_TREE.create_item(parent_key)
+	item.set_text(0, item_name)
+	item.set_text(1, "")
+	for subkey in dict.keys():
+		var thing = dict[subkey]
+		if typeof(thing) == TYPE_DICTIONARY:
+			add_dictionary_item(item, subkey, thing)
+		else:
+			var subitem = TOTALS_TREE.create_item(item)
+			subitem.set_text(0, subkey)
+			if typeof(thing) == TYPE_PACKED_STRING_ARRAY:
+				var arr: PackedStringArray = thing
+				subitem.set_text(1, String.num_uint64(arr.size()))
+				for i in range(arr.size()):
+					var subsubitem = TOTALS_TREE.create_item(subitem)
+					subsubitem.set_text(0, arr[i])
+					subsubitem.set_text(1, "")
+			else:
+				subitem.set_text(1, str(thing))
+
 func add_report(rep: ImportExporterReport) -> int:
 	self.clear()
 	self.report = rep
@@ -146,10 +164,15 @@ func add_report(rep: ImportExporterReport) -> int:
 	var notes = report.get_session_notes()
 	var report_sections: Dictionary = report.get_report_sections()
 	var report_labels: Dictionary = report.get_section_labels()
+
+	add_notes(notes)
+	add_report_sections(report_sections, report_labels)
 	# iterate over all the keys in the notes
 	# add fake root
+	return OK
+
+func add_notes(notes: Dictionary):
 	var note_root = NOTE_TREE.create_item(null)
-	var report_root = TOTALS_TREE.create_item(null)
 	for key in notes.keys():
 		var note_dict = notes[key]
 		var header_item = NOTE_TREE.create_item(note_root)
@@ -160,6 +183,12 @@ func add_report(rep: ImportExporterReport) -> int:
 			for item in note_dict["details"]:
 				var subitem = NOTE_TREE.create_item(header_item)
 				subitem.set_text(0, item)
+
+
+
+func add_report_sections(report_sections: Dictionary, report_labels: Dictionary):
+	var report_root = TOTALS_TREE.create_item(null)
+
 	for key in report_sections.keys():
 		if skippable_keys.has(key):
 			continue
@@ -171,10 +200,24 @@ func add_report(rep: ImportExporterReport) -> int:
 			var dict :Dictionary = section
 			header_item.set_text(1, String.num_uint64(dict.keys().size()))
 			# iterate over all the keys in the section
-			for subkey in dict.keys():
-				var subitem = TOTALS_TREE.create_item(header_item)
-				subitem.set_text(1, subkey)
-				subitem.set_text(0, dict[subkey])
+			if key == "downloaded_plugins":
+				for subkey in dict.keys():
+					var plugin_info: Dictionary = dict[subkey]
+					var release_info: Dictionary = plugin_info["release_info"]
+					var version: String = release_info["version"]
+					var download_url: String = release_info["download_url"]
+					var subitem = TOTALS_TREE.create_item(header_item)
+					subitem.set_text(0, subkey)
+					subitem.set_text(1, version)
+					var subsubitem: TreeItem = TOTALS_TREE.create_item(subitem)
+					subsubitem.set_text(0, "Download URL:")
+					subsubitem.set_text(1, download_url)
+					subsubitem.add_button(1, file_icon, TotalsTreeButton.DOWNLOAD_URL, false, "Open download URL")
+			else:
+				for subkey in dict.keys():
+					var subitem = TOTALS_TREE.create_item(header_item)
+					subitem.set_text(1, subkey)
+					subitem.set_text(0, dict[subkey])
 		elif typeof(section) == TYPE_PACKED_STRING_ARRAY:
 			var arr: PackedStringArray = section
 			header_item.set_text(1, String.num_uint64(arr.size()))
@@ -188,7 +231,6 @@ func add_report(rep: ImportExporterReport) -> int:
 		header_item.set_collapsed_recursive(true)
 
 
-	return OK
 
 
 func clear():
@@ -223,3 +265,193 @@ func _process(_delta):
 
 func _exit_tree():
 	hide_win()
+
+
+
+
+
+
+var TEST_REPORT = {
+ "lossy_imports": {
+  "res://.godot/imported/foo.svg-452efe7dd3f28f4f1fe0cc1124dba826.ctex": "res://control_panel/foo.svg",
+ },
+ "rewrote_metadata": {
+  "res://.godot/imported/f.png-d381692a53860f07d51d71fc9e712219.ctex": "res://addons/cs-fetch/foo.png",
+ },
+ "downloaded_plugins": {
+  "godotgif": {
+   "cache_version": 1,
+   "plugin_name": "godotgif",
+   "release_info": {
+	"plugin_source": "github",
+	"primary_id": 129561407,
+	"secondary_id": 135676324,
+	"version": "1.0.1",
+	"engine_ver_major": 0,
+	"release_date": "2023-11-15T14:40:41Z",
+	"download_url": "https://github.com/BOTLANNER/godot-gif/releases/download/1.0.1/godotgif.zip"
+   },
+   "min_godot_version": "4.1",
+   "max_godot_version": "",
+   "base_folder": "",
+   "gdexts": [
+	{
+	 "relative_path": "addons/godotgif/godotgif.gdextension",
+	 "min_godot_version": "4.1",
+	 "max_godot_version": "",
+	 "bins": [
+	  {
+	   "name": "bin/godotgif.macos.template_debug.framework",
+	   "md5": "36e578fb1a624a4fefa14f4fde008250",
+	   "tags": [
+		"macos",
+        "debug"
+	   ]
+	  },
+	  {
+	   "name": "bin/godotgif.macos.template_release.framework",
+	   "md5": "23112c353920456c47cf2cee79ea4402",
+	   "tags": [
+		"macos",
+        "release"
+	   ]
+	  },
+	  {
+	   "name": "bin/godotgif.windows.template_debug.x86_32.dll",
+	   "md5": "f72a606b2432c428acc69f86025ea96b",
+	   "tags": [
+		"windows",
+		"debug",
+        "x86_32"
+	   ]
+	  },
+	  {
+	   "name": "bin/godotgif.windows.template_release.x86_32.dll",
+	   "md5": "77c47c999cfc1d7961efe0a5c5d495b5",
+	   "tags": [
+		"windows",
+		"release",
+        "x86_32"
+	   ]
+	  },
+	  {
+	   "name": "bin/godotgif.windows.template_debug.x86_64.dll",
+	   "md5": "08d5899192c4ab7ce119c86e81c0f83c",
+	   "tags": [
+		"windows",
+		"debug",
+        "x86_64"
+	   ]
+	  },
+	  {
+	   "name": "bin/godotgif.windows.template_release.x86_64.dll",
+	   "md5": "289c5d0667923438011e7033eee598ab",
+	   "tags": [
+		"windows",
+		"release",
+        "x86_64"
+	   ]
+	  },
+	  {
+	   "name": "bin/libgodotgif.linux.template_debug.x86_64.so",
+	   "md5": "5d4b197dfa69a8876158efd899654af6",
+	   "tags": [
+		"linux",
+		"debug",
+        "x86_64"
+	   ]
+	  },
+	  {
+	   "name": "bin/libgodotgif.linux.template_release.x86_64.so",
+	   "md5": "f5f388dc570904c08f7dfde417e9a378",
+	   "tags": [
+		"linux",
+		"release",
+        "x86_64"
+	   ]
+	  },
+	  {
+	   "name": "bin/libgodotgif.linux.template_debug.arm64.so",
+	   "md5": "",
+	   "tags": [
+		"linux",
+		"debug",
+        "arm64"
+	   ]
+	  },
+	  {
+	   "name": "bin/libgodotgif.linux.template_release.arm64.so",
+	   "md5": "",
+	   "tags": [
+		"linux",
+		"release",
+        "arm64"
+	   ]
+	  },
+	  {
+	   "name": "bin/libgodotgif.linux.template_debug.rv64.so",
+	   "md5": "",
+	   "tags": [
+		"linux",
+		"debug",
+        "rv64"
+	   ]
+	  },
+	  {
+	   "name": "bin/libgodotgif.linux.template_release.rv64.so",
+	   "md5": "",
+	   "tags": [
+		"linux",
+		"release",
+        "rv64"
+	   ]
+	  },
+	  {
+	   "name": "bin/godotgif.android.template_debug.x86_64.so",
+	   "md5": "",
+	   "tags": [
+		"android",
+		"debug",
+        "x86_64"
+	   ]
+	  },
+	  {
+	   "name": "bin/godotgif.android.template_release.x86_64.so",
+	   "md5": "",
+	   "tags": [
+		"android",
+		"release",
+        "x86_64"
+	   ]
+	  },
+	  {
+	   "name": "bin/godotgif.android.template_debug.arm64.so",
+	   "md5": "",
+	   "tags": [
+		"android",
+		"debug",
+        "arm64"
+	   ]
+	  },
+	  {
+	   "name": "bin/godotgif.android.template_release.arm64.so",
+	   "md5": "",
+	   "tags": [
+		"android",
+		"release",
+        "arm64"
+	   ]
+	  }
+	 ],
+	 "dependencies": []
+	}
+   ]
+  }
+ },
+ "success": {
+  "res://addons/godotgif/godotgif.gdextension": "res://addons/godotgif/godotgif.gdextension",
+ },
+ "decompiled_scripts": {
+
+ }
+}

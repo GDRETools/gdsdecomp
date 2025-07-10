@@ -70,7 +70,7 @@ void PluginManager::unregister_source(Ref<PluginSource> source) {
 	--source_count;
 }
 
-PluginVersion PluginManager::get_plugin_version(const String &plugin_name, const String &version) {
+PluginVersion PluginManager::get_plugin_version_for_key(const String &plugin_name, const String &version) {
 	Ref<PluginSource> source = get_source(plugin_name);
 	ERR_FAIL_COND_V_MSG(source.is_null(), PluginVersion::invalid(), "No source found for plugin: " + plugin_name);
 
@@ -101,9 +101,9 @@ PluginVersion PluginManager::get_plugin_version(const String &plugin_name, const
 	return plugin_version;
 }
 
-String PluginManager::get_plugin_download_url(const String &plugin_name, const Vector<String> &hashes) {
+Dictionary PluginManager::get_plugin_info(const String &plugin_name, const Vector<String> &hashes) {
 	Ref<PluginSource> source = get_source(plugin_name);
-	ERR_FAIL_COND_V_MSG(source.is_null(), String(), "No source found for plugin: " + plugin_name);
+	ERR_FAIL_COND_V_MSG(source.is_null(), Dictionary(), "No source found for plugin: " + plugin_name);
 
 	// First, check all cached PluginVersions for this plugin
 	{
@@ -120,7 +120,7 @@ String PluginManager::get_plugin_download_url(const String &plugin_name, const V
 						for (auto &hash : hashes) {
 							if (bin.md5 == hash) {
 								print_line("Found matching plugin in cache: " + plugin_name + ", version: " + cached_version.release_info.version + ", download url: " + cached_version.release_info.download_url);
-								return cached_version.release_info.download_url;
+								return cached_version.to_json();
 							}
 						}
 					}
@@ -160,14 +160,14 @@ String PluginManager::get_plugin_download_url(const String &plugin_name, const V
 				for (auto &hash : hashes) {
 					if (bin.md5 == hash) {
 						print_line("Found matching plugin after population: " + plugin_name + ", version: " + plugin_version.release_info.version + ", download url: " + plugin_version.release_info.download_url);
-						return plugin_version.release_info.download_url;
+						return plugin_version.to_json();
 					}
 				}
 			}
 		}
 	}
 
-	return "";
+	return Dictionary();
 }
 
 void PluginManager::load_cache() {
@@ -511,7 +511,7 @@ void PluginManager::save_plugin_version_cache() {
 
 void PluginManager::_bind_methods() {
 	// ClassDB::bind_method(D_METHOD("get_plugin_version", "plugin_name", "version"), &PluginManager::get_plugin_version);
-	ClassDB::bind_static_method(get_class_static(), D_METHOD("get_plugin_download_url", "plugin_name", "hashes"), &PluginManager::get_plugin_download_url);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("get_plugin_info", "plugin_name", "hashes"), &PluginManager::get_plugin_info);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("load_cache"), &PluginManager::load_cache);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("save_cache"), &PluginManager::save_cache);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("prepop_cache", "plugin_names", "multithread"), &PluginManager::prepop_cache, DEFVAL(true));

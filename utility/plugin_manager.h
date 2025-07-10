@@ -30,6 +30,7 @@ private:
 	static void load_plugin_version_cache();
 	static void save_plugin_version_cache();
 	static Error populate_plugin_version_hashes(PluginVersion &plugin_version);
+	static PluginVersion get_plugin_version_for_key(const String &plugin_name, const String &version);
 
 protected:
 	static void _bind_methods();
@@ -38,8 +39,7 @@ public:
 	static void _init();
 	// Main interface methods
 	static String get_plugin_cache_path();
-	static PluginVersion get_plugin_version(const String &plugin_name, const String &version);
-	static String get_plugin_download_url(const String &plugin_name, const Vector<String> &hashes);
+	static Dictionary get_plugin_info(const String &plugin_name, const Vector<String> &hashes);
 	static void load_cache();
 	static void save_cache();
 	static void prepop_cache(const Vector<String> &plugin_names, bool multithread = true);

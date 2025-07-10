@@ -32,6 +32,7 @@ class ImportExporterReport : public RefCounted {
 	Vector<String> failed_plugin_cfg_create;
 	Vector<String> failed_gdnative_copy;
 	Vector<String> unsupported_types;
+	Vector<Dictionary> downloaded_plugins;
 	Ref<GodotVer> ver;
 	// TODO: add the rest of the options
 	bool opt_lossy = true;
@@ -60,13 +61,14 @@ public:
 	Vector<String> get_decompiled_scripts();
 	Vector<String> get_failed_scripts();
 	String get_translation_export_message();
-	TypedArray<ImportInfo> get_lossy_imports() const;
-	TypedArray<ImportInfo> get_rewrote_metadata() const;
-	TypedArray<ImportInfo> get_failed_rewrite_md() const;
-	TypedArray<ImportInfo> get_failed_rewrite_md5() const;
-	TypedArray<ImportInfo> get_failed() const;
-	TypedArray<ImportInfo> get_successes() const;
-	TypedArray<ImportInfo> get_not_converted() const;
+	TypedArray<ExportReport> get_lossy_imports() const;
+	TypedArray<ExportReport> get_rewrote_metadata() const;
+	TypedArray<ExportReport> get_failed_rewrite_md() const;
+	TypedArray<ExportReport> get_failed_rewrite_md5() const;
+	TypedArray<ExportReport> get_failed() const;
+	TypedArray<ExportReport> get_successes() const;
+	TypedArray<ExportReport> get_not_converted() const;
+	TypedArray<Dictionary> get_downloaded_plugins() const;
 	Vector<String> get_failed_plugin_cfg_create() const;
 	Vector<String> get_failed_gdnative_copy() const;
 
