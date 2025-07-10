@@ -53,7 +53,8 @@ void GodotREEditorStandalone::write_log_message(const String &p_message) {
 	}
 	last_log_message_time = OS::get_singleton()->get_ticks_msec();
 	log_window->set_text(text);
-	log_window->scroll_to_line(log_window->get_line_count() - 1);
+	// this forces it to scroll to vscroll max
+	log_window->scroll_to_paragraph(INT_MAX);
 }
 
 String GodotREEditorStandalone::get_version() {
@@ -100,6 +101,11 @@ void GodotREEditorStandalone::progress_end_task(const String &p_task) {
 }
 
 void GodotREEditorStandalone::_notification(int p_notification) {
+	if (p_notification == NOTIFICATION_PROCESS) {
+		if (log_message_buffer.size() > 0 && OS::get_singleton()->get_ticks_msec() - last_log_message_time > 200) {
+			write_log_message("");
+		}
+	}
 }
 
 // TODO: move this to common
