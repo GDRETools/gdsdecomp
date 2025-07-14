@@ -183,11 +183,17 @@ Error PckDumper::_pck_dump_to_dir(
 	int actual = 0;
 	HashSet<String> files_to_extract_set = gdre::vector_to_hashset(files_to_extract);
 	for (int i = 0; i < files.size(); i++) {
-		if (!files_to_extract_set.is_empty() && !files_to_extract_set.has(files.get(i)->get_path())) {
+		const auto &file = files.get(i);
+		String path = file->get_path();
+		if (!files_to_extract_set.is_empty() && !files_to_extract_set.has(path)) {
+			continue;
+		}
+		if (file->is_malformed() && file->get_size() == 0) {
+			print_line("File " + file->get_raw_path() + " has a malformed path and is empty, skipping extraction...");
 			continue;
 		}
 		actual++;
-		tokens.push_back({ files.get(i), OK });
+		tokens.push_back({ file, OK });
 	}
 	tokens.resize(actual);
 

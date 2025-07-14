@@ -32,6 +32,11 @@ void PackedFileInfo::fix_path() {
 		prefix = "user://";
 	}
 
+	if (path.is_empty()) {
+		path = PATH_REPLACER;
+		malformed_path = true;
+	}
+
 	while (path.begins_with("~")) {
 		path = path.substr(1, path.length() - 1);
 		malformed_path = true;
