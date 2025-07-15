@@ -39,7 +39,7 @@
 #endif
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_settings.h"
+#include "editor/settings/editor_settings.h"
 #endif
 
 const char *GDScriptV2TokenizerCompat::Token::get_name() const {

@@ -2091,9 +2091,8 @@ void GDRESettings::_bind_methods() {
 #endif
 #ifdef MACOS_ENABLED
 #include "drivers/unix/os_unix.h"
-#include "platform/macos/macos_terminal_logger.h"
 #define PLATFORM_OS OS_Unix
-#define STDOUT_LOGGER MacOSTerminalLogger
+#define STDOUT_LOGGER UnixTerminalLogger
 #endif
 #ifdef WEB_ENABLED
 #include "core/io/logger.h"

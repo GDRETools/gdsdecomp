@@ -3,7 +3,7 @@
 /*************************************************************************/
 #ifdef TOOLS_ENABLED
 #include "editor/editor_node.h"
-#include "editor/editor_settings.h"
+#include "editor/settings/editor_settings.h"
 
 #include "gdre_pck_dlg.h"
 
