@@ -95,6 +95,7 @@ void GDRELogger::logv(const char *p_format, va_list p_list, bool p_err) {
 			Memory::free_static(buf);
 		}
 	}
+	stdout_logger->logv(p_format, p_list, p_err);
 }
 
 Error GDRELogger::open_file(const String &p_base_path) {

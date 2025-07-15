@@ -2149,7 +2149,6 @@ void GDRESettings::add_logger() {
 	// TODO: add a logger for global debug logging if it's enabled
 	Vector<Logger *> loggers;
 	loggers.push_back(logger);
-	loggers.push_back(stdout_logger);
 	GDREOS<PLATFORM_OS>::do_set_logger(_gdre_os, memnew(CompositeLogger(loggers)));
 	// GDREOS<PLATFORM_OS>::do_add_logger(_gdre_os, logger);
 }
