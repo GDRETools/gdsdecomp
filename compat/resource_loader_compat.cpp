@@ -426,6 +426,14 @@ String ResourceCompatLoader::get_resource_script_class(const String &p_path) {
 	return loader->get_resource_script_class(p_path);
 }
 
+String ResourceCompatLoader::get_resource_type(const String &p_path) {
+	auto loader = get_loader_for_path(p_path, "");
+	if (loader.is_null()) {
+		return ResourceLoader::get_resource_type(p_path);
+	}
+	return loader->get_resource_type(p_path);
+}
+
 Vector<String> ResourceCompatLoader::_get_dependencies(const String &p_path, bool p_add_types) {
 	auto loader = get_loader_for_path(p_path, "");
 	ERR_FAIL_COND_V_MSG(loader.is_null(), Vector<String>(), "Failed to load resource '" + p_path + "'. ResourceFormatLoader::load was not implemented for this resource type.");
@@ -531,6 +539,8 @@ void ResourceCompatLoader::_bind_methods() {
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("set_default_gltf_load", "enable"), &ResourceCompatLoader::set_default_gltf_load);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("is_default_gltf_load"), &ResourceCompatLoader::is_default_gltf_load);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("handles_resource", "path", "type_hint"), &ResourceCompatLoader::handles_resource, DEFVAL(""));
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("get_resource_script_class", "path"), &ResourceCompatLoader::get_resource_script_class);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("get_resource_type", "path"), &ResourceCompatLoader::get_resource_type);
 	ClassDB::bind_integer_constant(get_class_static(), "LoadType", "FAKE_LOAD", ResourceInfo::FAKE_LOAD);
 	ClassDB::bind_integer_constant(get_class_static(), "LoadType", "NON_GLOBAL_LOAD", ResourceInfo::NON_GLOBAL_LOAD);
 	ClassDB::bind_integer_constant(get_class_static(), "LoadType", "GLTF_LOAD", ResourceInfo::GLTF_LOAD);

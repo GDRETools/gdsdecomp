@@ -55,6 +55,7 @@ public:
 	static Error to_binary(const String &p_path, const String &p_dst, uint32_t p_flags = 0);
 	static bool handles_resource(const String &p_path, const String &p_type_hint = "");
 	static String get_resource_script_class(const String &p_path);
+	static String get_resource_type(const String &p_path);
 
 	static void set_default_gltf_load(bool p_enable);
 	static bool is_default_gltf_load();
