@@ -7,6 +7,7 @@
 
 #include "bytecode/bytecode_base.h"
 
+#include "bytecode/bytecode_ebc36a7.h"
 #include "bytecode/bytecode_2e216b5.h"
 #include "bytecode/bytecode_ee121ef.h"
 #include "bytecode/bytecode_b59d6be.h"
@@ -87,11 +88,12 @@ struct GDScriptDecompVersion {
 };
 Vector<GDScriptDecompVersion> get_decomp_versions(bool include_dev = true, int ver_major = 0);
 
-static constexpr int LATEST_GDSCRIPT_COMMIT = 0x2e216b5;
+static constexpr int LATEST_GDSCRIPT_COMMIT = 0xebc36a7;
 
 static const GDScriptDecompVersion decomp_versions[] = {
 	{ 0xfffffff, "--- Please select bytecode version ---", 0, false },
-	{ 0x2e216b5, "4.5-dev.6 (2e216b5 / 2025-06-10 / Bytecode version: 101) - content header size changed", 101, false, "4.5-dev.6", "", 0xee121ef },
+	{ 0xebc36a7, "4.5-beta.2 (ebc36a7 / 2025-06-27 / Bytecode version: 101) - Removed `ABSTRACT` token.", 101, false, "4.5-beta.2", "", 0x2e216b5 },
+	{ 0x2e216b5, "	4.5-dev.6 (2e216b5 / 2025-06-10 / Bytecode version: 101) - content header size changed", 101, true, "4.5-dev.6", "", 0xee121ef },
 	{ 0xee121ef, "	4.5-dev.5 (ee121ef / 2025-06-09 / Bytecode version: 100) - Added `PERIOD_PERIOD_PERIOD` token.", 100, true, "4.5-dev.5", "", 0xb59d6be },
 	{ 0xb59d6be, "	4.5-dev.4 (b59d6be / 2025-05-18 / Bytecode version: 100) - Added `ABSTRACT` token.", 100, true, "4.5-dev.4", "", 0x77af6ca },
 	{ 0x77af6ca, "4.3.0-stable (77af6ca / 2024-02-09 / Bytecode version: 100) - initial version", 100, false, "4.3.0-stable", "4.4.9-stable", 0x0 },
