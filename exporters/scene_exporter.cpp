@@ -28,10 +28,12 @@ struct dep_info {
 	String remap;
 	String orig_remap;
 	String type;
+	String real_type;
 	bool exists = true;
 	bool uid_in_uid_cache = false;
 	bool uid_in_uid_cache_matches_dep = true;
 	bool uid_remap_path_exists = true;
+	bool parent_is_script_or_shader = false;
 };
 void _add_indent(String &r_result, const String &p_indent, int p_size) {
 	if (p_indent.is_empty()) {
@@ -188,13 +190,14 @@ String stringify_json(const Variant &p_var, const String &p_indent, bool p_sort_
 }
 
 #define MAX_DEPTH 256
-void get_deps_recursive(const String &p_path, HashMap<String, dep_info> &r_deps, int depth = 0) {
+void get_deps_recursive(const String &p_path, HashMap<String, dep_info> &r_deps, bool parent_is_script_or_shader = false, int depth = 0) {
 	if (depth > MAX_DEPTH) {
 		ERR_PRINT("Dependency recursion depth exceeded.");
 		return;
 	}
 	List<String> deps;
 	ResourceCompatLoader::get_dependencies(p_path, &deps, true);
+	Vector<String> deferred_script_or_shader_deps;
 	for (const String &dep : deps) {
 		if (!r_deps.has(dep)) {
 			r_deps[dep] = dep_info{};
@@ -220,6 +223,7 @@ void get_deps_recursive(const String &p_path, HashMap<String, dep_info> &r_deps,
 				if (info.remap.is_empty()) {
 					info.remap = info.orig_remap;
 				}
+				info.parent_is_script_or_shader = parent_is_script_or_shader;
 				auto thingy = GDRESettings::get_singleton()->get_mapped_path(splits[0]);
 				if (!FileAccess::exists(info.remap)) {
 					if (FileAccess::exists(info.dep)) {
@@ -239,11 +243,36 @@ void get_deps_recursive(const String &p_path, HashMap<String, dep_info> &r_deps,
 				info.remap = GDRESettings::get_singleton()->get_mapped_path(info.dep);
 			}
 			if (FileAccess::exists(info.remap)) {
-				get_deps_recursive(info.remap, r_deps, depth + 1);
+				info.real_type = ResourceCompatLoader::get_resource_type(info.remap);
+				if (info.real_type == "Unknown") {
+					auto ext = info.remap.get_extension().to_lower();
+					if (ext == "gd" || ext == "gdc") {
+						info.real_type = "GDScript";
+					} else if (ext == "glsl" || ext == "glslv" || ext == "glslh" || ext == "glslc") {
+						info.real_type = "GLSLShader";
+					} else if (ext == "gdshader" || ext == "shader") {
+						info.real_type = "Shader";
+					} else if (ext == "cs") {
+						info.real_type = "CSharpScript";
+					} else {
+						// just use the type
+						info.real_type = info.type;
+					}
+				}
+				if (!(info.real_type.contains("Script") || info.real_type.contains("Shader"))) {
+					get_deps_recursive(info.remap, r_deps, false, depth + 1);
+				} else {
+					// defer to after the script/shader deps are processed so that if a non-script/shader has a dependency on the same dep(s) as a script/shader,
+					// the non-script/shader will be processed first and have parent_is_script_or_shader set to false
+					deferred_script_or_shader_deps.push_back(info.remap);
+				}
 			} else {
 				info.exists = false;
 			}
 		}
+	}
+	for (const String &dep : deferred_script_or_shader_deps) {
+		get_deps_recursive(dep, r_deps, true, depth + 1);
 	}
 }
 
@@ -569,6 +598,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 	List<String> get_deps;
 	// We need to preload any Texture resources that are used by the scene with our own loader
 	HashMap<String, dep_info> get_deps_map;
+	HashSet<String> script_or_shader_deps;
 	HashSet<String> need_to_be_updated;
 	HashSet<String> animation_deps_needed;
 	HashSet<String> external_deps_updated;
@@ -684,11 +714,17 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 			} else if (info.dep.get_extension().to_lower().contains("shader")) {
 				has_shader = true;
 			} else {
+				if (info.parent_is_script_or_shader) {
+					script_or_shader_deps.insert(info.dep);
+				}
 				if (info.type.contains("Animation")) {
 					has_external_animation = true;
 					animation_deps_needed.insert(info.dep);
 					need_to_be_updated.insert(info.dep);
 				} else if (info.type.contains("Material")) {
+					if (info.real_type == "ShaderMaterial") {
+						has_shader = true;
+					}
 					has_external_materials = true;
 					need_to_be_updated.insert(info.dep);
 				} else if (info.type.contains("Texture")) {
@@ -1491,7 +1527,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 		ResourceUID::get_singleton()->remove_id(id);
 	}
 
-	set_all_externals = external_deps_updated.size() == need_to_be_updated.size();
+	set_all_externals = external_deps_updated.size() >= need_to_be_updated.size() - script_or_shader_deps.size();
 	// GLTF Exporter has issues with custom animations and throws errors;
 	// if we've set all the external resources (including custom animations),
 	// then this isn't an error.
