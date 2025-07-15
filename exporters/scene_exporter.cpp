@@ -570,7 +570,10 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 	// We need to preload any Texture resources that are used by the scene with our own loader
 	HashMap<String, dep_info> get_deps_map;
 	HashSet<String> need_to_be_updated;
+	HashSet<String> animation_deps_needed;
 	HashSet<String> external_deps_updated;
+	HashSet<String> animation_deps_updated;
+
 	Vector<String> error_messages;
 	Vector<String> image_extensions;
 	HashSet<NodePath> external_animation_nodepaths = { NodePath("AnimationPlayer") };
@@ -589,11 +592,14 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 			case ERR_FILE_CANT_WRITE:
 				step = "serializing GLTF document";
 				break;
-			case ERR_PRINTER_ON_FIRE:
+			case ERR_BUG:
 				step = "GLTF export";
 				break;
 			case ERR_FILE_CORRUPT:
 				step = "GLTF validation";
+				break;
+			case ERR_PRINTER_ON_FIRE:
+				step = "rewriting import settings";
 				break;
 			default:
 				step = "unknown";
@@ -680,6 +686,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 			} else {
 				if (info.type.contains("Animation")) {
 					has_external_animation = true;
+					animation_deps_needed.insert(info.dep);
 					need_to_be_updated.insert(info.dep);
 				} else if (info.type.contains("Material")) {
 					has_external_materials = true;
@@ -976,8 +983,11 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 				// root = scene->instantiate();
 				root_type = root->get_class();
 				root_name = root->get_name();
+				bool was_silenced = GDRELogger::is_silencing_errors();
+				GDRELogger::set_silent_errors(true);
 				p_err = doc->append_from_scene(root, state, flags);
 				if (p_err) {
+					GDRELogger::set_silent_errors(was_silenced);
 					memdelete(root);
 					ERR_FAIL_COND_V_MSG(p_err, ERR_COMPILATION_FAILED, "Failed to append scene " + p_src_path + " to glTF document");
 				}
@@ -985,6 +995,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 				Vector<String> original_image_names;
 
 				p_err = doc->_serialize(state);
+				GDRELogger::set_silent_errors(was_silenced);
 				if (p_err) {
 					ERR_FAIL_COND_V_MSG(p_err, ERR_FILE_CANT_WRITE, "Failed to serialize glTF document");
 				}
@@ -1291,7 +1302,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 		err = _export_scene();
 		auto errors_after = using_threaded_load() ? GDRELogger::get_error_count() : GDRELogger::get_thread_error_count();
 		if (err == OK && errors_after > errors_before) {
-			err = ERR_PRINTER_ON_FIRE;
+			err = ERR_BUG;
 		}
 		auto iinfo = p_report.is_valid() ? p_report->get_import_info() : Ref<ImportInfo>();
 		if (iinfo.is_valid() && iinfo->get_ver_major() >= 4) {
@@ -1390,6 +1401,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 					String path = get_path_options(E.value);
 					if (!(path.is_empty() || path.get_file().contains("::"))) {
 						external_deps_updated.insert(path);
+						animation_deps_updated.insert(path);
 					}
 				}
 			}
@@ -1483,7 +1495,7 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 	// GLTF Exporter has issues with custom animations and throws errors;
 	// if we've set all the external resources (including custom animations),
 	// then this isn't an error.
-	if (err == ERR_PRINTER_ON_FIRE && has_external_animation && set_all_externals) {
+	if (err == ERR_BUG && has_external_animation && animation_deps_updated.size() == animation_deps_needed.size()) {
 		err = OK;
 		error_messages.append_array(supports_multithread() ? GDRELogger::get_thread_errors() : GDRELogger::get_errors());
 		for (auto &msg : error_messages) {
@@ -1502,16 +1514,33 @@ Error SceneExporter::_export_file(const String &p_dest_path, const String &p_src
 					}
 				}
 			}
-			err = ERR_PRINTER_ON_FIRE;
+			err = ERR_BUG;
 			break;
 		}
 	}
 	if (!set_all_externals) {
-		error_messages.append("Failed to set all externals in import info. Some resources may not be exported.");
+		error_messages.append("Failed to set all external dependencies in GLTF export and/or import info. This scene may not be imported correctly upon re-import.");
+		error_messages.append("Dependencies that were not set:");
+		for (auto &E : need_to_be_updated) {
+			if (external_deps_updated.has(E)) {
+				continue;
+			}
+			error_messages.append("\t" + E);
+		}
+		if (err == OK) {
+			err = ERR_PRINTER_ON_FIRE;
+			// Quiet messages
+			append_error_messages(err, "");
+		} else {
+			GDRE_SCN_EXP_FAIL_COND_V_MSG(err, err, "");
+		}
+	} else {
+		GDRE_SCN_EXP_FAIL_COND_V_MSG(err, err, "");
 	}
-	GDRE_SCN_EXP_FAIL_COND_V_MSG(err, err, "");
-	if (!set_all_externals || has_script || has_shader) {
-		err = ERR_PRINTER_ON_FIRE;
+
+	// Not really an error, just letting export_resources know that we're not going to be able to import the scene.
+	if (err == OK && (has_script || has_shader)) {
+		err = ERR_DATABASE_CANT_READ;
 	}
 	return err;
 }
@@ -1522,7 +1551,11 @@ Error SceneExporter::export_file(const String &p_dest_path, const String &p_src_
 		int ver_major = get_ver_major(p_src_path);
 		ERR_FAIL_COND_V_MSG(ver_major != 4, ERR_UNAVAILABLE, "Scene export for engine version " + itos(ver_major) + " is not currently supported.");
 	}
-	return _export_file(p_dest_path, p_src_path, nullptr);
+	Error err = _export_file(p_dest_path, p_src_path, nullptr);
+	if (err == ERR_BUG || err == ERR_PRINTER_ON_FIRE || err == ERR_DATABASE_CANT_READ) {
+		err = OK;
+	}
+	return err;
 }
 
 Error SceneExporter::export_file_to_obj(const String &p_dest_path, const String &p_src_path, int ver_major, ObjExporter::MeshInfo &r_mesh_info) {
@@ -1592,12 +1625,15 @@ Ref<ExportReport> SceneExporter::export_resource(const String &output_dir, Ref<I
 		report->set_new_source_path(new_path);
 		err = _export_file(dest_path, iinfo->get_path(), report);
 	}
-	if (err == ERR_PRINTER_ON_FIRE) {
+	if (err == ERR_BUG || err == ERR_PRINTER_ON_FIRE || err == ERR_DATABASE_CANT_READ) {
 		report->set_saved_path(dest_path);
 		// save the import info anyway
 		auto import_dest = output_dir.path_join(iinfo->get_import_md_path().trim_prefix("res://"));
 		iinfo->save_to(import_dest);
 		report->set_rewrote_metadata(ExportReport::NOT_IMPORTABLE);
+		if (err == ERR_DATABASE_CANT_READ) {
+			err = OK;
+		}
 	} else if (err == OK && !to_text && !to_obj && !non_gltf && iinfo->get_ver_major() >= 4) {
 		// TODO: Turn this on when we feel confident that we can tell that are exporting correctly
 		// TODO: do real GLTF validation
