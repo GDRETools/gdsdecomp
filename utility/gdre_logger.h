@@ -11,7 +11,8 @@ class GDRELogger : public Logger {
 	bool disabled = false;
 	static std::atomic<uint64_t> warning_count;
 	static std::atomic<uint64_t> error_count;
-	static StaticParallelQueue<String, 2048> error_queue;
+	static StaticParallelQueue<String, 10240> error_queue;
+	static std::atomic<bool> silent_errors;
 	bool is_prebuffering = false;
 	Mutex buffer_mutex;
 	Vector<String> buffer;
@@ -37,5 +38,10 @@ public:
 	static Vector<String> get_errors();
 	static Vector<String> get_thread_errors();
 	static void clear_error_queues();
+	// Silences errors, but still collects them in the error queue
+	static void set_silent_errors(bool p_silent);
+	static void set_thread_local_silent_errors(bool p_silent);
+	static bool is_silencing_errors();
+	static bool is_thread_local_silencing_errors();
 	virtual ~GDRELogger();
 };

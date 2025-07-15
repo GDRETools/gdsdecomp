@@ -16,10 +16,12 @@ thread_local uint64_t thread_warning_count = 0;
 thread_local uint64_t thread_error_count = 0;
 thread_local bool previous_was_error = false;
 thread_local Vector<String> thread_error_queue;
+thread_local bool thread_local_silent_errors = false;
 
 std::atomic<uint64_t> GDRELogger::error_count = 0;
 std::atomic<uint64_t> GDRELogger::warning_count = 0;
-StaticParallelQueue<String, 2048> GDRELogger::error_queue;
+std::atomic<bool> GDRELogger::silent_errors = false;
+StaticParallelQueue<String, 10240> GDRELogger::error_queue;
 Logger *GDRELogger::stdout_logger = nullptr;
 std::atomic<bool> GDRELogger::just_printed_status_bar = false;
 static constexpr const char *STATUS_BAR_CLEAR = "\r                                                                      \r";
@@ -35,65 +37,68 @@ void GDRELogger::logv(const char *p_format, va_list p_list, bool p_err) {
 	if (just_printed_status_bar.exchange(false)) {
 		stdout_print(STATUS_BAR_CLEAR);
 	}
-	if (file.is_valid() || inGuiMode() || is_prebuffering) {
-		const int static_buf_size = 512;
-		char static_buf[static_buf_size];
-		char *buf = static_buf;
-		va_list list_copy;
-		va_copy(list_copy, p_list);
-		int len = vsnprintf(buf, static_buf_size, p_format, p_list);
-		if (len >= static_buf_size) {
-			buf = (char *)Memory::alloc_static(len + 1);
-			vsnprintf(buf, len + 1, p_format, list_copy);
-		}
-		va_end(list_copy);
+	const int static_buf_size = 512;
+	char static_buf[static_buf_size];
+	char *buf = static_buf;
+	va_list list_copy;
+	va_copy(list_copy, p_list);
+	int len = vsnprintf(buf, static_buf_size, p_format, p_list);
+	if (len >= static_buf_size) {
+		buf = (char *)Memory::alloc_static(len + 1);
+		vsnprintf(buf, len + 1, p_format, list_copy);
+	}
+	va_end(list_copy);
 
-		bool is_gdscript_backtrace = false;
-		if (p_err) {
-			String str = String::utf8(buf);
-			String lstripped = str.strip_edges(true, false);
-			is_gdscript_backtrace = lstripped.begins_with("GDScript backtrace");
-			// If it's the follow-up stacktrace line of an error, don't count it.
-			bool is_stacktrace = lstripped.begins_with("at:") || is_gdscript_backtrace;
-			if (!is_stacktrace) {
-				if (len >= 8 && lstripped.begins_with("WARNING:")) {
-					warning_count++;
-					thread_warning_count++;
-				} else {
-					error_count++;
-					thread_error_count++;
-				}
-				previous_was_error = true;
-			} else if (is_stacktrace) {
-				previous_was_error = false;
+	bool is_gdscript_backtrace = false;
+	bool is_stacktrace = false;
+	String str = String::utf8(buf);
+	if (p_err) {
+		String lstripped = str.strip_edges(true, false);
+		is_gdscript_backtrace = lstripped.begins_with("GDScript backtrace");
+		// If it's the follow-up stacktrace line of an error, don't count it.
+		is_stacktrace = lstripped.begins_with("at:");
+		if (!is_stacktrace && !is_gdscript_backtrace) {
+			if (len >= 8 && lstripped.begins_with("WARNING:")) {
+				warning_count++;
+				thread_warning_count++;
+			} else {
+				error_count++;
+				thread_error_count++;
 			}
-			error_queue.try_push(str); // Ignore if the queue is full
-			thread_error_queue.push_back(str);
-		} else {
+			previous_was_error = true;
+		} else if (is_stacktrace) {
 			previous_was_error = false;
 		}
+		error_queue.try_push(str); // Ignore if the queue is full
+		thread_error_queue.push_back(str);
+	} else {
+		previous_was_error = false;
+	}
 
-		if (inGuiMode() && !is_gdscript_backtrace) {
-			GodotREEditorStandalone::get_singleton()->call_deferred(SNAME("write_log_message"), String::utf8(buf));
-		}
-		if (file.is_valid()) {
-			file->store_buffer((uint8_t *)buf, len);
+	if (p_err && (is_thread_local_silencing_errors() || is_silencing_errors())) {
+		return;
+	}
 
-			if (p_err || _flush_stdout_on_print) {
-				// Don't always flush when printing stdout to avoid performance
-				// issues when `print()` is spammed in release builds.
-				file->flush();
-			}
+	if (inGuiMode() && !is_gdscript_backtrace) {
+		GodotREEditorStandalone::get_singleton()->call_deferred(SNAME("write_log_message"), str);
+	}
+	if (file.is_valid()) {
+		file->store_buffer((uint8_t *)buf, len);
+
+		if (p_err || _flush_stdout_on_print) {
+			// Don't always flush when printing stdout to avoid performance
+			// issues when `print()` is spammed in release builds.
+			file->flush();
 		}
+	}
+	if (is_prebuffering) {
+		MutexLock lock(buffer_mutex);
 		if (is_prebuffering) {
-			MutexLock lock(buffer_mutex);
-			if (is_prebuffering) {
-				buffer.push_back(String::utf8(buf));
-			}
+			buffer.push_back(String::utf8(buf));
 		}
-		if (len >= static_buf_size) {
-			Memory::free_static(buf);
-		}
+	}
+	if (len >= static_buf_size) {
+		Memory::free_static(buf);
 	}
 	stdout_logger->logv(p_format, p_list, p_err);
 }
@@ -162,6 +167,7 @@ Vector<String> GDRELogger::get_errors() {
 	while (error_queue.try_pop(tmp)) {
 		errors.push_back(tmp);
 	}
+	thread_error_queue.clear();
 	return errors;
 }
 
@@ -211,4 +217,20 @@ void GDRELogger::print_status_bar(const String &p_status, float p_progress) {
 	progress_bar[width] = '\0';
 	stdout_print("\r%s [%s] %d%%", p_status.utf8().get_data(), progress_bar, (int)(p_progress * 100));
 	just_printed_status_bar = true;
+}
+
+void GDRELogger::set_silent_errors(bool p_silent) {
+	silent_errors = p_silent;
+}
+
+bool GDRELogger::is_silencing_errors() {
+	return silent_errors;
+}
+
+void GDRELogger::set_thread_local_silent_errors(bool p_silent) {
+	thread_local_silent_errors = p_silent;
+}
+
+bool GDRELogger::is_thread_local_silencing_errors() {
+	return thread_local_silent_errors;
 }
