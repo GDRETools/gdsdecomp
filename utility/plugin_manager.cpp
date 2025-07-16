@@ -500,11 +500,15 @@ void PluginManager::save_plugin_version_cache() {
 				ERR_PRINT("Failed to open plugin version cache file for writing: " + file_name);
 				continue;
 			}
-			String json = JSON::stringify(primary_id.value, " ", false, true);
+			Dictionary d = primary_id.value;
+			String json = JSON::stringify(d, " ", false, true);
 			file->store_string(json);
 			file->flush();
 			file->close();
+			// if we don't clear the dictionary here, it will sometimes cause a crash when the hashmap is cleared
+			primary_id.value = Dictionary();
 		}
+		source.value.clear();
 	}
 	data.clear();
 }
