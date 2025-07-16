@@ -1,6 +1,7 @@
 #pragma once
 #include "core/templates/hash_set.h"
 #include "core/variant/variant.h"
+#include "macros.h"
 
 #include <core/object/class_db.h>
 #include <core/object/object.h>
