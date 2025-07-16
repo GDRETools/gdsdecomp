@@ -908,7 +908,8 @@ func recovery(  input_files:PackedStringArray,
 		if includes.size() > 0:
 			includes = normalize_cludes(includes, parent_dir)
 			files = get_globs_files(includes)
-			print("Files: " + str(files))
+			# print("Files: " + str(files))
+			print("Matched files: " + str(files.size()))
 			if len(files) == 0:
 				print("Error: no files found that match includes")
 				print("Includes: " + str(includes))
