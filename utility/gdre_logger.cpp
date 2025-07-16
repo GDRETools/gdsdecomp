@@ -34,7 +34,7 @@ void GDRELogger::logv(const char *p_format, va_list p_list, bool p_err) {
 		}
 		return;
 	}
-	if (just_printed_status_bar.exchange(false)) {
+	if (just_printed_status_bar.exchange(false) && (!(thread_local_silent_errors || silent_errors) || !p_err)) {
 		stdout_print(STATUS_BAR_CLEAR);
 	}
 	const int static_buf_size = 512;
