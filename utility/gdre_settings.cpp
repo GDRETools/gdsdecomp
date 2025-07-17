@@ -694,6 +694,16 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 	err = load_import_files();
 	ERR_FAIL_COND_V_MSG(err, ERR_FILE_CANT_READ, "FATAL ERROR: Could not load imported binary files!");
 
+	print_line(vformat("Loaded %d imported files", import_files.size()));
+	print_line(vformat("Detected Engine Version: %s", get_version_string()));
+	int bytecode_revision = get_bytecode_revision();
+	if (bytecode_revision > 0) {
+		auto decomp = GDScriptDecomp::create_decomp_for_commit(bytecode_revision);
+		if (decomp.is_valid()) {
+			print_line(vformat("Detected Bytecode Revision: %s (%07x)", decomp->get_engine_version(), bytecode_revision));
+		}
+	}
+
 	return OK;
 }
 
