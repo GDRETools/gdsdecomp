@@ -135,7 +135,7 @@ public:
 		return gte(b);
 	}
 
-	operator String() const { return as_text(); };
+	operator String() const { return as_text(); }
 	virtual String to_string() override;
 	virtual String as_tag() const { return as_text(); }
 
