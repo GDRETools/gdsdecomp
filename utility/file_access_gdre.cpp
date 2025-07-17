@@ -3,6 +3,7 @@
 //
 
 #include "file_access_gdre.h"
+#include "core/io/file_access.h"
 #include "core/os/os.h"
 #include "file_access_apk.h"
 #include "gdre_packed_source.h"
@@ -29,8 +30,14 @@ bool DirSource::try_open_pack(const String &p_path, bool p_replace_files, uint64
 	pckinfo->init(p_path, Ref<GodotVer>(memnew(GodotVer)), 1, 0, 0, pa.size(), GDRESettings::PackInfo::DIR);
 	GDRESettings::get_singleton()->add_pack_info(pckinfo);
 	for (auto &path : pa) {
-		GDREPackedData::get_singleton()->add_path(p_path, path, 1, 0, MD5_EMPTY, this, p_replace_files, false, false);
+		size_t size = 0;
+		Ref<FileAccess> fa = FileAccess::open(p_path.path_join(path), FileAccess::READ);
+		if (fa.is_valid()) {
+			size = fa->get_length();
+		}
+		GDREPackedData::get_singleton()->add_path(p_path, path, 1, size, MD5_EMPTY, this, p_replace_files, false, false);
 	}
+	packs.push_back(p_path);
 	return true;
 }
 
@@ -43,6 +50,44 @@ Ref<FileAccess> DirSource::get_file(const String &p_path, PackedData::PackedFile
 		return FileAccess::open(path, FileAccess::READ);
 	}
 	return nullptr;
+}
+
+bool DirSource::file_exists(const String &p_path) const {
+	for (auto &pack : packs) {
+		if (FileAccess::exists(pack.path_join(p_path.trim_prefix("res://")))) {
+			return true;
+		}
+	}
+	return false;
+}
+
+String DirSource::get_pack_path(const String &p_path) const {
+	for (auto &pack : packs) {
+		if (FileAccess::exists(pack.path_join(p_path.trim_prefix("res://")))) {
+			return pack;
+		}
+	}
+	return "";
+}
+
+void DirSource::reset() {
+	packs.clear();
+}
+
+DirSource *DirSource::singleton = nullptr;
+
+DirSource::DirSource() {
+	singleton = this;
+}
+
+DirSource::~DirSource() {
+	if (singleton == this) {
+		singleton = nullptr;
+	}
+}
+
+DirSource *DirSource::get_singleton() {
+	return singleton;
 }
 
 Error GDREPackedData::add_pack(const String &p_path, bool p_replace_files, uint64_t p_offset) {
@@ -69,8 +114,29 @@ Error GDREPackedData::add_dir(const String &p_path, bool p_replace_files) {
 	return ERR_FILE_CANT_OPEN;
 }
 
-void GDREPackedData::add_path(const String &p_pkg_path, const String &p_path, uint64_t p_ofs, uint64_t p_size, const uint8_t *p_md5, PackSource *p_src, bool p_replace_files, bool p_encrypted, bool p_pck_src) {
+namespace {
+// Solely here to test that PackedData::PackedFile hasn't changed
+struct __ExpectedPackedFile {
+	String pack;
+	uint64_t offset; //if offset is ZERO, the file was ERASED
+	uint64_t size;
+	uint8_t md5[16];
+	PackSource *src = nullptr;
+	bool encrypted;
+	bool bundle;
+};
+using __PackedFile = PackedData::PackedFile;
+CHECK_SIZE_MATCH_NO_PADDING(__ExpectedPackedFile, __PackedFile);
+} //namespace
+
+static_assert(has_same_signature<decltype(&GDREPackedData::add_path), decltype(&PackedData::add_path)>::value, "GDREPackedData::add_path does not have the same signature as PackedData::add_path");
+
+void GDREPackedData::add_path(const String &p_pkg_path, const String &p_path, uint64_t p_ofs, uint64_t p_size, const uint8_t *p_md5, PackSource *p_src, bool p_replace_files, bool p_encrypted, bool p_bundle) {
+	// TODO: This might be a performance hit? If so, use the commented out one.
+	bool p_pck_src = dynamic_cast<GDREPackedSource *>(p_src) != nullptr;
+	// bool p_pck_src = p_src == sources[0];
 	PackedData::PackedFile pf;
+	pf.bundle = p_bundle;
 	pf.encrypted = p_encrypted;
 	pf.pack = p_pkg_path;
 	pf.offset = p_ofs;
@@ -85,7 +151,7 @@ void GDREPackedData::add_path(const String &p_pkg_path, const String &p_path, ui
 	pf_info->init(abs_path, &pf);
 
 	// Get the fixed path if this is from a PCK source
-	String path = p_pck_src ? pf_info->get_path() : p_path.simplify_path();
+	String path = p_pck_src ? pf_info->get_path() : abs_path.simplify_path();
 
 	PathMD5 pmd5(path.trim_prefix("res://").md5_buffer());
 
@@ -261,7 +327,8 @@ Ref<FileAccess> GDREPackedData::try_open_path(const String &p_path) {
 	if (!E) {
 		return nullptr; //not found
 	}
-	if (E->value.offset == 0) {
+
+	if (E->value.offset == 0 && !E->value.bundle) {
 		return nullptr; //was erased
 	}
 
@@ -314,6 +381,7 @@ void GDREPackedData::_clear() {
 		memdelete(sources[i]);
 	}
 	sources.clear();
+	dir_source.reset();
 	set_disabled(true);
 	_free_packed_dirs(root);
 	root = memnew(PackedDir);
@@ -328,13 +396,17 @@ GDREPackedData::~GDREPackedData() {
 	}
 }
 
+constexpr bool should_check_pack(int p_mode_flags) {
+	return !(p_mode_flags & FileAccess::WRITE) && !(p_mode_flags & FileAccess::SKIP_PACK);
+}
+
 bool is_gdre_file(const String &p_path) {
-	return p_path.begins_with("res://") && p_path.get_basename().begins_with("gdre_");
+	return p_path.begins_with("res://") && p_path.get_file().begins_with("gdre_");
 }
 
 Error FileAccessGDRE::open_internal(const String &p_path, int p_mode_flags) {
 	//try packed data first
-	if (!(p_mode_flags & WRITE) && GDREPackedData::get_singleton() && !GDREPackedData::get_singleton()->is_disabled()) {
+	if (should_check_pack(p_mode_flags) && GDREPackedData::get_singleton() && !GDREPackedData::get_singleton()->is_disabled()) {
 		proxy = GDREPackedData::get_singleton()->try_open_path(p_path);
 		if (proxy.is_valid()) {
 			if (is_gdre_file(p_path)) {
@@ -344,7 +416,7 @@ Error FileAccessGDRE::open_internal(const String &p_path, int p_mode_flags) {
 		}
 	}
 	String path = p_path;
-	if (!(p_mode_flags & WRITE) && is_gdre_file(p_path)) {
+	if (should_check_pack(p_mode_flags) && is_gdre_file(p_path)) {
 		WARN_PRINT(vformat("Attempted to open a gdre file %s while we have a pack loaded...", p_path));
 		if (PathFinder::real_packed_data_has_path(p_path)) {
 			// this works even when PackedData is disabled
@@ -845,6 +917,7 @@ DirAccessGDRE::~DirAccessGDRE() {
 #endif
 #ifdef ANDROID_ENABLED
 #include "platform/android/dir_access_jandroid.h"
+#include "platform/android/file_access_android.h"
 #endif
 #endif
 // static FileAccess::CreateFunc default_file_res_create_func{ nullptr };
@@ -1024,6 +1097,11 @@ Ref<FileAccess> FileAccessGDRE::_open_filesystem(const String &p_path, int p_mod
 	return file_proxy;
 }
 
+void FileAccessGDRE::_set_access_type(AccessType p_access) {
+	access_type = p_access;
+	FileAccess::_set_access_type(p_access);
+}
+
 bool PathFinder::real_packed_data_has_path(const String &p_path, bool check_disabled) {
 	return PackedData::get_singleton() && (!check_disabled || !PackedData::get_singleton()->is_disabled()) && PackedData::get_singleton()->has_path(p_path);
 }
@@ -1036,7 +1114,7 @@ String PathFinder::_fix_path_file_access(const String &p_path, int p_mode_flags)
 	if (p_path.begins_with("res://")) {
 		if (is_gdre_file(p_path)) {
 			WARN_PRINT("WARNING: Calling fix_path on a gdre file...");
-			if (!(p_mode_flags & FileAccess::WRITE)) {
+			if (should_check_pack(p_mode_flags)) {
 				if (gdre_packed_data_valid_path(p_path)) {
 					WARN_PRINT("WARNING: fix_path: gdre file is in a loaded external pack???? PLEASE REPORT THIS!!!!");
 					return p_path.trim_prefix("res://");
@@ -1059,7 +1137,7 @@ String PathFinder::_fix_path_file_access(const String &p_path, int p_mode_flags)
 	} else if (p_path.begins_with("user://")) { // Some packs have user files in them, so we need to check for those
 		if (p_path.get_file().begins_with("gdre_")) {
 			WARN_PRINT(vformat("WARNING: Calling fix_path on a gdre file %s...", p_path));
-			if (!(p_mode_flags & FileAccess::WRITE)) {
+			if (should_check_pack(p_mode_flags)) {
 				if (gdre_packed_data_valid_path(p_path)) {
 					WARN_PRINT(vformat("WARNING: fix_path: gdre file %s is in a loaded external pack???? PLEASE REPORT THIS!!!!", p_path));
 					return p_path.replace_first("user://", "");
@@ -1068,7 +1146,7 @@ String PathFinder::_fix_path_file_access(const String &p_path, int p_mode_flags)
 		}
 
 		// check if the file is in the PackedData first
-		if (!(p_mode_flags & FileAccess::WRITE) && gdre_packed_data_valid_path(p_path)) {
+		if (should_check_pack(p_mode_flags) && gdre_packed_data_valid_path(p_path)) {
 			return p_path.replace_first("user://", "");
 		}
 		String data_dir = OS::get_singleton()->get_user_data_dir();

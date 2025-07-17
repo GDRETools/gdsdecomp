@@ -7,6 +7,7 @@
 #include "core/error/error_list.h"
 #include "core/error/error_macros.h"
 #include "core/io/file_access.h"
+#include "core/io/file_access_encrypted.h"
 #include "core/object/class_db.h"
 #include "core/string/print_string.h"
 #include "modules/zip/zip_reader.h"
@@ -16,6 +17,7 @@
 #include "utility/gdre_packed_source.h"
 #include "utility/gdre_version.gen.h"
 #include "utility/import_info.h"
+#include "utility/pcfg_loader.h"
 #include "utility/plugin_manager.h"
 #include "utility/task_manager.h"
 
@@ -382,6 +384,43 @@ Error GDRESettings::load_dir(const String &p_path) {
 		unload_dir();
 		ERR_FAIL_V_MSG(err, "FATAL ERROR: Can't open directory!");
 	}
+	// Check for the existence of assets.sparsepck
+	String sparse_pck_path = p_path.path_join("assets.sparsepck");
+	if (FileAccess::exists(sparse_pck_path)) {
+		for (const auto &pack : packs) {
+			// skip it, it's already loaded
+			if (pack->pack_file == sparse_pck_path) {
+				return OK;
+			}
+		}
+		print_line("Checking if we need to load detected sparse pack...");
+		bool needs_load = false;
+		// We need to check if the project config is encrypted, if so, we need to load it.
+		if (pack_has_project_config()) {
+			// only 4.5 and up have these
+			String proj_config_path = p_path.path_join(has_path_loaded("res://project.binary") ? "project.binary" : "project.godot");
+			ProjectConfigLoader pcfg_loader;
+			if (pcfg_loader.load_cfb(proj_config_path, 4, 5) != OK) {
+				needs_load = true;
+			}
+		} else {
+			needs_load = true;
+		}
+
+		if (needs_load) {
+			print_line("Loading detected sparse pack...");
+			err = GDREPackedData::get_singleton()->add_pack(sparse_pck_path, true, 0);
+			if (err != OK) {
+				if (error_encryption) {
+					ERR_FAIL_V_MSG(err, "FATAL ERROR: Can't open detected sparse pack! (Did you set the correct key?)");
+				}
+				ERR_FAIL_V_MSG(err, "FATAL ERROR: Can't open detected sparse pack!");
+			}
+			print_line("Loaded detected sparse pack!");
+		} else {
+			print_line("Skipping loading detected sparse pack...");
+		}
+	}
 	return OK;
 }
 
@@ -572,9 +611,17 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 				WARN_PRINT("Could not find embedded pck in EXE, found pck file, loading from: " + san_path);
 			}
 			err = load_pck(path);
-			if (err) {
+			if (err || !is_pack_loaded()) {
 				unload_project();
 				ERR_FAIL_COND_V_MSG(err, err, "Can't load project!");
+			}
+			// If the last pack was an APK and has a sparse bundle, we need to load it
+			if (packs[packs.size() - 1]->type == PackInfo::APK && FileAccess::exists("res://assets.sparsepck")) {
+				err = load_pck("res://assets.sparsepck");
+				if (err) {
+					unload_project();
+					ERR_FAIL_COND_V_MSG(err, err, "Can't load project!");
+				}
 			}
 			load_pack_uid_cache();
 			load_pack_gdscript_cache();
@@ -2116,7 +2163,7 @@ public:
 		__android_log_vprint(p_err ? ANDROID_LOG_ERROR : ANDROID_LOG_INFO, "godot", p_format, p_list);
 	}
 
-	virtual ~AndroidLogger() {}
+	virtual ~GDREAndroidLogger() {}
 };
 #define STDOUT_LOGGER GDREAndroidLogger
 #endif

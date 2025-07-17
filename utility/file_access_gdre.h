@@ -6,9 +6,18 @@
 #include "utility/packed_file_info.h"
 
 class DirSource : public PackSource {
+	Vector<String> packs;
+	static DirSource *singleton;
+
 public:
+	static DirSource *get_singleton();
 	virtual bool try_open_pack(const String &p_path, bool p_replace_files, uint64_t p_offset) override;
 	virtual Ref<FileAccess> get_file(const String &p_path, PackedData::PackedFile *p_file) override;
+	bool file_exists(const String &p_path) const;
+	String get_pack_path(const String &p_path) const;
+	void reset();
+	DirSource();
+	~DirSource();
 };
 
 class GDREPackedData {
@@ -69,7 +78,7 @@ public:
 	void set_default_file_access();
 	void reset_default_file_access();
 	void add_pack_source(PackSource *p_source);
-	void add_path(const String &p_pkg_path, const String &p_path, uint64_t p_ofs, uint64_t p_size, const uint8_t *p_md5, PackSource *p_src, bool p_replace_files, bool p_encrypted = false, bool p_pck_src = false); // for PackSource
+	void add_path(const String &p_pkg_path, const String &p_path, uint64_t p_ofs, uint64_t p_size, const uint8_t *p_md5, PackSource *p_src, bool p_replace_files, bool p_encrypted = false, bool p_bundle = false); // for PackSource
 	void remove_path(const String &p_path);
 	uint8_t *get_file_hash(const String &p_path);
 	HashSet<String> get_file_paths() const;
@@ -106,6 +115,8 @@ class FileAccessGDRE : public FileAccess {
 	GDCLASS(FileAccessGDRE, FileAccess);
 	friend class GDREPackedData;
 	Ref<FileAccess> proxy;
+	AccessType access_type;
+
 	typedef Ref<FileAccess> (*CreateFunc)();
 
 	virtual uint64_t _get_modified_time(const String &p_file) override;
@@ -117,6 +128,9 @@ class FileAccessGDRE : public FileAccess {
 	virtual bool _get_hidden_attribute(const String &p_file) override;
 
 	static Ref<FileAccess> _open_filesystem(const String &p_path, int p_mode_flags, Error *r_error);
+
+protected:
+	virtual void _set_access_type(AccessType p_access) override;
 
 public:
 	virtual Error open_internal(const String &p_path, int p_mode_flags) override; ///< open a file

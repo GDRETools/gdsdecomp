@@ -1,9 +1,11 @@
 #include "gdre_packed_source.h"
+#include "file_access_apk.h"
+#include "file_access_gdre.h"
+#include "gdre_settings.h"
+
 #include "core/io/file_access_encrypted.h"
 #include "core/io/file_access_pack.h"
 #include "core/object/script_language.h"
-#include "file_access_gdre.h"
-#include "gdre_settings.h"
 
 static_assert(PACK_FORMAT_VERSION == GDREPackedSource::CURRENT_PACK_FORMAT_VERSION, "Pack format version changed.");
 
@@ -325,6 +327,7 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 
 	bool enc_directory = (pack_flags & PACK_DIR_ENCRYPTED);
 	bool rel_filebase = (pack_flags & PACK_REL_FILEBASE);
+	bool sparse_bundle = (pack_flags & PACK_SPARSE_BUNDLE);
 
 	if ((version == PACK_FORMAT_VERSION_V3) || (version == PACK_FORMAT_VERSION_V2 && rel_filebase)) {
 		file_base += pck_start_pos;
@@ -426,12 +429,49 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 		if (flags & PACK_FILE_REMOVAL) { // The file was removed.
 			GDREPackedData::get_singleton()->remove_path(path);
 		} else {
-			GDREPackedData::get_singleton()->add_path(pck_path, path, ofs, size, md5, this, p_replace_files, (flags & PACK_FILE_ENCRYPTED), true);
+			GDREPackedData::get_singleton()->add_path(pck_path, path, ofs, size, md5, this, p_replace_files, (flags & PACK_FILE_ENCRYPTED), sparse_bundle);
 		}
 	}
 
 	return true;
 }
+
 Ref<FileAccess> GDREPackedSource::get_file(const String &p_path, PackedData::PackedFile *p_file) {
+	// if we call the constructor for FileAccessPack if it's a bundle,
+	// it'll cause an infinite loop; we need to just create the thing ourselves
+	if (p_file->bundle) {
+		String simplified_path = p_path.simplify_path();
+		Ref<FileAccess> f;
+		auto pf = PackedData::PackedFile(*p_file);
+		pf.offset = 0;
+
+		if (APKArchive::get_singleton() && APKArchive::get_singleton()->file_exists(simplified_path)) {
+			// APKArchive ignores the pf file, so no need to modify it
+			f = APKArchive::get_singleton()->get_file(simplified_path, &pf);
+		} else if (DirSource::get_singleton() && DirSource::get_singleton()->file_exists(simplified_path)) {
+			pf.pack = DirSource::get_singleton()->get_pack_path(simplified_path);
+			f = DirSource::get_singleton()->get_file(simplified_path, &pf);
+		}
+
+		ERR_FAIL_COND_V_MSG(f.is_null(), nullptr, vformat("APKArchive or DirSource doesn't contain sparse pack-referenced file '%s'.", p_path));
+
+		if (pf.encrypted) {
+			Ref<FileAccessEncrypted> fae;
+			fae.instantiate();
+			ERR_FAIL_COND_V_MSG(fae.is_null(), nullptr, vformat("Can't open encrypted pack-referenced file '%s'.", String(p_path)));
+
+			Vector<uint8_t> key;
+			key.resize(32);
+			for (int i = 0; i < key.size(); i++) {
+				key.write[i] = script_encryption_key[i];
+			}
+
+			Error err = fae->open_and_parse(f, key, FileAccessEncrypted::MODE_READ, false);
+			ERR_FAIL_COND_V_MSG(err, nullptr, vformat("Can't open encrypted pack-referenced file '%s'.", String(p_path)));
+			f = fae;
+		}
+		return f;
+	}
+	// otherwise...
 	return memnew(FileAccessPack(p_path, *p_file));
 }

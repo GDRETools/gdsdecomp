@@ -300,6 +300,10 @@ APKArchive::~APKArchive() {
 	}
 
 	packages.clear();
+	files.clear();
+	if (instance == this) {
+		instance = nullptr;
+	}
 }
 
 Error FileAccessAPK::open_internal(const String &p_path, int p_mode_flags) {
