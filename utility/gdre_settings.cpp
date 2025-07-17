@@ -615,13 +615,18 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 				unload_project();
 				ERR_FAIL_COND_V_MSG(err, err, "Can't load project!");
 			}
+			auto last_type = packs[packs.size() - 1]->type;
 			// If the last pack was an APK and has a sparse bundle, we need to load it
-			if (packs[packs.size() - 1]->type == PackInfo::APK && FileAccess::exists("res://assets.sparsepck")) {
+			if ((last_type == PackInfo::APK || last_type == PackInfo::ZIP) && has_path_loaded("res://assets.sparsepck")) {
 				err = load_pck("res://assets.sparsepck");
-				if (err) {
+				if (err && err != ERR_ALREADY_IN_USE) {
 					unload_project();
-					ERR_FAIL_COND_V_MSG(err, err, "Can't load project!");
+					if (error_encryption) {
+						ERR_FAIL_COND_V_MSG(err, err, "Failed to load sparse pack! (Did you set the correct key?)");
+					}
+					ERR_FAIL_COND_V_MSG(err, err, "Failed to load sparse pack!!");
 				}
+				err = OK;
 			}
 			load_pack_uid_cache();
 			load_pack_gdscript_cache();
