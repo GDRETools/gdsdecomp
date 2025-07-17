@@ -254,6 +254,13 @@ bool APKArchive::try_open_pack(const String &p_path, bool p_replace_files, uint6
 			}
 		} else {
 			fname = "res://" + original_fname;
+			if ((fname.ends_with("/") || fname.ends_with("\\")) && file_info.uncompressed_size == 0) {
+				// phantom directory, skip it
+				if ((i + 1) < gi.number_entry) {
+					unzGoToNextFile(zfile);
+				}
+				continue;
+			}
 		}
 
 		asset_count++;
