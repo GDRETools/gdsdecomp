@@ -903,13 +903,18 @@ void GDRESettings::add_pack_info(Ref<PackInfo> packinfo) {
 	packs.push_back(packinfo);
 	if (!current_project.is_valid()) { // only set if we don't have a current pack
 		current_project = Ref<ProjectInfo>(memnew(ProjectInfo));
-		current_project->version = packinfo->version;
+		current_project->version = GodotVer::copy_from(packinfo->version);
 		current_project->pack_file = packinfo->pack_file;
 		current_project->type = packinfo->type;
 		current_project->suspect_version = packinfo->suspect_version;
 	} else {
 		if (!current_project->version->eq(packinfo->version)) {
-			WARN_PRINT("Warning: Pack version mismatch!");
+			if ((!current_project->version->is_valid_semver() || current_project->version->get_major() == 0) &&
+					packinfo->version->is_valid_semver() && packinfo->version->get_major() != 0) {
+				current_project->version = GodotVer::copy_from(packinfo->version);
+			} else {
+				WARN_PRINT("Warning: Pack version mismatch!");
+			}
 		}
 	}
 }
