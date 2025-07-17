@@ -44,6 +44,14 @@ var text_size_minus_id: int = 0
 	get:
 		return gdshader_highlighter
 
+@export var json_highlighter: CodeHighlighter = preload("res://gdre_json_highlighter.tres"):
+	set(val):
+		if CODE_VIEWER.syntax_highlighter == json_highlighter:
+			CODE_VIEWER.syntax_highlighter = val
+		json_highlighter = val
+	get:
+		return json_highlighter
+
 
 func reset():
 	set_text_viewer_props()
@@ -127,8 +135,16 @@ func load_text_string(text):
 	set_viewer_text(text)
 	return true
 
+func load_json(path):
+	set_json_viewer_props()
+	set_viewer_text(FileAccess.get_file_as_string(path))
+	return true
+
+
 func set_shader_viewer_props():
 	CODE_VIEWER.syntax_highlighter = gdshader_highlighter
+	CODE_VIEWER.line_folding = true
+	CODE_VIEWER.gutters_draw_fold_gutter = true
 	CODE_VIEWER.gutters_draw_line_numbers = true
 	CODE_VIEWER.auto_brace_completion_highlight_matching = true
 	CODE_VIEWER.highlight_all_occurrences = true
@@ -140,6 +156,8 @@ func set_shader_viewer_props():
 
 func set_code_viewer_props():
 	CODE_VIEWER.syntax_highlighter = gdscript_highlighter
+	CODE_VIEWER.line_folding = true
+	CODE_VIEWER.gutters_draw_fold_gutter = true
 	CODE_VIEWER.gutters_draw_line_numbers = true
 	CODE_VIEWER.auto_brace_completion_highlight_matching = true
 	CODE_VIEWER.highlight_all_occurrences = true
@@ -149,9 +167,23 @@ func set_code_viewer_props():
 	CODE_VIEWER.draw_spaces = true
 	CODE_VIEWER.delimiter_comments = GDSCRIPT_COMMENTS
 
+func set_json_viewer_props():
+	CODE_VIEWER.syntax_highlighter = gdscript_highlighter
+	CODE_VIEWER.line_folding = true
+	CODE_VIEWER.gutters_draw_fold_gutter = true
+	CODE_VIEWER.gutters_draw_line_numbers = true
+	CODE_VIEWER.auto_brace_completion_highlight_matching = true
+	CODE_VIEWER.highlight_all_occurrences = true
+	CODE_VIEWER.highlight_current_line = true
+	CODE_VIEWER.draw_control_chars = true
+	CODE_VIEWER.draw_tabs = false
+	CODE_VIEWER.draw_spaces = false
+	CODE_VIEWER.delimiter_comments = []
 
 func set_resource_viewer_props():
 	CODE_VIEWER.syntax_highlighter = gdresource_highlighter
+	CODE_VIEWER.line_folding = false
+	CODE_VIEWER.gutters_draw_fold_gutter = false
 	CODE_VIEWER.gutters_draw_line_numbers = false
 	CODE_VIEWER.auto_brace_completion_highlight_matching = false
 	CODE_VIEWER.highlight_all_occurrences = true
@@ -160,8 +192,11 @@ func set_resource_viewer_props():
 	CODE_VIEWER.draw_tabs = false
 	CODE_VIEWER.draw_spaces = false
 	CODE_VIEWER.delimiter_comments = GDRESOURCE_COMMENTS
+
 func set_text_viewer_props():
 	CODE_VIEWER.syntax_highlighter = null
+	CODE_VIEWER.line_folding = false
+	CODE_VIEWER.gutters_draw_fold_gutter = false
 	CODE_VIEWER.gutters_draw_line_numbers = false
 	CODE_VIEWER.auto_brace_completion_highlight_matching = false
 	CODE_VIEWER.highlight_all_occurrences = false

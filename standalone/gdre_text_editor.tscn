@@ -5,7 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://70wmkccoq7gp" path="res://gdre_icons/gdre_GuiTabMenuHl.svg" id="2_7prjp"]
 [ext_resource type="CodeHighlighter" uid="uid://bgbfmyk1q82jx" path="res://gdre_code_highlighter.tres" id="3_lr7u0"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xbi33"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_akfwn"]
 content_margin_left = 6.0
 content_margin_top = 4.0
 content_margin_right = 6.0
@@ -15,31 +15,7 @@ border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.411765, 0.611765, 0.909804, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_c15al"]
-content_margin_left = 6.0
-content_margin_top = 4.0
-content_margin_right = 6.0
-content_margin_bottom = 4.0
-bg_color = Color(0.176471, 0.208235, 0.278824, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.137255, 0.161961, 0.216863, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ylkc0"]
-content_margin_left = 6.0
-content_margin_top = 4.0
-content_margin_right = 6.0
-content_margin_bottom = 4.0
-bg_color = Color(0.147059, 0.173529, 0.232353, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.397059, 0.423529, 0.482353, 1)
+border_color = Color(0.234977, 0.269988, 0.347677, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lseom"]
 content_margin_left = 6.0
@@ -53,7 +29,7 @@ border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.411765, 0.611765, 0.909804, 1)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_akfwn"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ylkc0"]
 content_margin_left = 6.0
 content_margin_top = 4.0
 content_margin_right = 6.0
@@ -63,7 +39,31 @@ border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.234977, 0.269988, 0.347677, 1)
+border_color = Color(0.397059, 0.423529, 0.482353, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_c15al"]
+content_margin_left = 6.0
+content_margin_top = 4.0
+content_margin_right = 6.0
+content_margin_bottom = 4.0
+bg_color = Color(0.176471, 0.208235, 0.278824, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.137255, 0.161961, 0.216863, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xbi33"]
+content_margin_left = 6.0
+content_margin_top = 4.0
+content_margin_right = 6.0
+content_margin_bottom = 4.0
+bg_color = Color(0.147059, 0.173529, 0.232353, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.411765, 0.611765, 0.909804, 1)
 
 [node name="TextView" type="Control"]
 layout_mode = 3
@@ -119,7 +119,6 @@ auto_brace_completion_highlight_matching = true
 
 [node name="CodeOptsBox" type="Control" parent="."]
 layout_mode = 1
-anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -39.0
@@ -135,15 +134,15 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_styles/focus = SubResource("StyleBoxFlat_xbi33")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_c15al")
-theme_override_styles/hover = SubResource("StyleBoxFlat_ylkc0")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_lseom")
 theme_override_styles/normal = SubResource("StyleBoxFlat_akfwn")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_lseom")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ylkc0")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_c15al")
+theme_override_styles/focus = SubResource("StyleBoxFlat_xbi33")
 
 [node name="CodeViewerOptions" type="MenuButton" parent="CodeOptsBox"]
 layout_mode = 1
-anchors_preset = 15
+anchors_preset = -1
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -0.5

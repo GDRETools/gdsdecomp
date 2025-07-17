@@ -180,10 +180,15 @@ func load_resource(path: String, override_bytecode_revision: int = 0) -> void:
 			var da = DirAccess.open(tmp_dir)
 			if da:
 				da.remove(temp_path)
-
+	elif ext == "json":
+		%TextView.load_json(path)
+		%TextView.visible = true
+		%ResourceInfo.text = path
+		return
 	elif (is_text(ext) or is_content_text(path)):
 		%TextView.load_text(path)
 		%TextView.visible = true
+		%ResourceInfo.text = path
 		return
 	else:
 		not_supported = true
@@ -228,7 +233,7 @@ func is_code(ext, p_type = ""):
 	return false
 
 func is_text(ext, p_type = ""):
-	if (ext == "txt" || ext == "json" || ext == "xml" || ext == "csv" || ext == "html" || ext == "md" || ext == "yml" || ext == "yaml"):
+	if (ext == "txt" || ext == "xml" || ext == "csv" || ext == "html" || ext == "md" || ext == "yml" || ext == "yaml"):
 		return true
 	return false
 
