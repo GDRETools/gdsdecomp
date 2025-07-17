@@ -4,6 +4,7 @@
 #include "compat/resource_loader_compat.h"
 #include "compat/webp_compat.h"
 #include "core/io/resource_loader.h"
+#include "utility/common.h"
 #include "utility/resource_info.h"
 
 #include "core/error/error_list.h"
@@ -439,7 +440,7 @@ public:
 	int h = 0;
 	mutable Ref<BitMap> alpha_cache;
 };
-static_assert(sizeof(faketex2D) == sizeof(CompressedTexture2D), "faketex2D must be the same size as CompressedTexture2D");
+CHECK_SIZE_MATCH_NO_PADDING(faketex2D, CompressedTexture2D);
 
 Error TextureLoaderCompat::_load_data_stex2d_v3(const String &p_path, int &tw, int &th, int &tw_custom, int &th_custom, int &flags, Ref<Image> &image, int p_size_limit) {
 	Error err;
@@ -688,7 +689,7 @@ public:
 	int d = 0;
 	bool mipmaps = false;
 };
-static_assert(sizeof(faketex3D) == sizeof(CompressedTexture3D), "faketex3D must be the same size as CompressedTexture3D");
+CHECK_SIZE_MATCH_NO_PADDING(faketex3D, CompressedTexture3D);
 
 template <class T>
 class OverrideTextureLayered : public T {
@@ -716,7 +717,7 @@ public:
 	bool mipmaps = false;
 	LayeredType layered_type = LayeredType::LAYERED_TYPE_2D_ARRAY;
 };
-static_assert(sizeof(faketexlayered) == sizeof(CompressedTextureLayered), "faketexlayered must be the same size as CompressedTextureLayered");
+CHECK_SIZE_MATCH_NO_PADDING(faketexlayered, CompressedTextureLayered);
 
 // TODO: What to do with this?
 Vector<Ref<Image>> TextureLoaderCompat::load_images_from_layered_tex(const String p_path, Error *r_err) {

@@ -2,6 +2,7 @@
 #define __OPTIMIZED_TRANSLATION_EXTRACTOR_H__
 
 #include "core/string/optimized_translation.h"
+#include "utility/macros.h"
 
 class OptimizedTranslationExtractor : public Translation {
 	GDCLASS(OptimizedTranslationExtractor, Translation);
@@ -60,6 +61,5 @@ public:
 	static Ref<OptimizedTranslationExtractor> create_from(const Ref<OptimizedTranslation> &p_otr);
 	OptimizedTranslationExtractor() {}
 };
-static_assert(sizeof(OptimizedTranslationExtractor) == sizeof(OptimizedTranslation), "OptimizedTranslationExtractor should have the same size as OptimizedTranslation");
-
+CHECK_SIZE_MATCH_NO_PADDING(OptimizedTranslationExtractor, OptimizedTranslation);
 #endif // __OPTIMIZED_TRANSLATION_EXTRACTOR_H__

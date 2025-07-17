@@ -3,6 +3,7 @@
 #include "core/object/object.h"
 #include "scene/main/node.h"
 #include "scene/resources/packed_scene.h"
+#include "utility/common.h"
 
 class fake_scene_state : public RefCounted {
 	GDCLASS(fake_scene_state, RefCounted);
@@ -82,7 +83,7 @@ public:
 		return Ref<PackedScene>();
 	}
 };
-static_assert(sizeof(fake_scene_state) == sizeof(SceneState), "fake_scene_state size mismatch");
+CHECK_SIZE_MATCH_NO_PADDING(fake_scene_state, SceneState);
 
 // Ref<Resource> get_fake_instance(SceneState *state, int p_idx);
 
