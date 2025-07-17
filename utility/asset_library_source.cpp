@@ -316,6 +316,7 @@ void AssetLibrarySource::load_cache_internal() {
 void AssetLibrarySource::save_edit_list_cache() {
 	MutexLock lock(cache_mutex);
 	String edit_list_cache_file = PluginManager::get_plugin_cache_path().path_join("asset_lib_edit_list_release_cache.json");
+	gdre::ensure_dir(edit_list_cache_file.get_base_dir());
 	auto file = FileAccess::open(edit_list_cache_file, FileAccess::WRITE);
 	if (file.is_null()) {
 		return;
@@ -332,6 +333,7 @@ void AssetLibrarySource::save_edit_list_cache() {
 void AssetLibrarySource::save_edit_cache() {
 	MutexLock lock(cache_mutex);
 	String edit_cache_file = PluginManager::get_plugin_cache_path().path_join("asset_lib_edits_release_cache.json");
+	gdre::ensure_dir(edit_cache_file.get_base_dir());
 	auto file = FileAccess::open(edit_cache_file, FileAccess::WRITE);
 	if (file.is_null()) {
 		return;

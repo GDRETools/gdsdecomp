@@ -364,6 +364,7 @@ void GitHubSource::_load_release_cache() {
 void GitHubSource::_save_release_cache() {
 	MutexLock lock(cache_mutex);
 	auto file = _get_release_cache_file_name();
+	gdre::ensure_dir(file.get_base_dir());
 	auto fa = FileAccess::open(file, FileAccess::WRITE);
 	ERR_FAIL_COND_MSG(fa.is_null(), "Failed to open file for writing: " + file);
 	Dictionary d;

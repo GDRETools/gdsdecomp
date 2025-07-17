@@ -104,6 +104,7 @@ void GDREConfig::save_config() {
 	for (const auto &[key, value] : settings) {
 		config->set_value(get_section_from_key(key), get_name_from_key(key), value);
 	}
+	gdre::ensure_dir(cfg_path.get_base_dir());
 	Error err = config->save(cfg_path);
 	if (err != OK) {
 		WARN_PRINT("Failed to save config file: " + cfg_path);
