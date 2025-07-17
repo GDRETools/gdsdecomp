@@ -1504,10 +1504,10 @@ Ref<GodotVer> GDScriptDecomp::get_max_godot_ver() const {
 //	Error get_script_strings(Vector<String> &r_strings, bool include_identifiers = false);
 //	Error get_script_strings(const Vector<uint8_t> &p_buffer, Vector<String> &r_strings, bool include_identifiers = false);
 
-Error GDScriptDecomp::get_script_strings(const String &p_path, const String &engine_version, Vector<String> &r_strings, bool p_include_identifiers) {
+Error GDScriptDecomp::get_script_strings(const String &p_path, int bytecode_revision, Vector<String> &r_strings, bool p_include_identifiers) {
 	Vector<uint8_t> p_buffer;
 	Error err = OK;
-	auto decomp = GDScriptDecomp::create_decomp_for_version(engine_version, true);
+	auto decomp = GDScriptDecomp::create_decomp_for_commit(bytecode_revision);
 	if (decomp.is_null()) {
 		return ERR_INVALID_PARAMETER;
 	}
@@ -1530,8 +1530,9 @@ Error GDScriptDecomp::get_script_strings_from_buf(const Vector<uint8_t> &p_buffe
 	ScriptState script_state;
 	Error err = get_script_state(p_buffer, script_state);
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Error parsing bytecode");
+	const String engine_version = get_engine_version();
 	for (int i = 0; i < script_state.constants.size(); i++) {
-		gdre::get_strings_from_variant(script_state.constants[i], r_strings, get_engine_version());
+		gdre::get_strings_from_variant(script_state.constants[i], r_strings, engine_version);
 	}
 	if (p_include_identifiers) {
 		for (int i = 0; i < script_state.identifiers.size(); i++) {

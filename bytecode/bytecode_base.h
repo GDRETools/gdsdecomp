@@ -237,7 +237,7 @@ public:
 	Ref<GodotVer> get_max_godot_ver() const;
 	Error get_script_state(const Vector<uint8_t> &p_buffer, ScriptState &r_state);
 
-	static Error get_script_strings(const String &p_path, const String &engine_version, Vector<String> &r_strings, bool include_identifiers = false);
+	static Error get_script_strings(const String &p_path, int bytecode_revision, Vector<String> &r_strings, bool include_identifiers = false);
 	void get_dependencies(const String &p_path, List<String> *p_dependencies, bool p_add_types);
 
 	Error get_script_strings_from_buf(const Vector<uint8_t> &p_path, Vector<String> &r_strings, bool p_include_identifiers);

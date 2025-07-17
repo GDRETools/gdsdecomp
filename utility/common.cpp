@@ -430,7 +430,7 @@ void gdre::get_strings_from_variant(const Variant &p_var, Vector<String> &r_stri
 						if (!decomp.is_null()) {
 							auto buf = decomp->compile_code_string(code);
 							if (!buf.is_empty()) {
-								decomp->get_script_strings_from_buf(buf, r_strings, false);
+								decomp->get_script_strings_from_buf(buf, r_strings, true);
 							}
 						}
 					}
