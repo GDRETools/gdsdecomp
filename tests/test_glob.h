@@ -224,6 +224,7 @@ TEST_CASE("[GDSDecomp][Glob] glob with absolute paths") {
 
 // Test glob function with relative paths
 TEST_CASE("[GDSDecomp][Glob] glob with relative paths") {
+	REQUIRE(GDRESettings::get_singleton());
 	String test_dir = get_tmp_path().path_join("glob_test_rel");
 	create_test_directory_structure(test_dir);
 	// get the current working directory

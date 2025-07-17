@@ -59,8 +59,8 @@ inline void test_pck_files(HashMap<String, String> files) {
 }
 
 TEST_CASE("[GDSDecomp] GDRESettings works") {
+	REQUIRE(GDRESettings::get_singleton());
 	GDRESettings *settings = GDRESettings::get_singleton();
-	CHECK(settings != nullptr);
 	CHECK(settings->get_cwd() != "");
 	auto cwd = settings->get_cwd();
 	auto gdsdecomp_path = get_gdsdecomp_path();
@@ -71,7 +71,7 @@ TEST_CASE("[GDSDecomp] GDRESettings works") {
 }
 
 TEST_CASE("[GDSDecomp][ProjectConfigLoader] loading example from current engine") {
-	CHECK(ProjectSettings::get_singleton());
+	REQUIRE(ProjectSettings::get_singleton());
 	CHECK(gdre::ensure_dir(get_tmp_path()) == OK);
 	auto text_project_path = get_tmp_path().path_join("project.godot");
 	ProjectSettings::get_singleton()->save_custom(text_project_path);
@@ -109,10 +109,10 @@ TEST_CASE("[GDSDecomp][ProjectConfigLoader] loading example from current engine"
 }
 
 TEST_CASE("[GDSDecomp] GDRESettings project loading") {
-	CHECK(gdre::ensure_dir(get_tmp_path()) == OK);
+	REQUIRE(gdre::ensure_dir(get_tmp_path()) == OK);
 	auto tmp_pck_path = get_tmp_path().path_join("test.pck");
 	auto tmp_project_path = get_tmp_path().path_join("project.binary");
-	CHECK(ProjectSettings::get_singleton());
+	REQUIRE(ProjectSettings::get_singleton());
 	ProjectSettings::get_singleton()->save_custom(tmp_project_path);
 
 	HashMap<String, String> files = {
@@ -121,6 +121,7 @@ TEST_CASE("[GDSDecomp] GDRESettings project loading") {
 	CHECK(create_test_pck(tmp_pck_path, files) == OK);
 
 	GDRESettings *settings = GDRESettings::get_singleton();
+	REQUIRE(settings);
 	CHECK(settings->load_project({ tmp_pck_path }, false) == OK);
 	CHECK(settings->is_pack_loaded());
 	CHECK(settings->pack_has_project_config());
@@ -130,7 +131,7 @@ TEST_CASE("[GDSDecomp] GDRESettings project loading") {
 	CHECK(settings->get_ver_major() == GODOT_VERSION_MAJOR);
 	CHECK(settings->get_ver_minor() == GODOT_VERSION_MINOR);
 	auto decomp = GDScriptDecomp::create_decomp_for_version(vformat("%d.%d.%d", GODOT_VERSION_MAJOR, GODOT_VERSION_MINOR, GODOT_VERSION_PATCH));
-	CHECK(decomp.is_valid());
+	REQUIRE(decomp.is_valid());
 	CHECK(settings->get_bytecode_revision() != 0);
 	CHECK(settings->get_bytecode_revision() == decomp->get_bytecode_rev());
 	for (const auto &file : files) {
@@ -159,6 +160,7 @@ TEST_CASE("[GDSDecomp] FileAccessGDRE tests") {
 	CHECK(GDREPackedData::get_current_file_access_class(FileAccess::ACCESS_RESOURCES) == GDREPackedData::get_os_file_access_class_name());
 
 	auto settings = GDRESettings::get_singleton();
+	REQUIRE(settings);
 	CHECK(settings->load_project({ tmp_pck_path }, false) == OK);
 	CHECK(GDREPackedData::get_current_dir_access_class(DirAccess::ACCESS_RESOURCES) == "DirAccessGDRE");
 	CHECK(GDREPackedData::get_current_file_access_class(FileAccess::ACCESS_RESOURCES) == "FileAccessGDRE");
@@ -203,6 +205,7 @@ texture_format/no_bptc_fallbacks=true
 )";
 
 TEST_CASE("[GDSDecomp] uh oh") {
+	REQUIRE(GDRESettings::get_singleton());
 	CHECK(gdre::ensure_dir(get_tmp_path()) == OK);
 	// get the path to the currently executing binary
 	String gdscript_tests_path = "modules/gdscript/tests/scripts";

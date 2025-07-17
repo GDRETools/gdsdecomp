@@ -214,7 +214,7 @@ TEST_CASE("[GDSDecomp][Bytecode] Compiling Helper Scripts") {
 		String sub_case_name = vformat("Testing compiling script %s, revision %07x", String(script_to_revision.script), script_to_revision.revision);
 		SUBCASE(sub_case_name.utf8().get_data()) {
 			// tests are located in modules/gdsdecomp/helpers
-			auto helpers_path = get_gdsdecomp_path().path_join("helpers");
+			auto helpers_path = get_gdsdecomp_helpers_path();
 			auto da = DirAccess::open(helpers_path);
 			CHECK(da.is_valid());
 			CHECK(da->dir_exists(helpers_path));
@@ -225,8 +225,9 @@ TEST_CASE("[GDSDecomp][Bytecode] Compiling Helper Scripts") {
 }
 
 TEST_CASE("[GDSDecomp][Bytecode][GDScript2.0] Compiling GDScript Tests") {
+	REQUIRE(GDRESettings::get_singleton());
 	auto cwd = GDRESettings::get_singleton()->get_cwd();
-	String gdscript_tests_path = GDRESettings::get_singleton()->get_cwd().path_join("modules/gdscript/tests/scripts");
+	String gdscript_tests_path = get_gdscript_tests_path();
 	auto gdscript_test_scripts = Glob::rglob(gdscript_tests_path.path_join("**/*.gd"), true);
 	auto gdscript_test_error_scripts = Vector<String>();
 	for (int i = 0; i < gdscript_test_scripts.size(); i++) {

@@ -14,6 +14,7 @@
 namespace TestResourceLoading {
 
 TEST_CASE("[GDSDecomp][ResourceLoading] Basic resource loading") {
+	REQUIRE(GDRESettings::get_singleton());
 	// Get available test versions
 	Vector<String> versions = get_test_versions();
 	CHECK(versions.size() > 0);
