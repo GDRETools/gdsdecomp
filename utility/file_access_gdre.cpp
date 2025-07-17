@@ -125,8 +125,7 @@ struct __ExpectedPackedFile {
 	bool encrypted;
 	bool bundle;
 };
-using __PackedFile = PackedData::PackedFile;
-CHECK_SIZE_MATCH_NO_PADDING(__ExpectedPackedFile, __PackedFile);
+CHECK_SIZE_MATCH_NO_PADDING(__ExpectedPackedFile, PackedData::PackedFile);
 } //namespace
 
 static_assert(has_same_signature<decltype(&GDREPackedData::add_path), decltype(&PackedData::add_path)>::value, "GDREPackedData::add_path does not have the same signature as PackedData::add_path");

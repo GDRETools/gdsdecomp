@@ -1,18 +1,27 @@
 #pragma once
-// To compare the size of two structs without the padding at the end
-// TODO: this doesn't work if the arguments have a namespace qualifier
 #include <type_traits>
-#define CHECK_SIZE_MATCH_NO_PADDING(reference_type, our_type)                                     \
-	namespace {                                                                                   \
-	_Pragma("pack(push, 1)");                                                                     \
-	struct _##reference_type##_without_padding : reference_type {};                               \
-	struct _##our_type##_without_padding : our_type {};                                           \
-	_Pragma("pack(pop)");                                                                         \
-	static_assert(                                                                                \
-			sizeof(_##our_type##_without_padding) == sizeof(_##reference_type##_without_padding), \
-			"Size mismatch");                                                                     \
-	}
 
+namespace internal {
+_Pragma("pack(push, 1)");
+template <typename T>
+struct _checkSizeMatch : T {
+};
+_Pragma("pack(pop)");
+} //namespace internal
+
+template <typename T>
+constexpr size_t size_of_no_padding = sizeof(internal::_checkSizeMatch<T>);
+
+template <typename T, typename U>
+struct sizes_match_no_padding : std::bool_constant<size_of_no_padding<T> == size_of_no_padding<U>> {
+};
+
+#define CHECK_SIZE_MATCH_NO_PADDING(reference_type, our_type)        \
+	static_assert(                                                   \
+			sizes_match_no_padding<our_type, reference_type>::value, \
+			"Size mismatch");
+
+// static_assert(sizeof(test_struct<int>) == sizeof(int) * 2, "Size mismatch");
 // static member functions / free functions are the same
 // if their types are the same
 template <class T, class U>
