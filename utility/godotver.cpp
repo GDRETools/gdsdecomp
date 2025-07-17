@@ -457,3 +457,16 @@ void GodotVer::_bind_methods() {
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("parse_godotver", "ver_text"), &GodotVer::parse);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("create_godotver", "major", "minor", "patch", "prerelease", "build_metadata"), &GodotVer::create, DEFVAL(""), DEFVAL(""));
 }
+
+Ref<GodotVer> GodotVer::copy_from(const Ref<GodotVer> &p_ver) {
+	Ref<GodotVer> ref;
+	ref.instantiate();
+	ref->major = p_ver->major;
+	ref->minor = p_ver->minor;
+	ref->patch = p_ver->patch;
+	ref->prerelease = p_ver->prerelease;
+	ref->build_metadata = p_ver->build_metadata;
+	ref->valid = p_ver->valid;
+	ref->is_strict = p_ver->is_strict;
+	return ref;
+}

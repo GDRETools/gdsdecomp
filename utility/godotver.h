@@ -217,6 +217,7 @@ protected:
 	static Ref<RegEx> non_strict_regex;
 
 public:
+	static Ref<GodotVer> copy_from(const Ref<GodotVer> &p_ver);
 	virtual String as_text() const override;
 	// outputs a string that can be used as a tag to look up the release on github
 	virtual String as_tag() const override;
