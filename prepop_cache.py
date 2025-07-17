@@ -28,6 +28,7 @@ PLUGINS_TO_PREPOP = [
     "debug_draw_3d",
     "terrain_3d",
     "sg-physics-2d",
+    "epic-online-services-godot",
 ]
 
 

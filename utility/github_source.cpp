@@ -31,9 +31,11 @@ static const HashMap<String, Vector<String>> release_file_exclude_masks = {
 	{ "godot-steam-audio", { "*demo*" } },
 	{ "discord-rpc-gd", { "*Demo*" } },
 	{ "discord-sdk-gd", { "*Demo*" } },
+	{ "epic-online-services-godot", { "*-android-*", "*-ios-*", "*-macos-*", "*-windows-*", "*-linux-*", "*-web*" } },
 };
 
 static const HashMap<String, String> plugin_map = {
+	{ "epic-online-services-godot", "https://github.com/3ddelano/epic-online-services-godot" },
 	{ "godotgif", "https://github.com/BOTLANNER/godot-gif" },
 	{ "godot-rapier3d", "https://github.com/appsinacup/godot-rapier-physics" },
 	{ "godot-rapier2d", "https://github.com/appsinacup/godot-rapier-physics" },
