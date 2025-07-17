@@ -1561,7 +1561,7 @@ Vector<String> GDScriptDecomp::get_compile_errors(const Vector<uint8_t> &p_buffe
 		errors.push_back(vformat("Line %d: %s", prev_line, p_error));
 	});
 
-	for (uint32_t i = 0; i < tokens.size(); i++) {
+	for (int64_t i = 0; i < tokens.size(); i++) {
 		GlobalToken curr_token = get_global_token(tokens[i]);
 		if (lines.has(i)) {
 			if (lines[i] != prev_line && lines[i] != 0) {

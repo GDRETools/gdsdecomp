@@ -249,7 +249,7 @@ Error PckCreator::_process_folder(
 		const String &p_dir,
 		const Vector<String> &file_paths_to_pack) {
 	HashMap<String, String> map;
-	for (size_t i = 0; i < file_paths_to_pack.size(); i++) {
+	for (int64_t i = 0; i < file_paths_to_pack.size(); i++) {
 		map[p_dir.path_join(file_paths_to_pack[i])] = file_paths_to_pack[i];
 	}
 	start_pck(p_pck_path, version, ver_major, ver_minor, ver_rev, encrypt, embed, exe_to_embed, watermark);
@@ -307,7 +307,7 @@ Error PckCreator::_add_files(
 	}
 	if (broken_cnt > 0) {
 		err = ERR_BUG;
-		for (size_t i = 0; i < files_to_pck.size(); i++) {
+		for (int64_t i = 0; i < files_to_pck.size(); i++) {
 			if (files_to_pck[i].err != OK) {
 				String err_type;
 				if (files_to_pck[i].err == ERR_FILE_CANT_OPEN) {
@@ -329,7 +329,7 @@ Error PckCreator::_add_files(
 		return err;
 	}
 	files_to_pck.resize(files_to_pck.size());
-	for (size_t i = 0; i < files_to_pck.size(); i++) {
+	for (int64_t i = 0; i < files_to_pck.size(); i++) {
 		files_to_pck.write[i].ofs = offset;
 		uint64_t _size = files_to_pck[i].size;
 		if (encrypt) { // Add encryption overhead.
@@ -540,7 +540,7 @@ Error PckCreator::_create_after_process() {
 
 		bool add_res_prefix = !(ver_major == 4 && ver_minor >= 4);
 
-		for (size_t i = 0; i < files_to_pck.size(); i++) {
+		for (int64_t i = 0; i < files_to_pck.size(); i++) {
 			if (add_res_prefix) {
 				files_to_pck.write[i].path = files_to_pck[i].path.trim_prefix("res://");
 				if (!files_to_pck[i].path.is_absolute_path()) {
@@ -566,7 +566,7 @@ Error PckCreator::_create_after_process() {
 
 		size_t header_padding = _get_pad(PCK_PADDING, header_size);
 		pr->step("Directory...", 0, true);
-		for (size_t i = 0; i < files_to_pck.size(); i++) {
+		for (int64_t i = 0; i < files_to_pck.size(); i++) {
 			uint32_t string_len = files_to_pck[i].path.utf8().length();
 			uint32_t pad = _get_pad(4, string_len);
 

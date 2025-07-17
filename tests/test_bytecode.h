@@ -242,7 +242,7 @@ TEST_CASE("[GDSDecomp][Bytecode][GDScript2.0] Compiling GDScript Tests") {
 		}
 	}
 
-	for (size_t i = 0; i < gdscript_test_scripts.size(); i++) {
+	for (int64_t i = 0; i < gdscript_test_scripts.size(); i++) {
 		auto &script_path = gdscript_test_scripts[i];
 		auto sub_case_name = vformat("Testing compiling script %s", script_path);
 		SUBCASE(sub_case_name.utf8().get_data()) {
