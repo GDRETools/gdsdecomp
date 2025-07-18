@@ -66,7 +66,7 @@ func _on_re_editor_standalone_dropped_files(files: PackedStringArray):
 		new_files.append(dequote(file))
 	_on_recover_project_files_selected(new_files)
 
-func popup_error_box(message: String, title: String, root_window = self):
+func popup_error_box(message: String, title: String = "Error", root_window = self):
 	GDREChildDialog.popup_box(root_window, ERROR_DIALOG, message, title)
 
 
@@ -143,7 +143,7 @@ func extract_and_recover(files_to_extract: PackedStringArray, output_dir: String
 		end_recovery()
 		return
 	if (err != OK):
-		popup_error_box("Could not extract files:\n" + "".join(GDRESettings.get_errors()), "Error")
+		popup_error_box("Could not extract files:\n" + GDREGlobals.get_recent_error_string(), "Error")
 		end_recovery()
 		return
 	# check if ExtractOnly is pressed
@@ -161,7 +161,7 @@ func extract_and_recover(files_to_extract: PackedStringArray, output_dir: String
 		end_recovery()
 		return
 	if (err != OK):
-		popup_error_box("Could not recover files:\n" + "".join(GDRESettings.get_errors()), "Error")
+		popup_error_box("Could not recover files:\n" + GDREGlobals.get_recent_error_string(), "Error")
 		end_recovery()
 		return
 	var report = import_exporter.get_report()
@@ -194,13 +194,10 @@ func launch_recovery_window(paths: PackedStringArray):
 	#REAL_ROOT_WINDOW.move_child(RECOVERY_DIALOG, self.get_index() -1)
 	var err = RECOVERY_DIALOG.add_project(paths)
 	if err != OK:
-		var errors = (GDRESettings.get_errors())
-		var error_msg = ""
-		for error in errors:
-			error_msg += error.strip_edges() + "\n"
+		var error_msg = GDREGlobals.get_recent_error_string()
 		if error_msg.to_lower().contains("encrypt"):
 			error_msg = "Incorrect encryption key. Please set the correct key and try again."
-		popup_error_box("Error: failed to open " + str(paths) + ":\n" + error_msg, "Error")
+		popup_error_box("Failed to open " + str(GDREGlobals.get_files_for_paths(paths)) + ":\n" + error_msg, "Error")
 		return
 
 	RECOVERY_DIALOG.show_win()
@@ -342,17 +339,6 @@ func _on_ResourcesMenu_item_selected(index):
 			# Convert samples to WAV...
 			$SampleToWAVFileDialog.popup_centered()
 
-
-func get_recent_error_string():
-	var error = GDRESettings.get_errors()
-	if (error.is_empty()):
-		return ""
-	var error_message = ""
-	for err in error:
-		error_message += err.strip_edges() + "\n"
-	return error_message
-
-
 func _on_bin_to_text_file_dialog_files_selected(paths: PackedStringArray) -> void:
 	GDRESettings.get_errors()
 	var had_errors = false
@@ -365,7 +351,7 @@ func _on_bin_to_text_file_dialog_files_selected(paths: PackedStringArray) -> voi
 		if ResourceCompatLoader.to_text(path, new_path) != OK:
 			had_errors = true
 	if had_errors:
-		popup_error_box("Error: failed to convert files:\n" + get_recent_error_string(), "Error")
+		popup_error_box("Failed to convert files:\n" + GDREGlobals.get_recent_error_string(), "Error")
 
 
 func _on_text_to_bin_file_dialog_files_selected(paths: PackedStringArray) -> void:
@@ -380,7 +366,7 @@ func _on_text_to_bin_file_dialog_files_selected(paths: PackedStringArray) -> voi
 		if ResourceCompatLoader.to_binary(path, new_path) != OK:
 			had_errors = true
 	if had_errors:
-		popup_error_box("Error: failed to convert files:\n" + get_recent_error_string(), "Error")
+		popup_error_box("Failed to convert files:\n" + GDREGlobals.get_recent_error_string(), "Error")
 
 
 func _do_export(paths, new_ext):
@@ -391,7 +377,7 @@ func _do_export(paths, new_ext):
 		if Exporter.export_file(new_path, path) != OK:
 			had_errors = true
 	if had_errors:
-		popup_error_box("Error: failed to convert files:\n" + get_recent_error_string(), "Error")
+		popup_error_box("Failed to convert files:\n" + GDREGlobals.get_recent_error_string(), "Error")
 
 
 func _on_texture_file_dialog_files_selected(paths: PackedStringArray) -> void:
@@ -873,7 +859,7 @@ func recovery(  input_files:PackedStringArray,
 	err = GDRESettings.load_project(input_files, extract_only)
 	if (err != OK):
 		print_usage()
-		print("Error: failed to open ", (input_files))
+		print("Error: failed to open ", (GDREGlobals.get_files_for_paths(input_files)))
 		return
 
 	print("Successfully loaded PCK!")
@@ -1019,7 +1005,7 @@ func load_pck(input_files: PackedStringArray, extract_only: bool, includes, excl
 	err = GDRESettings.load_project(input_files, extract_only)
 	if (err != OK):
 		print_usage()
-		print("Error: failed to open ", (input_files))
+		print("Error: failed to open ", (GDREGlobals.get_files_for_paths(input_files)))
 		return []
 
 	var files: PackedStringArray = []
@@ -1505,11 +1491,11 @@ func _on_gdre_patch_pck_do_patch_pck(dest_pck: String, file_map: Dictionary[Stri
 	var pack_infos = GDRESettings.get_pack_info_list()
 	if (pack_infos.is_empty()):
 		GDRESettings.unload_project()
-		popup_error_box("Error: no PCK files found, cannot patch", "Error")
+		popup_error_box("No PCK files found, cannot patch", "Error")
 		return
 	if (pack_infos.size() > 1):
 		GDRESettings.unload_project()
-		popup_error_box("Error: multiple PCK files found, cannot patch", "Error")
+		popup_error_box("Multiple PCK files found, cannot patch", "Error")
 		return
 	var embed_pck = ""
 	if (pack_infos[0].get_type() == 4 and should_embed):
@@ -1518,7 +1504,7 @@ func _on_gdre_patch_pck_do_patch_pck(dest_pck: String, file_map: Dictionary[Stri
 	var err = pck_creator.add_files(file_map)
 	if (err != OK):
 		GDRESettings.unload_project()
-		popup_error_box("Error: failed to add files to PCK:\n" + pck_creator.get_error_message(), "Error")
+		popup_error_box("Failed to add files to PCK:\n" + pck_creator.get_error_message(), "Error")
 		return
 	err = pck_creator.finish_pck()
 	GDRESettings.unload_project()
@@ -1526,10 +1512,10 @@ func _on_gdre_patch_pck_do_patch_pck(dest_pck: String, file_map: Dictionary[Stri
 		var tmp_path = pck_creator.get_error_message()
 		err = DirAccess.remove_absolute(dest_pck)
 		if (err != OK):
-			popup_error_box("Error: failed to remove existing PCK:\n" + dest_pck, "Error")
+			popup_error_box("Failed to remove existing PCK:\n" + dest_pck, "Error")
 		err = DirAccess.rename_absolute(tmp_path, dest_pck)
 	if (err != OK):
-		popup_error_box("Error: failed to write PCK:\n" + pck_creator.get_error_message(), "Error")
+		popup_error_box("Failed to write PCK:\n" + pck_creator.get_error_message(), "Error")
 		return
 	popup_error_box("PCK patching complete", "Success")
 	pass # Replace with function body.
