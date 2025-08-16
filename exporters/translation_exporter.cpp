@@ -629,9 +629,10 @@ struct KeyWorker {
 		}
 	}
 
-	auto try_num_suffix(const char *res_s, const char *suffix = "", bool skip_magnitude_check = false) {
+	auto try_num_suffix(const char *res_s, const char *suffix = "", int magnitude = -1) {
 		bool found_num = try_key_suffixes(res_s, suffix, "1");
-		int zero_prefix_len = 0;
+		int zero_prefix_len = magnitude;
+		bool skip_magnitude_check = magnitude != -1;
 		if (!skip_magnitude_check) {
 			zero_prefix_len = try_key_suffixes(res_s, suffix, "01") ? 1 : 0;
 			if (!found_num && zero_prefix_len == 0) {
@@ -692,7 +693,7 @@ struct KeyWorker {
 		const Pair<CharString, int> &res_s_pair = res_strings[i];
 		const char *res_s_data = res_s_pair.first.get_data();
 		int magnitude = res_s_pair.second;
-		try_num_suffix(res_s_data, get_magnitude_prefix(magnitude), magnitude != -1);
+		try_num_suffix(res_s_data, "", magnitude);
 		last_completed++;
 	}
 
