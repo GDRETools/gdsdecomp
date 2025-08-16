@@ -15,6 +15,7 @@ const String GitHubSource::github_release_api_url = _github_release_api_url;
 namespace {
 static const HashMap<String, Vector<String>> tag_masks = {
 	{ "godotsteam", { "*gdn*", "*gde*" } },
+	{ "godotsteam_server", { "*gdn*", "*gde*" } },
 };
 
 static const HashMap<String, Vector<String>> release_file_masks = {
@@ -46,6 +47,7 @@ static const HashMap<String, String> plugin_map = {
 	{ "godot-steam-audio", "https://github.com/stechyo/godot-steam-audio" },
 	{ "m_terrain", "https://github.com/mohsenph69/Godot-MTerrain-plugin" },
 	{ "godotsteam", "https://github.com/GodotSteam/GodotSteam" },
+	{ "godotsteam_server", "https://github.com/GodotSteam/GodotSteam-Server" },
 	{ "godot-jolt", "https://github.com/godot-jolt/godot-jolt" },
 	{ "orchestrator", "https://github.com/CraterCrash/godot-orchestrator" },
 	{ "limboai", "https://github.com/limbonaut/limboai" },

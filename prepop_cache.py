@@ -29,6 +29,7 @@ PLUGINS_TO_PREPOP = [
     "terrain_3d",
     "sg-physics-2d",
     "epic-online-services-godot",
+    "godotsteam_server",
 ]
 
 
