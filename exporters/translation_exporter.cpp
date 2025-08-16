@@ -1064,6 +1064,23 @@ struct KeyWorker {
 			}
 		}
 
+		// try the basenames of all files in the pack, as filenames can correspond to keys
+		if (key_to_message.size() != default_messages.size()) {
+			auto file_list = GDRESettings::get_singleton()->get_file_info_list();
+			for (auto &file : file_list) {
+				String key = file->get_path().get_file().get_basename();
+				if (try_key(key)) {
+					resource_strings.push_back(key);
+				}
+				if (try_key(key.to_upper())) {
+					resource_strings.push_back(key.to_upper());
+				}
+				if (try_key(key.to_lower())) {
+					resource_strings.push_back(key.to_lower());
+				}
+			}
+		}
+
 		// Stage 1.5: Previous keys found
 		if (key_to_message.size() != default_messages.size()) {
 			for (const String &key : previous_keys_found) {
