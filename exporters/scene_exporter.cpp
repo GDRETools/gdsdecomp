@@ -2880,8 +2880,7 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 				break;
 			}
 		}
-
-		err = TaskManager::get_singleton()->wait_for_task_completion(task_id, 60);
+		err = TaskManager::get_singleton()->wait_for_task_completion(task_id);
 	}
 	for (auto &token : tokens) {
 		token->post_export(err);
