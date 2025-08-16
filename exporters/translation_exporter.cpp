@@ -1286,7 +1286,9 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 			}
 		}
 		Vector<String> messages = tr->get_translated_message_list();
-		if (locale.to_lower() == default_locale.to_lower()) {
+		if (locale.to_lower() == default_locale.to_lower() ||
+				// Some translations don't have the locale set, so we have to check the file name
+				(locale == "en" && path.get_basename().get_extension().to_lower() == default_locale.to_lower())) {
 			default_messages = messages;
 			default_translation = tr;
 		}
@@ -1295,13 +1297,8 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 	}
 
 	if (default_translation.is_null()) {
-		if (!has_default_translation) {
-			default_translation = translations[0];
-			default_messages = translation_messages[0];
-		} else {
-			report->set_error(ERR_FILE_MISSING_DEPENDENCIES);
-			ERR_FAIL_V_MSG(report, "No default translation found for " + iinfo->get_path());
-		}
+		default_translation = translations[0];
+		default_messages = translation_messages[0];
 	}
 	// check default_messages for empty strings
 	size_t empty_strings = 0;
