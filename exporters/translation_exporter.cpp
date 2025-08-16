@@ -8,7 +8,6 @@
 #include "utility/gdre_settings.h"
 
 #include "core/error/error_list.h"
-#include "core/object/worker_thread_pool.h"
 #include "core/string/optimized_translation.h"
 #include "core/string/translation.h"
 #include "core/string/ustring.h"
@@ -127,6 +126,7 @@ struct KeyWorker {
 
 	const Ref<OptimizedTranslationExtractor> default_translation;
 	const Vector<String> default_messages;
+	Vector<Vector<String>> translation_messages;
 	const HashSet<String> previous_keys_found;
 
 	Vector<String> keys;
@@ -164,7 +164,6 @@ struct KeyWorker {
 	std::atomic<uint64_t> last_completed = 0;
 	// 30 seconds in msec
 	uint64_t start_time = OS::get_singleton()->get_ticks_usec();
-	uint64_t start_of_multithread = start_time;
 	String path;
 	String current_stage;
 	//default_translation,  default_messages;
@@ -686,7 +685,7 @@ struct KeyWorker {
 		last_completed++;
 	}
 
-	void stage_3_5_task(uint32_t i, Pair<CharString, int> *res_strings) {
+	void stage_4_task(uint32_t i, Pair<CharString, int> *res_strings) {
 		if (unlikely(cancel)) {
 			return;
 		}
@@ -713,7 +712,7 @@ struct KeyWorker {
 		last_completed++;
 	}
 
-	void stage_5_task_2(uint32_t i, CharString *res_strings) {
+	void stage_6_task_2(uint32_t i, CharString *res_strings) {
 		if (unlikely(cancel)) {
 			return;
 		}
@@ -741,30 +740,6 @@ struct KeyWorker {
 			return true;
 		}
 		return false;
-	}
-
-	Error wait_for_task(WorkerThreadPool::GroupID group_task, const String &stage_name, size_t size, uint64_t max_time) {
-		uint64_t next_report = 5000;
-		uint64_t task_start_time = OS::get_singleton()->get_ticks_msec();
-		while (!WorkerThreadPool::get_singleton()->is_group_task_completed(group_task)) {
-			// wait 100ms
-			OS::get_singleton()->delay_usec(100000);
-			if (check_for_timeout(task_start_time, max_time)) {
-				bl_debug("Timeout waiting for " + stage_name + " to complete...");
-				cancel = true;
-				WorkerThreadPool::get_singleton()->wait_for_group_task_completion(group_task);
-				return ERR_TIMEOUT;
-			}
-			if (check_for_timeout(task_start_time, next_report)) {
-				bl_debug("waiting for " + stage_name + " to complete... (" + itos(last_completed) + "/" + itos(size) + ")");
-				next_report += 5000;
-			}
-		}
-
-		// Always wait for completion; otherwise we leak memory.
-		WorkerThreadPool::get_singleton()->wait_for_group_task_completion(group_task);
-		bl_debug(stage_name + " completed!");
-		return OK;
 	}
 
 	// Does not filter based on spaces
@@ -1002,6 +977,23 @@ struct KeyWorker {
 
 		for (int i = 0; i < default_messages.size(); i++) {
 			auto &msg = default_messages[i];
+			bool all_empty = false;
+			if (msg.is_empty()) {
+				all_empty = true;
+				for (auto &messages : translation_messages) {
+					if (messages.size() > i) {
+						if (!messages[i].is_empty()) {
+							all_empty = false;
+							break;
+						}
+					}
+				}
+			}
+			if (all_empty) {
+				// not missing, just empty
+				keys.push_back("");
+				continue;
+			}
 			bool found = false;
 			bool has_match = false;
 			String matching_key;
@@ -1058,7 +1050,17 @@ struct KeyWorker {
 
 		// Stage 1.25: try the messages themselves
 		for (const String &message : default_messages) {
-			try_key(message);
+			if (!message.is_empty()) {
+				try_key(message) || try_key(message.to_upper()) || try_key(message.to_lower());
+			}
+		}
+
+		for (const Vector<String> &messages : translation_messages) {
+			for (const String &message : messages) {
+				if (!message.is_empty()) {
+					try_key(message) || try_key(message.to_upper()) || try_key(message.to_lower());
+				}
+			}
 		}
 
 		// Stage 1.5: Previous keys found
@@ -1153,7 +1155,7 @@ struct KeyWorker {
 				stripped_strings_set.insert({ ut, num_suffix_val });
 			}
 			auto vec = gdre::hashset_to_vector(stripped_strings_set);
-			Error stage3_5_err = run_stage(&KeyWorker::stage_3_5_task, vec, "Stage 3");
+			Error stage3_5_err = run_stage(&KeyWorker::stage_4_task, vec, "Stage 4");
 			if (stage3_5_err != OK) {
 				return pop_keys();
 			}
@@ -1184,7 +1186,6 @@ struct KeyWorker {
 				filtered_resource_strings.push_back(middle);
 			}
 
-			start_of_multithread = OS::get_singleton()->get_ticks_usec();
 			pop_charstr_vectors();
 			for (const auto &prefix : common_prefixes_t) {
 				for (const auto &suffix : common_suffixes_t) {
@@ -1195,7 +1196,7 @@ struct KeyWorker {
 				}
 			}
 			if (filtered_resource_strings.size() <= MAX_FILT_RES_STRINGS) {
-				Error stage4_err = run_stage(&KeyWorker::prefix_suffix_task_2, filtered_resource_strings_t, "Stage 4");
+				Error stage4_err = run_stage(&KeyWorker::prefix_suffix_task_2, filtered_resource_strings_t, "Stage 5");
 				if (stage4_err != OK) {
 					return pop_keys();
 				}
@@ -1203,7 +1204,7 @@ struct KeyWorker {
 				// If we're still missing keys, we try combining every string with every other string.
 				do_stage_5 = do_stage_5 && key_to_message.size() != default_messages.size() && filtered_resource_strings.size() <= MAX_FILT_RES_STRINGS;
 				if (do_stage_5) {
-					Error stage5_err = run_stage(&KeyWorker::stage_5_task_2, filtered_resource_strings_t, "Stage 5");
+					Error stage5_err = run_stage(&KeyWorker::stage_6_task_2, filtered_resource_strings_t, "Stage 6");
 					if (stage5_err != OK) {
 						return pop_keys();
 					}
@@ -1329,11 +1330,12 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 	bool is_optimized = keys.size() == 0;
 	if (is_optimized) {
 		KeyWorker kw(default_translation, all_keys_found);
+		kw.translation_messages = translation_messages;
 		kw.path = iinfo->get_path();
 		missing_keys = kw.run();
 		keys = kw.keys;
 		for (auto &key : keys) {
-			if (!String(key).begins_with(MISSING_KEY_PREFIX)) {
+			if (!key.is_empty() && !String(key).begins_with(MISSING_KEY_PREFIX)) {
 				all_keys_found.insert(key);
 			}
 		}
@@ -1362,7 +1364,7 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 	for (int i = 0; i < keys.size(); i++) {
 		Vector<String> line_values;
 		line_values.push_back(keys[i]);
-		for (auto messages : translation_messages) {
+		for (auto &messages : translation_messages) {
 			if (i >= messages.size()) {
 				line_values.push_back("");
 			} else {
