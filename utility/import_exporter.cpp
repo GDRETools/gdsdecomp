@@ -1006,18 +1006,36 @@ Error ImportExporter::recreate_plugin_configs() {
 	Error err;
 	print_line("Recreating plugin configs...");
 	Vector<String> addons_dirs;
-	Ref<DirAccess> da = DirAccess::open("res://addons/");
+	String addons_dir = "res://addons/";
+	Ref<DirAccess> da = DirAccess::open(addons_dir);
+	if (da.is_null()) { // case-insensitive check for addons directory
+		da = DirAccess::open("res://");
+		auto dirs = da->get_directories();
+		bool found = false;
+		for (int i = 0; i < dirs.size(); i++) {
+			if (dirs[i].filenocasecmp_to("addons") == 0) {
+				addons_dir = "res://" + dirs[i] + "/";
+				da->change_dir(dirs[i]);
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			da = nullptr;
+		}
+	}
 	if (!da.is_null()) {
 		addons_dirs = da->get_directories();
 	}
 	for (int i = 0; i < enabled_plugins.size(); i++) {
 		String &path = enabled_plugins.write[i];
+		path = path.replace("res://addons/", addons_dir);
 		String dir = path.get_base_dir();
 		if (dir.is_empty()) {
 			bool found = false;
 			for (int j = 0; j < addons_dirs.size(); j++) {
 				if (addons_dirs[j].filenocasecmp_to(path) == 0) {
-					path = "res://addons/" + addons_dirs[j];
+					path = addons_dir + addons_dirs[j];
 					found = true;
 					break;
 				}
