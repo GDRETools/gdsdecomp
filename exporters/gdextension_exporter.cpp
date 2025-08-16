@@ -124,6 +124,13 @@ Ref<ExportReport> GDExtensionExporter::export_resource(const String &output_dir,
 	HashMap<String, SharedObject> lib_paths;
 	Error err = OK;
 	err = find_libs(libs, lib_paths);
+	if (err) {
+		Vector<String> missing_libs = { "None of the following libraries were found in the PCK directory: " };
+		for (const auto &E : libs) {
+			missing_libs.push_back(E.path.get_file());
+		}
+		report->append_message_detail(missing_libs);
+	}
 	GDExt_ERR_FAIL_COND_V_MSG(err, report, "Failed to find gdextension libraries for plugin " + import_infos->get_import_md_path());
 	auto deps = iinfo->get_dependencies();
 	HashMap<String, SharedObject> dep_paths;
