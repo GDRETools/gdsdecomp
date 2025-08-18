@@ -10,8 +10,11 @@
 #include "core/object/class_db.h"
 #include "core/string/print_string.h"
 #include "exporters/export_report.h"
+#include "exporters/gdextension_exporter.h"
+#include "exporters/gdscript_exporter.h"
 #include "exporters/resource_exporter.h"
 #include "exporters/scene_exporter.h"
+#include "exporters/translation_exporter.h"
 #include "gdre_logger.h"
 #include "utility/common.h"
 #include "utility/gdre_config.h"
@@ -475,9 +478,6 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 				report->failed_scripts.append_array(failed);
 			}
 		} else {
-			if (get_ver_major() < 4) {
-				report_unsupported_resource("CSharpScript", "3.x C# scripts", cs_files[0]);
-			}
 			report->failed_scripts.append_array(cs_files);
 		}
 	}
@@ -733,6 +733,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	}
 
 	if (scene_tokens.size() > 0) {
+		// intentionally not checking for cancellation here; scene export can sometimes hang on certain scenes, and we don't want to cancel the entire export
 		auto reports = SceneExporter::get_singleton()->batch_export_files(output_dir, scene_tokens);
 		for (int i = 0; i < reports.size(); i++) {
 			ExportToken token = { scene_tokens[i], reports[i], false };
@@ -765,9 +766,9 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		Ref<ExportReport> ret = token.report;
 		if (ret.is_null()) {
 			ERR_PRINT("Exporter returned null report for " + iinfo->get_path());
-			report->failed.push_back(ret);
 			continue;
 		}
+		String exporter = ret->get_exporter();
 		err = ret->get_error();
 		if (err == ERR_SKIP) {
 			report->not_converted.push_back(ret);
@@ -784,7 +785,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 			report->not_converted.push_back(ret);
 			continue;
 		} else if (err != OK) {
-			if (iinfo->get_importer() == "script_bytecode") {
+			if (exporter == GDScriptExporter::EXPORTER_NAME) {
 				report->failed_scripts.push_back(iinfo->get_path());
 				if (err == ERR_UNAUTHORIZED) {
 					report->had_encryption_error = true;
@@ -794,7 +795,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 			print_verbose("Failed to convert " + iinfo->get_type() + " resource " + iinfo->get_path());
 			continue;
 		}
-		if (iinfo->get_importer() == "scene" && src_ext != "escn" && src_ext != "tscn") {
+		if (exporter == SceneExporter::EXPORTER_NAME && src_ext != "escn" && src_ext != "tscn") {
 			// report->exported_scenes = true;
 // This is currently forcing a reimport instead of preventing it, disabling for now
 #if 0
@@ -824,9 +825,9 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 				}
 			}
 #endif
-		} else if (iinfo->get_importer() == "csv_translation" || iinfo->get_importer() == "translation_csv" || iinfo->get_importer() == "translation") {
+		} else if (exporter == TranslationExporter::EXPORTER_NAME) {
 			report->translation_export_message += ret->get_message();
-		} else if (iinfo->get_importer() == "script_bytecode") {
+		} else if (exporter == GDScriptExporter::EXPORTER_NAME) {
 			report->decompiled_scripts.push_back(iinfo->get_path());
 			// 4.4 and higher have uid files for scripts that we have to recreate
 			if ((get_ver_major() == 4 && get_ver_minor() >= 4) || get_ver_major() > 4) {
@@ -847,7 +848,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		if (ret->get_loss_type() != ImportInfo::LOSSLESS) {
 			report->lossy_imports.push_back(ret);
 		}
-		if (iinfo->get_importer() == "gdextension" || iinfo->get_importer() == "gdnative") {
+		if (exporter == GDExtensionExporter::EXPORTER_NAME) {
 			if (!ret->get_message().is_empty()) {
 				report->failed_gdnative_copy.push_back(ret->get_message());
 				continue;
