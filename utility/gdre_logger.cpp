@@ -21,7 +21,7 @@ thread_local bool thread_local_silent_errors = false;
 std::atomic<uint64_t> GDRELogger::error_count = 0;
 std::atomic<uint64_t> GDRELogger::warning_count = 0;
 std::atomic<bool> GDRELogger::silent_errors = false;
-StaticParallelQueue<String, 10240> GDRELogger::error_queue;
+StaticParallelQueue<String, 1024> GDRELogger::error_queue;
 Logger *GDRELogger::stdout_logger = nullptr;
 std::atomic<bool> GDRELogger::just_printed_status_bar = false;
 static constexpr const char *STATUS_BAR_CLEAR = "\r                                                                      \r";
@@ -94,7 +94,7 @@ void GDRELogger::logv(const char *p_format, va_list p_list, bool p_err) {
 	if (is_prebuffering) {
 		MutexLock lock(buffer_mutex);
 		if (is_prebuffering) {
-			buffer.push_back(String::utf8(buf));
+			buffer.push_back(str);
 		}
 	}
 	if (len >= static_buf_size) {

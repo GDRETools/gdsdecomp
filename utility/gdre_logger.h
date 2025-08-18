@@ -11,7 +11,7 @@ class GDRELogger : public Logger {
 	bool disabled = false;
 	static std::atomic<uint64_t> warning_count;
 	static std::atomic<uint64_t> error_count;
-	static StaticParallelQueue<String, 10240> error_queue;
+	static StaticParallelQueue<String, 1024> error_queue;
 	static std::atomic<bool> silent_errors;
 	bool is_prebuffering = false;
 	Mutex buffer_mutex;
