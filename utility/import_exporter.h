@@ -18,6 +18,7 @@ class ImportExporterReport : public RefCounted {
 	bool mono_detected = false;
 	bool godotsteam_detected = false;
 	bool exported_scenes = false;
+	bool show_headless_warning = false;
 	int session_files_total = 0;
 	String log_file_location;
 	Vector<String> decompiled_scripts;

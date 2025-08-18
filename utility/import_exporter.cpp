@@ -733,6 +733,10 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	}
 
 	if (scene_tokens.size() > 0) {
+		if (GDRESettings::get_singleton()->is_headless()) {
+			print_line("WARNING: Some scenes can fail to export in headless mode. This is due to a limitation of the Godot engine.\n"
+					   "If some scenes fail to export, try running in GUI mode.");
+		}
 		// intentionally not checking for cancellation here; scene export can sometimes hang on certain scenes, and we don't want to cancel the entire export
 		auto reports = SceneExporter::get_singleton()->batch_export_files(output_dir, scene_tokens);
 		for (int i = 0; i < reports.size(); i++) {
@@ -770,6 +774,13 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		}
 		String exporter = ret->get_exporter();
 		err = ret->get_error();
+
+		if (exporter == SceneExporter::EXPORTER_NAME && src_ext != "escn" && src_ext != "tscn") {
+			report->exported_scenes = true;
+			if (err != OK && GDRESettings::get_singleton()->is_headless()) {
+				report->show_headless_warning = true;
+			}
+		}
 		if (err == ERR_SKIP) {
 			report->not_converted.push_back(ret);
 			continue;
@@ -1191,6 +1202,7 @@ Dictionary ImportExporterReport::get_session_notes() {
 	base_ext_set.insert("wav");
 	base_ext_set.insert("ogg");
 	base_ext_set.insert("mp3");
+
 	if (!unsupported_types.is_empty()) {
 		Dictionary unsupported;
 		unsupported["title"] = "Unsupported Resources Detected";
@@ -1263,6 +1275,16 @@ Dictionary ImportExporterReport::get_session_notes() {
 		godot_2_assets["details"] = PackedStringArray();
 		notes["godot_2_assets"] = godot_2_assets;
 	}
+
+	if (show_headless_warning) {
+		Dictionary headless_warning;
+		headless_warning["title"] = "Scene Export in headless mode is limited";
+		headless_warning["message"] = "Some scenes can fail to export in headless mode. This is due to a limitation of the Godot engine.\n"
+									  "Retry without `--headless`. (CLI commands will still work in GUI mode.)";
+		headless_warning["details"] = PackedStringArray();
+		notes["headless_warning"] = headless_warning;
+	}
+
 	return notes;
 }
 
