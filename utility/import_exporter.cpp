@@ -718,15 +718,17 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		}
 	}
 	GDRELogger::clear_error_queues();
-	err = TaskManager::get_singleton()->run_group_task_on_current_thread(
-			this,
-			&ImportExporter::_do_export,
-			non_multithreaded_tokens.ptrw(),
-			non_multithreaded_tokens.size(),
-			&ImportExporter::get_export_token_description,
-			"ImportExporter::export_imports",
-			"Exporting resources...",
-			true, pr, num_multithreaded_tokens);
+	if (!non_multithreaded_tokens.is_empty()) {
+		err = TaskManager::get_singleton()->run_group_task_on_current_thread(
+				this,
+				&ImportExporter::_do_export,
+				non_multithreaded_tokens.ptrw(),
+				non_multithreaded_tokens.size(),
+				&ImportExporter::get_export_token_description,
+				"ImportExporter::export_imports",
+				"Exporting resources...",
+				true, pr, num_multithreaded_tokens);
+	}
 	if (err != OK) {
 		print_line("Export cancelled!");
 		return err;

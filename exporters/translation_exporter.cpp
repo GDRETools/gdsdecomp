@@ -935,6 +935,10 @@ struct KeyWorker {
 		if (multi) {
 			tasks = -1;
 		}
+		if (p_userdata.is_empty()) {
+			WARN_PRINT(vformat("No userdata to run %s with!", stage_name));
+			return OK;
+		}
 		Error err = TaskManager::get_singleton()->run_multithreaded_group_task(
 				this,
 				p_multi_method,

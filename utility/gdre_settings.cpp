@@ -2379,7 +2379,11 @@ void GDRESettings::load_all_resource_strings() {
 	}
 	Vector<String> r_files = get_file_list(wildcards);
 	if (has_loaded_dotnet_assembly()) {
-		r_files.push_back(get_dotnet_assembly_path());
+		r_files.insert(0, get_dotnet_assembly_path());
+	}
+	if (r_files.is_empty()) {
+		WARN_PRINT("No files to load resource strings from!");
+		return;
 	}
 	Vector<StringLoadToken> tokens;
 	tokens.resize(r_files.size());

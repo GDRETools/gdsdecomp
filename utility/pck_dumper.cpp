@@ -70,6 +70,10 @@ Error PckDumper::_check_md5_all_files(Vector<String> &broken_files, int &checked
 	} else {
 		task_desc = RTR("Reading PCK archive, click cancel to skip MD5 checking...");
 	}
+	if (files.is_empty()) {
+		print_line("No files to check MD5 for, skipping...");
+		return OK;
+	}
 	err = TaskManager::get_singleton()->run_multithreaded_group_task(
 			this,
 			&PckDumper::_do_md5_check,
@@ -180,7 +184,6 @@ Error PckDumper::_pck_dump_to_dir(
 	Error err = OK;
 	Vector<ExtractToken> tokens;
 	Vector<String> paths_to_extract;
-	int actual = 0;
 	HashSet<String> files_to_extract_set = gdre::vector_to_hashset(files_to_extract);
 	for (int i = 0; i < files.size(); i++) {
 		const auto &file = files.get(i);
@@ -192,10 +195,12 @@ Error PckDumper::_pck_dump_to_dir(
 			print_line("File " + file->get_raw_path() + " has a malformed path and is empty, skipping extraction...");
 			continue;
 		}
-		actual++;
 		tokens.push_back({ file, OK });
 	}
-	tokens.resize(actual);
+
+	if (tokens.is_empty()) {
+		return OK;
+	}
 
 	err = TaskManager::get_singleton()->run_multithreaded_group_task(
 			this,

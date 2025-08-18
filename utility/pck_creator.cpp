@@ -281,6 +281,9 @@ Error PckCreator::add_files(Dictionary file_paths_to_pack) {
 
 Error PckCreator::_add_files(
 		const HashMap<String, String> &file_paths_to_pack) {
+	if (file_paths_to_pack.is_empty()) {
+		return OK;
+	}
 	uint64_t start_time = OS::get_singleton()->get_ticks_msec();
 	files_to_pck.resize(file_paths_to_pack.size());
 	Vector<String> keys;
@@ -421,6 +424,7 @@ void PckCreator::_do_write_file(uint32_t i, File *p_files_to_pck) {
 }
 
 Error PckCreator::_create_after_process() {
+	ERR_FAIL_COND_V_MSG(files_to_pck.is_empty(), ERR_INVALID_DATA, "No files to write to PCK!");
 	Ref<EditorProgressGDDC> pr = EditorProgressGDDC::create(nullptr, "re_write_pck", "Writing PCK archive...", (int)files_to_pck.size(), true);
 	cancelled = false;
 	broken_cnt = 0;
