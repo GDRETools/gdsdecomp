@@ -48,6 +48,8 @@ bool TaskManager::BaseTemplateTaskData::wait_update_progress(bool p_force_refres
 		bool force_redraw_bg = !progress_enabled ? p_force_refresh : false;
 		// This will not update this task's progress, as `is_waiting` is true here.
 		bg_ret = TaskManager::get_singleton()->update_progress_bg(force_redraw_bg);
+	} else if (!progress_enabled) {
+		bg_ret = TaskManager::get_singleton()->is_current_task_canceled();
 	}
 	update_progress(p_force_refresh);
 	// Only use the cancel value if the progress is not enabled
@@ -138,9 +140,11 @@ bool TaskManager::BaseTemplateTaskData::wait_for_completion(uint64_t timeout_s_n
 	if (runs_current_thread) {
 		run_on_current_thread();
 	} else {
-		if (!is_main_thread && progress_enabled) {
+#if DEBUG_ENABLED
+		if (!is_main_thread) {
 			WARN_PRINT("Waiting for group task completion on non-main thread, progress will not be updated!");
 		}
+#endif
 		uint64_t last_progress_made = OS::get_singleton()->get_ticks_msec();
 		auto last_progress = get_current_task_step_value();
 		bool printed_warning = false;
@@ -251,7 +255,7 @@ int TaskManager::DownloadTaskData::get_current_task_step_value() {
 }
 
 void TaskManager::DownloadTaskData::run_on_current_thread() {
-	if (canceled) {
+	if (is_canceled()) {
 		done = true;
 		return;
 	}
@@ -266,6 +270,12 @@ void TaskManager::DownloadTaskData::wait_for_task_completion_internal() {
 
 bool TaskManager::DownloadTaskData::is_done() const {
 	return done;
+}
+
+void TaskManager::DownloadTaskData::cancel_internal() {
+	if (!is_started()) {
+		done = true;
+	}
 }
 
 String TaskManager::DownloadTaskData::get_current_task_step_description() {
@@ -345,10 +355,11 @@ Error TaskManager::DownloadQueueThread::wait_for_task_completion(DownloadTaskID 
 	waiting = true;
 	std::shared_ptr<DownloadTaskData> task;
 	bool already_waiting = false;
+	bool is_main_thread = Thread::is_main_thread();
 	bool found = tasks.modify_if(p_task_id, [&](auto &v) {
 		task = v.second;
 		already_waiting = task->is_waiting;
-		task->is_waiting = true;
+		task->is_waiting = true; // is_main_thread;
 	});
 	if (!task || !found) {
 		return ERR_INVALID_PARAMETER;
@@ -357,10 +368,20 @@ Error TaskManager::DownloadQueueThread::wait_for_task_completion(DownloadTaskID 
 	}
 	Error err = OK;
 	while (!task->is_started()) {
-		if (GDREProgressDialog::get_singleton() && GDREProgressDialog::is_safe_to_redraw()) {
-			GDREProgressDialog::get_singleton()->main_thread_update();
+		if (is_main_thread) {
+			if (TaskManager::get_singleton()->update_progress_bg(true)) {
+				err = ERR_SKIP;
+				break;
+			}
+		}
+		if (task->is_canceled() || task->is_done()) {
+			err = ERR_SKIP;
+			break;
 		}
 		OS::get_singleton()->delay_usec(10000);
+	}
+	if (err) {
+		return err;
 	}
 	if (task->wait_for_completion()) {
 		err = ERR_SKIP;

@@ -290,6 +290,7 @@ public:
 		virtual int get_current_task_step_value() override;
 		virtual String get_current_task_step_description() override;
 		virtual bool is_done() const override;
+		virtual void cancel_internal() override;
 		virtual void start_internal() override;
 		void callback_data(void *p_data);
 		Error get_download_error() const { return download_error; }
