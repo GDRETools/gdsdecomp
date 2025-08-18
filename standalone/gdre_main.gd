@@ -947,11 +947,11 @@ func recovery(  input_files:PackedStringArray,
 		print("Extraction operation complete in %02dm%02ds" % [(secs_taken) / 60, (secs_taken) % 60])
 		return
 	err = export_imports(output_dir, files)
-	if err != OK:
+	if err != OK and err != ERR_SKIP:
 		print("Error: failed to export imports: " + GDREGlobals.get_recent_error_string())
 	end_time = Time.get_ticks_msec()
 	secs_taken = (end_time - start_time) / 1000
-	print("Recovery complete in %02dm%02ds" % [(secs_taken) / 60, (secs_taken) % 60])
+	print("Recovery finished in %02dm%02ds" % [(secs_taken) / 60, (secs_taken) % 60])
 
 
 func load_pck(input_files: PackedStringArray, extract_only: bool, includes, excludes, enc_key: String = ""):
