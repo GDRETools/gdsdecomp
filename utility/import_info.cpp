@@ -268,9 +268,8 @@ Ref<ImportInfo> ImportInfo::load_from_file(const String &p_path, int ver_major, 
 		if (ver_major == 0 && ResourceCompatLoader::handles_resource(p_path)) {
 			Ref<ResourceInfo> res_info;
 			err = get_resource_info(p_path, res_info);
-			if (err == OK) {
-				ver_major = res_info->ver_major;
-			}
+			ERR_FAIL_COND_V_MSG(err != OK, Ref<ImportInfo>(), "Could not load resource info for " + p_path);
+			ver_major = res_info->ver_major;
 		}
 		if (err == OK) {
 			if (ver_major <= 2) {
@@ -280,11 +279,13 @@ Ref<ImportInfo> ImportInfo::load_from_file(const String &p_path, int ver_major, 
 				iinfo = Ref<ImportInfo>(memnew(ImportInfoDummy));
 				err = iinfo->_load(p_path);
 			} else {
-				err = ERR_UNAVAILABLE;
+				ERR_FAIL_V_MSG(Ref<ImportInfo>(), "Could not load import info; not a resource: " + p_path);
 			}
 		}
 	}
-	ERR_FAIL_COND_V_MSG(err != OK, Ref<ImportInfo>(), "Could not load " + p_path);
+	if (err != OK) {
+		return Ref<ImportInfo>();
+	}
 	return iinfo;
 }
 

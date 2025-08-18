@@ -2126,14 +2126,18 @@ Error GDRESettings::load_import_files() {
 	}
 	for (int i = 0; i < tokens.size(); i++) {
 		if (tokens[i].info.is_null()) {
-			WARN_PRINT("Can't load import file: " + resource_files[i]);
+#ifdef DEBUG_ENABLED
+			// WARN_PRINT("Can't load import file: " + resource_files[i]);
+#endif
 			continue;
 		}
 		if (tokens[i].info->get_iitype() == ImportInfo::REMAP) {
 			if (tokens[i].err == ERR_FILE_MISSING_DEPENDENCIES) {
 				WARN_PRINT(vformat("Remapped path does not exist: %s -> %s", tokens[i].info->get_source_file(), tokens[i].info->get_path()));
 			} else if (tokens[i].err) {
-				WARN_PRINT("Can't load remap file: " + resource_files[i] + " (" + itos(tokens[i].err) + ")");
+#ifdef DEBUG_ENABLED
+				// WARN_PRINT("Can't load remap file: " + resource_files[i] + " (" + itos(tokens[i].err) + ")");
+#endif
 				continue;
 			} else {
 				remap_iinfo.insert(tokens[i].path, tokens[i].info);
