@@ -138,7 +138,7 @@ bool TaskManager::BaseTemplateTaskData::wait_for_completion(uint64_t timeout_s_n
 	if (runs_current_thread) {
 		run_on_current_thread();
 	} else {
-		if (!is_main_thread) {
+		if (!is_main_thread && progress_enabled) {
 			WARN_PRINT("Waiting for group task completion on non-main thread, progress will not be updated!");
 		}
 		uint64_t last_progress_made = OS::get_singleton()->get_ticks_msec();
