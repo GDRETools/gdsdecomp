@@ -80,6 +80,7 @@ static func popup_box(parent_window: Node, dialog: AcceptDialog, message: String
 		dialog.disconnect("canceled", dict.callable)
 	dialog.connect("confirmed", confirm_func)
 	dialog.connect("canceled", cancel_func)
+	dialog.popup_centered()
 
 
 func popup_error_box(message: String, box_title: String, call_func: Callable = void_func):
