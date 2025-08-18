@@ -33,6 +33,7 @@ static const HashMap<String, Vector<String>> release_file_exclude_masks = {
 	{ "discord-rpc-gd", { "*Demo*" } },
 	{ "discord-sdk-gd", { "*Demo*" } },
 	{ "epic-online-services-godot", { "*-android-*", "*-ios-*", "*-macos-*", "*-windows-*", "*-linux-*", "*-web*" } },
+	{ "fmod", { "*android.zip" } }
 };
 
 static const HashMap<String, String> plugin_map = {
