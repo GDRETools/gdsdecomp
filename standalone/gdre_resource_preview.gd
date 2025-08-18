@@ -217,7 +217,7 @@ func load_resource(path: String) -> void:
 	var info: Dictionary = {}
 
 	# clear errors
-	GDRESettings.get_recent_error_string()
+	GDRESettings.get_errors()
 	if ResourceCompatLoader.handles_resource(path, ""):
 		info = ResourceCompatLoader.get_resource_info(path)
 		current_resource_type = info.get("type", "")
