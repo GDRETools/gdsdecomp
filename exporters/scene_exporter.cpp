@@ -2849,10 +2849,11 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 	}
 
 	BatchExportToken::in_progress = 0;
-	const size_t default_threads = OS::get_singleton()->get_default_thread_pool_size();
+	// 75% of the default thread pool size; we can't saturate the thread pool because some loaders may make use of them and we'll cause a deadlock.
+	const size_t number_of_threads = OS::get_singleton()->get_default_thread_pool_size() * 0.75;
 
 	Error err = OK;
-	if (GDREConfig::get_singleton()->get_setting("force_single_threaded", false)) {
+	if (number_of_threads <= 1 || GDREConfig::get_singleton()->get_setting("force_single_threaded", false)) {
 		err = TaskManager::get_singleton()->run_group_task_on_current_thread(
 				this,
 				&SceneExporter::do_single_threaded_batch_export_instanced_scene,
@@ -2872,13 +2873,13 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 				"Exporting scenes",
 				"Exporting scenes",
 				true,
-				-1,
+				number_of_threads,
 				true);
 
 		for (auto &token : tokens) {
 			token->batch_preload();
 			// Don't load more than the current number of tasks being processed
-			while (BatchExportToken::in_progress >= default_threads) {
+			while (BatchExportToken::in_progress >= number_of_threads) {
 				if (TaskManager::get_singleton()->update_progress_bg(true)) {
 					break;
 				}
