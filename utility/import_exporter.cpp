@@ -777,8 +777,10 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 			String format_type = src_ext;
 			if (ret->get_unsupported_format_type() != "") {
 				format_type = ret->get_unsupported_format_type();
+			} else {
+				ret->set_unsupported_format_type(format_type);
 			}
-			report_unsupported_resource(type, format_type, iinfo->get_path());
+			report_unsupported_resource(type, format_type, iinfo->get_importer(), iinfo->get_path());
 			report->not_converted.push_back(ret);
 			continue;
 		} else if (err != OK) {
@@ -1096,10 +1098,9 @@ Error ImportExporter::rewrite_import_source(const String &rel_dest_path, const R
 	return new_import->save_to(new_import_file);
 }
 
-void ImportExporter::report_unsupported_resource(const String &type, const String &format_name, const String &import_path) {
-	String type_format_str = type + "%" + format_name.to_lower();
+void ImportExporter::report_unsupported_resource(const String &type, const String &format_name, const String &importer, const String &import_path) {
+	String type_format_str = type + "%" + format_name.to_lower() + "%" + importer;
 	if (report->unsupported_types.find(type_format_str) == -1) {
-		WARN_PRINT("Conversion for Resource of type " + type + " and format " + format_name + " not implemented for " + import_path);
 		report->unsupported_types.push_back(type_format_str);
 	}
 	print_verbose("Did not convert " + type + " resource " + import_path);
@@ -1189,8 +1190,7 @@ Dictionary ImportExporterReport::get_session_notes() {
 	base_ext_set.insert("wav");
 	base_ext_set.insert("ogg");
 	base_ext_set.insert("mp3");
-	String unsup = get_detected_unsupported_resource_string();
-	if (!unsup.is_empty()) {
+	if (!unsupported_types.is_empty()) {
 		Dictionary unsupported;
 		unsupported["title"] = "Unsupported Resources Detected";
 		String message = "The following resource types were detected in the project that conversion is not implemented for yet.\n";
@@ -1200,7 +1200,7 @@ Dictionary ImportExporterReport::get_session_notes() {
 		PackedStringArray list;
 		for (int i = 0; i < unsupported_types.size(); i++) {
 			auto split = unsupported_types[i].split("%");
-			auto str = "Resource Type: " + split[0] + ", Format: " + split[1];
+			String str = vformat("Resource Type: %-10s Format: %-8s Importer: %s", split[0], split[1], split[2]);
 			if ((split[0] == "Resource" || split[1].size() == 3) && !base_ext_set.has(split[1])) {
 				str += " (non-standard resource)";
 			}
@@ -1443,7 +1443,11 @@ String ImportExporterReport::get_report_string() {
 		report += "------\n";
 		report += "\nThe following files were not converted because support has not been implemented yet:" + String("\n");
 		for (auto &info : not_converted) {
-			report += info->get_path() + " ( importer: " + info->get_import_info()->get_importer() + ", type: " + info->get_import_info()->get_type() + ", format: " + info->get_unsupported_format_type() + ") to " + info->get_new_source_path().get_file() + String("\n");
+			String unsupported_format_type = info->get_unsupported_format_type();
+			if (unsupported_format_type.is_empty()) {
+				unsupported_format_type = info->get_path().get_extension();
+			}
+			report += info->get_path() + " ( importer: " + info->get_import_info()->get_importer() + ", type: " + info->get_import_info()->get_type() + ", format: " + unsupported_format_type + ") to " + info->get_new_source_path().get_file() + String("\n");
 		}
 	}
 	if (failed.size() > 0) {
@@ -1501,7 +1505,7 @@ String ImportExporterReport::get_detected_unsupported_resource_string() {
 	String str = "";
 	for (auto type : unsupported_types) {
 		Vector<String> spl = type.split("%");
-		str += vformat("Type: %-20s", spl[0]) + "\tFormat: " + spl[1] + "\n";
+		str += vformat("Resource Type: %-20s Format: %-10s Importer: %s\n", spl[0], spl[1], spl[2]);
 	}
 	return str;
 }

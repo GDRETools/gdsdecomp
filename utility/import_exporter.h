@@ -118,7 +118,7 @@ class ImportExporter : public RefCounted {
 	String get_export_token_description(uint32_t i, ExportToken *tokens);
 	Error handle_auto_converted_file(const String &autoconverted_file);
 	Error rewrite_import_source(const String &rel_dest_path, const Ref<ImportInfo> &iinfo);
-	void report_unsupported_resource(const String &type, const String &format_name, const String &import_path);
+	void report_unsupported_resource(const String &type, const String &format_name, const String &importer, const String &import_path);
 	Error remove_remap_and_autoconverted(const String &src, const String &dst);
 	void rewrite_metadata(ExportToken &token);
 	Error unzip_and_copy_addon(const Ref<ImportInfoGDExt> &iinfo, const String &zip_path);
