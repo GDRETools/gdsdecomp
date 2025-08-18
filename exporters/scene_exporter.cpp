@@ -290,9 +290,11 @@ Error load_model(const String &p_filename, tinygltf::Model &model, String &r_err
 	std::string warning;
 	bool is_binary = p_filename.get_extension().to_lower() == "glb";
 	bool state = is_binary ? loader.LoadBinaryFromFile(&model, &error, &warning, filename) : loader.LoadASCIIFromFile(&model, &error, &warning, filename);
-	ERR_FAIL_COND_V_MSG(!state, ERR_FILE_CANT_READ, vformat("Failed to load GLTF file: %s", error.c_str()));
 	if (error.size() > 0) { // validation errors, ignore for right now
 		r_error.append_utf8(error.c_str());
+	}
+	if (!state) {
+		return ERR_FILE_CANT_READ;
 	}
 	return OK;
 }
@@ -763,11 +765,10 @@ String GLBExporterInstance::get_resource_path(const Ref<Resource> &res) {
 	return path;
 }
 
-#define GDRE_SCN_EXP_FAIL_V_MSG(err, msg)          \
-	{                                              \
-		ERR_PRINT(add_errors_to_report(err, msg)); \
-		_get_logged_error_messages();              \
-		return err;                                \
+#define GDRE_SCN_EXP_FAIL_V_MSG(err, msg)                            \
+	{                                                                \
+		[[maybe_unused]] auto _err = add_errors_to_report(err, msg); \
+		return err;                                                  \
 	}
 
 #define GDRE_SCN_EXP_FAIL_COND_V_MSG(cond, err, msg) \
@@ -1919,6 +1920,7 @@ Error GLBExporterInstance::_check_model_can_load(const String &p_dest_path) {
 	String error_string;
 	Error load_err = load_model(p_dest_path, model, error_string);
 	if (load_err != OK) {
+		gltf_serialization_error_messages.append(error_string);
 		return ERR_FILE_CORRUPT;
 	}
 	return OK;
