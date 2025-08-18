@@ -397,7 +397,7 @@ Error _encode_buffer_glb(Ref<GLTFState> p_state, const String &p_path, Vector<St
 	auto state_buffers = p_state->get_buffers();
 	print_verbose("glTF: Total buffers: " + itos(state_buffers.size()));
 
-	if (state_buffers.is_empty()) {
+	if (state_buffers.is_empty() || (state_buffers.size() == 1 && state_buffers[0].operator PackedByteArray().is_empty())) {
 		return OK;
 	}
 	Array buffers;
@@ -438,7 +438,7 @@ Error _encode_buffer_bins(Ref<GLTFState> p_state, const String &p_path, Vector<S
 	auto state_buffers = p_state->get_buffers();
 	print_verbose("glTF: Total buffers: " + itos(state_buffers.size()));
 
-	if (state_buffers.is_empty()) {
+	if (state_buffers.is_empty() || (state_buffers.size() == 1 && state_buffers[0].operator PackedByteArray().is_empty())) {
 		return OK;
 	}
 	Array buffers;

@@ -1,5 +1,4 @@
 #pragma once
-#include "core/io/resource_loader.h"
 #include "exporters/obj_exporter.h"
 #include "exporters/resource_exporter.h"
 #include "scene/resources/compressed_texture.h"
