@@ -2125,23 +2125,6 @@ void GLBExporterInstance::_do_export_instanced_scene(void *p_pair_of_root_node_a
 	err = _export_instanced_scene(root, dest_path);
 }
 
-struct SingleExportTaskRunnerStruct : public TaskRunnerStruct {
-	String p_src_path;
-	GLBExporterInstance *exporter = nullptr;
-	virtual int get_current_task_step_value() override {
-		return 0;
-	}
-	virtual String get_current_task_step_description() override {
-		return "Exporting scene " + p_src_path;
-	}
-	virtual void cancel() override {
-		exporter->cancel();
-	}
-	virtual void run(void *p_userdata) override {
-		exporter->_do_export_instanced_scene(p_userdata);
-	}
-};
-
 void GLBExporterInstance::cancel() {
 	canceled = true;
 }
@@ -2176,14 +2159,9 @@ Error GLBExporterInstance::export_file(const String &p_dest_path, const String &
 		}
 
 		_set_stuff_from_instanced_scene(root);
-		Pair<Node *, String> pair = { root, p_dest_path };
-		auto task_runner = std::make_shared<SingleExportTaskRunnerStruct>();
-		task_runner->exporter = this;
-		task_runner->p_src_path = p_src_path;
-		Error wait_err = TaskManager::get_singleton()->run_task(task_runner, &pair, "Exporting scene " + p_src_path, -1, true, true, true);
-
-		if (wait_err != OK) {
-			err = wait_err;
+		err = _export_instanced_scene(root, p_dest_path);
+		if (err != OK) {
+			return err;
 		}
 
 		memdelete(root);
@@ -2335,6 +2313,10 @@ Error SceneExporter::export_scene_to_obj(const Ref<PackedScene> &scene, const St
 GLBExporterInstance::GLBExporterInstance(String p_output_dir, Dictionary curr_options, bool p_project_recovery) {
 	project_recovery = p_project_recovery;
 	output_dir = p_output_dir;
+	set_options(curr_options);
+}
+
+void GLBExporterInstance::set_options(const Dictionary &curr_options) {
 	Dictionary options = curr_options;
 	if (!options.has("Exporter/Scene/GLTF/force_lossless_images")) {
 		options["Exporter/Scene/GLTF/force_lossless_images"] = GDREConfig::get_singleton()->get_setting("Exporter/Scene/GLTF/force_lossless_images", false);
@@ -2367,89 +2349,6 @@ inline void _set_unsupported(Ref<ExportReport> report, int ver_major, bool is_ob
 	report->set_unsupported_format_type(vformat("v%d.x scene", ver_major));
 	report->set_message(vformat("Scene export for engine version %d with %s output is not currently supported\nTry saving to .tscn instead.", ver_major, is_obj_output ? "obj" : "GLTF/GLB"));
 }
-struct SingleExportTaskRunnerStruct2 : public TaskRunnerStruct {
-	String p_src_path;
-	bool done = false;
-	GLBExporterInstance *exporter = nullptr;
-	virtual int get_current_task_step_value() override {
-		return 0;
-	}
-	virtual String get_current_task_step_description() override {
-		return "Exporting scene " + p_src_path;
-	}
-	virtual void cancel() override {
-		exporter->cancel();
-	}
-	virtual bool is_done() const override {
-		return done;
-	}
-	virtual void run(void *p_userdata) override {
-		exporter->_do_export_instanced_scene(p_userdata);
-		done = true;
-	}
-};
-
-Ref<ExportReport> SceneExporter::export_file_with_options(const String &out_path, const String &res_path, const Dictionary &options) {
-	Ref<ImportInfo> iinfo;
-	Ref<ExportReport> report;
-	if (GDRESettings::get_singleton()->is_pack_loaded()) {
-		auto found = GDRESettings::get_singleton()->get_import_info_by_dest(res_path);
-		if (found.is_valid()) {
-			iinfo = ImportInfo::copy(found);
-		}
-	}
-	if (!iinfo.is_valid()) {
-		bool is_resource = ResourceCompatLoader::handles_resource(res_path);
-		if (is_resource) {
-			// NOTE: If we start supporting non-resource scenes, we need to update this.
-			iinfo = ImportInfo::load_from_file(res_path);
-		}
-		if (!iinfo.is_valid()) {
-			report = memnew(ExportReport(nullptr, EXPORTER_NAME));
-			report->set_source_path(res_path);
-			if (!is_resource) {
-				report->set_message(res_path + " is not a valid resource.");
-				report->set_error(ERR_INVALID_PARAMETER);
-			} else {
-				report->set_message("Failed to load resource " + res_path + " for export");
-				report->set_error(ERR_FILE_CANT_READ);
-			}
-			ERR_FAIL_V_MSG(report, report->get_message());
-		}
-	}
-	report = memnew(ExportReport(iinfo, EXPORTER_NAME));
-	String ext = out_path.get_extension().to_lower();
-	bool to_text = ext == "escn" || ext == "tscn";
-	bool to_obj = ext == "obj";
-	bool non_gltf = ext != "glb" && ext != "gltf";
-	int ver_major = iinfo->get_ver_major();
-	if (_check_unsupported(ver_major, to_text)) {
-		_set_unsupported(report, ver_major, to_obj);
-		return report;
-	}
-	String opath = out_path;
-	if (to_text || to_obj) {
-		Error err = export_file_to_non_glb(res_path, out_path, nullptr);
-		report->set_error(err);
-		if (err != OK) {
-			report->append_error_messages(GDRELogger::get_errors());
-		} else {
-			report->set_saved_path(out_path);
-		}
-		return report;
-	} else if (non_gltf) {
-		opath = out_path.get_basename() + ".glb";
-		report->append_message_detail({ "Attempting to export to non-GLTF format, saving to " + opath });
-	}
-	GLBExporterInstance instance(out_path.get_base_dir(), options, false);
-	instance.set_force_no_update_import_params(true);
-	Error err = instance.export_file(opath, res_path, report);
-	report->set_error(err);
-	if (err == OK) {
-		report->set_saved_path(opath);
-	}
-	return report;
-}
 
 Error _check_cancelled() {
 	if (TaskManager::get_singleton()->is_current_task_canceled()) {
@@ -2461,7 +2360,7 @@ Error _check_cancelled() {
 	return OK;
 }
 
-struct BatchExportToken {
+struct BatchExportToken : public TaskRunnerStruct {
 	static std::atomic<size_t> in_progress;
 	GLBExporterInstance instance;
 	Ref<ExportReport> report;
@@ -2473,14 +2372,13 @@ struct BatchExportToken {
 	String output_dir;
 	bool preload_done = false;
 	bool done = false;
+	bool no_rename = false;
 	int ver_major = 0;
 	Error err = OK;
 	size_t scene_size = 0;
-	BatchExportToken() :
-			instance(String(), {}, true) {}
 
-	BatchExportToken(const String &p_output_dir, const Ref<ImportInfo> &p_iinfo) :
-			instance(p_output_dir, {}, true) {
+	BatchExportToken(const String &p_output_dir, const Ref<ImportInfo> &p_iinfo, Dictionary p_options = {}) :
+			instance(p_output_dir, p_options, true) {
 		ERR_FAIL_COND_MSG(!p_iinfo.is_valid(), "Import info is invalid");
 		report = memnew(ExportReport(p_iinfo, SceneExporter::EXPORTER_NAME));
 		original_export_dest = p_iinfo->get_export_dest();
@@ -2694,17 +2592,103 @@ struct BatchExportToken {
 			instance._unload_deps();
 			if (instance.had_script() && err == OK) {
 				report->set_message("Script has scripts, not saving to original path.");
-				move_output_to_dot_assets();
+				if (!no_rename) {
+					move_output_to_dot_assets();
+				}
 			} else if (err == OK) {
 				report->set_saved_path(p_dest_path);
-			} else if (err) {
+			} else if (err && !no_rename) {
 				move_output_to_dot_assets();
 			}
 		}
 	}
+	// TaskRunnerStruct functions
+	virtual int get_current_task_step_value() override {
+		return 0;
+	}
+	virtual String get_current_task_step_description() override {
+		return "Exporting scene " + p_src_path;
+	}
+	virtual void cancel() override {
+		err = ERR_SKIP;
+		instance.cancel();
+	}
+	virtual void run(void *p_userdata) override {
+		batch_export_instanced_scene();
+	}
+
+	virtual ~BatchExportToken() = default;
 };
 
 std::atomic<size_t> BatchExportToken::in_progress = 0;
+
+Ref<ExportReport> SceneExporter::export_file_with_options(const String &out_path, const String &res_path, const Dictionary &options) {
+	Ref<ImportInfo> iinfo;
+	if (GDRESettings::get_singleton()->is_pack_loaded()) {
+		auto found = GDRESettings::get_singleton()->get_import_info_by_dest(res_path);
+		if (found.is_valid()) {
+			iinfo = ImportInfo::copy(found);
+		}
+	}
+	if (!iinfo.is_valid()) {
+		bool is_resource = ResourceCompatLoader::handles_resource(res_path);
+		if (is_resource) {
+			// NOTE: If we start supporting non-resource scenes, we need to update this.
+			iinfo = ImportInfo::load_from_file(res_path);
+		}
+		if (!iinfo.is_valid()) {
+			Ref<ExportReport> report = memnew(ExportReport(nullptr, EXPORTER_NAME));
+			report->set_source_path(res_path);
+			if (!is_resource) {
+				report->set_message(res_path + " is not a valid resource.");
+				report->set_error(ERR_INVALID_PARAMETER);
+			} else {
+				report->set_message("Failed to load resource " + res_path + " for export");
+				report->set_error(ERR_FILE_CANT_READ);
+			}
+			ERR_FAIL_V_MSG(report, report->get_message());
+		}
+	}
+	String ext = out_path.get_extension().to_lower();
+	bool to_text = ext == "escn" || ext == "tscn";
+	bool to_obj = ext == "obj";
+	bool non_gltf = ext != "glb" && ext != "gltf";
+	int ver_major = iinfo->get_ver_major();
+	if (_check_unsupported(ver_major, to_text)) {
+		Ref<ExportReport> rep = memnew(ExportReport(iinfo, EXPORTER_NAME));
+		_set_unsupported(rep, ver_major, to_obj);
+		return rep;
+	}
+	String opath = out_path;
+	if (to_text || to_obj) {
+		Ref<ExportReport> obj_rep = memnew(ExportReport(iinfo, EXPORTER_NAME));
+		Error err = export_file_to_non_glb(res_path, out_path, nullptr);
+		obj_rep->set_error(err);
+		if (err != OK) {
+			obj_rep->append_error_messages(GDRELogger::get_errors());
+		} else {
+			obj_rep->set_saved_path(out_path);
+		}
+		return obj_rep;
+	} else if (non_gltf) {
+		opath = out_path.get_basename() + ".glb";
+	}
+	auto token = std::make_shared<BatchExportToken>(out_path.get_base_dir(), iinfo, options);
+	token->p_dest_path = opath;
+	if (non_gltf) {
+		token->report->append_message_detail({ "Attempting to export to non-GLTF format, saving to " + opath });
+	}
+	token->no_rename = true;
+	token->instance.set_force_no_update_import_params(true);
+	token->batch_preload();
+	if (token->err != OK) {
+		token->post_export(token->err);
+		return token->report;
+	}
+	Error err = TaskManager::get_singleton()->run_task(token, nullptr, "Exporting scene " + res_path, -1, true, true, true);
+	token->post_export(err);
+	return token->report;
+}
 
 Ref<ExportReport> SceneExporter::export_resource(const String &output_dir, Ref<ImportInfo> iinfo) {
 	BatchExportToken token(output_dir, iinfo);

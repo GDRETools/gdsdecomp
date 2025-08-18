@@ -184,4 +184,6 @@ public:
 	void set_batch_export(bool p_batch_export) { is_batch_export = p_batch_export; }
 
 	void set_force_no_update_import_params(bool p_force_no_update_import_params) { force_no_update_import_params = p_force_no_update_import_params; }
+
+	void set_options(const Dictionary &p_options);
 };
