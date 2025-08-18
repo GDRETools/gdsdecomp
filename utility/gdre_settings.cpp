@@ -2595,6 +2595,13 @@ void GDRESettings::update_from_ephemeral_settings() {
 	}
 }
 
+String GDRESettings::get_recent_error_string(bool p_filter_backtraces) {
+	if (p_filter_backtraces) {
+		return String("\n").join(gdre::filter_error_backtraces(GDRESettings::get_errors()));
+	}
+	return String("\n").join(GDRESettings::get_errors());
+}
+
 void GDRESettings::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("load_project", "p_paths", "cmd_line_extract", "csharp_assembly_override"), &GDRESettings::load_project, DEFVAL(false), DEFVAL(""));
 	ClassDB::bind_method(D_METHOD("unload_project"), &GDRESettings::unload_project);
@@ -2665,6 +2672,7 @@ void GDRESettings::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("project_requires_dotnet_assembly"), &GDRESettings::project_requires_dotnet_assembly);
 	ClassDB::bind_method(D_METHOD("get_temp_dotnet_assembly_dir"), &GDRESettings::get_temp_dotnet_assembly_dir);
 	ClassDB::bind_method(D_METHOD("update_from_ephemeral_settings"), &GDRESettings::update_from_ephemeral_settings);
+	ClassDB::bind_method(D_METHOD("get_recent_error_string", "filter_backtraces"), &GDRESettings::get_recent_error_string, DEFVAL(true));
 }
 
 // This is at the bottom to account for the platform header files pulling in their respective OS headers and creating all sorts of issues

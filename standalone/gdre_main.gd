@@ -141,7 +141,7 @@ func extract_and_recover(files_to_extract: PackedStringArray, output_dir: String
 		end_recovery()
 		return
 	if (err != OK):
-		popup_error_box("Could not extract files:\n" + GDREGlobals.get_recent_error_string(), "Error")
+		popup_error_box("Could not extract files:\n" + GDRESettings.get_recent_error_string(), "Error")
 		end_recovery()
 		return
 	# check if ExtractOnly is pressed
@@ -159,7 +159,7 @@ func extract_and_recover(files_to_extract: PackedStringArray, output_dir: String
 		end_recovery()
 		return
 	if (err != OK):
-		popup_error_box("Could not recover files:\n" + GDREGlobals.get_recent_error_string(), "Error")
+		popup_error_box("Could not recover files:\n" + GDRESettings.get_recent_error_string(), "Error")
 		end_recovery()
 		return
 	var report = import_exporter.get_report()
@@ -192,10 +192,10 @@ func launch_recovery_window(paths: PackedStringArray):
 	#REAL_ROOT_WINDOW.move_child(RECOVERY_DIALOG, self.get_index() -1)
 	var err = RECOVERY_DIALOG.add_project(paths)
 	if err != OK:
-		var error_msg = GDREGlobals.get_recent_error_string()
+		var error_msg = GDRESettings.get_recent_error_string()
 		if error_msg.to_lower().contains("encrypt"):
 			error_msg = "Incorrect encryption key. Please set the correct key and try again."
-		popup_error_box("Failed to open " + str(GDREGlobals.get_files_for_paths(paths)) + ":\n" + error_msg, "Error")
+		popup_error_box("Failed to open " + str(GDRECommon.get_files_for_paths(paths)) + ":\n" + error_msg, "Error")
 		return
 
 	RECOVERY_DIALOG.show_win()
@@ -349,7 +349,7 @@ func _on_bin_to_text_file_dialog_files_selected(paths: PackedStringArray) -> voi
 		if ResourceCompatLoader.to_text(path, new_path) != OK:
 			had_errors = true
 	if had_errors:
-		popup_error_box("Failed to convert files:\n" + GDREGlobals.get_recent_error_string(), "Error")
+		popup_error_box("Failed to convert files:\n" + GDRESettings.get_recent_error_string(), "Error")
 
 
 func _on_text_to_bin_file_dialog_files_selected(paths: PackedStringArray) -> void:
@@ -364,7 +364,7 @@ func _on_text_to_bin_file_dialog_files_selected(paths: PackedStringArray) -> voi
 		if ResourceCompatLoader.to_binary(path, new_path) != OK:
 			had_errors = true
 	if had_errors:
-		popup_error_box("Failed to convert files:\n" + GDREGlobals.get_recent_error_string(), "Error")
+		popup_error_box("Failed to convert files:\n" + GDRESettings.get_recent_error_string(), "Error")
 
 
 func _do_export(paths, new_ext):
@@ -375,7 +375,7 @@ func _do_export(paths, new_ext):
 		if Exporter.export_file(new_path, path) != OK:
 			had_errors = true
 	if had_errors:
-		popup_error_box("Failed to convert files:\n" + GDREGlobals.get_recent_error_string(), "Error")
+		popup_error_box("Failed to convert files:\n" + GDRESettings.get_recent_error_string(), "Error")
 
 
 func _on_texture_file_dialog_files_selected(paths: PackedStringArray) -> void:
@@ -866,7 +866,7 @@ func recovery(  input_files:PackedStringArray,
 	err = GDRESettings.load_project(input_files, extract_only, csharp_assembly)
 	if (err != OK):
 		print_usage()
-		print("Error: failed to open ", (GDREGlobals.get_files_for_paths(input_files)))
+		print("Error: failed to open ", (GDRECommon.get_files_for_paths(input_files)))
 		return
 
 	print("Successfully loaded PCK!")
@@ -948,7 +948,7 @@ func recovery(  input_files:PackedStringArray,
 		return
 	err = export_imports(output_dir, files)
 	if err != OK and err != ERR_SKIP:
-		print("Error: failed to export imports: " + GDREGlobals.get_recent_error_string())
+		print("Error: failed to export imports: " + GDRESettings.get_recent_error_string())
 	end_time = Time.get_ticks_msec()
 	secs_taken = (end_time - start_time) / 1000
 	print("Recovery finished in %02dm%02ds" % [(secs_taken) / 60, (secs_taken) % 60])
@@ -1012,7 +1012,7 @@ func load_pck(input_files: PackedStringArray, extract_only: bool, includes, excl
 	err = GDRESettings.load_project(input_files, extract_only)
 	if (err != OK):
 		print_usage()
-		print("Error: failed to open ", (GDREGlobals.get_files_for_paths(input_files)))
+		print("Error: failed to open ", (GDRECommon.get_files_for_paths(input_files)))
 		return []
 
 	var files: PackedStringArray = []

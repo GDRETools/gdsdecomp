@@ -201,7 +201,7 @@ func text_preview_check_button(path, type):
 
 func handle_error_opening(path):
 	# %SwitchViewButton.visible = false
-	%TextView.load_text_string("Error opening resource:\n" + GDREGlobals.get_recent_error_string())
+	%TextView.load_text_string("Error opening resource:\n" + GDRESettings.get_recent_error_string())
 	%TextView.visible = true
 	%ResourceInfo.text = path
 
@@ -217,7 +217,7 @@ func load_resource(path: String) -> void:
 	var info: Dictionary = {}
 
 	# clear errors
-	GDREGlobals.get_recent_error_string()
+	GDRESettings.get_recent_error_string()
 	if ResourceCompatLoader.handles_resource(path, ""):
 		info = ResourceCompatLoader.get_resource_info(path)
 		current_resource_type = info.get("type", "")

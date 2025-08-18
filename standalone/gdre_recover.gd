@@ -187,6 +187,39 @@ func _export_scene(file: String, output_dir: String, dir_structure: DirStructure
 		report.error = OK
 	return report
 
+
+func get_log_error_string(errs: PackedStringArray) -> String:
+	return "\n".join(GDRECommon.filter_error_backtraces(errs))
+
+func convert_pcfg_to_text(path: String, output_dir: String) -> Array:
+	var loader = ProjectConfigLoader.new()
+	var ver_major = GDRESettings.get_ver_major()
+	var ver_minor = GDRESettings.get_ver_minor()
+	var text_file = "project.godot"
+	var err = OK
+	if path.get_file() == "engine.cfb":
+		text_file = "engine.cfg"
+	if (ver_major > 0):
+		err = loader.load_cfb(path, ver_major, ver_minor)
+		if err != OK:
+			return [err, text_file]
+	else:
+		if (path.get_file() == "engine.cfb"):
+			ver_major = 2
+			err = loader.load_cfb(path, ver_major, ver_minor)
+			if err != OK:
+				return [err, text_file]
+		else:
+			err = loader.load_cfb(path, 4, 3)
+			if (err == OK):
+				ver_major = 4
+			else:
+				err = loader.load_cfb(path, 3, 3)
+				if err != OK:
+					return [err, text_file]
+				ver_major = 3
+	return [loader.save_cfb(output_dir, ver_major, ver_minor), text_file]
+
 func _export_files(files: PackedStringArray, output_dir: String, dir_structure: DirStructure, rel_base: String, export_glb: ExportSceneType) -> PackedStringArray:
 	var errs: PackedStringArray = []
 	files = _get_all_files(files)
@@ -196,9 +229,9 @@ func _export_files(files: PackedStringArray, output_dir: String, dir_structure: 
 			continue
 
 		if file.get_file() == "project.binary" || file.get_file() == "engine.cfb":
-			var ret = GDREGlobals.convert_pcfg_to_text(file, output_dir)
+			var ret = convert_pcfg_to_text(file, output_dir)
 			if ret[0] != OK:
-				errs.append("Failed to convert project config: " + file + "\n" + GDREGlobals.get_recent_error_string())
+				errs.append("Failed to convert project config: " + file + "\n" + GDRESettings.get_recent_error_string())
 			continue
 
 		GDRESettings.get_errors()
@@ -218,9 +251,9 @@ func _export_files(files: PackedStringArray, output_dir: String, dir_structure: 
 				errs.append("Failed to export resource: " + file)
 			elif report.error != OK and report.error != ERR_PRINTER_ON_FIRE:
 				if (report.error == ERR_SKIP):
-					errs.append("Exporting cancelled: " + file + "\n" + report.message + "\n" + GDREGlobals.parse_log_errors(report.get_error_messages()))
+					errs.append("Exporting cancelled: " + file + "\n" + report.message + "\n" + get_log_error_string(report.get_error_messages()))
 					continue
-				errs.append("Failed to export resource: " + file + "\n" + report.message + "\n" + GDREGlobals.parse_log_errors(report.get_error_messages()))
+				errs.append("Failed to export resource: " + file + "\n" + report.message + "\n" + get_log_error_string(report.get_error_messages()))
 		elif _ret:
 			var iinfo: ImportInfo = ImportInfo.copy(_ret)
 			iinfo.export_dest = get_output_file_name(iinfo.source_file, "res://", dir_structure, iinfo.source_file.get_extension().to_lower(), rel_base)
@@ -228,7 +261,7 @@ func _export_files(files: PackedStringArray, output_dir: String, dir_structure: 
 			if not report:
 				errs.append("Failed to export resource: " + file)
 			elif report.error != OK and report.error != ERR_PRINTER_ON_FIRE:
-				errs.append("Failed to export resource: " + file + "\n" + report.message + "\n" + GDREGlobals.parse_log_errors(report.get_error_messages()))
+				errs.append("Failed to export resource: " + file + "\n" + report.message + "\n" + get_log_error_string(report.get_error_messages()))
 			else:
 				var actual_output_path = report.saved_path
 				var rel_path = actual_output_path.simplify_path().trim_prefix(output_dir).trim_prefix("/")
@@ -242,14 +275,14 @@ func _export_files(files: PackedStringArray, output_dir: String, dir_structure: 
 			var dest_file = get_output_file_name(file, output_dir, dir_structure, ext, rel_base)
 			var err = Exporter.export_file(dest_file, file)
 			if err:
-				errs.append("Failed to export file: " + file + "\n" + GDREGlobals.get_recent_error_string())
+				errs.append("Failed to export file: " + file + "\n" + GDRESettings.get_recent_error_string())
 		elif ResourceFormatLoaderCompatBinary.is_binary_resource(file):
 			var new_ext = "tres"
 			if file.get_extension().to_lower() == "scn":
 				new_ext = "tscn"
 			var err = ResourceCompatLoader.to_text(file, get_output_file_name(file, output_dir, dir_structure, new_ext, rel_base))
 			if err:
-				errs.append("Failed to export file: " + file + "\n" + GDREGlobals.get_recent_error_string())
+				errs.append("Failed to export file: " + file + "\n" + GDRESettings.get_recent_error_string())
 		else:
 			# extract the file
 			var err = extract_file(file, output_dir, dir_structure, rel_base)

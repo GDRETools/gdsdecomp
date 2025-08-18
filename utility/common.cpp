@@ -909,6 +909,28 @@ Vector<String> gdre::get_files_at(const String &p_dir, const Vector<String> &wil
 	return ret;
 }
 
+Vector<String> gdre::filter_error_backtraces(const Vector<String> &p_error_messages) {
+	Vector<String> ret;
+	for (auto &err : p_error_messages) {
+		String lstripped = err.strip_edges(true, false);
+		if (!lstripped.begins_with("at:") && !lstripped.begins_with("GDScript backtrace")) {
+			ret.push_back(err.strip_edges(false, true));
+		}
+	}
+	return ret;
+}
+
+Vector<String> gdre::get_files_for_paths(const Vector<String> &p_paths) {
+	Vector<String> ret;
+	for (auto &path : p_paths) {
+		if (path.is_empty()) {
+			continue;
+		}
+		ret.push_back(path.get_file());
+	}
+	return ret;
+}
+
 void GDRECommon::_bind_methods() {
 	//	ClassDB::bind_static_method("GLTFCamera", D_METHOD("from_node", "camera_node"), &GLTFCamera::from_node);
 
@@ -926,4 +948,6 @@ void GDRECommon::_bind_methods() {
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("rsplit_multichar", "str", "splitters", "allow_empty", "maxsplit"), &gdre::_rsplit_multichar);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("copy_dir", "src", "dst"), &gdre::copy_dir);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("open_encrypted_v3", "path", "mode", "key"), &gdre::open_encrypted_v3);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("filter_error_backtraces", "error_messages"), &gdre::filter_error_backtraces);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_files_for_paths", "paths"), &gdre::get_files_for_paths);
 }

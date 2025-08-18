@@ -248,6 +248,8 @@ bool detect_utf8(const PackedByteArray &p_utf8_buf);
 Error copy_dir(const String &src, const String &dst);
 
 Ref<FileAccess> open_encrypted_v3(const String &p_path, int p_mode, const Vector<uint8_t> &p_key);
+Vector<String> filter_error_backtraces(const Vector<String> &p_error_messages);
+Vector<String> get_files_for_paths(const Vector<String> &p_paths);
 } // namespace gdre
 
 class GDRECommon : public Object {

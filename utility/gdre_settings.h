@@ -332,6 +332,8 @@ public:
 
 	void update_from_ephemeral_settings();
 
+	String get_recent_error_string(bool p_filter_backtraces = true);
+
 	static GDRESettings *get_singleton();
 	GDRESettings();
 	~GDRESettings();

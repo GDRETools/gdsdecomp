@@ -220,9 +220,13 @@ func add_report_sections(report_sections: Dictionary, report_labels: Dictionary)
 					subsubitem.add_button(1, file_icon, TotalsTreeButton.DOWNLOAD_URL, false, "Open download URL")
 			else:
 				for subkey in dict.keys():
-					var subitem = TOTALS_TREE.create_item(header_item)
-					subitem.set_text(1, subkey)
-					subitem.set_text(0, dict[subkey])
+					var val = dict[subkey]
+					if val is Dictionary:
+						add_dictionary_item(header_item, subkey, val)
+					else:
+						var subitem = TOTALS_TREE.create_item(header_item)
+						subitem.set_text(0, subkey)
+						subitem.set_text(1, dict[subkey])
 		elif typeof(section) == TYPE_PACKED_STRING_ARRAY:
 			var arr: PackedStringArray = section
 			header_item.set_text(1, String.num_uint64(arr.size()))
