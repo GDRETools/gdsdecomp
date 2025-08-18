@@ -912,9 +912,7 @@ func recovery(  input_files:PackedStringArray,
 			files = GDRESettings.get_file_list()
 		if excludes.size() > 0:
 			excludes = normalize_cludes(excludes, parent_dir)
-			var result = Glob.fnmatch_list(files, excludes)
-			for file in result:
-				files.remove_at(files.rfind(file))
+			files = Glob.fnmatch_list(files, excludes, true)
 
 		if (includes.size() > 0 or excludes.size() > 0) and files.size() == 0:
 			print("Error: no files to extract after filtering")
@@ -1030,9 +1028,7 @@ func load_pck(input_files: PackedStringArray, extract_only: bool, includes, excl
 		files = GDRESettings.get_file_list()
 	if excludes.size() > 0:
 		excludes = normalize_cludes(excludes, parent_dir)
-		var result = Glob.fnmatch_list(files, excludes)
-		for file in result:
-			files.remove_at(files.rfind(file))
+		files = Glob.fnmatch_list(files, excludes, true)
 
 	if (includes.size() > 0 or excludes.size() > 0) and files.size() == 0:
 		print("Error: no files to extract after filtering")

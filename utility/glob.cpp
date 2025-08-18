@@ -622,7 +622,7 @@ bool Glob::fnmatch(const String &name, const String &pattern) {
 	return RegEx::create_from_string(translate(pattern))->search(name).is_valid();
 }
 
-Vector<String> Glob::fnmatch_list(const Vector<String> &names, const Vector<String> &patterns) {
+Vector<String> Glob::fnmatch_list(const Vector<String> &names, const Vector<String> &patterns, bool p_exclude) {
 	Vector<String> result;
 	if (patterns.is_empty() || names.is_empty()) {
 		return result;
@@ -633,11 +633,18 @@ Vector<String> Glob::fnmatch_list(const Vector<String> &names, const Vector<Stri
 		regexes.push_back(re);
 	}
 	for (auto &n : names) {
+		bool found = false;
 		for (auto &re : regexes) {
 			if (re->search(n).is_valid()) {
-				result.push_back(n);
+				found = true;
+				if (!p_exclude) {
+					result.push_back(n);
+				}
 				break;
 			}
+		}
+		if (!found && p_exclude) {
+			result.push_back(n);
 		}
 	}
 	return result;
@@ -720,7 +727,7 @@ void Glob::_bind_methods() {
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("glob_list", "pathnames", "hidden"), &Glob::glob_list, DEFVAL(false));
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("rglob_list", "pathnames", "hidden"), &Glob::rglob_list, DEFVAL(false));
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("fnmatch", "name", "pattern"), &Glob::fnmatch);
-	ClassDB::bind_static_method(get_class_static(), D_METHOD("fnmatch_list", "names", "patterns"), &Glob::fnmatch_list);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("fnmatch_list", "names", "patterns", "exclude_matches"), &Glob::fnmatch_list, DEFVAL(false));
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("pattern_match_list", "names", "patterns"), &Glob::pattern_match_list);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("names_in_dirs", "names", "dirs"), &Glob::names_in_dirs);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("dirs_in_names", "names", "dirs"), &Glob::dirs_in_names);

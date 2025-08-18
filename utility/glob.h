@@ -75,7 +75,7 @@ public:
 	static bool fnmatch(const String &name, const String &pattern);
 
 	/// Returns a list of names that match any of the patterns
-	static Vector<String> fnmatch_list(const Vector<String> &names, const Vector<String> &patterns);
+	static Vector<String> fnmatch_list(const Vector<String> &names, const Vector<String> &patterns, bool p_exclude_matches = false);
 
 	/// Returns a list of patterns in which any of the names match
 	static Vector<String> pattern_match_list(const Vector<String> &names, const Vector<String> &patterns);
