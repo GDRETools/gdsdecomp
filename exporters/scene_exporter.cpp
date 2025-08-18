@@ -393,24 +393,40 @@ HashSet<Ref<Resource>> _find_resources(const Variant &p_variant, bool p_main, in
 	return resources;
 }
 
+inline bool _all_buffers_empty(const TypedArray<Vector<uint8_t>> &p_buffers, int start_idx = 0) {
+	for (int i = start_idx; i < p_buffers.size(); i++) {
+		if (!p_buffers[i].operator PackedByteArray().is_empty()) {
+			return false;
+		}
+	}
+	return true;
+}
+
 Error _encode_buffer_glb(Ref<GLTFState> p_state, const String &p_path, Vector<String> &r_buffer_paths) {
 	auto state_buffers = p_state->get_buffers();
 	print_verbose("glTF: Total buffers: " + itos(state_buffers.size()));
 
-	if (state_buffers.is_empty() || (state_buffers.size() == 1 && state_buffers[0].operator PackedByteArray().is_empty())) {
+	if (state_buffers.is_empty() || _all_buffers_empty(state_buffers)) {
+		ERR_FAIL_COND_V_MSG(!p_state->get_buffer_views().is_empty(), ERR_INVALID_DATA, "glTF: Buffer views are present, but buffers are empty.");
 		return OK;
 	}
 	Array buffers;
-	if (!state_buffers.is_empty()) {
-		Vector<uint8_t> buffer_data = state_buffers[0];
-		Dictionary gltf_buffer;
+	Dictionary gltf_buffer;
 
-		gltf_buffer["byteLength"] = buffer_data.size();
-		buffers.push_back(gltf_buffer);
-	}
+	gltf_buffer["byteLength"] = state_buffers[0].operator PackedByteArray().size();
+	buffers.push_back(gltf_buffer);
 
 	for (GLTFBufferIndex i = 1; i < state_buffers.size() - 1; i++) {
 		Vector<uint8_t> buffer_data = state_buffers[i];
+		if (buffer_data.is_empty()) {
+			if (i < state_buffers.size() - 1 && !_all_buffers_empty(state_buffers, i + 1)) {
+				// have to push back a dummy buffer to avoid changing the buffer index
+				WARN_PRINT("glTF: Buffer " + itos(i) + " is empty, but there are non-empty subsequent buffers.");
+				gltf_buffer["byteLength"] = 0;
+				buffers.push_back(gltf_buffer);
+			}
+			continue;
+		}
 		Dictionary gltf_buffer;
 		String filename = p_path.get_basename().get_file() + itos(i) + ".bin";
 		String path = p_path.get_base_dir() + "/" + filename;
@@ -420,9 +436,6 @@ Error _encode_buffer_glb(Ref<GLTFState> p_state, const String &p_path, Vector<St
 			return err;
 		}
 		r_buffer_paths.push_back(path);
-		if (buffer_data.is_empty()) {
-			return OK;
-		}
 		file->create(FileAccess::ACCESS_RESOURCES);
 		file->store_buffer(buffer_data.ptr(), buffer_data.size());
 		gltf_buffer["uri"] = filename;
@@ -438,7 +451,8 @@ Error _encode_buffer_bins(Ref<GLTFState> p_state, const String &p_path, Vector<S
 	auto state_buffers = p_state->get_buffers();
 	print_verbose("glTF: Total buffers: " + itos(state_buffers.size()));
 
-	if (state_buffers.is_empty() || (state_buffers.size() == 1 && state_buffers[0].operator PackedByteArray().is_empty())) {
+	if (state_buffers.is_empty() || _all_buffers_empty(state_buffers)) {
+		ERR_FAIL_COND_V_MSG(!p_state->get_buffer_views().is_empty(), ERR_INVALID_DATA, "glTF: Buffer views are present, but buffers are empty.");
 		return OK;
 	}
 	Array buffers;
@@ -446,6 +460,15 @@ Error _encode_buffer_bins(Ref<GLTFState> p_state, const String &p_path, Vector<S
 	for (GLTFBufferIndex i = 0; i < state_buffers.size(); i++) {
 		Vector<uint8_t> buffer_data = state_buffers[i];
 		Dictionary gltf_buffer;
+		if (buffer_data.is_empty()) {
+			if (i < state_buffers.size() - 1 && !_all_buffers_empty(state_buffers, i + 1)) {
+				// have to push back a dummy buffer to avoid changing the buffer index
+				WARN_PRINT("glTF: Buffer " + itos(i) + " is empty, but there are non-empty subsequent buffers.");
+				gltf_buffer["byteLength"] = 0;
+				buffers.push_back(gltf_buffer);
+			}
+			continue;
+		}
 		String filename = p_path.get_basename().get_file() + itos(i) + ".bin";
 		String path = p_path.get_base_dir() + "/" + filename;
 		Error err;
@@ -454,16 +477,15 @@ Error _encode_buffer_bins(Ref<GLTFState> p_state, const String &p_path, Vector<S
 			return err;
 		}
 		r_buffer_paths.push_back(path);
-		if (buffer_data.is_empty()) {
-			return OK;
-		}
 		file->create(FileAccess::ACCESS_RESOURCES);
 		file->store_buffer(buffer_data.ptr(), buffer_data.size());
 		gltf_buffer["uri"] = filename;
 		gltf_buffer["byteLength"] = buffer_data.size();
 		buffers.push_back(gltf_buffer);
 	}
-	p_state->get_json()["buffers"] = buffers;
+	if (!buffers.is_empty()) {
+		p_state->get_json()["buffers"] = buffers;
+	}
 
 	return OK;
 }
