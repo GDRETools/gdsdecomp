@@ -2177,10 +2177,10 @@ Error GLBExporterInstance::export_file(const String &p_dest_path, const String &
 
 		_set_stuff_from_instanced_scene(root);
 		Pair<Node *, String> pair = { root, p_dest_path };
-		SingleExportTaskRunnerStruct task_runner;
-		task_runner.exporter = this;
-		task_runner.p_src_path = p_src_path;
-		Error wait_err = TaskManager::get_singleton()->run_task(&task_runner, &pair, "Exporting scene " + p_src_path, -1, true, true, true);
+		auto task_runner = std::make_shared<SingleExportTaskRunnerStruct>();
+		task_runner->exporter = this;
+		task_runner->p_src_path = p_src_path;
+		Error wait_err = TaskManager::get_singleton()->run_task(task_runner, &pair, "Exporting scene " + p_src_path, -1, true, true, true);
 
 		if (wait_err != OK) {
 			err = wait_err;

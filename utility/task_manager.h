@@ -196,7 +196,7 @@ public:
 
 	template <typename U>
 	class TaskData : public BaseTemplateTaskData {
-		TaskRunnerStruct *cb_struct;
+		std::shared_ptr<TaskRunnerStruct> cb_struct;
 		U userdata;
 		String description;
 		bool can_cancel = false;
@@ -219,7 +219,7 @@ public:
 
 	public:
 		TaskData(
-				TaskRunnerStruct *task_cancelled_callback,
+				std::shared_ptr<TaskRunnerStruct> task_cancelled_callback,
 
 				U p_userdata,
 				const String &p_description,
@@ -397,7 +397,7 @@ public:
 
 	template <typename U>
 	TaskManagerID add_task(
-			TaskRunnerStruct *p_task_runner,
+			std::shared_ptr<TaskRunnerStruct> p_task_runner,
 			U p_userdata,
 			const String &p_description,
 			int progress_steps = -1,
@@ -418,7 +418,7 @@ public:
 
 	template <typename U>
 	Error run_task(
-			TaskRunnerStruct *p_task_runner,
+			std::shared_ptr<TaskRunnerStruct> p_task_runner,
 			U p_userdata,
 			const String &p_description,
 			int progress_steps = -1,

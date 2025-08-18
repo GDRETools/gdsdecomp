@@ -138,9 +138,9 @@ struct DecompileModuleTaskData : public TaskRunnerStruct {
 
 Error GodotMonoDecompWrapper::decompile_module_with_progress(const String &outputCSProjectPath, const Vector<String> &excludeFiles) {
 	int total_steps = GodotMonoDecomp_GetNumberOfFilesInFileMap(decompilerHandle);
-	DecompileModuleTaskData taskData(outputCSProjectPath, excludeFiles, total_steps);
-	TaskManager::get_singleton()->run_task(&taskData, this, "Decompiling C# scripts...", total_steps, true, true);
-	return taskData.err;
+	auto taskData = std::make_shared<DecompileModuleTaskData>(outputCSProjectPath, excludeFiles, total_steps);
+	TaskManager::get_singleton()->run_task(taskData, this, "Decompiling C# scripts...", total_steps, true, true);
+	return taskData->err;
 }
 
 Error GodotMonoDecompWrapper::decompile_module(const String &outputCSProjectPath, const Vector<String> &excludeFiles) {
