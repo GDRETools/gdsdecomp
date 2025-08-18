@@ -2566,6 +2566,11 @@ struct BatchExportToken : public TaskRunnerStruct {
 			err = _check_cancelled();
 		}
 		if (err != OK) {
+			if (root) {
+				memdelete(root);
+				root = nullptr;
+			}
+			_scene = nullptr;
 			report->set_error(err);
 			export_done = true;
 			return;
@@ -2590,11 +2595,11 @@ struct BatchExportToken : public TaskRunnerStruct {
 				memdelete(root);
 				root = nullptr;
 			}
-			_scene = nullptr;
 			if (err == OK) {
 				report->set_saved_path(p_dest_path);
 			}
 		}
+		_scene = nullptr;
 		// print_line("Finished exporting scene " + p_src_path);
 		report->set_error(err);
 		finished = true;
@@ -2608,12 +2613,6 @@ struct BatchExportToken : public TaskRunnerStruct {
 		if (err == OK && !finished) {
 			err = p_skip_type;
 		}
-		// So we don't leak memory if the export got cancelled
-		if (root) {
-			memdelete(root);
-			root = nullptr;
-		}
-		_scene = nullptr;
 		report->set_error(err);
 		if (err == ERR_SKIP) {
 			report->set_message("Export cancelled.");
