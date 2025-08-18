@@ -10,7 +10,6 @@ struct TaskRunnerStruct {
 	virtual int get_current_task_step_value() = 0;
 	virtual String get_current_task_step_description() = 0;
 	virtual void cancel() = 0;
-	virtual bool is_done() const = 0;
 	virtual void run(void *p_userdata) = 0;
 };
 
@@ -202,6 +201,7 @@ public:
 		String description;
 		bool can_cancel = false;
 		bool high_priority = false;
+		bool done = false;
 		WorkerThreadPool::TaskID task_id = WorkerThreadPool::TaskID(-1);
 		int progress_step_count = -1;
 
@@ -240,6 +240,7 @@ public:
 
 		void run_internal(void *p_data) {
 			cb_struct->run(p_data);
+			done = true;
 		}
 		virtual void run_on_current_thread() override {
 			if (canceled) {
@@ -254,7 +255,7 @@ public:
 			return cb_struct->get_current_task_step_description();
 		}
 		virtual bool is_done() const override {
-			return cb_struct->is_done();
+			return done;
 		}
 		void start_internal() override {
 			if (task_id != -1) {

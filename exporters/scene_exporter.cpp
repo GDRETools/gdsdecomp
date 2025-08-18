@@ -2127,7 +2127,6 @@ void GLBExporterInstance::_do_export_instanced_scene(void *p_pair_of_root_node_a
 
 struct SingleExportTaskRunnerStruct : public TaskRunnerStruct {
 	String p_src_path;
-	bool done = false;
 	GLBExporterInstance *exporter = nullptr;
 	virtual int get_current_task_step_value() override {
 		return 0;
@@ -2138,12 +2137,8 @@ struct SingleExportTaskRunnerStruct : public TaskRunnerStruct {
 	virtual void cancel() override {
 		exporter->cancel();
 	}
-	virtual bool is_done() const override {
-		return done;
-	}
 	virtual void run(void *p_userdata) override {
 		exporter->_do_export_instanced_scene(p_userdata);
-		done = true;
 	}
 };
 

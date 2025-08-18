@@ -77,7 +77,6 @@ struct DecompileModuleTaskData : public TaskRunnerStruct {
 
 	DecompileModuleTaskData(const String &p_outputCSProjectPath, const Vector<String> &p_excludeFiles, int p_total_steps) :
 			outputCSProjectPath(p_outputCSProjectPath), excludeFiles(p_excludeFiles), total_steps(p_total_steps), queue(p_total_steps) {}
-	bool done = false;
 
 	int get_current_task_step_value() override {
 		return current_step;
@@ -88,9 +87,6 @@ struct DecompileModuleTaskData : public TaskRunnerStruct {
 		while (queue.try_pop(current_step_description))
 			;
 		return current_step_description;
-	}
-	bool is_done() const override {
-		return done;
 	}
 
 	void cancel() override {
@@ -120,7 +116,6 @@ struct DecompileModuleTaskData : public TaskRunnerStruct {
 		if (wrapper->decompilerHandle == nullptr) {
 			ERR_PRINT("Decompiler handle is null");
 			err = ERR_CANT_CREATE;
-			done = true;
 			return;
 		}
 		CharString outputCSProjectPath_chrstr = outputCSProjectPath.utf8();
@@ -135,7 +130,6 @@ struct DecompileModuleTaskData : public TaskRunnerStruct {
 
 		int result = GodotMonoDecomp_DecompileModuleWithProgress(wrapper->decompilerHandle, outputCSProjectPath_c, excludeFiles_c_array, excludeFiles.size(), &DecompileModuleTaskData::_progress_callback, this);
 		delete[] excludeFiles_c_array;
-		done = true;
 		if (result != 0 && !cancelled) {
 			err = ERR_CANT_CREATE;
 		}
