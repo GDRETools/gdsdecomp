@@ -29,6 +29,7 @@
 #include "compat/script_loader.h"
 #include "compat/texture_loader_compat.h"
 #include "exporters/autoconverted_exporter.h"
+#include "exporters/csharp_exporter.h"
 #include "exporters/export_report.h"
 #include "exporters/fontfile_exporter.h"
 #include "exporters/gdextension_exporter.h"
@@ -94,6 +95,7 @@ static Ref<FakeScriptConverterCompat> fake_script_converter = nullptr;
 
 //exporters
 static Ref<AutoConvertedExporter> auto_converted_exporter = nullptr;
+static Ref<CSharpExporter> csharp_exporter = nullptr;
 static Ref<FontFileExporter> fontfile_exporter = nullptr;
 static Ref<GDExtensionExporter> gdextension_exporter = nullptr;
 static Ref<GDScriptExporter> gdscript_exporter = nullptr;
@@ -164,6 +166,7 @@ void init_exporters() {
 	scene_exporter = memnew(SceneExporter);
 	auto_converted_exporter = memnew(AutoConvertedExporter);
 	gdscript_exporter = memnew(GDScriptExporter);
+	csharp_exporter = memnew(CSharpExporter);
 	gdextension_exporter = memnew(GDExtensionExporter);
 	Exporter::add_exporter(auto_converted_exporter);
 	Exporter::add_exporter(fontfile_exporter);
@@ -176,6 +179,7 @@ void init_exporters() {
 	Exporter::add_exporter(translation_exporter);
 	Exporter::add_exporter(scene_exporter);
 	Exporter::add_exporter(gdscript_exporter);
+	Exporter::add_exporter(csharp_exporter);
 	Exporter::add_exporter(gdextension_exporter);
 }
 
@@ -239,6 +243,9 @@ void deinit_exporters() {
 	if (obj_exporter.is_valid()) {
 		Exporter::remove_exporter(obj_exporter);
 	}
+	if (csharp_exporter.is_valid()) {
+		Exporter::remove_exporter(csharp_exporter);
+	}
 	auto_converted_exporter = nullptr;
 	fontfile_exporter = nullptr;
 	gdextension_exporter = nullptr;
@@ -250,6 +257,7 @@ void deinit_exporters() {
 	translation_exporter = nullptr;
 	gdscript_exporter = nullptr;
 	obj_exporter = nullptr;
+	csharp_exporter = nullptr;
 }
 
 void deinit_loaders() {

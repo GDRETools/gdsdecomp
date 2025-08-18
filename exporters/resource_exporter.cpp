@@ -34,12 +34,14 @@ bool ResourceExporter::handles_import(const String &importer, const String &reso
 	if (!importer.is_empty()) {
 		List<String> handled_importers;
 		get_handled_importers(&handled_importers);
-		for (const String &h : handled_importers) {
-			if (h == importer) {
-				return true;
+		if (!handled_importers.is_empty()) {
+			for (const String &h : handled_importers) {
+				if (h == importer) {
+					return true;
+				}
 			}
+			return false;
 		}
-		return false;
 	}
 	if (!resource_type.is_empty()) {
 		List<String> handled_types;
