@@ -2242,9 +2242,7 @@ Error GLBExporterInstance::_get_return_error() {
 
 	if (had_gltf_serialization_errors) {
 		String _ = add_errors_to_report(ERR_BUG, "");
-	}
-
-	if (!set_all_externals && err == OK) {
+	} else if (!set_all_externals && err == OK) {
 		String _ = add_errors_to_report(ERR_PRINTER_ON_FIRE, "Failed to set all external dependencies in GLTF export and/or import info. This scene may not be imported correctly upon re-import.");
 	} else {
 		GDRE_SCN_EXP_FAIL_COND_V_MSG(err, err, "");
