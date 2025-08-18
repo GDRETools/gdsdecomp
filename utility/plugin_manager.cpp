@@ -306,6 +306,7 @@ Error PluginManager::populate_plugin_version_hashes(PluginVersion &plugin_versio
 	String url = plugin_version.release_info.download_url;
 	String new_temp_foldr = temp_folder.path_join(itos(plugin_version.release_info.primary_id) + "_" + itos(plugin_version.release_info.secondary_id));
 	String zip_path = new_temp_foldr.path_join("plugin.zip");
+	print_line("Downloading plugin to populate cache: " + url);
 
 	Error err = OK;
 	if (!is_prepopping()) {
@@ -370,6 +371,7 @@ Error PluginManager::populate_plugin_version_hashes(PluginVersion &plugin_versio
 	}
 
 	if (gdexts.size() == 0) {
+		print_line("No gdexts found in plugin, skipping: " + url);
 		close_and_remove_zip();
 		return OK;
 	}
