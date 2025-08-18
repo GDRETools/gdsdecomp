@@ -215,7 +215,7 @@ void ImportExporter::rewrite_metadata(ExportToken &token) {
 	if (mdat == ExportReport::FAILED || mdat == ExportReport::NOT_IMPORTABLE) {
 		return;
 	}
-	if (opt_write_md5_files && err == OK && iinfo->get_ver_major() > 2) {
+	if (opt_write_md5_files && err == OK && iinfo->get_ver_major() > 2 && iinfo->get_iitype() == ImportInfo::MODERN) {
 		err = ERR_LINK_FAILED;
 		Ref<ImportInfoModern> modern_iinfo = iinfo;
 		if (modern_iinfo.is_valid()) {
@@ -1287,7 +1287,7 @@ String ImportExporterReport::get_totals_string() {
 
 void add_to_dict(Dictionary &dict, const Vector<Ref<ExportReport>> &vec) {
 	for (int i = 0; i < vec.size(); i++) {
-		dict[vec[i]->get_path()] = vec[i]->get_new_source_path();
+		dict[vec[i]->get_new_source_path()] = vec[i]->get_path();
 	}
 }
 
@@ -1318,7 +1318,23 @@ Dictionary ImportExporterReport::get_report_sections() {
 	if (!failed.is_empty()) {
 		sections["failed"] = Dictionary();
 		Dictionary failed_dict = sections["failed"];
-		add_to_dict(failed_dict, failed);
+		for (int i = 0; i < failed.size(); i++) {
+			failed_dict[failed[i]->get_new_source_path()] = Dictionary();
+			Dictionary error_dict_item = failed_dict[failed[i]->get_new_source_path()];
+			error_dict_item["Imported Resource"] = failed[i]->get_path();
+			String message = failed[i]->get_message();
+			if (!message.is_empty()) {
+				error_dict_item["Message"] = message;
+			}
+			auto details = failed[i]->get_message_detail();
+			if (!details.is_empty()) {
+				error_dict_item["Details"] = details;
+			}
+			auto error_messages = failed[i]->get_error_messages();
+			if (!error_messages.is_empty()) {
+				error_dict_item["Error Messages"] = filter_error_backtraces(error_messages);
+			}
+		}
 	}
 	if (!not_converted.is_empty()) {
 		sections["not_converted"] = Dictionary();
@@ -1471,8 +1487,7 @@ String ImportExporterReport::get_report_string() {
 			if (!err_messages.is_empty()) {
 				report += "  * Errors:" + String("\n");
 				for (auto &err : err_messages) {
-					err = err.strip_edges();
-					report += "\t\t-\t" + err.replace("\n", " ").replace("\t", "  ") + String("\n");
+					report += "    " + err.replace("\n", " ").replace("\t", "  ") + String("\n");
 				}
 			}
 			report += "\n";
