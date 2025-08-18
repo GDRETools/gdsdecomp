@@ -2189,20 +2189,22 @@ Error GLBExporterInstance::_get_return_error() {
 	// GLTFDocument has issues with custom animations and throws errors;
 	// if we've set all the external resources (including custom animations),
 	// then this isn't an error.
-	bool had_gltf_serialization_errors = gltf_serialization_error_messages.size() > 0;
-	if (had_gltf_serialization_errors && animation_deps_needed.size() > 0 && (!updating_import_info || animation_deps_updated.size() == animation_deps_needed.size())) {
+	bool removed_all_errors = true;
+	if (gltf_serialization_error_messages.size() > 0 && animation_deps_needed.size() > 0 && (!updating_import_info || animation_deps_updated.size() == animation_deps_needed.size())) {
 		Vector<int64_t> error_messages_to_remove;
-		had_gltf_serialization_errors = false;
+		bool removed_last_error = false;
 		for (int64_t i = 0; i < gltf_serialization_error_messages.size(); i++) {
 			auto message = gltf_serialization_error_messages[i].strip_edges();
 
-			if (message.begins_with("at:") ||
-					message.begins_with("GDScript backtrace")) {
-				error_messages_to_remove.push_back(i);
+			if ((message.begins_with("at:") || message.begins_with("GDScript backtrace"))) {
+				if (removed_last_error) {
+					error_messages_to_remove.push_back(i);
+				}
 				continue;
 			}
+			removed_last_error = false;
 			if (message.begins_with("WARNING:")) {
-				error_messages_to_remove.push_back(i);
+				// don't count it, but don't remove it either
 				continue;
 			}
 			if (message.contains("glTF:")) {
@@ -2211,24 +2213,30 @@ Error GLBExporterInstance::_get_return_error() {
 					if (!updating_import_info || (!path.is_empty() && external_animation_nodepaths.has(path))) {
 						// pop off the error message and the stack traces
 						error_messages_to_remove.push_back(i);
+						removed_last_error = true;
 						continue;
 					}
 				}
 				// The previous error message is always emitted right after this one (and this one doesn't contain a path), so we just ignore it.
 				if (message.contains("A node was animated, but it wasn't found in the GLTFState")) {
 					error_messages_to_remove.push_back(i);
+					removed_last_error = true;
 					continue;
 				}
 			}
-			had_gltf_serialization_errors = true;
-			break;
+			// Otherwise, we haven't removed all the errors
+			removed_all_errors = false;
 		}
-		if (!had_gltf_serialization_errors) {
+		if (removed_all_errors) {
+			gltf_serialization_error_messages.clear();
+		} else {
+			error_messages_to_remove.sort();
 			for (int64_t i = error_messages_to_remove.size() - 1; i >= 0; i--) {
 				gltf_serialization_error_messages.remove_at(error_messages_to_remove[i]);
 			}
 		}
 	}
+	bool had_gltf_serialization_errors = gltf_serialization_error_messages.size() > 0;
 
 	if (!set_all_externals) {
 		import_param_error_messages.append("Dependencies that were not set:");
@@ -2587,6 +2595,13 @@ struct BatchExportToken : public TaskRunnerStruct {
 				report->set_saved_path(p_dest_path);
 			}
 		} else {
+#ifdef DEBUG_ENABLED // export a text copy so we can see what went wrong
+			if (err != OK) {
+				auto new_dest = "res://.tscn_copy/" + report->get_import_info()->get_export_dest().trim_prefix("res://").get_basename() + ".tscn";
+				auto new_dest_path = output_dir.path_join(new_dest.replace_first("res://", ""));
+				ResourceCompatLoader::to_text(p_src_path, new_dest_path);
+			}
+#endif
 			instance._unload_deps();
 			if (instance.had_script() && err == OK) {
 				report->set_message("Script has scripts, not saving to original path.");
