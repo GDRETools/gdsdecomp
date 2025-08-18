@@ -7,12 +7,6 @@
 #include "utility/gdre_settings.h"
 
 void CSharpExporter::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("export_file"), &CSharpExporter::export_file);
-	ClassDB::bind_method(D_METHOD("export_resource"), &CSharpExporter::export_resource);
-	ClassDB::bind_method(D_METHOD("supports_multithread"), &CSharpExporter::supports_multithread);
-	ClassDB::bind_method(D_METHOD("get_name"), &CSharpExporter::get_name);
-	ClassDB::bind_method(D_METHOD("supports_nonpack_export"), &CSharpExporter::supports_nonpack_export);
-	ClassDB::bind_method(D_METHOD("get_default_export_extension"), &CSharpExporter::get_default_export_extension);
 }
 
 Error CSharpExporter::export_file(const String &out_path, const String &res_path) {
