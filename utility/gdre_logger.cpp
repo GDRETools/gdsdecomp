@@ -203,13 +203,18 @@ void GDRELogger::stdout_print(const char *p_format, ...) {
 	just_printed_status_bar = false;
 }
 
-void GDRELogger::print_status_bar(const String &p_status, float p_progress) {
+void GDRELogger::print_status_bar(const String &p_status, float p_progress, float p_indeterminate_progress) {
 	constexpr size_t width = 30;
-	size_t progress_width = MIN(width, width * p_progress);
+	size_t progress_width = MIN(width, width * (p_indeterminate_progress != -1 ? p_indeterminate_progress : p_progress));
 
 	char progress_bar[width + 1];
 	for (size_t i = 0; i < progress_width; i++) {
-		progress_bar[i] = '=';
+		if (p_indeterminate_progress != -1 && i != progress_width - 1) {
+			// all spaces except the last one
+			progress_bar[i] = ' ';
+		} else {
+			progress_bar[i] = '=';
+		}
 	}
 	for (size_t i = progress_width; i < width; i++) {
 		progress_bar[i] = ' ';

@@ -588,6 +588,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 			export_dest_to_iinfo.insert(iinfo->get_export_dest(), Vector<Ref<ImportInfo>>({ iinfo }));
 		}
 	}
+	pr->set_progress_length(false, tokens.size() + non_multithreaded_tokens.size());
 
 	HashMap<String, String> dupe_to_orig_src;
 	auto rewrite_dest = [&](const String &dest, const Ref<ImportInfo> &iinfo, bool is_autoconverted) {
@@ -750,7 +751,9 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	// 	return err;
 	// }
 	tokens.append_array(non_multithreaded_tokens);
-	pr->step("Finalizing...", tokens.size() - 1, true);
+	pr->step("Finalizing...", tokens.size() - 1, false);
+	pr->set_progress_length(true);
+
 	report->session_files_total = tokens.size();
 	// add to report
 	bool has_remaps = GDRESettings::get_singleton()->has_any_remaps();

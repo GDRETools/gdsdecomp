@@ -23,7 +23,7 @@ class GDRELogger : public Logger {
 public:
 	// print only to stdout, not to the file
 	static void stdout_print(const char *p_format, ...);
-	static void print_status_bar(const String &p_status, float p_progress);
+	static void print_status_bar(const String &p_status, float p_progress, float p_indeterminate_progress = -1);
 	String get_path() { return base_path; }
 	GDRELogger();
 	bool is_prebuffering_enabled() { return is_prebuffering; }

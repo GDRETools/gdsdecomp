@@ -86,7 +86,7 @@ bool TaskManager::BaseTemplateTaskData::_is_aborted() const {
 bool TaskManager::BaseTemplateTaskData::_wait_after_cancel() {
 	bool is_main_thread = Thread::is_main_thread();
 	if (progress_enabled && progress.is_valid()) {
-		progress->set_indeterminate(true);
+		progress->set_progress_length(true);
 		wait_update_progress(is_main_thread);
 	}
 

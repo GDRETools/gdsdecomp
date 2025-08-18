@@ -92,6 +92,7 @@ class GDREProgressDialog : public PopupPanel {
 		void init(VBoxContainer *main);
 		void set_step(const String &p_state, int p_step = -1, bool p_force_redraw = true);
 		void set_indeterminate(bool p_indeterminate);
+		void set_length(int p_new_amount);
 		bool should_redraw(uint64_t curr_time_us) const;
 		bool update();
 	};
@@ -130,7 +131,7 @@ public:
 	static GDREProgressDialog *get_singleton() { return singleton; }
 	void add_task(const String &p_task, const String &p_label, int p_steps, bool p_can_cancel = false);
 	bool task_step(const String &p_task, const String &p_state, int p_step = -1, bool p_force_redraw = true);
-	void task_set_indeterminate(const String &p_task, bool p_indeterminate);
+	void task_set_length(const String &p_task, bool p_indeterminate, int p_new_amount = -1);
 	void main_thread_update();
 	void end_task(const String &p_task);
 
@@ -145,6 +146,8 @@ struct StdOutProgress {
 	String label;
 	int amount = 0;
 	int current_step = 0;
+	bool is_indeterminate = false;
+	uint16_t indeterminate_width = 0;
 	int width = 30;
 	uint64_t last_iteration_tick = 0;
 	uint64_t last_progress_tick = 0;
@@ -166,7 +169,7 @@ public:
 	StdOutProgress stdout_progress;
 	String get_task();
 	bool step(const String &p_state, int p_step = -1, bool p_force_refresh = true);
-	void set_indeterminate(bool p_indeterminate);
+	void set_progress_length(bool p_indeterminate, int p_new_amount = -1);
 	EditorProgressGDDC();
 	EditorProgressGDDC(const String &p_task, const String &p_label, int p_amount, bool p_can_cancel = false);
 	EditorProgressGDDC(Node *p_parent, const String &p_task, const String &p_label, int p_amount, bool p_can_cancel = false);
