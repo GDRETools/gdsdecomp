@@ -15,7 +15,7 @@ Ref<ExportReport> FontFileExporter::export_resource(const String &output_dir, Re
 	// Check if the exporter can handle the given importer and resource type
 	String src_path = import_infos->get_path();
 	String dst_path = output_dir.path_join(import_infos->get_export_dest().replace("res://", ""));
-	Ref<ExportReport> report = memnew(ExportReport(import_infos));
+	Ref<ExportReport> report = memnew(ExportReport(import_infos, get_name()));
 	Error err = export_file(dst_path, src_path);
 	report->set_error(err);
 	report->set_saved_path(dst_path);
@@ -31,7 +31,7 @@ void FontFileExporter::get_handled_importers(List<String> *out) const {
 }
 
 String FontFileExporter::get_name() const {
-	return "FontFile";
+	return EXPORTER_NAME;
 }
 
 String FontFileExporter::get_default_export_extension(const String &res_path) const {

@@ -962,7 +962,7 @@ Ref<ExportReport> TextureExporter::export_resource(const String &output_dir, Ref
 	bool lossy = false;
 	int ver_major = iinfo->get_ver_major();
 	int ver_minor = iinfo->get_ver_minor();
-	Ref<ExportReport> report = memnew(ExportReport(iinfo));
+	Ref<ExportReport> report = memnew(ExportReport(iinfo, get_name()));
 
 	// Sonic Colors Unlimited specific hack: We don't support atsc and nx-low formats, so we need to set the path to something else
 	if (ver_major == 3 && ver_minor == 1) {
@@ -1159,7 +1159,7 @@ void TextureExporter::get_handled_importers(List<String> *out) const {
 }
 
 String TextureExporter::get_name() const {
-	return "Texture";
+	return EXPORTER_NAME;
 }
 
 String TextureExporter::get_default_export_extension(const String &res_path) const {

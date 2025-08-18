@@ -29,6 +29,7 @@ public:
 #else
 	static constexpr int MINIMUM_GODOT_VER_SUPPORTED = 4;
 #endif
+	static constexpr const char *const EXPORTER_NAME = "PackedScene";
 
 	static Error export_file_to_non_glb(const String &p_src_path, const String &p_dest_path, Ref<ImportInfo> iinfo);
 	static constexpr bool can_multithread = false;

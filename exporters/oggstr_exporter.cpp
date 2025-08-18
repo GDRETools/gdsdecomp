@@ -152,7 +152,7 @@ Ref<ExportReport> OggStrExporter::export_resource(const String &output_dir, Ref<
 	String src_path = import_info->get_path();
 	String dst_path = output_dir.path_join(import_info->get_export_dest().replace("res://", ""));
 	// Implement the logic to export the Ogg Vorbis stream to the specified path
-	Ref<ExportReport> report = memnew(ExportReport(import_info));
+	Ref<ExportReport> report = memnew(ExportReport(import_info, get_name()));
 	Ref<AudioStreamOggVorbis> sample;
 	Error err = _export_file(import_info->get_source_file(), dst_path, src_path, sample, import_info->get_ver_major());
 	if (err != OK) {
@@ -188,7 +188,7 @@ void OggStrExporter::get_handled_importers(List<String> *out) const {
 }
 
 String OggStrExporter::get_name() const {
-	return "OggVorbis";
+	return EXPORTER_NAME;
 }
 
 String OggStrExporter::get_default_export_extension(const String &res_path) const {

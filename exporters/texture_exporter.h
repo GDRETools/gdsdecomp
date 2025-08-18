@@ -16,6 +16,8 @@ class TextureExporter : public ResourceExporter {
 	// Error _convert_cubemap_array(const String &p_path, const String &p_dst, bool lossy, String &image_format);
 
 public:
+	static constexpr const char *const EXPORTER_NAME = "Texture";
+
 	virtual Error export_file(const String &out_path, const String &res_path) override;
 	virtual Ref<ExportReport> export_resource(const String &output_dir, Ref<ImportInfo> import_infos) override;
 	virtual void get_handled_types(List<String> *out) const override;

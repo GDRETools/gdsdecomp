@@ -519,7 +519,7 @@ Ref<ExportReport> ObjExporter::export_resource(const String &p_output_dir, Ref<I
 	String dst_path = p_output_dir.path_join(p_import_info->get_export_dest().replace("res://", ""));
 
 	// Create the export report
-	Ref<ExportReport> report = memnew(ExportReport(p_import_info));
+	Ref<ExportReport> report = memnew(ExportReport(p_import_info, get_name()));
 
 	// Load the mesh
 	Error err;
@@ -606,7 +606,7 @@ bool ObjExporter::supports_multithread() const {
 }
 
 String ObjExporter::get_name() const {
-	return "Wavefront OBJ";
+	return EXPORTER_NAME;
 }
 
 String ObjExporter::get_default_export_extension(const String &res_path) const {

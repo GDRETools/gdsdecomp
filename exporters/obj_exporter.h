@@ -27,6 +27,8 @@ public:
 		String name;
 		String path;
 	};
+
+	static constexpr const char *const EXPORTER_NAME = "Wavefront OBJ";
 	virtual String get_name() const override;
 	static Error _write_meshes_to_obj(const Vector<Ref<Mesh>> &p_meshes, const String &p_path, const String &p_output_dir, MeshInfo &r_mesh_info);
 	static Error write_meshes_to_obj(const Vector<Ref<Mesh>> &p_meshes, const String &p_path);

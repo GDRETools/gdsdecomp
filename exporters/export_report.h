@@ -19,6 +19,7 @@ public:
 
 private:
 	Ref<ImportInfo> import_info;
+	String exporter;
 	String message;
 	String source_path;
 	String new_source_path;
@@ -42,6 +43,9 @@ public:
 	int64_t modified_time = -1;
 	int64_t import_modified_time = -1;
 	String import_md5;
+
+	void set_exporter(const String &p_exporter) { exporter = p_exporter; }
+	String get_exporter() const { return exporter; }
 
 	// setters and getters
 	void set_message(const String &p_message) { message = p_message; }
@@ -88,8 +92,8 @@ public:
 	String get_path() const { return import_info.is_valid() ? import_info->get_path() : ""; }
 
 	ExportReport() {}
-	ExportReport(Ref<ImportInfo> p_import_info) :
-			import_info(p_import_info), source_path(import_info.is_valid() ? p_import_info->get_source_file() : ""), new_source_path(import_info.is_valid() ? p_import_info->get_export_dest() : "") {}
+	ExportReport(Ref<ImportInfo> p_import_info, const String &p_exporter = "") :
+			import_info(p_import_info), exporter(p_exporter), source_path(import_info.is_valid() ? p_import_info->get_source_file() : ""), new_source_path(import_info.is_valid() ? p_import_info->get_export_dest() : "") {}
 };
 
 VARIANT_ENUM_CAST(ExportReport::MetadataStatus);

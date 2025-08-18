@@ -5,6 +5,8 @@ class AutoConvertedExporter : public ResourceExporter {
 	GDCLASS(AutoConvertedExporter, ResourceExporter);
 
 public:
+	static constexpr const char *const EXPORTER_NAME = "AutoConverted";
+
 	virtual String get_name() const override;
 	virtual Error export_file(const String &out_path, const String &res_path) override;
 	virtual Ref<ExportReport> export_resource(const String &output_dir, Ref<ImportInfo> import_infos) override;

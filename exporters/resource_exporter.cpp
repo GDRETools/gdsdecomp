@@ -105,8 +105,7 @@ Ref<ExportReport> ResourceExporter::_check_for_existing_resources(const Ref<Impo
 		}
 	}
 	if (!has_file) {
-		Ref<ExportReport> report;
-		report.instantiate(iinfo);
+		Ref<ExportReport> report = memnew(ExportReport(iinfo));
 		report->set_error(ERR_FILE_NOT_FOUND);
 		report->set_message("No existing resources found for this import");
 		report->append_message_detail({ "Possibles:" });

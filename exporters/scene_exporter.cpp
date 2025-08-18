@@ -2397,7 +2397,7 @@ Ref<ExportReport> SceneExporter::export_file_with_options(const String &out_path
 			iinfo = ImportInfo::load_from_file(res_path);
 		}
 		if (!iinfo.is_valid()) {
-			report = memnew(ExportReport());
+			report = memnew(ExportReport(nullptr, EXPORTER_NAME));
 			report->set_source_path(res_path);
 			if (!is_resource) {
 				report->set_message(res_path + " is not a valid resource.");
@@ -2409,7 +2409,7 @@ Ref<ExportReport> SceneExporter::export_file_with_options(const String &out_path
 			ERR_FAIL_V_MSG(report, report->get_message());
 		}
 	}
-	report = memnew(ExportReport(iinfo));
+	report = memnew(ExportReport(iinfo, EXPORTER_NAME));
 	String ext = out_path.get_extension().to_lower();
 	bool to_text = ext == "escn" || ext == "tscn";
 	bool to_obj = ext == "obj";
@@ -2475,7 +2475,7 @@ struct BatchExportToken {
 	BatchExportToken(const String &p_output_dir, const Ref<ImportInfo> &p_iinfo) :
 			instance(p_output_dir, {}, true) {
 		ERR_FAIL_COND_MSG(!p_iinfo.is_valid(), "Import info is invalid");
-		report = memnew(ExportReport(p_iinfo));
+		report = memnew(ExportReport(p_iinfo, SceneExporter::EXPORTER_NAME));
 		original_export_dest = p_iinfo->get_export_dest();
 		instance.set_batch_export(true);
 		String new_path = original_export_dest;
@@ -2708,7 +2708,7 @@ void SceneExporter::get_handled_importers(List<String> *out) const {
 }
 
 String SceneExporter::get_name() const {
-	return "PackedScene";
+	return EXPORTER_NAME;
 }
 
 String SceneExporter::get_default_export_extension(const String &res_path) const {
@@ -2795,12 +2795,13 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 	for (auto &scene : scenes) {
 		Ref<ExportReport> report = ResourceExporter::_check_for_existing_resources(scene);
 		if (report.is_valid()) {
+			report->set_exporter(get_name());
 			reports.push_back(report);
 			continue;
 		}
 		String ext = scene->get_export_dest().get_extension().to_lower();
 		if (_check_unsupported(scene->get_ver_major(), ext == "escn" || ext == "tscn")) {
-			report = memnew(ExportReport(scene));
+			report = memnew(ExportReport(scene, get_name()));
 			_set_unsupported(report, scene->get_ver_major(), ext == "obj");
 			reports.push_back(report);
 			continue;

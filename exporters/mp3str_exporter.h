@@ -7,6 +7,8 @@ class Mp3StrExporter : public ResourceExporter {
 	virtual Error _export_resource(Ref<AudioStreamMP3> sample, const String &out_path, const String &res_path);
 
 public:
+	static constexpr const char *const EXPORTER_NAME = "MP3";
+
 	virtual String get_name() const override;
 	virtual Error export_file(const String &out_path, const String &res_path) override;
 	virtual Ref<ExportReport> export_resource(const String &output_dir, Ref<ImportInfo> import_infos) override;

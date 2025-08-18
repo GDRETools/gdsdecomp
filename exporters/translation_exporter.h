@@ -9,6 +9,8 @@ class TranslationExporter : public ResourceExporter {
 public:
 	static constexpr float threshold = 0.15; // TODO: put this in the project configuration
 
+	static constexpr const char *const EXPORTER_NAME = "Translation";
+
 	virtual Error export_file(const String &out_path, const String &res_path) override;
 	virtual Ref<ExportReport> export_resource(const String &output_dir, Ref<ImportInfo> import_infos) override;
 	virtual void get_handled_types(List<String> *out) const override;

@@ -1285,7 +1285,7 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 	Vector<String> default_messages;
 	String header = "key";
 	Vector<String> keys;
-	Ref<ExportReport> report = memnew(ExportReport(iinfo));
+	Ref<ExportReport> report = memnew(ExportReport(iinfo, get_name()));
 	report->set_error(ERR_CANT_ACQUIRE_RESOURCE);
 	for (String path : dest_files) {
 		Ref<Translation> tr = ResourceCompatLoader::non_global_load(path, "", &export_err);
@@ -1429,7 +1429,7 @@ void TranslationExporter::get_handled_importers(List<String> *out) const {
 }
 
 String TranslationExporter::get_name() const {
-	return "Translation";
+	return EXPORTER_NAME;
 }
 
 String TranslationExporter::get_default_export_extension(const String &res_path) const {

@@ -12,7 +12,7 @@ Ref<ExportReport> AutoConvertedExporter::export_resource(const String &output_di
 	String dst_ext = import_infos->get_export_dest().get_extension().to_lower();
 	String src_path = import_infos->get_path();
 	String dst_path = output_dir.path_join(import_infos->get_export_dest().replace("res://", ""));
-	Ref<ExportReport> report = memnew(ExportReport(import_infos));
+	Ref<ExportReport> report = memnew(ExportReport(import_infos, get_name()));
 	if (import_infos->get_export_dest().get_extension().to_lower() == "xml") {
 		report->set_error(ERR_UNAVAILABLE);
 		report->set_unsupported_format_type("2.0 XML format");
@@ -32,7 +32,7 @@ void AutoConvertedExporter::get_handled_importers(List<String> *out) const {
 }
 
 String AutoConvertedExporter::get_name() const {
-	return "AutoConverted";
+	return EXPORTER_NAME;
 }
 
 String AutoConvertedExporter::get_default_export_extension(const String &res_path) const {

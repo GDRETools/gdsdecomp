@@ -6,6 +6,8 @@ class SampleExporter : public ResourceExporter {
 	Error _export_file(const String &out_path, const String &res_path, Ref<AudioStreamWAV> &r_sample, int ver_major = 0);
 
 public:
+	static constexpr const char *const EXPORTER_NAME = "WAV";
+
 	static Ref<AudioStreamWAV> convert_adpcm_to_16bit(const Ref<AudioStreamWAV> &p_sample);
 	static Ref<AudioStreamWAV> convert_qoa_to_16bit(const Ref<AudioStreamWAV> &p_sample);
 

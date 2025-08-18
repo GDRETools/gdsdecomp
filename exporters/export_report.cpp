@@ -2,6 +2,8 @@
 #include "core/object/class_db.h"
 
 void ExportReport::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_exporter", "exporter"), &ExportReport::set_exporter);
+	ClassDB::bind_method(D_METHOD("get_exporter"), &ExportReport::get_exporter);
 	ClassDB::bind_method(D_METHOD("set_message", "message"), &ExportReport::set_message);
 	ClassDB::bind_method(D_METHOD("get_message"), &ExportReport::get_message);
 	ClassDB::bind_method(D_METHOD("set_import_info", "import_info"), &ExportReport::set_import_info);
@@ -29,6 +31,7 @@ void ExportReport::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_download_task_id", "download_task_id"), &ExportReport::set_download_task_id);
 	ClassDB::bind_method(D_METHOD("get_download_task_id"), &ExportReport::get_download_task_id);
 
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "exporter"), "set_exporter", "get_exporter");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "message"), "set_message", "get_message");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "import_info", PROPERTY_HINT_RESOURCE_TYPE, "ImportInfo"), "set_import_info", "get_import_info");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "source_path"), "set_source_path", "get_source_path");

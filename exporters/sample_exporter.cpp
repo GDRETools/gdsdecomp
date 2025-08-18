@@ -249,7 +249,7 @@ Error SampleExporter::export_file(const String &out_path, const String &res_path
 
 Ref<ExportReport> SampleExporter::export_resource(const String &output_dir, Ref<ImportInfo> import_infos) {
 	// Implement the resource export logic here
-	Ref<ExportReport> report = memnew(ExportReport(import_infos));
+	Ref<ExportReport> report = memnew(ExportReport(import_infos, get_name()));
 	String src_path = import_infos->get_path();
 	String dst_path = output_dir.path_join(import_infos->get_export_dest().replace("res://", ""));
 	Ref<AudioStreamWAV> sample;
@@ -304,7 +304,7 @@ void SampleExporter::get_handled_importers(List<String> *out) const {
 }
 
 String SampleExporter::get_name() const {
-	return "WAV";
+	return EXPORTER_NAME;
 }
 
 String SampleExporter::get_default_export_extension(const String &res_path) const {

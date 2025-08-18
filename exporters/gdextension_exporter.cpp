@@ -115,7 +115,7 @@ bool libs_has_platform(const Vector<SharedObject> &libs, const String &platform)
 Ref<ExportReport> GDExtensionExporter::export_resource(const String &output_dir, Ref<ImportInfo> import_infos) {
 	// get the first name of the plugin after res://addons
 	String plugin_name = get_plugin_name(import_infos);
-	Ref<ExportReport> report = memnew(ExportReport(import_infos));
+	Ref<ExportReport> report = memnew(ExportReport(import_infos, get_name()));
 	Ref<ImportInfoGDExt> iinfo = import_infos;
 	String platform = OS::get_singleton()->get_name().to_lower();
 	String parent_dir = GDRESettings::get_singleton()->get_pack_path().get_base_dir();
@@ -201,7 +201,7 @@ void GDExtensionExporter::get_handled_importers(List<String> *out) const {
 }
 
 String GDExtensionExporter::get_name() const {
-	return "GDExtension";
+	return EXPORTER_NAME;
 }
 
 String GDExtensionExporter::get_default_export_extension(const String &res_path) const {

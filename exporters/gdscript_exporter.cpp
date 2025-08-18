@@ -33,10 +33,7 @@ Error GDScriptExporter::_export_file(const String &out_path, Ref<FakeGDScript> g
 }
 
 Ref<ExportReport> GDScriptExporter::export_resource(const String &output_dir, Ref<ImportInfo> import_infos) {
-	Ref<ExportReport> report;
-	report.instantiate();
-	report->set_import_info(import_infos);
-	report->set_message("GDScript");
+	Ref<ExportReport> report = memnew(ExportReport(import_infos, get_name()));
 
 	String import_path = import_infos->get_path();
 	String export_path = output_dir.path_join(import_infos->get_export_dest().replace("res://", ""));
@@ -91,7 +88,7 @@ bool GDScriptExporter::supports_multithread() const {
 }
 
 String GDScriptExporter::get_name() const {
-	return "GDScript";
+	return EXPORTER_NAME;
 }
 
 String GDScriptExporter::get_default_export_extension(const String &res_path) const {
