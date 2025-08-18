@@ -2391,7 +2391,7 @@ Error _check_cancelled() {
 }
 
 struct BatchExportToken : public TaskRunnerStruct {
-	static std::atomic<size_t> in_progress;
+	static std::atomic<int64_t> in_progress;
 	GLBExporterInstance instance;
 	Ref<ExportReport> report;
 	Ref<PackedScene> _scene;
@@ -2401,7 +2401,8 @@ struct BatchExportToken : public TaskRunnerStruct {
 	String original_export_dest;
 	String output_dir;
 	bool preload_done = false;
-	bool done = false;
+	bool finished = false;
+	bool export_done = false;
 	bool no_rename = false;
 	int ver_major = 0;
 	Error err = OK;
@@ -2566,6 +2567,7 @@ struct BatchExportToken : public TaskRunnerStruct {
 		}
 		if (err != OK) {
 			report->set_error(err);
+			export_done = true;
 			return;
 		}
 		in_progress++;
@@ -2595,16 +2597,23 @@ struct BatchExportToken : public TaskRunnerStruct {
 		}
 		// print_line("Finished exporting scene " + p_src_path);
 		report->set_error(err);
-		done = true;
+		finished = true;
+		export_done = true;
 		in_progress--;
 	}
 
 	void post_export(Error p_skip_type = ERR_SKIP) {
 		// GLTF export can result in inaccurate models
 		// save it under .assets, which won't be picked up for import by the godot editor
-		if (err == OK && !done) {
+		if (err == OK && !finished) {
 			err = p_skip_type;
 		}
+		// So we don't leak memory if the export got cancelled
+		if (root) {
+			memdelete(root);
+			root = nullptr;
+		}
+		_scene = nullptr;
 		report->set_error(err);
 		if (err == ERR_SKIP) {
 			report->set_message("Export cancelled.");
@@ -2657,7 +2666,7 @@ struct BatchExportToken : public TaskRunnerStruct {
 	virtual ~BatchExportToken() = default;
 };
 
-std::atomic<size_t> BatchExportToken::in_progress = 0;
+std::atomic<int64_t> BatchExportToken::in_progress = 0;
 
 Ref<ExportReport> SceneExporter::export_file_with_options(const String &out_path, const String &res_path, const Dictionary &options) {
 	Ref<ImportInfo> iinfo;
@@ -2866,15 +2875,33 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 			export_dest_to_iinfo[export_dest] = idx;
 		}
 	}
-	tokens.sort_custom<BatchExportTokenSort>();
+	// tokens.sort_custom<BatchExportTokenSort>();
 
 	if (tokens.is_empty()) {
 		return reports;
 	}
+	static constexpr int64_t ONE_MB = 1024LL * 1024LL;
+	static constexpr int64_t ONE_GB = 1024LL * ONE_MB;
+	static constexpr int64_t EIGHT_GB = 8LL * ONE_GB;
 
 	BatchExportToken::in_progress = 0;
+	Dictionary mem_info = OS::get_singleton()->get_memory_info();
+	int64_t current_memory_usage = OS::get_singleton()->get_static_memory_usage();
+	// available memory does not include disk cache, so we should take the larger of this or peak memory usage (i.e. the most we've allocated)
+	int64_t total_mem_available = MAX((int64_t)mem_info["available"], (int64_t)OS::get_singleton()->get_static_memory_peak_usage() - current_memory_usage);
+	// we should either only allocate ourselves 8GB in memory or the amount of memory available to us, whichever is less
+	int64_t max_usage = MIN(EIGHT_GB, current_memory_usage + total_mem_available);
+	int64_t available_for_threads = MIN(EIGHT_GB - current_memory_usage, total_mem_available);
 	// 75% of the default thread pool size; we can't saturate the thread pool because some loaders may make use of them and we'll cause a deadlock.
-	const size_t number_of_threads = OS::get_singleton()->get_default_thread_pool_size() * 0.75;
+	const size_t default_num_threads = OS::get_singleton()->get_default_thread_pool_size() * 0.75;
+	// The smaller of either the above value, or the amount of memory available to us, divided by 256MB (conservative estimate of 256MB per scene)
+	const size_t number_of_threads = MIN(default_num_threads, available_for_threads / (ONE_GB / 4));
+
+	print_line("\nExporting scenes...");
+	print_line(vformat("Current memory usage: %dMB, Total memory available: %dMB", current_memory_usage / ONE_MB, total_mem_available / ONE_MB));
+	print_line(vformat("Max memory usage: %dMB, Available for scene export: %dMB", max_usage / ONE_MB, available_for_threads / ONE_MB));
+	print_line(vformat("Default thread pool size: %d", OS::get_singleton()->get_default_thread_pool_size()));
+	print_line(vformat("Number of threads to use for scene export: %d\n", (int64_t)number_of_threads));
 
 	Error err = OK;
 	if (number_of_threads <= 1 || GDREConfig::get_singleton()->get_setting("force_single_threaded", false)) {
@@ -2900,10 +2927,12 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 				number_of_threads,
 				true);
 
-		for (auto &token : tokens) {
+		for (int64_t i = 0; i < tokens.size(); i++) {
+			auto &token = tokens[i];
 			token->batch_preload();
 			// Don't load more than the current number of tasks being processed
-			while (BatchExportToken::in_progress >= number_of_threads) {
+			while (BatchExportToken::in_progress >= number_of_threads ||
+					((int64_t)OS::get_singleton()->get_static_memory_usage() > max_usage && BatchExportToken::in_progress > 0)) {
 				if (TaskManager::get_singleton()->update_progress_bg(true)) {
 					break;
 				}
