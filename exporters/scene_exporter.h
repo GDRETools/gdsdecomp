@@ -12,6 +12,7 @@ class SceneExporter : public ResourceExporter {
 	friend struct BatchExportToken;
 
 	static Error export_file_to_obj(const String &res_path, const String &dest_path, Ref<ImportInfo> iinfo);
+	static Error export_scene_to_obj(const Ref<PackedScene> &scene, const String &dest_path, Ref<ImportInfo> iinfo, int ver_major);
 
 	static SceneExporter *singleton;
 

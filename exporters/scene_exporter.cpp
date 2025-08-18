@@ -2285,24 +2285,11 @@ Error GLBExporterInstance::_get_return_error() {
 }
 
 Error SceneExporter::export_file(const String &p_dest_path, const String &p_src_path) {
-	String ext = p_dest_path.get_extension().to_lower();
-	if (ext != "escn" && ext != "tscn") {
-		int ver_major = get_ver_major(p_src_path);
-		ERR_FAIL_COND_V_MSG(ver_major != 4, ERR_UNAVAILABLE, "Scene export for engine version " + itos(ver_major) + " is not currently supported.");
-	}
-	if (ext != "glb" && ext != "gltf") {
-		return export_file_to_non_glb(p_src_path, p_dest_path, nullptr);
-	}
-	GLBExporterInstance instance(p_dest_path.get_base_dir());
-	Error err = instance.export_file(p_dest_path, p_src_path, nullptr);
-	if (err == ERR_BUG || err == ERR_PRINTER_ON_FIRE || err == ERR_DATABASE_CANT_READ) {
-		err = OK;
-	}
-	return err;
+	auto report = export_file_with_options(p_dest_path, p_src_path, {});
+	return report.is_valid() ? report->get_error() : ERR_BUG;
 }
 
 Error SceneExporter::export_file_to_obj(const String &p_dest_path, const String &p_src_path, Ref<ImportInfo> iinfo) {
-	ObjExporter::MeshInfo r_mesh_info;
 	Error err;
 	Ref<PackedScene> scene;
 	bool using_threaded_load = !SceneExporter::can_multithread;
@@ -2317,8 +2304,13 @@ Error SceneExporter::export_file_to_obj(const String &p_dest_path, const String 
 		scene = ResourceCompatLoader::custom_load(p_src_path, "PackedScene", ResourceCompatLoader::get_default_load_type(), &err, !using_threaded_load, ResourceFormatLoader::CACHE_MODE_REUSE);
 	}
 	ERR_FAIL_COND_V_MSG(err, ERR_FILE_CANT_READ, "Failed to load scene " + p_src_path);
+	return export_scene_to_obj(scene, p_dest_path, iinfo, ver_major);
+}
+
+Error SceneExporter::export_scene_to_obj(const Ref<PackedScene> &scene, const String &p_dest_path, Ref<ImportInfo> iinfo, int ver_major) {
 	Vector<Ref<Mesh>> meshes;
 	Vector<Ref<Mesh>> meshes_to_remove;
+	ObjExporter::MeshInfo r_mesh_info;
 
 	auto resources = _find_resources(scene, true, ver_major);
 	for (auto &E : resources) {
@@ -2335,7 +2327,7 @@ Error SceneExporter::export_file_to_obj(const String &p_dest_path, const String 
 		meshes.erase(mesh);
 	}
 
-	err = ObjExporter::_write_meshes_to_obj(meshes, p_dest_path, p_dest_path.get_base_dir(), r_mesh_info);
+	Error err = ObjExporter::_write_meshes_to_obj(meshes, p_dest_path, p_dest_path.get_base_dir(), r_mesh_info);
 	if (err != OK) {
 		return err;
 	}
@@ -2380,6 +2372,27 @@ inline void _set_unsupported(Ref<ExportReport> report, int ver_major, bool is_ob
 	report->set_unsupported_format_type(vformat("v%d.x scene", ver_major));
 	report->set_message(vformat("Scene export for engine version %d with %s output is not currently supported\nTry saving to .tscn instead.", ver_major, is_obj_output ? "obj" : "GLTF/GLB"));
 }
+struct SingleExportTaskRunnerStruct2 : public TaskRunnerStruct {
+	String p_src_path;
+	bool done = false;
+	GLBExporterInstance *exporter = nullptr;
+	virtual int get_current_task_step_value() override {
+		return 0;
+	}
+	virtual String get_current_task_step_description() override {
+		return "Exporting scene " + p_src_path;
+	}
+	virtual void cancel() override {
+		exporter->cancel();
+	}
+	virtual bool is_done() const override {
+		return done;
+	}
+	virtual void run(void *p_userdata) override {
+		exporter->_do_export_instanced_scene(p_userdata);
+		done = true;
+	}
+};
 
 Ref<ExportReport> SceneExporter::export_file_with_options(const String &out_path, const String &res_path, const Dictionary &options) {
 	Ref<ImportInfo> iinfo;
@@ -2425,14 +2438,13 @@ Ref<ExportReport> SceneExporter::export_file_with_options(const String &out_path
 		report->set_error(err);
 		if (err != OK) {
 			report->append_error_messages(GDRELogger::get_errors());
-			return report;
 		} else {
 			report->set_saved_path(out_path);
 		}
 		return report;
 	} else if (non_gltf) {
 		opath = out_path.get_basename() + ".glb";
-		WARN_PRINT("Attempting to export to non-GLTF format, saving to " + opath);
+		report->append_message_detail({ "Attempting to export to non-GLTF format, saving to " + opath });
 	}
 	GLBExporterInstance instance(out_path.get_base_dir(), options, false);
 	instance.set_force_no_update_import_params(true);
@@ -2579,7 +2591,7 @@ struct BatchExportToken {
 			return;
 		}
 
-		if (is_text_output() || is_obj_output()) {
+		if (is_text_output()) {
 			preload_done = true;
 			return;
 		}
@@ -2606,16 +2618,17 @@ struct BatchExportToken {
 				return;
 			}
 			_scene = scene;
-
-			root = instance._instantiate_scene(scene);
-			if (!root) {
-				scene = nullptr;
-				err = ERR_CANT_ACQUIRE_RESOURCE;
-				report->set_error(err);
-				preload_done = true;
-				return;
+			if (!is_obj_output()) {
+				root = instance._instantiate_scene(scene);
+				if (!root) {
+					scene = nullptr;
+					err = ERR_CANT_ACQUIRE_RESOURCE;
+					report->set_error(err);
+					preload_done = true;
+					return;
+				}
+				instance._set_stuff_from_instanced_scene(root);
 			}
-			instance._set_stuff_from_instanced_scene(root);
 		}
 		// print_line("Preloaded scene " + p_src_path);
 		preload_done = true;
@@ -2636,7 +2649,11 @@ struct BatchExportToken {
 		// print_line("Exporting scene " + p_src_path);
 
 		if (is_text_output() || is_obj_output()) {
-			err = SceneExporter::export_file_to_non_glb(report->get_import_info()->get_path(), p_dest_path, report->get_import_info());
+			if (is_obj_output()) {
+				err = SceneExporter::export_scene_to_obj(_scene, p_dest_path, report->get_import_info(), ver_major);
+			} else {
+				err = ResourceCompatLoader::to_text(p_src_path, p_dest_path);
+			}
 			if (err != OK) {
 				report->append_error_messages(GDRELogger::get_thread_errors());
 			} else {
@@ -2672,6 +2689,9 @@ struct BatchExportToken {
 			report->set_message("Export timed out.");
 		}
 		if (is_text_output() || is_obj_output()) {
+			if (is_obj_output()) {
+				instance._unload_deps();
+			}
 			if (err == OK) {
 				report->set_saved_path(p_dest_path);
 			}
