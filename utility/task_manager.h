@@ -374,6 +374,7 @@ public:
 			bool p_high_priority = true,
 			Ref<EditorProgressGDDC> p_preexisting_progress = nullptr,
 			int p_progress_start = 0) {
+		ERR_FAIL_COND_V_MSG(p_elements == 0, ERR_INVALID_PARAMETER, "Task has 0 elements, this is not allowed!");
 		auto task_id = add_group_task(p_instance, p_method, p_userdata, p_elements, p_task_step_callback, p_task, p_label, p_can_cancel, p_tasks, p_high_priority, p_preexisting_progress, p_progress_start);
 		return wait_for_task_completion(task_id);
 	}
@@ -390,6 +391,7 @@ public:
 			bool p_can_cancel = true,
 			Ref<EditorProgressGDDC> p_preexisting_progress = nullptr,
 			int p_progress_start = 0) {
+		ERR_FAIL_COND_V_MSG(p_elements == 0, ERR_INVALID_PARAMETER, "Task has 0 elements, this is not allowed!");
 		GroupTaskData<C, M, U, R> task = GroupTaskData<C, M, U, R>(p_instance, p_method, p_userdata, p_elements, p_task_step_callback, p_task, p_label, p_can_cancel, -1, true, true, true, p_preexisting_progress, p_progress_start);
 		task.start();
 		return task.wait_for_completion() ? ERR_SKIP : OK;

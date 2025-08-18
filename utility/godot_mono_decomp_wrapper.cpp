@@ -134,6 +134,8 @@ struct DecompileModuleTaskData : public TaskRunnerStruct {
 			err = ERR_CANT_CREATE;
 		}
 	}
+
+	virtual ~DecompileModuleTaskData() = default;
 };
 
 Error GodotMonoDecompWrapper::decompile_module_with_progress(const String &outputCSProjectPath, const Vector<String> &excludeFiles) {
