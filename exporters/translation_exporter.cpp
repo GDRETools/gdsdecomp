@@ -954,6 +954,20 @@ struct KeyWorker {
 	int64_t pop_keys() {
 		int64_t missing_keys = 0;
 		keys.clear();
+		// Sort the key_to_message map by key
+		// this does not change the order of the messages as we write them to the CSV
+		// This is just to ensure that keys are grouped together in case of duplicate messages
+		// e.g. we want:
+		// bob_dialogue_1: "Hello",
+		// bob_dialogue_2: "I'm Bob",
+		// fred_dialogue_1: "Hello",
+		// fred_dialogue_2: "I'm Fred"
+		// not:
+		// fred_dialogue_1: "Hello",
+		// bob_dialogue_2: "I'm Bob",
+		// bob_dialogue_1: "Hello",
+		// fred_dialogue_2: "I'm Fred"
+		key_to_message.sort();
 
 		for (int i = 0; i < default_messages.size(); i++) {
 			auto &msg = default_messages[i];
