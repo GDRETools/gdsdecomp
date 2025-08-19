@@ -198,7 +198,9 @@ Error TaskManager::wait_for_task_completion(TaskManagerID p_group_id, uint64_t t
 		bool found = group_id_to_description.modify_if(p_group_id, [&](auto &v) {
 			task = v.second;
 			already_waiting = task->is_waiting;
-			task->is_waiting = true;
+			if (!already_waiting) {
+				task->is_waiting = true;
+			}
 		});
 		if (!task || !found) {
 			return ERR_INVALID_PARAMETER;
@@ -213,6 +215,8 @@ Error TaskManager::wait_for_task_completion(TaskManagerID p_group_id, uint64_t t
 			}
 			if (task->_is_aborted()) {
 				erase = false;
+				task->is_waiting = false;
+				err = ERR_LOCKED;
 			}
 		}
 	}
@@ -222,23 +226,35 @@ Error TaskManager::wait_for_task_completion(TaskManagerID p_group_id, uint64_t t
 	return err;
 }
 
-bool TaskManager::update_progress_bg(bool p_force_refresh) {
+bool TaskManager::update_progress_bg(bool p_force_refresh, bool called_from_process) {
+	if (updating_bg || group_id_to_description.empty()) {
+		return false;
+	}
+	updating_bg = true;
 	bool main_loop_iterating = false;
 	bool canceled = false;
+	Vector<TaskManagerID> task_ids_to_erase;
 	group_id_to_description.for_each_m([&](auto &v) {
 		if (v.second->is_progress_enabled() && v.second->is_started()) {
 			main_loop_iterating = true;
 			if (!v.second->is_waiting) {
 				v.second->update_progress(p_force_refresh);
+			} else if (v.second->_is_aborted() && v.second->is_done()) {
+				task_ids_to_erase.push_back(v.first);
 			}
 		}
 		if (v.second->is_canceled()) {
 			canceled = true;
 		}
 	});
-	if (!main_loop_iterating && !Main::is_iterating() && Thread::is_main_thread() && !MessageQueue::get_singleton()->is_flushing()) {
+	for (auto &task_id : task_ids_to_erase) {
+		group_id_to_description.erase(task_id);
+	}
+	// this should only be called if this wasn't called from `GodotREEditorStandalone::process()` and there are tasks in the queue and none of them have progress enabled
+	if (!called_from_process && !main_loop_iterating && Thread::is_main_thread() && !MessageQueue::get_singleton()->is_flushing() && group_id_to_description.size() > 0) {
 		Main::iteration();
 	}
+	updating_bg = false;
 	return canceled;
 }
 

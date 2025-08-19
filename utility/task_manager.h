@@ -328,6 +328,7 @@ protected:
 	ParallelFlatHashMap<TaskManagerID, std::shared_ptr<BaseTemplateTaskData>> group_id_to_description;
 	DownloadQueueThread download_thread;
 	std::atomic<TaskManagerID> current_task_id = 0;
+	bool updating_bg = false;
 
 public:
 	TaskManager();
@@ -437,7 +438,7 @@ public:
 	bool is_current_task_completed(TaskManagerID p_task_id) const;
 	bool is_current_task_canceled();
 	bool is_current_task_timed_out();
-	bool update_progress_bg(bool p_force_refresh = false);
+	bool update_progress_bg(bool p_force_refresh = false, bool called_from_process = false);
 	void cancel_all();
 };
 

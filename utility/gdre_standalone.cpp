@@ -5,6 +5,7 @@
 #include "scene/main/node.h"
 #include "utility/gdre_audio_stream_preview.h"
 #include "utility/gdre_logger.h"
+#include "utility/task_manager.h"
 
 GodotREEditorStandalone *GodotREEditorStandalone::singleton = nullptr;
 
@@ -115,6 +116,7 @@ void GodotREEditorStandalone::_notification(int p_notification) {
 		if (log_message_buffer.size() > 0 && OS::get_singleton()->get_ticks_msec() - last_log_message_time > 200) {
 			write_log_message("");
 		}
+		TaskManager::get_singleton()->update_progress_bg(false, true);
 	}
 }
 
