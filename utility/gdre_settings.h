@@ -118,6 +118,7 @@ public:
 		Ref<GodotVer> version;
 		Ref<ProjectConfigLoader> pcfg;
 		HashSet<String> resource_strings; // For translation key recovery
+		bool loaded_resource_strings = false;
 		PackInfo::PackType type = PackInfo::PCK;
 		String pack_file;
 		int bytecode_revision = 0;
@@ -178,6 +179,7 @@ private:
 	static String exec_dir;
 	bool headless = false;
 	bool download_plugins = false;
+	HashSet<String> translation_key_hints;
 
 	void remove_current_pack();
 	void add_logger();
@@ -335,6 +337,9 @@ public:
 	String get_recent_error_string(bool p_filter_backtraces = true);
 
 	static GDRESettings *get_singleton();
+
+	Error load_translation_key_hint_file(const String &p_path);
+
 	GDRESettings();
 	~GDRESettings();
 };

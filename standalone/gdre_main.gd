@@ -715,6 +715,8 @@ var RECOVER_OPTS_NOTES = """Recover/Extract Options:
 --csharp-assembly=<PATH>             Optional path to the C# assembly for C# projects; auto-detected from PCK path if not specified
 --force-bytecode-version=<VERSION>   Force the bytecode version to be the specified value. Can be either a commit hash (e.g. 'f3f05dc') or version string (e.g. '4.3.0')
 --load-custom-bytecode=<JSON_FILE>   Load a custom bytecode definition file from the specified JSON file and use it for the recovery session
+--translation-hint=<FILE>   		 Load a translation key hint file (.csv, .txt, .po, .mo) and use it during translation recovery
+--skip-loading-resource-strings   	 Skip loading resource strings from all resources during translation recovery
 """
 # todo: handle --key option
 var COMPILE_OPTS_NOTES = """Decompile/Compile Options:
@@ -888,7 +890,7 @@ func recovery(  input_files:PackedStringArray,
 		var new_files:PackedStringArray = []
 		# remove all the non ".translation" files
 		for file in GDRESettings.get_file_list():
-			if (file.get_extension().to_lower() == "translation"):
+			if (file.get_extension().to_lower() == "translation" or file.get_extension().to_lower() == "xl"):
 				new_files.append(file)
 		files.append_array(new_files)
 		print("Translation only mode, only extracting translation files")
@@ -1444,6 +1446,21 @@ func handle_cli(args: PackedStringArray) -> bool:
 			patch_map[get_cli_abs_path(dequote(patch_files[0]).strip_edges())] = dequote(patch_files[1]).strip_edges()
 		elif arg.begins_with("--csharp-assembly"):
 			csharp_assembly = get_arg_value(arg)
+
+		elif arg.begins_with("--translation-hint"):
+			var translation_hint_file = get_arg_value(arg)
+			if translation_hint_file.is_empty():
+				print_usage()
+				print("Error: file path is required for --translation-hint")
+				return true
+			if GDRESettings.load_translation_key_hint_file(translation_hint_file) != OK:
+				print_usage()
+				print("Error: failed to load translation key hint file: " + translation_hint_file)
+				return true
+			set_setting = true
+		elif arg.begins_with("--skip-loading-resource-strings"):
+			GDREConfig.set_setting("Exporter/Translation/skip_loading_resource_strings", true, true)
+			set_setting = true
 		else:
 			print_usage()
 			print("ERROR: invalid option '" + arg + "'")

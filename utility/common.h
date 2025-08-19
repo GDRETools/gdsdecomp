@@ -35,6 +35,22 @@ Vector<String> get_files_at(const String &p_dir, const Vector<String> &wildcards
 String num_scientific(double p_num);
 String num_scientific(float p_num);
 
+template <class T, class Itr>
+void hashset_insert_iterable(HashSet<T> &hs, const Itr &iterable) {
+	static_assert(std::is_same_v<decltype(iterable.begin()), decltype(iterable.end())>, "Iterable must be a container");
+	for (const T &E : iterable) {
+		hs.insert(E);
+	}
+}
+
+template <class T, class Itr>
+void vector_append_iterable(Vector<T> &vec, const Itr &iterable) {
+	static_assert(std::is_same_v<decltype(iterable.begin()), decltype(iterable.end())>, "Iterable must be a container");
+	for (const T &E : iterable) {
+		vec.push_back(E);
+	}
+}
+
 template <class T>
 Vector<T> hashset_to_vector(const HashSet<T> &hs) {
 	Vector<T> ret;

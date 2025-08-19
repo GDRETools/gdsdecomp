@@ -48,8 +48,6 @@ static const HashSet<char32_t> ALL_PUNCTUATION = { '.', '!', '?', ',', ';', ':',
 static const HashSet<char32_t> REMOVABLE_PUNCTUATION = { '.', '!', '?', ',', ';', ':', '%' };
 static const Vector<String> STANDARD_SUFFIXES = { "Name", "Text", "Title", "Description", "Label", "Button", "Speech", "Tooltip", "Legend", "Body", "Content" };
 
-static const char *MISSING_KEY_PREFIX = "<!MissingKey:";
-
 template <class K, class V>
 static constexpr _ALWAYS_INLINE_ const K &get_key(const KeyValue<K, V> &kv) {
 	return kv.key;
@@ -1017,7 +1015,7 @@ struct KeyWorker {
 					print_verbose(vformat("Could not find key for message '%s'", msg));
 				}
 				missing_keys++;
-				keys.push_back(MISSING_KEY_PREFIX + String(msg).split("\n")[0] + ">");
+				keys.push_back(TranslationExporter::MISSING_KEY_PREFIX + String(msg).split("\n")[0] + ">");
 			}
 		}
 		return missing_keys;

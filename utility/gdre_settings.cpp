@@ -11,6 +11,7 @@
 #include "core/io/file_access_encrypted.h"
 #include "core/object/class_db.h"
 #include "core/string/print_string.h"
+#include "exporters/translation_exporter.h"
 #include "modules/zip/zip_reader.h"
 #include "utility/common.h"
 #include "utility/file_access_gdre.h"
@@ -2236,7 +2237,39 @@ String GDRESettings::get_disclaimer_body() {
 // void get_resource_strings(HashSet<String> &r_strings) const;
 
 bool GDRESettings::loaded_resource_strings() const {
-	return is_pack_loaded() && current_project->resource_strings.size() > 0;
+	return is_pack_loaded() && current_project->loaded_resource_strings;
+}
+
+Error GDRESettings::load_translation_key_hint_file(const String &p_path) {
+	Vector<StringLoadToken> tokens = { { get_version_string(), p_path } };
+	// special handling for csv files; we only get the first column
+	auto &token = tokens.write[0];
+	if (p_path.get_extension().to_lower() == "csv") {
+		Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
+		ERR_FAIL_COND_V_MSG(f.is_null(), ERR_FILE_CANT_OPEN, "Failed to open file " + p_path);
+		String text = f->get_as_text();
+		Vector<String> lines = text.split("\n");
+		for (auto &line : lines) {
+			Vector<String> columns = line.split(",");
+			if (columns.size() > 0 && !columns[0].is_empty() && !columns[0].begins_with(TranslationExporter::MISSING_KEY_PREFIX)) {
+				token.strings.append(columns[0]);
+			}
+		}
+		// append the whole file for the Partials stage just in case
+		token.strings.append(text);
+		f->close();
+	} else {
+		_do_string_load(0, tokens.ptrw());
+		// special handling for hint files; if it was just a text file that was appended in whole, split it up into lines
+		if (token.strings.size() == 1 && token.strings[0].contains("\n")) {
+			token.strings.append_array(token.strings[0].split("\n"));
+		}
+	}
+	gdre::hashset_insert_iterable(translation_key_hints, token.strings);
+	if (is_pack_loaded() && current_project->resource_strings.size() > 0) { // already loaded resource strings...???
+		gdre::hashset_insert_iterable(current_project->resource_strings, translation_key_hints);
+	}
+	return OK;
 }
 
 //	void _do_string_load(uint32_t i, StringLoadToken *tokens);
@@ -2383,7 +2416,14 @@ void GDRESettings::load_all_resource_strings() {
 	if (!is_pack_loaded()) {
 		return;
 	}
-	current_project->resource_strings.clear();
+	if (translation_key_hints.size() > 0) {
+		print_line("Loading " + String::num_int64(translation_key_hints.size()) + " translation key hints");
+		gdre::hashset_insert_iterable(current_project->resource_strings, translation_key_hints);
+	}
+	if (GDREConfig::get_singleton()->get_setting("Exporter/Translation/skip_loading_resource_strings")) {
+		print_line("Skipping loading resource strings from all resources");
+		return;
+	}
 	List<String> extensions;
 	ResourceCompatLoader::get_base_extensions(&extensions, get_ver_major());
 	Vector<String> wildcards;
@@ -2448,6 +2488,7 @@ void GDRESettings::load_all_resource_strings() {
 			current_project->resource_strings.insert(str);
 		}
 	}
+	current_project->loaded_resource_strings = true;
 }
 
 void GDRESettings::get_resource_strings(HashSet<String> &r_strings) const {
@@ -2716,6 +2757,7 @@ void GDRESettings::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_temp_dotnet_assembly_dir"), &GDRESettings::get_temp_dotnet_assembly_dir);
 	ClassDB::bind_method(D_METHOD("update_from_ephemeral_settings"), &GDRESettings::update_from_ephemeral_settings);
 	ClassDB::bind_method(D_METHOD("get_recent_error_string", "filter_backtraces"), &GDRESettings::get_recent_error_string, DEFVAL(true));
+	ClassDB::bind_method(D_METHOD("load_translation_key_hint_file", "p_path"), &GDRESettings::load_translation_key_hint_file);
 }
 
 // This is at the bottom to account for the platform header files pulling in their respective OS headers and creating all sorts of issues

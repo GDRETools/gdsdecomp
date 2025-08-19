@@ -108,6 +108,42 @@ public:
 	}
 };
 
+class GDREConfigSetting_TranslationExporter_LoadKeyHintFile : public GDREConfigSetting {
+	GDSOFTCLASS(GDREConfigSetting_TranslationExporter_LoadKeyHintFile, GDREConfigSetting);
+
+public:
+	GDREConfigSetting_TranslationExporter_LoadKeyHintFile() :
+			GDREConfigSetting(
+					"Exporter/Translation/load_key_hint_file",
+					"Load key hint file",
+					"Load a key hint file to use for the translation exporter",
+					"",
+					false,
+					false) {}
+	String error_message;
+
+	virtual bool is_filepicker() const override { return true; }
+	virtual bool is_virtual_setting() const override { return true; }
+	virtual String get_error_message() const override { return error_message; }
+	virtual void clear_error_message() override { error_message = ""; }
+	virtual Variant get_value() const override {
+		return "";
+	}
+	virtual void set_value(const Variant &p_value, bool p_force_ephemeral = false) override {
+		String path = p_value;
+		if (path.is_empty()) {
+			return;
+		}
+		Error err = GDRESettings::get_singleton()->load_translation_key_hint_file(path);
+		if (err != OK) {
+			WARN_PRINT("Failed to load key hint file: " + path);
+			error_message = "Failed to load key hint file: " + path;
+			return;
+		}
+		error_message = "";
+	}
+};
+
 Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 	return {
 		memnew(GDREConfigSetting(
@@ -181,6 +217,14 @@ Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 				"Replace shader materials",
 				"Replaces shader materials with their referenced materials when exporting the scene (this may result in inaccurate exports)",
 				false)),
+		memnew(GDREConfigSetting_TranslationExporter_LoadKeyHintFile()),
+		memnew(GDREConfigSetting(
+				"Exporter/Translation/skip_loading_resource_strings",
+				"Skip loading resource strings",
+				"Skip loading resource strings from all resources during translation recovery",
+				false,
+				false,
+				true)),
 	};
 }
 
