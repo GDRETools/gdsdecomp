@@ -651,11 +651,12 @@ func export_imports(output_dir:String, files: PackedStringArray):
 	return ret
 
 
-func dump_files(output_dir:String, files: PackedStringArray, ignore_checksum_errors: bool = false) -> int:
+func dump_files(output_dir:String, files: PackedStringArray, ignore_checksum_errors: bool = false, skip_md5: bool = false) -> int:
 	var err:int = OK;
 	var pckdump = PckDumper.new()
 	# var start_time = Time.get_ticks_msec()
-	err = pckdump.check_md5_all_files()
+	if not skip_md5:
+		err = pckdump.check_md5_all_files()
 	if err != OK:
 		if (err != ERR_SKIP and not ignore_checksum_errors):
 			print("MD5 checksum failed, not proceeding...")
@@ -710,6 +711,7 @@ var RECOVER_OPTS_NOTES = """Recover/Extract Options:
 --include=<GLOB>                     Include files matching the glob pattern (can be repeated, see notes below)
 --exclude=<GLOB>                     Exclude files matching the glob pattern (can be repeated, see notes below)
 --ignore-checksum-errors             Ignore MD5 checksum errors when extracting/recovering
+--skip-checksum-check                Skip MD5 checksum check when extracting/recovering
 --csharp-assembly=<PATH>             Optional path to the C# assembly for C# projects; auto-detected from PCK path if not specified
 --force-bytecode-version=<VERSION>   Force the bytecode version to be the specified value. Can be either a commit hash (e.g. 'f3f05dc') or version string (e.g. '4.3.0')
 --load-custom-bytecode=<JSON_FILE>   Load a custom bytecode definition file from the specified JSON file and use it for the recovery session
@@ -800,6 +802,7 @@ func recovery(  input_files:PackedStringArray,
 				ignore_checksum_errors: bool = false,
 				excludes: PackedStringArray = [],
 				includes: PackedStringArray = [],
+				skip_md5: bool = false,
 				csharp_assembly: String = ""):
 	var _new_files = []
 	for file in input_files:
@@ -935,7 +938,7 @@ func recovery(  input_files:PackedStringArray,
 			print("Error: failed to copy " + input_file + " to " + output_dir)
 			return
 	else:
-		err = dump_files(output_dir, files, ignore_checksum_errors)
+		err = dump_files(output_dir, files, ignore_checksum_errors, skip_md5)
 		if (err != OK):
 			print("Error: failed to extract PAK file, not exporting assets")
 			return
@@ -1312,6 +1315,7 @@ func handle_cli(args: PackedStringArray) -> bool:
 	var txt_to_bin = PackedStringArray()
 	var bin_to_txt = PackedStringArray()
 	var ignore_md5: bool = false
+	var skip_md5: bool = false
 	var decompile_files = PackedStringArray()
 	var compile_files = PackedStringArray()
 	var bytecode_version: String = ""
@@ -1365,6 +1369,8 @@ func handle_cli(args: PackedStringArray) -> bool:
 			enc_key = get_arg_value(arg)
 		elif arg.begins_with("--ignore-checksum-errors"):
 			ignore_md5 = true
+		elif arg.begins_with("--skip-checksum-check"):
+			skip_md5 = true
 		elif arg.begins_with("--translation-only"):
 			translation_only = true
 		elif arg.begins_with("--disable-multithreading"):
@@ -1468,11 +1474,11 @@ func handle_cli(args: PackedStringArray) -> bool:
 		elif not input_file.is_empty():
 			print("Recovery started")
 			print("input_file: ", input_file)
-			recovery(input_file, output_dir, enc_key, false, ignore_md5, excludes, includes, csharp_assembly)
+			recovery(input_file, output_dir, enc_key, false, ignore_md5, excludes, includes, skip_md5, csharp_assembly)
 			GDRESettings.unload_project()
 			close_log()
 		elif not input_extract_file.is_empty():
-			recovery(input_extract_file, output_dir, enc_key, true, ignore_md5, excludes, includes)
+			recovery(input_extract_file, output_dir, enc_key, true, ignore_md5, excludes, includes, skip_md5)
 			GDRESettings.unload_project()
 			close_log()
 		elif txt_to_bin.is_empty() == false:
