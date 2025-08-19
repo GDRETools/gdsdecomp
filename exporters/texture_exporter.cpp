@@ -1069,10 +1069,14 @@ Ref<ExportReport> TextureExporter::export_resource(const String &output_dir, Ref
 	} else if (importer == "texture_atlas") {
 		if (ver_major <= 2 && (iinfo->get_type() == "ImageTexture" || iinfo->get_additional_sources().size() > 0)) {
 			// this is the sprite sheet for the texture atlas; we can't save it to the original sources, so we save it to another file
-			auto new_dest = dest_path.get_base_dir().path_join(iinfo->get_path().get_file());
-			new_dest = new_dest.get_basename() + ".ATLAS_SHEET." + dest_path.get_extension();
-			iinfo->set_export_dest(new_dest);
-			dest_path = new_dest;
+			String rel_base_dir = iinfo->get_path().trim_prefix("res://").get_base_dir();
+			String basename = iinfo->get_path().get_file().get_basename();
+			// if the basename is empty, use the base directory name if it exists
+			if (basename.is_empty() && !rel_base_dir.is_empty()) {
+				basename = rel_base_dir.get_file();
+			}
+			iinfo->set_export_dest(iinfo->get_export_dest().get_base_dir().path_join(basename + ".ATLAS_SHEET." + dest_path.get_extension()));
+			dest_path = output_dir.path_join(iinfo->get_export_dest().replace("res://", ""));
 			err = _convert_tex(path, dest_path, lossy, img_format, report);
 			// Don't rewrite the metadata for this
 			report->set_rewrote_metadata(ExportReport::NOT_IMPORTABLE);
