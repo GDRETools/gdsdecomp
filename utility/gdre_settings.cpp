@@ -2286,7 +2286,65 @@ void GDRESettings::_do_string_load(uint32_t i, StringLoadToken *tokens) {
 			return;
 		}
 
+	} else if (src_ext == "po" || src_ext == "mo") {
+		Ref<TranslationPO> res = ResourceCompatLoader::custom_load(tokens[i].path, "", ResourceInfo::LoadType::REAL_LOAD, &tokens[i].err, false, ResourceFormatLoader::CACHE_MODE_IGNORE);
+		if (res.is_null()) {
+			WARN_PRINT("Failed to load resource " + tokens[i].path);
+			return;
+		}
+		List<StringName> keys;
+		res->get_message_list(&keys);
+		for (const StringName &key : keys) {
+			tokens[i].strings.push_back(key);
+		}
+		tokens[i].strings.append_array(res->get_translated_message_list());
+
+		for (const StringName &key : keys) {
+			tokens[i].strings.push_back(res->get_message(key));
+		}
+	} else if (!(src_ext == "csv" || src_ext == "json") && ResourceCompatLoader::handles_resource(tokens[i].path)) {
+		auto res = ResourceCompatLoader::fake_load(tokens[i].path, "", &tokens[i].err);
+		if (res.is_null()) {
+			WARN_PRINT("Failed to load resource " + tokens[i].path);
+		} else {
+			gdre::get_strings_from_variant(res, tokens[i].strings, tokens[i].engine_version);
+		}
+		// We probably don't want to do this; cfg files are unlikely to have keys and we don't want to pollute the strings list with low-value possibles
+		// } else if (src_ext == "cfg") {
+		// 	// cfg file
+		// 	Ref<ConfigFile> cfg = memnew(ConfigFile);
+		// 	tokens[i].err = cfg->load(tokens[i].path);
+		// 	ERR_FAIL_COND_MSG(tokens[i].err, "Failed to load cfg file " + tokens[i].path);
+		// 	auto sections = cfg->get_sections();
+		// 	for (auto &section : sections) {
+		// 		tokens[i].strings.push_back(section);
+		// 		for (auto &key : cfg->get_section_keys(section)) {
+		// 			tokens[i].strings.push_back(key);
+		// 			gdre::get_strings_from_variant(cfg->get_value(section, key), tokens[i].strings, tokens[i].engine_version);
+		// 		}
+		// 	}
+	} else {
+		// non-resource text file, ensure that it's actually text
+		Ref<FileAccess> f = FileAccess::open(tokens[i].path, FileAccess::READ, &tokens[i].err);
+		ERR_FAIL_COND_MSG(f.is_null(), "Failed to open file " + tokens[i].path);
+		uint64_t file_len = f->get_length();
+		if (file_len == 0) {
+			return;
+		}
+		Vector<uint8_t> file_buf;
+		file_buf.resize(file_len);
+		f->get_buffer(file_buf.ptrw(), file_len);
+		// check first 8000 bytes for null bytes
+		for (uint64_t j = 0; j < MIN(file_len, 8000ULL); j++) {
+			if (file_buf[j] == 0) {
+				return;
+			}
+		}
+		if (!gdre::detect_utf8(file_buf)) {
+			return;
+		}
 		if (src_ext == "csv") {
+			// use the built-in CSV parser
 			f->seek(0);
 			// get the first line
 			String header = f->get_line();
@@ -2309,40 +2367,32 @@ void GDRESettings::_do_string_load(uint32_t i, StringLoadToken *tokens) {
 					}
 				}
 			}
-		} else if (src_ext == "json") {
-			String jstring;
-			tokens[i].err = jstring.append_utf8((const char *)file_buf.ptr(), file_len);
+		} else {
+			String text;
+			tokens[i].err = text.append_utf8((const char *)file_buf.ptr(), file_len);
 			ERR_FAIL_COND_MSG(tokens[i].err, "Failed to open file " + tokens[i].path);
-			if (jstring.strip_edges().is_empty()) {
+			if (text.strip_edges().is_empty()) {
 				return;
 			}
-			Variant var = JSON::parse_string(jstring);
-			gdre::get_strings_from_variant(var, tokens[i].strings, tokens[i].engine_version);
+			if (src_ext == "json") {
+				Variant var = JSON::parse_string(text);
+				gdre::get_strings_from_variant(var, tokens[i].strings, tokens[i].engine_version);
+			} else if (src_ext == "esc") {
+				// find all identifier usages that end with a colon; these are the keys
+				String regex_pattern = "\\b([a-zA-Z_][a-zA-Z0-9_]*):";
+				Ref<RegEx> re = RegEx::create_from_string(regex_pattern);
+				TypedArray<RegExMatch> matches = re->search_all(text);
+				for (Ref<RegExMatch> match : matches) {
+					tokens[i].strings.append(match->get_string(1));
+				}
+				// append the whole file just in case we missed something
+				tokens[i].strings.append(text);
+			} else {
+				// append the whole file; the "Partial resource strings" stage in the translation exporter will handle splitting it up
+				tokens[i].strings.append(text);
+			}
 		}
-		return;
-	} else if (src_ext == "po" || src_ext == "mo") {
-		Ref<TranslationPO> res = ResourceCompatLoader::custom_load(tokens[i].path, "", ResourceInfo::LoadType::REAL_LOAD, &tokens[i].err, false, ResourceFormatLoader::CACHE_MODE_IGNORE);
-		if (res.is_null()) {
-			WARN_PRINT("Failed to load resource " + tokens[i].path);
-			return;
-		}
-		List<StringName> keys;
-		res->get_message_list(&keys);
-		for (const StringName &key : keys) {
-			tokens[i].strings.push_back(key);
-		}
-		tokens[i].strings.append_array(res->get_translated_message_list());
-
-		for (const StringName &key : keys) {
-			tokens[i].strings.push_back(res->get_message(key));
-		}
-		return;
 	}
-	auto res = ResourceCompatLoader::fake_load(tokens[i].path, "", &tokens[i].err);
-	if (res.is_null()) {
-		WARN_PRINT("Failed to load resource " + tokens[i].path);
-	}
-	gdre::get_strings_from_variant(res, tokens[i].strings, tokens[i].engine_version);
 }
 
 String GDRESettings::get_string_load_token_description(uint32_t i, StringLoadToken *p_userdata) {
@@ -2371,7 +2421,12 @@ void GDRESettings::load_all_resource_strings() {
 	}
 	wildcards.push_back("*.csv");
 	wildcards.push_back("*.json");
-	// wildcards.push_back("*.cs");
+	wildcards.push_back("*.txt");
+	wildcards.push_back("*.yml");
+	wildcards.push_back("*.yaml");
+	wildcards.push_back("*.xml");
+	wildcards.push_back("*.cfg");
+	wildcards.push_back("*.esc");
 
 	// just doing this so that the classdb initializes the TranslationPO class before we load the strings
 	{
