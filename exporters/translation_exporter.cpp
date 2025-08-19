@@ -138,7 +138,6 @@ struct KeyWorker {
 	bool has_common_prefix = false;
 	bool do_stage_4 = true;
 	bool do_stage_5 = false; // disabled for now, it's too slow
-	std::atomic<bool> cancel = false;
 	HashSet<char32_t> punctuation;
 	HashSet<CharString> punctuation_str;
 
@@ -157,11 +156,8 @@ struct KeyWorker {
 
 	Ref<RegEx> word_regex;
 	std::atomic<uint64_t> current_keys_found = 0;
-	Vector<uint64_t> times;
-	Vector<uint64_t> keys_found;
 	ParallelFlatHashSet<String> current_stage_keys_found;
-	Vector<ParallelFlatHashSet<String>> stages_keys_found;
-	std::atomic<uint64_t> last_completed = 0;
+	HashMap<String, Pair<uint64_t, ParallelFlatHashSet<String>>> stage_time_and_keys_found;
 	// 30 seconds in msec
 	uint64_t start_time = OS::get_singleton()->get_ticks_usec();
 	String path;
@@ -332,7 +328,6 @@ struct KeyWorker {
 	}
 
 	_FORCE_INLINE_ void _set_key_stuff(const String &key) {
-		++current_keys_found;
 		if (!keys_have_whitespace && gdre::string_has_whitespace(key)) {
 			keys_have_whitespace = true;
 		}
@@ -669,9 +664,6 @@ struct KeyWorker {
 	}
 
 	void prefix_suffix_task_2(uint32_t i, CharString *res_strings) {
-		if (unlikely(cancel)) {
-			return;
-		}
 		const CharString &res_s = res_strings[i];
 		try_num_suffix(res_s.get_data());
 
@@ -683,24 +675,16 @@ struct KeyWorker {
 			try_key_prefix(E.get_data(), res_s.get_data());
 			try_num_suffix(E.get_data(), res_s.get_data());
 		}
-		last_completed++;
 	}
 
 	void stage_4_task(uint32_t i, Pair<CharString, int> *res_strings) {
-		if (unlikely(cancel)) {
-			return;
-		}
 		const Pair<CharString, int> &res_s_pair = res_strings[i];
 		const char *res_s_data = res_s_pair.first.get_data();
 		int magnitude = res_s_pair.second;
 		try_num_suffix(res_s_data, "", magnitude);
-		last_completed++;
 	}
 
 	void partial_task(uint32_t i, String *res_strings) {
-		if (unlikely(cancel)) {
-			return;
-		}
 		const String &res_s = res_strings[i];
 		if (!has_common_prefix || res_s.contains(common_to_all_prefix)) {
 			auto matches = word_regex->search_all(res_s);
@@ -710,28 +694,19 @@ struct KeyWorker {
 				}
 			}
 		}
-		last_completed++;
 	}
 
 	void stage_6_task_2(uint32_t i, CharString *res_strings) {
-		if (unlikely(cancel)) {
-			return;
-		}
 		const CharString &res_s = res_strings[i];
 		auto frs_size = filtered_resource_strings.size();
 		for (uint32_t j = 0; j < frs_size; j++) {
 			const CharString &res_s2 = res_strings[j];
 			try_key_suffix(res_s.get_data(), res_s2.get_data());
 		}
-		++last_completed;
 	}
 
 	void end_stage() {
-		last_completed = 0;
-		cancel = false;
-		times.push_back(OS::get_singleton()->get_ticks_msec());
-		keys_found.push_back(current_keys_found);
-		stages_keys_found.push_back(current_stage_keys_found);
+		stage_time_and_keys_found.insert(current_stage, { OS::get_singleton()->get_ticks_msec(), current_stage_keys_found });
 		current_keys_found = 0;
 		current_stage_keys_found.clear();
 	}
@@ -924,11 +899,9 @@ struct KeyWorker {
 	}
 
 	template <typename M, class VE>
-	Error run_stage(M p_multi_method, Vector<VE> p_userdata, const String &stage_name, bool multi = true) {
+	Error run_stage(M p_multi_method, Vector<VE> p_userdata, const String &stage_name, bool multi = true, bool dont_end_stage = false) {
 		// assert that M is a method belonging to this class
-		last_completed = 0;
 		auto desc = "TranslationExporter::find_missing_keys::" + stage_name;
-		cancel = false;
 		current_stage = stage_name;
 		static_assert(std::is_member_function_pointer<M>::value, "M must be a method of this class");
 		int tasks = 1;
@@ -948,7 +921,9 @@ struct KeyWorker {
 				KeyWorker::get_step_desc(0, nullptr),
 				stage_name, true, tasks, true);
 
-		end_stage();
+		if (!dont_end_stage) {
+			end_stage();
+		}
 		return err;
 	}
 
@@ -1035,7 +1010,6 @@ struct KeyWorker {
 	}
 
 	int64_t run() {
-		cancel = false;
 		uint64_t missing_keys = 0;
 		HashSet<String> res_strings;
 		start_time = OS::get_singleton()->get_ticks_msec();
@@ -1048,7 +1022,7 @@ struct KeyWorker {
 		}
 		GDRESettings::get_singleton()->get_resource_strings(res_strings);
 		resource_strings = gdre::hashset_to_vector(res_strings);
-		Error err = run_stage(&KeyWorker::stage_1, resource_strings, "Stage 1", false);
+		Error err = run_stage(&KeyWorker::stage_1, resource_strings, "Stage 1", false, true);
 		if (err != OK) {
 			return pop_keys();
 		}
@@ -1237,22 +1211,25 @@ struct KeyWorker {
 		missing_keys = pop_keys();
 		// print out the times taken
 		bl_debug("Key guessing took " + itos(OS::get_singleton()->get_ticks_msec() - start_time) + "ms");
-		for (int i = 0; i < times.size(); i++) {
-			auto num_keys = keys_found[i];
-			if (i == 0) {
-				bl_debug("Stage 1 took " + itos(times[i] - start_time) + "ms, found " + itos(num_keys) + " keys");
-			} else {
-				bl_debug("Stage " + itos(i + 1) + " took " + itos(times[i] - times[i - 1]) + "ms, found " + itos(num_keys) + " keys");
-			}
-			if (i >= 2 && num_keys > 0) {
+		int i = 0;
+		uint64_t last_time = 0;
+		for (auto &[stage, time_and_keys_found] : stage_time_and_keys_found) {
+			auto time = time_and_keys_found.first;
+			auto &keys_found = time_and_keys_found.second;
+			auto num_keys = keys_found.size();
+			auto delta = i == 0 ? time - start_time : time - last_time;
+			bl_debug(vformat("%s took %dms, found %d keys", stage, (int64_t)delta, (int64_t)num_keys));
+			if (i >= 1 && num_keys > 0) {
 				if (num_keys < 50) {
-					for (const auto &key : stages_keys_found[i]) {
-						bl_debug("* Key found in stage " + itos(i + 1) + ": " + key);
+					for (const auto &key : keys_found) {
+						bl_debug("* Key found in " + stage + ": " + key);
 					}
 				} else {
-					bl_debug("*** Stage " + itos(i + 1) + " found a LOT keys");
+					bl_debug("*** " + stage + " found a LOT keys");
 				}
 			}
+			last_time = time;
+			i++;
 		}
 		bl_debug(vformat("Total found: %d/%d", default_messages.size() - missing_keys, default_messages.size()));
 		return missing_keys;
