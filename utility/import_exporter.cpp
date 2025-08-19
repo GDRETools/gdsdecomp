@@ -505,7 +505,6 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	Vector<Ref<ImportInfo>> scene_tokens;
 	HashMap<String, Vector<Ref<ImportInfo>>> export_dest_to_iinfo;
 	HashSet<String> dupes;
-	constexpr bool MULTITHREADED_SCENE_EXPORT = true;
 	for (int i = 0; i < _files.size(); i++) {
 		Ref<ImportInfo> iinfo = _files[i];
 		if (partial_export && !hashset_intersects_vector(files_to_export_set, iinfo->get_dest_files())) {
@@ -554,11 +553,18 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		} else {
 			iinfo->set_export_dest(iinfo->get_source_file());
 		}
+		if (iinfo->get_ver_major() <= 2 && !iinfo->is_import() && !iinfo->is_auto_converted()) {
+			// filter out v2 binary non-imports
+			String ext = iinfo->get_path().get_extension().to_lower();
+			if (ext == "scn" || ext == "res") {
+				continue;
+			}
+		}
 		bool supports_multithreading = !GDREConfig::get_singleton()->get_setting("force_single_threaded", false);
 		bool is_high_priority = importer == "gdextension" || importer == "gdnative";
 		if (exporter_map.has(importer)) {
 			auto &exporter = exporter_map.get(importer);
-			if (exporter->get_name() == "PackedScene" && MULTITHREADED_SCENE_EXPORT) {
+			if (exporter->get_name() == "PackedScene") {
 				scene_tokens.push_back(iinfo);
 				export_dest_to_iinfo.insert(iinfo->get_export_dest(), Vector<Ref<ImportInfo>>({ iinfo }));
 				continue;
@@ -566,6 +572,10 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 				supports_multithreading = false;
 			}
 		} else {
+			// Non-exportable resource that wasn't imported or auto-converted, don't report it
+			if (iinfo->get_ver_major() <= 2 && !iinfo->is_import() && !iinfo->is_auto_converted()) {
+				continue;
+			}
 			supports_multithreading = false;
 		}
 		if (is_high_priority) {
