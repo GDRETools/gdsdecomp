@@ -2123,6 +2123,10 @@ Error GLBExporterInstance::_load_scene_and_deps(Ref<PackedScene> &r_scene) {
 	if (err != OK) {
 		return err;
 	}
+	return _load_scene(r_scene);
+}
+
+Error GLBExporterInstance::_load_scene(Ref<PackedScene> &r_scene) {
 	auto mode_type = ResourceCompatLoader::get_default_load_type();
 	// For some reason, scenes with meshes fail to load without the load done by ResourceLoader::load, possibly due to notification shenanigans.
 	if (ResourceCompatLoader::is_globally_available() && using_threaded_load()) {
@@ -2310,26 +2314,46 @@ Error SceneExporter::export_file_to_obj(const String &p_dest_path, const String 
 	return export_scene_to_obj(scene, p_dest_path, iinfo, ver_major);
 }
 
-Error SceneExporter::export_scene_to_obj(const Ref<PackedScene> &scene, const String &p_dest_path, Ref<ImportInfo> iinfo, int ver_major) {
+Vector<Ref<Mesh>> get_meshes(const Ref<PackedScene> &scene, int ver_major, bool exclude_shadow_meshes = true) {
 	Vector<Ref<Mesh>> meshes;
 	Vector<Ref<Mesh>> meshes_to_remove;
-	ObjExporter::MeshInfo r_mesh_info;
 
 	auto resources = _find_resources(scene, true, ver_major);
 	for (auto &E : resources) {
-		Ref<ArrayMesh> mesh = E;
+		Ref<Mesh> mesh = E;
 		if (mesh.is_valid()) {
 			meshes.push_back(mesh);
-			auto shadow_mesh = mesh->get_shadow_mesh();
-			if (shadow_mesh.is_valid()) {
-				meshes_to_remove.push_back(shadow_mesh);
+			if (exclude_shadow_meshes) {
+				Ref<ArrayMesh> array_mesh = mesh;
+				if (array_mesh.is_valid()) {
+					auto shadow_mesh = array_mesh->get_shadow_mesh();
+					if (shadow_mesh.is_valid()) {
+						meshes_to_remove.push_back(shadow_mesh);
+					}
+				}
 			}
 		}
 	}
 	for (auto &mesh : meshes_to_remove) {
 		meshes.erase(mesh);
 	}
+	return meshes;
+}
 
+size_t get_total_surface_count(const Vector<Ref<Mesh>> &meshes) {
+	size_t total_surface_count = 0;
+	for (auto &mesh : meshes) {
+		total_surface_count += mesh->get_surface_count();
+	}
+	return total_surface_count;
+}
+
+Error SceneExporter::export_scene_to_obj(const Ref<PackedScene> &scene, const String &p_dest_path, Ref<ImportInfo> iinfo, int ver_major) {
+	return export_meshes_to_obj(get_meshes(scene, ver_major, true), p_dest_path, iinfo);
+}
+
+Error SceneExporter::export_meshes_to_obj(const Vector<Ref<Mesh>> &meshes, const String &p_dest_path, Ref<ImportInfo> iinfo) {
+	ObjExporter::MeshInfo r_mesh_info;
 	Error err = ObjExporter::_write_meshes_to_obj(meshes, p_dest_path, p_dest_path.get_base_dir(), r_mesh_info);
 	if (err != OK) {
 		return err;
@@ -2404,16 +2428,20 @@ struct BatchExportToken : public TaskRunnerStruct {
 	bool finished = false;
 	bool export_done = false;
 	bool no_rename = false;
+	bool do_on_main_thread = false;
 	int ver_major = 0;
 	Error err = OK;
 	size_t scene_size = 0;
+	int64_t export_start_time = 0;
+	int64_t export_end_time = 0;
+	size_t surface_count = 0;
 
-	BatchExportToken(const String &p_output_dir, const Ref<ImportInfo> &p_iinfo, Dictionary p_options = {}) :
+	BatchExportToken(const String &p_output_dir, const Ref<ImportInfo> &p_iinfo, Dictionary p_options = {}, bool p_is_batch_export = false) :
 			instance(p_output_dir, p_options, true) {
 		ERR_FAIL_COND_MSG(!p_iinfo.is_valid(), "Import info is invalid");
 		report = memnew(ExportReport(p_iinfo, SceneExporter::EXPORTER_NAME));
 		original_export_dest = p_iinfo->get_export_dest();
-		instance.set_batch_export(true);
+		instance.set_batch_export(p_is_batch_export);
 		String new_path = original_export_dest;
 		String ext = new_path.get_extension().to_lower();
 		bool to_text = ext == "escn" || ext == "tscn";
@@ -2507,29 +2535,29 @@ struct BatchExportToken : public TaskRunnerStruct {
 	}
 
 	// scene loading and scene instancing has to be done on the main thread to avoid deadlocks and crashes
-	void batch_preload() {
+	bool batch_preload() {
 		if (check_unsupported()) {
 			err = ERR_UNAVAILABLE;
 			_set_unsupported(report, ver_major, is_obj_output());
 			preload_done = true;
-			return;
+			return false;
 		}
 
 		if (is_text_output()) {
 			preload_done = true;
-			return;
+			return false;
 		}
 		err = _check_cancelled();
 		if (err != OK) {
 			report->set_error(err);
 			preload_done = true;
-			return;
+			return false;
 		}
 		instance._initial_set(p_src_path, report);
 
 		err = gdre::ensure_dir(p_dest_path.get_base_dir());
 		report->set_error(err);
-		ERR_FAIL_COND_MSG(err, "Failed to ensure directory " + p_dest_path.get_base_dir());
+		ERR_FAIL_COND_V_MSG(err, false, "Failed to ensure directory " + p_dest_path.get_base_dir());
 		{
 			Ref<PackedScene> scene;
 			err = instance._load_scene_and_deps(scene);
@@ -2539,28 +2567,42 @@ struct BatchExportToken : public TaskRunnerStruct {
 			if (err != OK) {
 				report->set_error(err);
 				preload_done = true;
-				return;
+				return false;
 			}
 			_scene = scene;
 			if (!is_obj_output()) {
 				root = instance._instantiate_scene(scene);
 				if (!root) {
-					scene = nullptr;
+					_scene = nullptr;
 					err = ERR_CANT_ACQUIRE_RESOURCE;
 					report->set_error(err);
 					preload_done = true;
-					return;
+					return false;
 				}
 				instance._set_stuff_from_instanced_scene(root);
 			}
 		}
+
+		constexpr uint64_t MAX_MESHES_ON_WORKER_THREAD = 15;
+		if (instance.is_batch_export) {
+			auto meshes = get_meshes(_scene, ver_major, true);
+			if (meshes.size() > MAX_MESHES_ON_WORKER_THREAD) {
+				// disabling for now; can't figure out what the x factor is for why certain scenes take forever
+				// do_on_main_thread = true;
+			}
+			surface_count = get_total_surface_count(meshes);
+		}
 		// print_line("Preloaded scene " + p_src_path);
 		preload_done = true;
+		return do_on_main_thread;
 	}
 
 	void batch_export_instanced_scene() {
 		while (!preload_done && _check_cancelled() == OK) {
 			OS::get_singleton()->delay_usec(10000);
+		}
+		if (do_on_main_thread && !Thread::is_main_thread()) {
+			return;
 		}
 		if (err == OK) {
 			err = _check_cancelled();
@@ -2577,6 +2619,7 @@ struct BatchExportToken : public TaskRunnerStruct {
 		}
 		in_progress++;
 		// print_line("Exporting scene " + p_src_path);
+		export_start_time = OS::get_singleton()->get_ticks_msec();
 
 		if (is_text_output() || is_obj_output()) {
 			if (is_obj_output()) {
@@ -2604,6 +2647,7 @@ struct BatchExportToken : public TaskRunnerStruct {
 		report->set_error(err);
 		finished = true;
 		export_done = true;
+		export_end_time = OS::get_singleton()->get_ticks_msec();
 		in_progress--;
 	}
 
@@ -2828,9 +2872,42 @@ String SceneExporter::get_batch_export_description(int i, std::shared_ptr<BatchE
 
 struct BatchExportTokenSort {
 	bool operator()(const std::shared_ptr<BatchExportToken> &a, const std::shared_ptr<BatchExportToken> &b) const {
-		return a->scene_size > b->scene_size;
+		return a->export_end_time - a->export_start_time > b->export_end_time - b->export_start_time;
 	}
 };
+
+size_t SceneExporter::get_vram_usage() {
+	List<RS::MeshInfo> mesh_info;
+	RS::get_singleton()->mesh_debug_usage(&mesh_info);
+	List<RS::TextureInfo> tinfo;
+	RS::get_singleton()->texture_debug_usage(&tinfo);
+
+	size_t total_vmem = 0;
+
+	for (const RS::MeshInfo &E : mesh_info) {
+		total_vmem += E.vertex_buffer_size + E.attribute_buffer_size + E.skin_buffer_size + E.index_buffer_size + E.blend_shape_buffer_size + E.lod_index_buffers_size;
+	}
+	for (const RS::TextureInfo &E : tinfo) {
+		total_vmem += E.bytes;
+	}
+	return total_vmem;
+}
+
+inline uint64_t get_average_delta(const Vector<uint64_t> &deltas) {
+	uint64_t total_delta = 0;
+	for (auto &delta : deltas) {
+		total_delta += delta;
+	}
+	return total_delta / deltas.size();
+}
+
+#ifdef DEBUG_ENABLED
+#define perf_print(...) print_line(__VA_ARGS__)
+#define perf_print_verbose(...) print_verbose(__VA_ARGS__)
+#else
+#define perf_print(...) print_verbose(__VA_ARGS__)
+#define perf_print_verbose(...) (void)(0)
+#endif
 
 Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output_dir, const Vector<Ref<ImportInfo>> &scenes) {
 	Vector<std::shared_ptr<BatchExportToken>> tokens;
@@ -2851,7 +2928,7 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 			continue;
 		}
 
-		tokens.push_back(std::make_shared<BatchExportToken>(output_dir, scene));
+		tokens.push_back(std::make_shared<BatchExportToken>(output_dir, scene, Dictionary(), true));
 		int idx = tokens.size() - 1;
 		auto &token = tokens[idx];
 		token->instance.image_path_to_data_hash = Dictionary();
@@ -2874,7 +2951,6 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 			export_dest_to_iinfo[export_dest] = idx;
 		}
 	}
-	// tokens.sort_custom<BatchExportTokenSort>();
 
 	if (tokens.is_empty()) {
 		return reports;
@@ -2891,18 +2967,53 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 	// we should either only allocate ourselves 8GB in memory or the amount of memory available to us, whichever is less
 	int64_t max_usage = MIN(EIGHT_GB, current_memory_usage + total_mem_available);
 	int64_t available_for_threads = MIN(EIGHT_GB - current_memory_usage, total_mem_available);
+	size_t current_vram_usage = get_vram_usage();
+	size_t peak_vram_usage = current_vram_usage;
+	// TODO: get the real available VRAM; right now we assume 4GB
+	const size_t MAX_VRAM = EIGHT_GB / 2;
 	// 75% of the default thread pool size; we can't saturate the thread pool because some loaders may make use of them and we'll cause a deadlock.
 	const size_t default_num_threads = OS::get_singleton()->get_default_thread_pool_size() * 0.75;
 	// The smaller of either the above value, or the amount of memory available to us, divided by 256MB (conservative estimate of 256MB per scene)
 	const size_t number_of_threads = MIN(default_num_threads, available_for_threads / (ONE_GB / 4));
 
 	print_line("\nExporting scenes...");
-	print_line(vformat("Current memory usage: %dMB, Total memory available: %dMB", current_memory_usage / ONE_MB, total_mem_available / ONE_MB));
-	print_line(vformat("Max memory usage: %dMB, Available for scene export: %dMB", max_usage / ONE_MB, available_for_threads / ONE_MB));
-	print_line(vformat("Default thread pool size: %d", OS::get_singleton()->get_default_thread_pool_size()));
-	print_line(vformat("Number of threads to use for scene export: %d\n", (int64_t)number_of_threads));
+	perf_print(vformat("Current memory usage: %.02fMB, Total memory available: %.02fMB", (double)current_memory_usage / (double)ONE_MB, (double)total_mem_available / (double)ONE_MB));
+	perf_print(vformat("Max memory usage: %.02fMB, Available for scene export: %.02fMB", (double)max_usage / (double)ONE_MB, (double)available_for_threads / (double)ONE_MB));
+	perf_print(vformat("VRAM usage: %.02fMB", (double)current_vram_usage / (double)ONE_MB));
+	perf_print(vformat("Default thread pool size: %d", OS::get_singleton()->get_default_thread_pool_size()));
+	perf_print(vformat("Number of threads to use for scene export: %d\n", (int64_t)number_of_threads));
+
+	Vector<uint64_t> deltas;
+
+	auto last_print_time = OS::get_singleton()->get_ticks_usec();
+	auto last_warn_time = OS::get_singleton()->get_ticks_usec();
+	auto _get_vram_usage = [&current_vram_usage, &deltas, &peak_vram_usage, &last_print_time, &last_warn_time]() {
+		auto start_tick = OS::get_singleton()->get_ticks_usec();
+		current_vram_usage = SceneExporter::get_vram_usage();
+		peak_vram_usage = MAX(peak_vram_usage, current_vram_usage);
+		auto current_tick = OS::get_singleton()->get_ticks_usec();
+		if (current_tick - last_print_time > 1000000) {
+			perf_print_verbose(vformat("VRAM usage: %.02fMB", (double)current_vram_usage / (double)ONE_MB));
+			last_print_time = current_tick;
+		}
+		auto delta = current_tick - start_tick;
+		deltas.push_back(delta);
+		if (delta > 10000 && current_tick - last_warn_time > 1000000) {
+			perf_print("Took " + itos(delta / 1000) + "ms to get VRAM usage!!");
+			last_warn_time = current_tick;
+		}
+		if (deltas.size() > 10000) {
+			auto avg = get_average_delta(deltas);
+			deltas.clear();
+			deltas.resize(100);
+			deltas.fill(avg);
+		}
+
+		return current_vram_usage;
+	};
 
 	Error err = OK;
+	auto export_start_time = OS::get_singleton()->get_ticks_msec();
 	if (number_of_threads <= 1 || GDREConfig::get_singleton()->get_setting("force_single_threaded", false)) {
 		err = TaskManager::get_singleton()->run_group_task_on_current_thread(
 				this,
@@ -2928,14 +3039,26 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 
 		for (int64_t i = 0; i < tokens.size(); i++) {
 			auto &token = tokens[i];
-			token->batch_preload();
+			if (token->batch_preload()) {
+				// we need to do the export on the main thread
+				token->batch_export_instanced_scene();
+			}
 			// Don't load more than the current number of tasks being processed
+			auto start_tick = OS::get_singleton()->get_ticks_usec();
+			_get_vram_usage();
 			while (BatchExportToken::in_progress >= number_of_threads ||
-					((int64_t)OS::get_singleton()->get_static_memory_usage() > max_usage && BatchExportToken::in_progress > 0)) {
+					(BatchExportToken::in_progress > 0 &&
+							((int64_t)OS::get_singleton()->get_static_memory_usage() > max_usage ||
+									current_vram_usage > MAX_VRAM))) {
 				if (TaskManager::get_singleton()->update_progress_bg(true)) {
 					break;
 				}
-				OS::get_singleton()->delay_usec(10000);
+				auto cur_tick = OS::get_singleton()->get_ticks_usec();
+				auto delta = cur_tick - start_tick;
+				if (delta < 10000 && delta > 1000) {
+					OS::get_singleton()->delay_usec(delta);
+				}
+				_get_vram_usage();
 			}
 			// calling update_progress_bg serves three purposes:
 			// 1) updating the progress bar
@@ -2946,11 +3069,35 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 				break;
 			}
 		}
+		while (!TaskManager::get_singleton()->is_current_task_completed(task_id)) {
+			auto start_tick = OS::get_singleton()->get_ticks_usec();
+			_get_vram_usage();
+			if (TaskManager::get_singleton()->update_progress_bg(true)) {
+				break;
+			}
+			auto cur_tick = OS::get_singleton()->get_ticks_usec();
+			auto delta = cur_tick - start_tick;
+			if (delta < 10000 && delta > 1000) {
+				OS::get_singleton()->delay_usec(delta);
+			}
+		}
 		err = TaskManager::get_singleton()->wait_for_task_completion(task_id);
+
+		// get the average delta
+		uint64_t average_delta = get_average_delta(deltas);
+		perf_print(vformat("Average time to get VRAM usage: %.02fms", (double)average_delta / 1000.0));
+		perf_print(vformat("Peak VRAM usage: %.02fMB", (double)peak_vram_usage / (double)ONE_MB));
 	}
+	perf_print("\n");
+	auto export_end_time = OS::get_singleton()->get_ticks_msec();
+	tokens.sort_custom<BatchExportTokenSort>();
+	perf_print("scene,time,surface_count");
 	for (auto &token : tokens) {
+		perf_print(vformat("%s,%.02f,%d", token->get_export_dest(), (double)(token->export_end_time - token->export_start_time) / 1000.0, (int64_t)token->surface_count));
+
 		token->post_export(err);
 		reports.push_back(token->report);
 	}
+	print_line(vformat("*** Exporting %d scenes took %.02fs\n", tokens.size(), (double)(export_end_time - export_start_time) / 1000.0));
 	return reports;
 }

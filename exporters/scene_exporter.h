@@ -12,6 +12,7 @@ class SceneExporter : public ResourceExporter {
 
 	static Error export_file_to_obj(const String &res_path, const String &dest_path, Ref<ImportInfo> iinfo);
 	static Error export_scene_to_obj(const Ref<PackedScene> &scene, const String &dest_path, Ref<ImportInfo> iinfo, int ver_major);
+	static Error export_meshes_to_obj(const Vector<Ref<Mesh>> &meshes, const String &dest_path, Ref<ImportInfo> iinfo);
 
 	static SceneExporter *singleton;
 
@@ -48,6 +49,7 @@ public:
 	virtual String get_default_export_extension(const String &res_path) const override;
 
 	static Ref<ExportReport> export_file_with_options(const String &out_path, const String &res_path, const Dictionary &options);
+	static size_t get_vram_usage();
 	Vector<Ref<ExportReport>> batch_export_files(const String &output_dir, const Vector<Ref<ImportInfo>> &scenes);
 
 	static constexpr int get_minimum_godot_ver_supported() {
@@ -151,6 +153,8 @@ class GLBExporterInstance {
 	Error _check_model_can_load(const String &p_dest_path);
 	Error _load_deps();
 	Error _load_scene_and_deps(Ref<PackedScene> &r_scene);
+	Error _load_scene(Ref<PackedScene> &r_scene);
+
 	void _unload_deps();
 	Error _get_return_error();
 	Node *_instantiate_scene(Ref<PackedScene> scene);
