@@ -146,6 +146,9 @@ Dictionary PluginManager::get_plugin_info(const String &plugin_name, const Vecto
 	// If no cached versions match, get all release info and populate PluginVersions
 	Vector<String> version_keys = source->get_plugin_version_numbers(plugin_name);
 	for (auto &version_key : version_keys) {
+		if (TaskManager::get_singleton()->is_current_task_canceled()) {
+			break;
+		}
 		ReleaseInfo release_info = source->get_release_info(plugin_name, version_key);
 		if (release_info.plugin_source.is_empty()) {
 			continue; // Skip if no release info available
