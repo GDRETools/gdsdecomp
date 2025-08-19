@@ -2266,26 +2266,6 @@ void GDRESettings::_do_string_load(uint32_t i, StringLoadToken *tokens) {
 	if (src_ext == "gd" || src_ext == "gdc" || src_ext == "gde") {
 		tokens[i].err = GDScriptDecomp::get_script_strings(tokens[i].path, get_bytecode_revision(), tokens[i].strings, true);
 		return;
-	} else if (src_ext == "csv" || src_ext == "json") {
-		Ref<FileAccess> f = FileAccess::open(tokens[i].path, FileAccess::READ, &tokens[i].err);
-		ERR_FAIL_COND_MSG(f.is_null(), "Failed to open file " + tokens[i].path);
-		uint64_t file_len = f->get_length();
-		if (file_len == 0) {
-			return;
-		}
-		Vector<uint8_t> file_buf;
-		file_buf.resize(file_len);
-		f->get_buffer(file_buf.ptrw(), file_len);
-		// check first 8000 bytes for null bytes
-		for (uint64_t j = 0; j < MIN(file_len, 8000ULL); j++) {
-			if (file_buf[j] == 0) {
-				return;
-			}
-		}
-		if (!gdre::detect_utf8(file_buf)) {
-			return;
-		}
-
 	} else if (src_ext == "po" || src_ext == "mo") {
 		Ref<TranslationPO> res = ResourceCompatLoader::custom_load(tokens[i].path, "", ResourceInfo::LoadType::REAL_LOAD, &tokens[i].err, false, ResourceFormatLoader::CACHE_MODE_IGNORE);
 		if (res.is_null()) {
