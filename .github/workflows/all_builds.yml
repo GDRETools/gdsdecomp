@@ -198,7 +198,7 @@ jobs:
         uses: ./.github/actions/godot-build
         if: matrix.platform == 'macos' && matrix.target == 'template_release'
         with:
-          scons-flags: arch=arm64 ${{ env.SCONSFLAGS }} ${{ env.SCONSFLAGS_TEMPLATE }} ${{ matrix.sconsflags }}
+          scons-flags: arch=arm64 ${{ env.SCONSFLAGS }} ${{ env.SCONSFLAGS_TEMPLATE }} ${{ matrix.sconsflags }} generate_bundle=yes
           platform: ${{ matrix.platform }}
           target: template_release
 
@@ -214,18 +214,12 @@ jobs:
 
       - name: Make macOS template
         if: matrix.platform == 'macos' && matrix.target == 'template_release'
+        # generate_bundle lipos the template binaries and generates the bundle, so we don't have to do anything here
         run: |
-          cp -R "misc/dist/macos_template.app" "bin/"
-          mkdir -p "bin/macos_template.app/Contents/MacOS"
-          lipo -create bin/godot.macos.template_release.x86_64 bin/godot.macos.template_release.arm64 -output bin/godot.macos.template_release.universal
-          cp "bin/godot.macos.template_release.universal" "bin/macos_template.app/Contents/MacOS/godot_macos_debug.universal"
-          cp "bin/godot.macos.template_release.universal" "bin/macos_template.app/Contents/MacOS/godot_macos_release.universal"
-          cp "bin/libGodotMonoDecompNativeAOT.dylib" "bin/macos_template.app/Contents/MacOS/libGodotMonoDecompNativeAOT.dylib"
           cd bin/
           zip -r9 "macos.zip" "macos_template.app/"
-          rm -f godot.macos.template_release.universal
-          rm -f godot.macos.template_release.x86_64
-          rm -f godot.macos.template_release.arm64
+          rm -f libGodotMonoDecompNativeAOT.dylib
+          rm -f godot.macos.template_release.*
           rm -rf "macos_template.app/"
           cd ..
 

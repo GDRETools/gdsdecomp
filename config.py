@@ -2,6 +2,9 @@ def can_build(env, platform):
     return True
 
 import methods
+import os
+import sys
+import shutil
 
 
 # A terrible hack to force-enable our dependent modules being included on non-editor builds.
@@ -30,9 +33,49 @@ def monkey_patch_sort_module_list():
     methods.sort_module_list = sort_module_list
 
 
+# A hack to have "generate_bundle" copy the library to the frameworks dir in the bundle
+def monkey_patch_macos_generate_bundle():
+    # get the current directory
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    platform_macos_builders_dir = os.path.abspath(os.path.join(current_dir, "../../platform/macos"))
+    sys.path.insert(0, platform_macos_builders_dir)
+    import platform_macos_builders
+
+    old_generate_bundle = platform_macos_builders.generate_bundle
+
+    def generate_bundle(target, source, env):
+        frameworks_dir = ""
+        if env.editor_build:
+            templ = env.Dir("#misc/dist/macos_tools.app").abspath
+            frameworks_dir = os.path.join(templ, "Contents/Frameworks")
+        else:
+            templ = env.Dir("#misc/dist/macos_template.app").abspath
+            frameworks_dir = os.path.join(templ, "Contents/Frameworks")
+        remove_fw_dir = False
+        if not os.path.isdir(frameworks_dir):
+            remove_fw_dir = True
+            os.mkdir(frameworks_dir)
+        # Copy frameworks
+        monolib = env.Dir("#bin").abspath + "/libGodotMonoDecompNativeAOT.dylib"
+        shutil.copy(monolib, frameworks_dir + "/libGodotMonoDecompNativeAOT.dylib")
+        # run the original generate_bundle
+        old_generate_bundle(target, source, env)
+        # remove the library from the frameworks dir
+        os.remove(frameworks_dir + "/libGodotMonoDecompNativeAOT.dylib")
+        if remove_fw_dir:
+            os.rmdir(frameworks_dir)
+
+    platform_macos_builders.generate_bundle = generate_bundle
+
+    # remove the platform_macos_builders from the path
+    sys.path.remove(platform_macos_builders_dir)
+
+
 def configure(env):
     if not env.editor_build:
         monkey_patch_sort_module_list()
+    if env["platform"] == "macos":
+        monkey_patch_macos_generate_bundle()
 
 
 def get_doc_classes():
