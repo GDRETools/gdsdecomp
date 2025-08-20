@@ -45,13 +45,23 @@ int Main(string[] args)
 	// get the current time
 	var startTime = DateTime.Now;
 	// call the DecompileProject function
-	if (result.Value.WriteScriptInfo)
+	if (result.Value.DumpStrings || result.Value.WriteScriptInfo)
 	{
 		var files = Common.ListCSharpFiles(projectPath, false).ToList();
 		GodotModuleDecompiler decompiler = new GodotModuleDecompiler(assemblyPath, [.. files], referencePaths, settings);
-		var outputJson = Path.Join(outputDir, "godot_script_info.json");
 		Common.EnsureDir(outputDir);
-		decompiler.WriteWholeScriptInfo(outputJson);
+
+		if (result.Value.DumpStrings)
+		{
+			var outputStrings = Path.Join(outputDir, "godot_strings.txt");
+			Console.WriteLine($"Dumping strings to {outputStrings}");
+			decompiler.DumpStrings(outputStrings);
+		}
+		else
+		{
+			var outputJson = Path.Join(outputDir, "godot_script_info.json");
+			decompiler.WriteWholeScriptInfo(outputJson);
+		}
 	}
     int resultCode = Lib.DecompileProject(assemblyPath, outputCSProj, projectPath, referencePaths, settings);
     var timeTaken = DateTime.Now - startTime;
@@ -94,6 +104,9 @@ public class Options
 
 	[Option("write-script-info", Required = false, HelpText = "Write script info to a JSON file in the output directory.")]
 	public bool WriteScriptInfo { get; set; }
+	// dump strings option
+	[Option("dump-strings", Required = false, HelpText = "Dump all strings in the assembly to a text file in the output directory.")]
+	public bool DumpStrings { get; set; }
 
 	[Option("verbose", Required = false, HelpText = "Set output to verbose messages.")]
 	public bool Verbose { get; set; }

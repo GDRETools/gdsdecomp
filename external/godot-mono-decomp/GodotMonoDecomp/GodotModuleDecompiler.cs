@@ -703,6 +703,22 @@ public class GodotModuleDecompiler
 		}
 	}
 
+	public IEnumerable<ITypeDefinition> RecursiveGetNestedTypes(ITypeDefinition type)
+	{
+		if (type == null)
+		{
+			yield break;
+		}
+		foreach (var nestedType in type.NestedTypes)
+		{
+			yield return nestedType;
+			foreach (var subNestedType in RecursiveGetNestedTypes(nestedType))
+			{
+				yield return subNestedType;
+			}
+		}
+	}
+
 	public HashSet<string> GetAllStringsInModule()
 	{
 		var strings = new HashSet<string>();
@@ -714,11 +730,23 @@ public class GodotModuleDecompiler
 			var types = projectDecompiler.GetTypesToDecompile(module.Module).ToHashSet();
 			var decompiler = projectDecompiler.CreateDecompilerWithPartials(module.Module, types);
 			var typeDefs = decompiler.TypeSystem.GetAllTypeDefinitions();
+			var filteredTypeDefs = typeDefs.Where(t =>
+				t.ParentModule.AssemblyName == module.Name &&
+				types.Contains((TypeDefinitionHandle)t.MetadataToken)
+				).ToList();
+
+			var enums = filteredTypeDefs.Concat(filteredTypeDefs.SelectMany(RecursiveGetNestedTypes)).Where(t => t.GetAllBaseTypes().Any(b => b.FullName.Contains("System.Enum")));
+			// we want to add enum values because you can convert an enum to a string and then use it as a translation key
+			strings.AddRange(
+				enums
+					.SelectMany(t => Common.GetEnumValueNames(t)
+					));
+
 			var visitor = new StringCollectorVisitor(strings);
 			decompiler.DecompileTypes(types).AcceptVisitor(visitor);
 			strings.AddRange(module.fileMap.Keys.Select(f => "res://" + f));
 			strings.AddRange(
-				typeDefs.Where(t =>
+				filteredTypeDefs.Where(t =>
 						types.Contains((TypeDefinitionHandle)t.MetadataToken)
 						&& GodotStuff.IsGodotClass(t)
 					)
@@ -740,6 +768,19 @@ public class GodotModuleDecompiler
 		var allstrs = GetAllStringsInModule();
 		return allstrs.Select(s => Encoding.UTF32.GetBytes(s))
 			.Where(b => b.Length > 0);
+	}
+
+	public void DumpStrings(string outputFile)
+	{
+		var strings = GetAllStringsInModule();
+		using (var writer = new StreamWriter(outputFile, false, Encoding.UTF8))
+		{
+			foreach (var str in strings)
+			{
+				writer.WriteLine(str);
+			}
+		}
+		Console.WriteLine($"Dumped {strings.Count} strings to {outputFile}");
 	}
 
 
