@@ -28,6 +28,10 @@ def monkey_patch_sort_module_list():
         if not "astcenc" in env.module_list:
             env.module_list["astcenc"] = "modules/astcenc"
             # no need to run configure on etcpak
+        if not "tinyexr" in env.module_list:
+            env.module_list["tinyexr"] = "modules/tinyexr"
+        if not "xatlas_unwrap" in env.module_list:
+            env.module_list["xatlas_unwrap"] = "modules/xatlas_unwrap"
         return old_sort_module_list(env)
 
     methods.sort_module_list = sort_module_list
