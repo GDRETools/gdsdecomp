@@ -1872,10 +1872,17 @@ Error GDRESettings::load_pack_uid_cache(bool p_reset) {
 				if (old_path.simplify_path() == new_path.simplify_path()) {
 					// Sometimes uid caches have duplicate paths when paths were not simplified before saving; this is a workaround
 					new_path = new_path.simplify_path();
-				} else {
+				} else if (has_path_loaded(old_path)) {
+					if (!has_path_loaded(new_path)) { // had old path, but not new path
+						continue; // skip
+					}
+					// has both
 					WARN_PRINT("Duplicate ID found in cache: " + itos(E.second) + " -> " + old_path + "\nReplacing with: " + new_path);
-				}
+				} else if (!has_path_loaded(new_path)) { // has neither
+					WARN_PRINT("Duplicate ID found in cache: " + itos(E.second) + " -> " + old_path + "\nReplacing with: " + new_path);
+				} // else we have the new_path but not the old path
 			}
+
 			ResourceUID::get_singleton()->set_id(E.second, new_path);
 		} else {
 			ResourceUID::get_singleton()->add_id(E.second, E.first);
