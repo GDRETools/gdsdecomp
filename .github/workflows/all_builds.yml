@@ -70,7 +70,6 @@ jobs:
             target: editor
             sconsflags: debug_symbols=no tests=yes
             rust-arch: x86_64-unknown-linux-gnu
-            sconsflags-template: debug_symbols=no optimize=size use_lto=yes
             bin: ./bin/godot.linuxbsd.editor.x86_64
 
           # TODO: move into its own workflow
@@ -81,6 +80,16 @@ jobs:
           #   target: editor
           #   sconsflags: dev_build=yes debug_symbols=no tests=yes use_asan=yes use_ubsan=yes linker=gold
           #   bin: ./bin/godot.linuxbsd.editor.x86_64.san
+
+          # For testing the template builds
+          - name: "🐧 Linux Template Debug"
+            os: "ubuntu-22.04"
+            id: linux-template-debug
+            platform: linux
+            target: template_debug
+            sconsflags: debug_symbols=no tests=yes
+            rust-arch: x86_64-unknown-linux-gnu
+            bin: ./bin/godot.linuxbsd.template_debug.x86_64
 
           - name: "🐧 Linux Template Release"
             os: "ubuntu-22.04"
@@ -248,16 +257,25 @@ jobs:
         include:
           - name: "Windows"
             os: "windows-latest"
+            target: editor
             platform: windows
             bin: ./bin/godot.windows.editor.x86_64.exe
 
-          - name: "🐧 Linux"
+          - name: "🐧 Linux Editor"
             os: "ubuntu-24.04"
+            target: editor
             platform: linux
             bin: ./bin/godot.linuxbsd.editor.x86_64
 
+          - name: "🐧 Linux Template Debug"
+            os: "ubuntu-24.04"
+            target: template_debug
+            platform: linux
+            bin: ./bin/godot.linuxbsd.template_debug.x86_64
+
           - name: "🍎 macOS"
             os: "macos-latest"
+            target: editor
             platform: macos
             bin: ./bin/godot.macos.editor.arm64
 
@@ -282,7 +300,7 @@ jobs:
       - name: Download GDRE_tools artifacts
         uses: actions/download-artifact@v4
         with:
-          name: GDRE_tools-editor-${{ matrix.platform }}
+          name: GDRE_tools-${{ matrix.target }}-${{ matrix.platform }}
           path: bin
 
       - name: set permissions
