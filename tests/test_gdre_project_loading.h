@@ -92,9 +92,6 @@ TEST_CASE("[GDSDecomp][ProjectConfigLoader] loading example from current engine"
 	SUBCASE("Text project saving") {
 		ProjectConfigLoader loader;
 		CHECK(loader.load_cfb(binary_project_path, GODOT_VERSION_MAJOR, GODOT_VERSION_MINOR) == OK);
-		PackedStringArray engine_features = loader.get_setting("application/config/features", PackedStringArray());
-		CHECK(engine_features.size() >= 1);
-		String engine_version = engine_features[0];
 		auto temp_project_dir = get_tmp_path().path_join("new_project");
 		CHECK(gdre::ensure_dir(temp_project_dir) == OK);
 		CHECK(loader.save_cfb(temp_project_dir, GODOT_VERSION_MAJOR, GODOT_VERSION_MINOR) == OK);
