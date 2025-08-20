@@ -575,6 +575,12 @@ func _ready():
 			get_tree().quit()
 		)
 		return
+
+	var new_args = []
+	for arg in args:
+		if not arg.begins_with("--"):
+			new_args.append(arg)
+	args = new_args
 	var show_disclaimer = should_show_disclaimer()
 	show_disclaimer = show_disclaimer and len(args) == 0
 	if show_disclaimer:
@@ -1433,6 +1439,9 @@ func handle_cli(args: PackedStringArray) -> bool:
 		elif arg.begins_with("--pck-patch"):
 			main_cmds["pck-patch"] = true
 			pck_patch_pck = get_cli_abs_path(get_arg_value(arg))
+		elif arg.begins_with("--dump-resource-strings"):
+			GDREConfig.set_setting("Exporter/Translation/dump_resource_strings", true, true)
+			set_setting = true
 		elif arg.begins_with("--patch-file"):
 			var parsed_arg = get_arg_value(arg)
 			var patch_files = parsed_arg.split("=", false, 2)

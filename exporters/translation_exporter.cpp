@@ -1206,6 +1206,17 @@ struct KeyWorker {
 		if (!GDRESettings::get_singleton()->loaded_resource_strings()) {
 			GDRESettings::get_singleton()->load_all_resource_strings();
 			time_to_load_resource_strings = OS::get_singleton()->get_ticks_msec() - start_time;
+			if (GDREConfig::get_singleton()->get_setting("Exporter/Translation/dump_resource_strings", false)) {
+				GDRESettings::get_singleton()->get_resource_strings(resource_strings);
+				String dir = output_dir.path_join(".assets");
+				gdre::ensure_dir(dir);
+				Ref<FileAccess> f = FileAccess::open(dir.path_join("resource_strings.stringdump"), FileAccess::WRITE);
+				for (const auto &str : resource_strings) {
+					// put the bell character in there so that we have a separator between the resource strings
+					f->store_string(str + "\b\n");
+				}
+				f->close();
+			}
 		}
 		GDRESettings::get_singleton()->get_resource_strings(resource_strings);
 		DEBUG_SORT_INPUT(resource_strings);

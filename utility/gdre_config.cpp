@@ -221,9 +221,16 @@ Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 		memnew(GDREConfigSetting(
 				"Exporter/Translation/skip_loading_resource_strings",
 				"Skip loading resource strings",
-				"Skip loading resource strings from all resources during translation recovery",
+				"Skip loading resource strings from all resources during translation recovery.\nDon't enable this without a key hint file.",
 				false,
 				false,
+				true)),
+		memnew(GDREConfigSetting(
+				"Exporter/Translation/dump_resource_strings",
+				"Dump resource strings",
+				"Dump resource strings to a file",
+				false,
+				true,
 				true)),
 	};
 }

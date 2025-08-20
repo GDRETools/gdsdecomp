@@ -2251,19 +2251,30 @@ Error GDRESettings::load_translation_key_hint_file(const String &p_path) {
 	Vector<StringLoadToken> tokens = { { get_version_string(), p_path } };
 	// special handling for csv files; we only get the first column
 	auto &token = tokens.write[0];
-	if (p_path.get_extension().to_lower() == "csv") {
+	String ext = p_path.get_extension().to_lower();
+	if (ext == "csv" || ext == "stringdump") {
 		Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
 		ERR_FAIL_COND_V_MSG(f.is_null(), ERR_FILE_CANT_OPEN, "Failed to open file " + p_path);
 		String text = f->get_as_text();
-		Vector<String> lines = text.split("\n");
-		for (auto &line : lines) {
-			Vector<String> columns = line.split(",");
-			if (columns.size() > 0 && !columns[0].is_empty() && !columns[0].begins_with(TranslationExporter::MISSING_KEY_PREFIX)) {
-				token.strings.append(columns[0]);
+		if (ext == "csv") {
+			Vector<String> lines = text.split("\n");
+			for (auto &line : lines) {
+				Vector<String> columns = line.split(",");
+				if (columns.size() > 0 && !columns[0].is_empty() && !columns[0].begins_with(TranslationExporter::MISSING_KEY_PREFIX)) {
+					token.strings.append(columns[0]);
+				}
+			}
+
+			// append the whole file for the Partials stage just in case
+			token.strings.append(text);
+		} else { // stringdump
+			Vector<String> lines = text.split("\b\n");
+			for (auto &line : lines) {
+				if (!line.is_empty()) {
+					token.strings.append(line);
+				}
 			}
 		}
-		// append the whole file for the Partials stage just in case
-		token.strings.append(text);
 		f->close();
 	} else {
 		_do_string_load(0, tokens.ptrw());
