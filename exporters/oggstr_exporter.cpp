@@ -6,6 +6,7 @@
 #include "core/variant/variant.h"
 #include "modules/vorbis/audio_stream_ogg_vorbis.h"
 #include "utility/common.h"
+#include "utility/gdre_logger.h"
 
 Error OggStrExporter::get_data_from_ogg_stream(const String &real_src, const Ref<AudioStreamOggVorbis> &sample, Vector<uint8_t> &r_data) {
 	Ref<OggPacketSequence> packet_sequence = sample->get_packet_sequence();
@@ -154,7 +155,10 @@ Ref<ExportReport> OggStrExporter::export_resource(const String &output_dir, Ref<
 	// Implement the logic to export the Ogg Vorbis stream to the specified path
 	Ref<ExportReport> report = memnew(ExportReport(import_info, get_name()));
 	Ref<AudioStreamOggVorbis> sample;
+	// Doing this because Godot's ogg vorbis loader loves to spam errors about "invalid comments"
+	GDRELogger::set_thread_local_silent_errors(true);
 	Error err = _export_file(import_info->get_source_file(), dst_path, src_path, sample, import_info->get_ver_major());
+	GDRELogger::set_thread_local_silent_errors(false);
 	if (err != OK) {
 		report->set_error(err);
 		if (err == ERR_FILE_CORRUPT) {
