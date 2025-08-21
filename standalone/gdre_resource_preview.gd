@@ -81,10 +81,13 @@ func _reset():
 var previous_res_info_size = Vector2(0, 0)
 
 func load_texture(path):
-	if is_image(path.get_extension().to_lower()):
+	var ext = path.get_extension().to_lower()
+	if (ext == "image"):
+		%TextureRect.texture = ImageTexture.create_from_image(ResourceCompatLoader.real_load(path, "", ResourceFormatLoader.CACHE_MODE_IGNORE_DEEP))
+	elif (is_image(ext)):
 		%TextureRect.texture = ImageTexture.create_from_image(Image.load_from_file(path))
 	else:
-		%TextureRect.texture = ResourceCompatLoader.real_load(path, "", ResourceFormatLoader.CACHE_MODE_IGNORE_DEEP)
+		%TextureRect.texture = ResourceCompatLoader.real_load(path, "", ResourceFormatLoader.CACHE_MODE_IGNORE_DEEP) # TODO: handle other texture types
 	if (%TextureRect.texture == null):
 		return false
 	%TextureRect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -325,7 +328,7 @@ func is_binary_project_settings(path):
 	return path.get_file() == "project.binary" || path.get_file() == "engine.cfb"
 
 func is_image(ext, p_type = ""):
-	if (ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "svg" || ext == "webp" || ext == "bmp" || ext == "tga" || ext == "tiff" || ext == "hdr" || ext == "ico" || ext == "icns"):
+	if (ext == "image" || ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "svg" || ext == "webp" || ext == "bmp" || ext == "tga" || ext == "tiff" || ext == "hdr" || ext == "ico" || ext == "icns"):
 		return true
 	return false
 

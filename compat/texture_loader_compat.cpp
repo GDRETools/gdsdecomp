@@ -10,10 +10,12 @@
 #include "core/error/error_list.h"
 #include "core/error/error_macros.h"
 #include "core/io/file_access.h"
+#include "core/io/image_loader.h"
 #include "core/io/missing_resource.h"
 #include "core/variant/dictionary.h"
 #include "scene/resources/compressed_texture.h"
 #include "scene/resources/texture.h"
+#include "utility/gdre_settings.h"
 
 enum FormatBits {
 	FORMAT_MASK_IMAGE_FORMAT = (1 << 20) - 1,
@@ -1359,4 +1361,56 @@ Ref<Resource> LargeTextureConverterCompat::convert(const Ref<MissingResource> &r
 
 bool LargeTextureConverterCompat::handles_type(const String &p_type, int ver_major) const {
 	return p_type == "LargeTexture";
+}
+
+Ref<Resource> ResourceFormatLoaderCompatImage::load(const String &p_path, const String &p_original_path, Error *r_error, bool p_use_sub_threads, float *r_progress, CacheMode p_cache_mode) {
+	ResourceFormatLoaderImage loader;
+	return loader.load(p_path, p_original_path, r_error, p_use_sub_threads, r_progress, p_cache_mode);
+}
+
+void ResourceFormatLoaderCompatImage::get_recognized_extensions(List<String> *p_extensions) const {
+	p_extensions->push_back("image");
+}
+
+bool ResourceFormatLoaderCompatImage::handles_type(const String &p_type) const {
+	return p_type == "Image";
+}
+
+String ResourceFormatLoaderCompatImage::get_resource_type(const String &p_path) const {
+	return p_path.get_extension().to_lower() == "image" ? "Image" : String();
+}
+
+Ref<Resource> ResourceFormatLoaderCompatImage::custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
+	return load(p_path, p_original_path, r_error, use_threads, nullptr, p_cache_mode);
+}
+
+Ref<ResourceInfo> ResourceFormatLoaderCompatImage::get_resource_info(const String &p_path, Error *r_error) const {
+	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
+	if (f.is_null()) {
+		if (r_error) {
+			*r_error = ERR_CANT_OPEN;
+		}
+		return Ref<Resource>();
+	}
+
+	uint8_t header[4] = { 0, 0, 0, 0 };
+	f->get_buffer(header, 4);
+
+	bool unrecognized = header[0] != 'G' || header[1] != 'D' || header[2] != 'I' || header[3] != 'M';
+	if (unrecognized) {
+		if (r_error) {
+			*r_error = ERR_FILE_UNRECOGNIZED;
+		}
+		ERR_FAIL_V(Ref<Resource>());
+	}
+
+	String extension = f->get_pascal_string();
+	Ref<ResourceInfo> info;
+	info.instantiate();
+	info->type = "Image";
+	info->original_path = p_path;
+	info->resource_format = "Image";
+	info->ver_major = GDRESettings::get_singleton()->get_ver_major();
+	info->extra["extension"] = extension;
+	return info;
 }
