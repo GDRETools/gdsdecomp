@@ -458,7 +458,7 @@ func _ready():
 	RESOURCE_PREVIEW = %GdreResourcePreview
 	HSPLIT_CONTAINER = %HSplitContainer
 	SHOW_PREVIEW_BUTTON = %ShowResourcePreview
-
+	_init_error_dialog()
 	if isHiDPI:
 		# get_viewport().size *= 2.0
 		# get_viewport().content_scale_factor = 2.0
