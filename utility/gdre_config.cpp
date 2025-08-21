@@ -168,6 +168,11 @@ Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 				"",
 				"<NONE>",
 				true)),
+		memnew(GDREConfigSetting(
+				"Preview/use_scene_view_by_default",
+				"Use scene view by default",
+				"Use scene view by default instead of the text preview.\nWarning: Scene view is still experimental and certain scenes may cause the program to become unresponsive.",
+				false)),
 		memnew(GDREConfigSetting_BytecodeForceBytecodeRevision()),
 		memnew(GDREConfigSetting_LoadCustomBytecode()),
 		memnew(GDREConfigSetting(

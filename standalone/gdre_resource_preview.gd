@@ -1,7 +1,6 @@
 class_name GDREResourcePreview
 extends Control
 
-const ENABLE_SCENE_PREVIEW_BY_DEFAULT = false # TODO: enable this when we find a way to keep it from freezing
 const RESOURCE_INFO_TEXT_FORMAT = "[b]Path:[/b] %s\n[b]Type:[/b] %s\n[b]Format:[/b] %s"
 const IMAGE_FORMAT_NAME = [
 	"Lum8",
@@ -235,7 +234,7 @@ func load_resource(path: String) -> void:
 		error_opening = not load_texture(path)
 	elif (is_mesh(ext, current_resource_type)):
 		error_opening = not load_mesh(path)
-	elif (ENABLE_SCENE_PREVIEW_BY_DEFAULT and is_scene(ext, current_resource_type) and can_preview_scene()):
+	elif (GDREConfig.get_setting("Preview/use_scene_view_by_default", false) and is_scene(ext, current_resource_type) and can_preview_scene()):
 		error_opening = not load_scene(path)
 	else:
 		var type = %TextView.recognize(path)
