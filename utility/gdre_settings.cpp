@@ -2340,20 +2340,19 @@ void GDRESettings::_do_string_load(uint32_t i, StringLoadToken *tokens) {
 		} else {
 			gdre::get_strings_from_variant(res, tokens[i].strings, tokens[i].engine_version);
 		}
-		// We probably don't want to do this; cfg files are unlikely to have keys and we don't want to pollute the strings list with low-value possibles
-		// } else if (src_ext == "cfg") {
-		// 	// cfg file
-		// 	Ref<ConfigFile> cfg = memnew(ConfigFile);
-		// 	tokens[i].err = cfg->load(tokens[i].path);
-		// 	ERR_FAIL_COND_MSG(tokens[i].err, "Failed to load cfg file " + tokens[i].path);
-		// 	auto sections = cfg->get_sections();
-		// 	for (auto &section : sections) {
-		// 		tokens[i].strings.push_back(section);
-		// 		for (auto &key : cfg->get_section_keys(section)) {
-		// 			tokens[i].strings.push_back(key);
-		// 			gdre::get_strings_from_variant(cfg->get_value(section, key), tokens[i].strings, tokens[i].engine_version);
-		// 		}
-		// 	}
+	} else if (src_ext == "cfg" || src_ext == "ini") {
+		// cfg file
+		Ref<ConfigFile> cfg = memnew(ConfigFile);
+		tokens[i].err = cfg->load(tokens[i].path);
+		ERR_FAIL_COND_MSG(tokens[i].err, "Failed to load cfg file " + tokens[i].path);
+		auto sections = cfg->get_sections();
+		for (auto &section : sections) {
+			tokens[i].strings.push_back(section);
+			for (auto &key : cfg->get_section_keys(section)) {
+				tokens[i].strings.push_back(key);
+				gdre::get_strings_from_variant(cfg->get_value(section, key), tokens[i].strings, tokens[i].engine_version);
+			}
+		}
 	} else {
 		// non-resource text file, ensure that it's actually text
 		Ref<FileAccess> f = FileAccess::open(tokens[i].path, FileAccess::READ, &tokens[i].err);
@@ -2374,7 +2373,7 @@ void GDRESettings::_do_string_load(uint32_t i, StringLoadToken *tokens) {
 		if (!gdre::detect_utf8(file_buf)) {
 			return;
 		}
-		if (src_ext == "csv") {
+		if (src_ext == "csvdb" || src_ext == "csv") {
 			// use the built-in CSV parser
 			f->seek(0);
 			// get the first line
@@ -2458,6 +2457,8 @@ void GDRESettings::load_all_resource_strings() {
 		wildcards.push_back("*.gde");
 	}
 	wildcards.push_back("*.csv");
+	wildcards.push_back("*.ini");
+	wildcards.push_back("*.csvdb");
 	wildcards.push_back("*.json");
 	wildcards.push_back("*.txt");
 	wildcards.push_back("*.yml");
