@@ -918,6 +918,7 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 				line += "class ";
 			} break;
 			case G_TK_PR_CLASS_NAME: {
+				ensure_space_func();
 				line += "class_name ";
 			} break;
 			case G_TK_PR_EXTENDS: {
