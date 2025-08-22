@@ -1,7 +1,8 @@
 #pragma once
 #include "test_common.h"
-#include "tests/test_macros.h"
+
 #include "core/io/image.h"
+#include "tests/test_macros.h"
 #include "utility/image_saver.h"
 
 TEST_CASE("[GDSDecomp][ImageSaver] Test saving images") {
