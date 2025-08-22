@@ -475,6 +475,148 @@ String OptimizedTranslationExtractor::get_message_str(const char *p_src_text) co
 	}
 }
 
+const OptimizedTranslationExtractor::Bucket::Elem *OptimizedTranslationExtractor::get_bucket_elem(const char *p_key) const {
+	int htsize = hash_table.size();
+
+	if (htsize == 0) {
+		return nullptr;
+	}
+
+	uint32_t h = hash(0, p_key);
+
+	const int *htr = hash_table.ptr();
+	const uint32_t *htptr = (const uint32_t *)&htr[0];
+	const int *btr = bucket_table.ptr();
+	const uint32_t *btptr = (const uint32_t *)&btr[0];
+
+	uint32_t p = htptr[h % htsize];
+
+	if (p == 0xFFFFFFFF) {
+		return nullptr; //nothing
+	}
+
+	const Bucket &bucket = *(const Bucket *)&btptr[p];
+
+	h = hash(bucket.func, p_key);
+
+	int idx = -1;
+
+	for (int i = 0; i < bucket.size; i++) {
+		if (bucket.elem[i].key == h) {
+			idx = i;
+			break;
+		}
+	}
+
+	if (idx == -1) {
+		return nullptr;
+	}
+
+	return &bucket.elem[idx];
+}
+
+OptimizedTranslationExtractor::Bucket::Elem *OptimizedTranslationExtractor::get_bucket_elem(const char *p_key) {
+	int htsize = hash_table.size();
+
+	if (htsize == 0) {
+		return nullptr;
+	}
+
+	uint32_t h = hash(0, p_key);
+
+	const int *htr = hash_table.ptr();
+	const uint32_t *htptr = (const uint32_t *)&htr[0];
+	int *btr = bucket_table.ptrw();
+	uint32_t *btptr = (uint32_t *)&btr[0];
+
+	uint32_t p = htptr[h % htsize];
+
+	if (p == 0xFFFFFFFF) {
+		return nullptr; //nothing
+	}
+
+	Bucket &bucket = *(Bucket *)&btptr[p];
+
+	h = hash(bucket.func, p_key);
+
+	int idx = -1;
+
+	for (int i = 0; i < bucket.size; i++) {
+		if (bucket.elem[i].key == h) {
+			idx = i;
+			break;
+		}
+	}
+
+	if (idx == -1) {
+		return nullptr;
+	}
+
+	return &bucket.elem[idx];
+}
+
+void OptimizedTranslationExtractor::replace_message_in_elem(Bucket::Elem *p_elem, const String &p_message) {
+	CharString p_message_cs = p_message.utf8();
+
+	p_elem->str_offset = strings.size();
+	p_elem->comp_size = p_message_cs.size();
+	p_elem->uncomp_size = p_message_cs.size();
+	int64_t new_size = strings.size() + p_message_cs.size();
+	strings.resize_uninitialized(new_size);
+	memcpy(strings.ptrw() + strings.size(), p_message_cs.get_data(), p_message_cs.size());
+	DEV_ASSERT(strings[new_size - 1] == 0);
+}
+
+Error OptimizedTranslationExtractor::replace_message(const String &p_key, const String &p_message) {
+	if (hash_table.size() == 0) {
+		return ERR_INVALID_DATA;
+	}
+
+	CharString p_key_cs = p_key.utf8();
+	const char *p_src_text = p_key_cs.get_data();
+
+	auto bucket_elem = get_bucket_elem(p_src_text);
+	if (!bucket_elem) {
+		return ERR_INVALID_PARAMETER;
+	}
+
+	replace_message_in_elem(bucket_elem, p_message);
+	return OK;
+}
+
+Error OptimizedTranslationExtractor::replace_message_at_index(int p_index, const String &p_message) {
+	if (hash_table.size() == 0) {
+		return ERR_INVALID_DATA;
+	}
+
+	const int *htr = hash_table.ptr();
+	const uint32_t *htptr = (const uint32_t *)&htr[0];
+	int *btr = bucket_table.ptrw();
+	uint32_t *btptr = (uint32_t *)&btr[0];
+	int idx = 0;
+
+	for (int i = 0; i < hash_table.size(); i++) {
+		uint32_t p = htptr[i];
+		if (p != 0xFFFFFFFF) {
+			Bucket &bucket = *(Bucket *)&btptr[p];
+			for (int j = 0; j < bucket.size; j++) {
+				if (idx != p_index) {
+					idx++;
+					continue;
+				}
+				auto bucket_elem = &bucket.elem[j];
+				replace_message_in_elem(bucket_elem, p_message);
+				return OK;
+			}
+		}
+	}
+	return ERR_INVALID_PARAMETER;
+}
+
+String OptimizedTranslationExtractor::get_save_class() const {
+	return "OptimizedTranslation";
+}
+
 Ref<OptimizedTranslationExtractor> OptimizedTranslationExtractor::create_from(const Ref<OptimizedTranslation> &p_otr) {
 	Ref<OptimizedTranslationExtractor> ote;
 	ote.instantiate();

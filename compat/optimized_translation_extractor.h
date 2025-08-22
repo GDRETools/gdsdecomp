@@ -2,7 +2,6 @@
 #define __OPTIMIZED_TRANSLATION_EXTRACTOR_H__
 
 #include "core/string/optimized_translation.h"
-#include "utility/macros.h"
 
 class OptimizedTranslationExtractor : public Translation {
 	GDCLASS(OptimizedTranslationExtractor, Translation);
@@ -36,6 +35,10 @@ class OptimizedTranslationExtractor : public Translation {
 		return d;
 	}
 
+	const Bucket::Elem *get_bucket_elem(const char *p_key) const;
+	Bucket::Elem *get_bucket_elem(const char *p_key);
+	void replace_message_in_elem(Bucket::Elem *p_elem, const String &p_message);
+
 protected:
 	bool _set(const StringName &p_name, const Variant &p_value);
 	bool _get(const StringName &p_name, Variant &r_ret) const;
@@ -58,8 +61,10 @@ public:
 	String get_message_str(const StringName &p_src_text) const;
 	String get_message_str(const String &p_src_text) const;
 	String get_message_str(const char *p_src_text) const;
+	Error replace_message(const String &p_key, const String &p_message);
+	Error replace_message_at_index(int p_index, const String &p_message);
+	String get_save_class() const override;
 	static Ref<OptimizedTranslationExtractor> create_from(const Ref<OptimizedTranslation> &p_otr);
 	OptimizedTranslationExtractor() {}
 };
-CHECK_SIZE_MATCH_NO_PADDING(OptimizedTranslationExtractor, OptimizedTranslation);
 #endif // __OPTIMIZED_TRANSLATION_EXTRACTOR_H__
