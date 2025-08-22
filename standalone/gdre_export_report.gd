@@ -23,7 +23,7 @@ var _is_test:bool = false
 var report: ImportExporterReport = null
 
 const skippable_keys: PackedStringArray = ["rewrote_metadata", "failed_rewrite_md5"]
-
+const DEFAULT_ASSETS_NOTE_TEXT: String = "Certain assets have been written to the .assets directory!"
 
 signal report_done()
 
@@ -198,6 +198,16 @@ func add_report_sections(report_sections: Dictionary, report_labels: Dictionary)
 		if skippable_keys.has(key):
 			continue
 		var section:Variant = report_sections[key]
+		if (key == "failed_rewrite_md"):
+			if section.size() == 0:
+				%AssetsNote.visible = false
+			else:
+				var txt = DEFAULT_ASSETS_NOTE_TEXT
+				# replace ".assets" with a url to the assets directory
+				txt = txt.replace(".assets", "[url=" + path_to_uri(recovery_folder + "/.assets") + "].assets[/url]")
+				%AssetsNote.text = txt
+				%AssetsNote.visible = true
+				continue
 		var header_item = TOTALS_TREE.create_item(report_root)
 		header_item.set_text(0, report_labels.get(key, key))
 		# check that section is actually a dictionary
@@ -248,6 +258,7 @@ func clear():
 	EDITOR_MESSAGE_LABEL.text = editor_message_default_text
 	LOG_FILE_LABEL.text = log_file_default_text
 	report = null
+	%AssetsNote.visible = false
 
 func close():
 	_exit_tree()
@@ -464,3 +475,8 @@ var TEST_REPORT = {
 
  }
 }
+
+
+func _on_assets_note_meta_clicked(meta: Variant) -> void:
+	OS.shell_open(meta)
+	pass # Replace with function body.

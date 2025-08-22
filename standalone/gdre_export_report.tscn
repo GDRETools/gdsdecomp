@@ -243,5 +243,6 @@ theme_override_styles/separator = SubResource("StyleBoxEmpty_jnjsh")
 [connection signal="close_requested" from="." to="." method="_close_requested"]
 [connection signal="meta_clicked" from="Control/parentVBOX/VBoxContainer/HBoxContainer/VBoxText/LogFileLabel" to="." method="_on_click_uri"]
 [connection signal="meta_clicked" from="Control/parentVBOX/VBoxContainer/HBoxContainer/VBoxText/EditorMessageLabel" to="." method="_on_click_uri"]
+[connection signal="meta_clicked" from="Control/parentVBOX/VBoxContainer/HBoxContainer/VBoxText/AssetsNote" to="." method="_on_assets_note_meta_clicked"]
 [connection signal="pressed" from="Control/parentVBOX/HBoxContainer/OpenFolderButton" to="." method="_open_folder"]
 [connection signal="pressed" from="Control/parentVBOX/HBoxContainer/OKButton" to="." method="close"]
