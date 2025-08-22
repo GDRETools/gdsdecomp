@@ -77,7 +77,7 @@ public:
 		bool high_priority = false;
 		WorkerThreadPool::GroupID group_id = -1;
 		WorkerThreadPool::TaskID task_id = WorkerThreadPool::TaskID(-1);
-		std::atomic<int64_t> last_completed = -1;
+		std::atomic<int64_t> last_completed = 0;
 		int progress_start = 0;
 
 	public:
@@ -116,7 +116,7 @@ public:
 			if (elements == 0) {
 				return "<UNKNOWN>";
 			}
-			return (instance->*task_step_desc_callback)(last_completed > 0 ? (int)last_completed : 0, userdata);
+			return (instance->*task_step_desc_callback)(last_completed < elements ? (int)last_completed : elements - 1, userdata);
 		}
 
 		void start_internal() override {
@@ -155,7 +155,7 @@ public:
 
 		bool is_done() const override {
 			if (runs_current_thread) {
-				return last_completed >= elements - 1;
+				return last_completed >= elements;
 			} else if (group_id != -1) {
 				return WorkerThreadPool::get_singleton()->is_group_task_completed(group_id);
 			} else if (task_id != -1) {
