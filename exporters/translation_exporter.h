@@ -11,6 +11,7 @@ public:
 
 	static constexpr const char *const EXPORTER_NAME = "Translation";
 	static constexpr const char *const MISSING_KEY_PREFIX = "<!MissingKey:";
+	static constexpr const char *const MISSING_KEY_FORMAT = "<!MissingKey:%d:%s>";
 
 	virtual Error export_file(const String &out_path, const String &res_path) override;
 	virtual Ref<ExportReport> export_resource(const String &output_dir, Ref<ImportInfo> import_infos) override;
