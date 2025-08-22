@@ -195,21 +195,21 @@ jobs:
           target: editor
 
       - name: Compile godot export template (x86_64)
-        if: matrix.target == 'template_release'
+        if: matrix.target == 'template_release' || matrix.target == 'template_debug'
         id: compile-template
         uses: ./.github/actions/godot-build
         with:
           scons-flags: arch=x86_64 ${{ env.SCONSFLAGS }} ${{ env.SCONSFLAGS_TEMPLATE }} ${{ matrix.sconsflags }}
           platform: ${{ matrix.platform }}
-          target: template_release
+          target: ${{ matrix.target }}
 
       - name: Compile godot export template for macos arm64
         uses: ./.github/actions/godot-build
-        if: matrix.platform == 'macos' && matrix.target == 'template_release'
+        if: matrix.platform == 'macos' && (matrix.target == 'template_release' || matrix.target == 'template_debug')
         with:
           scons-flags: arch=arm64 ${{ env.SCONSFLAGS }} ${{ env.SCONSFLAGS_TEMPLATE }} ${{ matrix.sconsflags }} generate_bundle=yes
           platform: ${{ matrix.platform }}
-          target: template_release
+          target: ${{ matrix.target }}
 
       - name: Save Godot build cache
         # if: success() || (steps.restore-cache.outputs.cache-hit == 'false' && (steps.compile-editor.outcome != 'skipped' || steps.compile-template.outcome != 'skipped'))
