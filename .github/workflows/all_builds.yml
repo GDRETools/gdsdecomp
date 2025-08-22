@@ -226,10 +226,9 @@ jobs:
         # generate_bundle lipos the template binaries and generates the bundle, so we don't have to do anything here
         run: |
           cd bin/
-          zip -r9 "macos.zip" "macos_template.app/"
+          mv godot_macos.zip macos.zip
           rm -f libGodotMonoDecompNativeAOT.dylib
           rm -f godot.macos.template_release.*
-          rm -rf "macos_template.app/"
           cd ..
 
       - uses: actions/upload-artifact@v4
