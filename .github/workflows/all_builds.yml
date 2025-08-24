@@ -306,6 +306,7 @@ jobs:
         shell: bash
         run: |
           chmod a+x bin/godot*
+          mkdir -p ~/.cache/godot
 
       - name: run tests
         shell: bash
