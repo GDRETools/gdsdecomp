@@ -2916,12 +2916,14 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 	for (auto &scene : scenes) {
 		Ref<ExportReport> report = ResourceExporter::_check_for_existing_resources(scene);
 		if (report.is_valid()) {
+			// No extant resources to export
 			report->set_exporter(get_name());
 			reports.push_back(report);
 			continue;
 		}
 		String ext = scene->get_export_dest().get_extension().to_lower();
 		if (_check_unsupported(scene->get_ver_major(), ext == "escn" || ext == "tscn")) {
+			// Unsupported version
 			report = memnew(ExportReport(scene, get_name()));
 			_set_unsupported(report, scene->get_ver_major(), ext == "obj");
 			reports.push_back(report);
@@ -3044,21 +3046,21 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 				token->batch_export_instanced_scene();
 			}
 			// Don't load more than the current number of tasks being processed
-			auto start_tick = OS::get_singleton()->get_ticks_usec();
 			_get_vram_usage();
 			while (BatchExportToken::in_progress >= number_of_threads ||
 					(BatchExportToken::in_progress > 0 &&
 							((int64_t)OS::get_singleton()->get_static_memory_usage() > max_usage ||
 									current_vram_usage > MAX_VRAM))) {
+				auto start_tick = OS::get_singleton()->get_ticks_usec();
 				if (TaskManager::get_singleton()->update_progress_bg(true)) {
 					break;
 				}
+				_get_vram_usage();
 				auto cur_tick = OS::get_singleton()->get_ticks_usec();
 				auto delta = cur_tick - start_tick;
 				if (delta < 10000 && delta > 1000) {
-					OS::get_singleton()->delay_usec(delta);
+					OS::get_singleton()->delay_usec(10000 - delta);
 				}
-				_get_vram_usage();
 			}
 			// calling update_progress_bg serves three purposes:
 			// 1) updating the progress bar

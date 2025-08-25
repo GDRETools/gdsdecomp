@@ -13,7 +13,6 @@ var RESOURCE_PREVIEW: Control = null
 var HSPLIT_CONTAINER: HSplitContainer = null
 var SHOW_PREVIEW_BUTTON: Button = null
 var DESKTOP_DIR = OS.get_system_dir(OS.SystemDir.SYSTEM_DIR_DESKTOP)
-var ERROR_DIALOG: AcceptDialog = null
 
 var isHiDPI = false #DisplayServer.screen_get_dpi() >= 240
 var root: TreeItem = null
@@ -51,43 +50,6 @@ func show_win():
 	set_exclusive(true)
 	self.popup_centered()
 
-static var void_func: Callable = func(): return
-func _init_error_dialog():
-	if (ERROR_DIALOG == null):
-		ERROR_DIALOG = AcceptDialog.new()
-	if (not ERROR_DIALOG.is_inside_tree()):
-		self.add_child(ERROR_DIALOG)
-	pass
-
-static func popup_box(parent_window: Node, dialog: AcceptDialog, message: String, box_title: String, confirm_func: Callable = void_func, cancel_func: Callable = void_func):
-	if (dialog == null):
-		dialog = AcceptDialog.new()
-	if (dialog.get_parent() != parent_window):
-		if (dialog.get_parent() == null):
-			parent_window.add_child(dialog)
-		else:
-			dialog.reparent(parent_window)
-	dialog.reset_size()
-	dialog.set_text(message)
-	dialog.set_title(box_title)
-	var _confirm_func: Callable
-	var _cancel_func: Callable
-	var arr = dialog.get_signal_connection_list("confirmed")
-	for dict in arr:
-		dialog.disconnect("confirmed", dict.callable)
-	arr = dialog.get_signal_connection_list("canceled")
-	for dict in arr:
-		dialog.disconnect("canceled", dict.callable)
-	dialog.connect("confirmed", confirm_func)
-	dialog.connect("canceled", cancel_func)
-	dialog.popup_centered()
-
-
-func popup_error_box(message: String, box_title: String, call_func: Callable = void_func):
-	if not ERROR_DIALOG:
-		_init_error_dialog()
-	return popup_box(self, ERROR_DIALOG, message, box_title, call_func, call_func)
-	# return dialog
 
 
 func extract_file(file: String, output_dir: String, dir_structure: DirStructure, rel_base: String) -> String:
@@ -458,7 +420,6 @@ func _ready():
 	RESOURCE_PREVIEW = %GdreResourcePreview
 	HSPLIT_CONTAINER = %HSplitContainer
 	SHOW_PREVIEW_BUTTON = %ShowResourcePreview
-	_init_error_dialog()
 	if isHiDPI:
 		# get_viewport().size *= 2.0
 		# get_viewport().content_scale_factor = 2.0

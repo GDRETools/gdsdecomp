@@ -136,8 +136,6 @@ Error ObjExporter::_write_meshes_to_obj(const Vector<Ref<Mesh>> &p_meshes, const
 	bool wrote_mtl_line = false;
 	String mtl_path = p_path.get_basename() + ".mtl";
 
-	f->store_line("# Exported from Godot Engine");
-
 	// Build global triplet list and face indices
 	const Color default_color = Color(1.0, 1.0, 1.0);
 	for (auto p_mesh : p_meshes) {

@@ -2886,7 +2886,9 @@ void GDRESettings::_clear_shader_globals() {
 		if (!shader_globals.is_empty()) {
 			for (const auto &E : shader_globals) {
 				String key = "shader_globals/" + String(E.key);
-				ProjectSettings::get_singleton()->clear(key);
+				if (ProjectSettings::get_singleton()->has_setting(key)) {
+					ProjectSettings::get_singleton()->clear(key);
+				}
 			}
 			if (RenderingServer::get_singleton()) {
 				RenderingServer::get_singleton()->global_shader_parameters_load_settings(true);

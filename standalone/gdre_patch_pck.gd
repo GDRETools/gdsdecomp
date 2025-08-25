@@ -41,7 +41,7 @@ var _is_test:bool = false
 
 signal patch_pck_done()
 # file_map is from -> to, i.e. /path/to/file -> res://file
-signal do_patch_pck(dest_pck: String, file_map: Dictionary[String, String]);
+signal do_patch_pck(dest_pck: String, file_map: Dictionary[String, String], should_embed: bool);
 
 enum PatchTreeButton{
 	SELECT,
@@ -418,7 +418,7 @@ func _do_save(path: String):
 	for file in pck_files:
 		if not (reverse_map.has(file) or reverse_map.has(file.trim_prefix("res://"))):
 			file_map[file] = file
-	emit_signal("do_patch_pck", path, file_map)
+	emit_signal("do_patch_pck", path, file_map, should_embed())
 
 
 func add_item_to_drop_list(list: Tree, file: String, file_path: String, mapping: String) -> void:

@@ -950,4 +950,5 @@ void GDRECommon::_bind_methods() {
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("open_encrypted_v3", "path", "mode", "key"), &gdre::open_encrypted_v3);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("filter_error_backtraces", "error_messages"), &gdre::filter_error_backtraces);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_files_for_paths", "paths"), &gdre::get_files_for_paths);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("rimraf", "path"), &gdre::rimraf);
 }
