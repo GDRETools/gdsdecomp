@@ -42,8 +42,8 @@ void GDREWindow::popup_box(Node *p_parent, Window *p_box, const String &p_messag
 		p_box->connect("confirmed", act_confirmed_callback);
 	}
 	if (!p_cancel_callback.is_null()) {
-		auto act_cancelled_callback = callable_mp_static(&internal::callback_func).bind(p_box, "cancelled", p_cancel_callback);
-		p_box->connect("cancelled", act_cancelled_callback);
+		auto act_cancelled_callback = callable_mp_static(&internal::callback_func).bind(p_box, "canceled", p_cancel_callback);
+		p_box->connect("canceled", act_cancelled_callback);
 	}
 	// p_parent->add_child(p_box);
 	p_box->popup_centered();
