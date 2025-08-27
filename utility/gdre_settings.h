@@ -263,7 +263,6 @@ public:
 	uint32_t get_ver_minor() const;
 	uint32_t get_ver_rev() const;
 	uint32_t get_file_count() const;
-	void set_ver_rev(uint32_t p_rev);
 	String globalize_path(const String &p_path, const String &resource_path = "") const;
 	String localize_path(const String &p_path, const String &resource_path = "") const;
 	void set_project_path(const String &p_path);

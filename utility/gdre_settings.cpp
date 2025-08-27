@@ -332,18 +332,6 @@ uint32_t GDRESettings::get_file_count() const {
 	return count;
 }
 
-void GDRESettings::set_ver_rev(uint32_t p_rev) {
-	if (is_pack_loaded()) {
-		if (!has_valid_version()) {
-			current_project->version = Ref<GodotVer>(memnew(GodotVer(0, 0, p_rev)));
-		} else {
-			current_project->version->set_patch(p_rev);
-			if (current_project->version->get_build_metadata() == "x") {
-				current_project->version->set_build_metadata("");
-			}
-		}
-	}
-}
 void GDRESettings::set_project_path(const String &p_path) {
 	project_path = p_path;
 }
@@ -2681,15 +2669,22 @@ bool GDRESettings::_init_bytecode_from_ephemeral_settings() {
 }
 
 void GDRESettings::update_from_ephemeral_settings() {
-	if (_init_bytecode_from_ephemeral_settings() && is_pack_loaded()) {
+	if (!is_pack_loaded()) {
+		return;
+	}
+	int old_revision = current_project->bytecode_revision;
+	if (_init_bytecode_from_ephemeral_settings()) {
 		if (detect_bytecode_revision(!has_valid_version() || current_project->suspect_version) != OK) {
 			WARN_PRINT("Could not determine bytecode revision, not able to decompile scripts...");
 		} else {
-			load_pack_gdscript_cache(true);
-			_ensure_script_cache_complete();
+			// reload the cache if the revision changed after detection
+			if (old_revision != current_project->bytecode_revision) {
+				load_pack_gdscript_cache(true);
+				_ensure_script_cache_complete();
+			}
 		}
 	}
-	if (is_pack_loaded() && current_project->decompiler.is_valid()) {
+	if (current_project->decompiler.is_valid()) {
 		auto new_settings = GodotMonoDecompWrapper::GodotMonoDecompSettings::get_default_settings();
 		if (current_project->decompiler->set_settings(new_settings) != OK) {
 			ERR_PRINT("Failed to update decompiler settings, decompiler will be reset");
