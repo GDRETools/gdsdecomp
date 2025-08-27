@@ -561,9 +561,10 @@ void OptimizedTranslationExtractor::replace_message_in_elem(Bucket::Elem *p_elem
 	p_elem->str_offset = strings.size();
 	p_elem->comp_size = p_message_cs.size();
 	p_elem->uncomp_size = p_message_cs.size();
+	int64_t old_size = strings.size();
 	int64_t new_size = strings.size() + p_message_cs.size();
 	strings.resize_uninitialized(new_size);
-	memcpy(strings.ptrw() + strings.size(), p_message_cs.get_data(), p_message_cs.size());
+	memcpy(&strings.ptrw()[old_size], p_message_cs.get_data(), p_message_cs.size());
 	DEV_ASSERT(strings[new_size - 1] == 0);
 }
 
@@ -618,6 +619,7 @@ String OptimizedTranslationExtractor::get_save_class() const {
 }
 
 Ref<OptimizedTranslationExtractor> OptimizedTranslationExtractor::create_from(const Ref<OptimizedTranslation> &p_otr) {
+	ERR_FAIL_COND_V_MSG(p_otr.is_null(), Ref<OptimizedTranslationExtractor>(), "p_otr is null");
 	Ref<OptimizedTranslationExtractor> ote;
 	ote.instantiate();
 	ote->set("locale", p_otr->get("locale"));
