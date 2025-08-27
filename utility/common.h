@@ -186,6 +186,45 @@ TypedArray<T> vector_to_typed_array(const Vector<Ref<T>> &vec) {
 	return arr;
 }
 
+template <class K, class V, std::enable_if_t<!std::is_base_of_v<RefCounted, K> && !std::is_base_of_v<RefCounted, V>> * = nullptr>
+HashMap<K, V> typed_dict_to_hashmap(const TypedDictionary<K, V> &dict) {
+	HashMap<K, V> map;
+	for (const auto &E : dict) {
+		map[E.key] = E.value;
+	}
+	return map;
+}
+
+// enable this one if K is a Ref<T> and V is not a Ref<T>
+template <class K, class V, std::enable_if_t<std::is_base_of_v<RefCounted, K> && !std::is_base_of_v<RefCounted, V>> * = nullptr>
+HashMap<Ref<K>, V> typed_dict_to_hashmap(const TypedDictionary<K, V> &dict) {
+	HashMap<Ref<K>, V> map;
+	for (const auto &E : dict) {
+		map[E.key] = E.value;
+	}
+	return map;
+}
+
+// enable this one if K is not a Ref<T> and V is a Ref<T>
+template <class K, class V, std::enable_if_t<!std::is_base_of_v<RefCounted, K> && std::is_base_of_v<RefCounted, V>> * = nullptr>
+HashMap<K, Ref<V>> typed_dict_to_hashmap(const TypedDictionary<K, Ref<V>> &dict) {
+	HashMap<K, Ref<V>> map;
+	for (const auto &E : dict) {
+		map[E.key] = E.value;
+	}
+	return map;
+}
+
+// enable if both K and V are derived from RefCounted
+template <class K, class V, std::enable_if_t<std::is_base_of_v<RefCounted, K> && std::is_base_of_v<RefCounted, V>> * = nullptr>
+HashMap<Ref<K>, Ref<V>> typed_dict_to_hashmap(const TypedDictionary<K, Ref<V>> &dict) {
+	HashMap<Ref<K>, Ref<V>> map;
+	for (const auto &E : dict) {
+		map[E.key] = E.value;
+	}
+	return map;
+}
+
 template <class K, class V>
 TypedDictionary<K, V> hashmap_to_typed_dict(const HashMap<K, V> &map) {
 	TypedDictionary<K, V> dict;
