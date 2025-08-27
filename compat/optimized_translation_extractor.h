@@ -9,6 +9,8 @@ class OptimizedTranslationExtractor : public Translation {
 	Vector<int> bucket_table;
 	Vector<uint8_t> strings;
 
+	String original_class = "OptimizedTranslation";
+
 	struct Bucket {
 		int size;
 		uint32_t func;
@@ -64,6 +66,7 @@ public:
 	Error replace_message(const String &p_key, const String &p_message);
 	Error replace_message_at_index(int p_index, const String &p_message);
 	String get_save_class() const override;
+	void set_original_class(const String &p_class);
 	static Ref<OptimizedTranslationExtractor> create_from(const Ref<OptimizedTranslation> &p_otr);
 	OptimizedTranslationExtractor() {}
 };

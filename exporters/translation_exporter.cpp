@@ -2440,13 +2440,20 @@ Error TranslationExporter::patch_translations(const String &output_dir, const St
 
 		String output_path = output_dir.path_join(dest_path.trim_prefix("res://"));
 
+		int ver_major = translation_info->get_ver_major();
+		int ver_minor = translation_info->get_ver_minor();
+		if (ver_major >= 4) {
+			extractor->set_original_class("OptimizedTranslation");
+		} else {
+			extractor->set_original_class("PHashTranslation");
+		}
 		err = gdre::ensure_dir(output_path.get_base_dir());
 		ERR_FAIL_COND_V_MSG(err != OK, err, "Could not ensure directory for " + output_path);
-		err = ResourceCompatLoader::save_custom(extractor, output_path, translation_info->get_ver_major(), translation_info->get_ver_minor());
+		err = ResourceCompatLoader::save_custom(extractor, output_path, ver_major, ver_minor);
 		ERR_FAIL_COND_V_MSG(err != OK, err, "Could not save translation file for " + locale);
 		r_file_map[output_path] = dest_path;
 #if DEBUG_ENABLED
-		err = ResourceCompatLoader::save_custom(extractor, output_path.get_basename() + ".tres", translation_info->get_ver_major(), translation_info->get_ver_minor());
+		err = ResourceCompatLoader::save_custom(extractor, output_path.get_basename() + ".tres", ver_major, ver_minor);
 #endif
 	}
 	translation_info->set_dest_files(dest_files);

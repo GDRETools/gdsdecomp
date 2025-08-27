@@ -615,7 +615,11 @@ Error OptimizedTranslationExtractor::replace_message_at_index(int p_index, const
 }
 
 String OptimizedTranslationExtractor::get_save_class() const {
-	return "OptimizedTranslation";
+	return original_class;
+}
+
+void OptimizedTranslationExtractor::set_original_class(const String &p_class) {
+	original_class = p_class;
 }
 
 Ref<OptimizedTranslationExtractor> OptimizedTranslationExtractor::create_from(const Ref<OptimizedTranslation> &p_otr) {
