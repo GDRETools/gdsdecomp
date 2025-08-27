@@ -1,10 +1,11 @@
-[gd_scene load_steps=18 format=3 uid="uid://el6o5uk15g2c"]
+[gd_scene load_steps=20 format=3 uid="uid://el6o5uk15g2c"]
 
 [ext_resource type="Theme" uid="uid://crq1fwn0ajw7b" path="res://gdre_theme.tres" id="1"]
 [ext_resource type="Script" uid="uid://bqpxqjfn2qt1g" path="res://gdre_main.gd" id="2"]
 [ext_resource type="Texture2D" uid="uid://drxn4ollkvprv" path="res://gdre_icons/gdre_Logo.svg" id="3_bc0t5"]
 [ext_resource type="Texture2D" uid="uid://bp8yf7a2dd6nu" path="res://gdre_icons/gdre_Pack.svg" id="4_nesr8"]
 [ext_resource type="Texture2D" uid="uid://b3l2iqhf34x5c" path="res://gdre_icons/gdre_LogoBig.svg" id="4_vsto2"]
+[ext_resource type="Texture2D" uid="uid://ditgs1iq4qkup" path="res://gdre_icons/gdre_Translation.svg" id="5_mjm1x"]
 [ext_resource type="Texture2D" uid="uid://bwlk10i2ftpri" path="res://gdre_icons/gdre_Script.svg" id="5_wms7f"]
 [ext_resource type="PackedScene" uid="uid://bvmc3vdlgqnse" path="res://gdre_new_pck.tscn" id="6_kct41"]
 [ext_resource type="Texture2D" uid="uid://d0rufkchgyodv" path="res://gdre_icons/gdre_ResOther.svg" id="6_ql2ay"]
@@ -16,6 +17,7 @@
 [ext_resource type="PackedScene" uid="uid://cnhcpronl4bps" path="res://gdre_compile.tscn" id="14_8cc8u"]
 [ext_resource type="PackedScene" uid="uid://bj0ic3tstm0sq" path="res://gdre_config_dialog.tscn" id="16_7bfsg"]
 [ext_resource type="PackedScene" uid="uid://bhxdw5q2etvki" path="res://gdre_export_report.tscn" id="16_htlpu"]
+[ext_resource type="PackedScene" uid="uid://8tgbmg7tg5ys" path="res://gdre_patch_translation.tscn" id="16_mjm1x"]
 
 [sub_resource type="ButtonGroup" id="ButtonGroup_x51e8"]
 
@@ -33,7 +35,7 @@ script = ExtResource("2")
 [node name="SetEncryptionKeyWindow" type="GDREWindow" parent="."]
 oversampling_override = 1.0
 title = "Set Encryption Key"
-position = Vector2i(144, 0)
+position = Vector2i(144, 24)
 size = Vector2i(800, 150)
 visible = false
 
@@ -139,13 +141,18 @@ popup/item_7/id = 4
 layout_mode = 2
 text = "PCK"
 icon = ExtResource("4_nesr8")
-item_count = 2
+item_count = 4
 popup/item_0/text = "Create PCK archive from folder... "
 popup/item_0/icon = ExtResource("4_nesr8")
 popup/item_0/id = 0
 popup/item_1/text = "Patch PCK archive..."
 popup/item_1/icon = ExtResource("4_nesr8")
 popup/item_1/id = 1
+popup/item_2/id = 2
+popup/item_2/separator = true
+popup/item_3/text = "Patch Translation..."
+popup/item_3/icon = ExtResource("5_mjm1x")
+popup/item_3/id = 3
 
 [node name="GDScriptMenu" type="MenuButton" parent="MenuContainer"]
 layout_mode = 2
@@ -252,6 +259,10 @@ visible = false
 unique_name_in_owner = true
 visible = false
 
+[node name="GdrePatchTranslation" parent="." instance=ExtResource("16_mjm1x")]
+unique_name_in_owner = true
+visible = false
+
 [node name="TextToBinFileDialog" type="FileDialog" parent="."]
 auto_translate_mode = 1
 title = "Open File(s)"
@@ -319,6 +330,7 @@ use_native_dialog = true
 [connection signal="save_pck_requested" from="GdreNewPck" to="." method="_on_new_pck_selected"]
 [connection signal="do_patch_pck" from="GdrePatchPck" to="." method="_on_gdre_patch_pck_do_patch_pck"]
 [connection signal="recovery_done" from="GdreRecover" to="." method="_on_recovery_done"]
+[connection signal="do_patch_pck" from="GdrePatchTranslation" to="." method="_on_gdre_patch_pck_do_patch_pck"]
 [connection signal="files_selected" from="TextToBinFileDialog" to="." method="_on_text_to_bin_file_dialog_files_selected"]
 [connection signal="files_selected" from="BinToTextFileDialog" to="." method="_on_bin_to_text_file_dialog_files_selected"]
 [connection signal="files_selected" from="TextureToPNGFileDialog" to="." method="_on_texture_file_dialog_files_selected"]

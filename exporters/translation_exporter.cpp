@@ -13,6 +13,7 @@
 #include "core/string/translation.h"
 #include "core/string/ustring.h"
 #include "modules/regex/regex.h"
+#include "utility/pcfg_loader.h"
 #include <cstdio>
 
 Error TranslationExporter::export_file(const String &out_path, const String &res_path) {
@@ -2066,13 +2067,19 @@ struct KeyWorker {
 	}
 };
 
-Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir, Ref<ImportInfo> iinfo) {
-	// Implementation for exporting resources related to translations
+inline String get_translation_locale(const Ref<Translation> &tr) {
+	String locale = tr->get_locale();
+	if (locale.is_empty()) {
+		locale = tr->get_path().get_basename().get_extension().to_lower();
+	}
+	return locale;
+}
+
+Error TranslationExporter::get_translations(Ref<ImportInfo> iinfo, String &default_locale, Ref<Translation> &default_translation, Vector<Ref<Translation>> &translations, Vector<String> &keys) {
 	Error export_err = OK;
-	// translation files are usually imported from one CSV and converted to multiple "<LOCALE>.translation" files
-	// TODO: make this also check for the first file in GDRESettings::get_singleton()->get_project_setting("internationalization/locale/translations")
+
 	const String locale_setting_key = GDRESettings::get_singleton()->get_ver_major() >= 4 ? "internationalization/locale/fallback" : "locale/fallback";
-	String default_locale = GDRESettings::get_singleton()->pack_has_project_config() && GDRESettings::get_singleton()->has_project_setting(locale_setting_key)
+	default_locale = GDRESettings::get_singleton()->pack_has_project_config() && GDRESettings::get_singleton()->has_project_setting(locale_setting_key)
 			? GDRESettings::get_singleton()->get_project_setting(locale_setting_key)
 			: "en";
 	auto dest_files = iinfo->get_dest_files();
@@ -2089,23 +2096,11 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 		default_locale = dest_files[0].get_basename().get_extension().to_lower();
 		has_default_translation = !default_locale.is_empty();
 	}
-	bl_debug("\n\n-----------------------------------------------------------");
-	bl_debug("Exporting translation file " + iinfo->get_export_dest());
-	Vector<Ref<Translation>> translations;
-	Vector<Vector<String>> translation_messages;
-	Ref<Translation> default_translation;
-	Vector<String> default_messages;
-	String header = "key";
-	Vector<String> keys;
-	Ref<ExportReport> report = memnew(ExportReport(iinfo, get_name()));
-	report->set_error(ERR_CANT_ACQUIRE_RESOURCE);
 	for (String path : dest_files) {
 		Ref<Translation> tr = ResourceCompatLoader::non_global_load(path, "", &export_err);
-		ERR_FAIL_COND_V_MSG(export_err != OK, report, "Could not load translation file " + iinfo->get_path());
-		ERR_FAIL_COND_V_MSG(!tr.is_valid(), report, "Translation file " + iinfo->get_path() + " was not valid");
-		String locale = tr->get_locale();
-		// TODO: put the default locale at the beginning
-		header += "," + locale;
+		ERR_FAIL_COND_V_MSG(export_err != OK, export_err, "Could not load translation file " + iinfo->get_path());
+		ERR_FAIL_COND_V_MSG(!tr.is_valid(), ERR_CANT_ACQUIRE_RESOURCE, "Translation file " + iinfo->get_path() + " was not valid");
+		String locale = get_translation_locale(tr);
 		if (tr->get_class_name() != "OptimizedTranslation") {
 			// We have a real translation class, get the keys
 			if (keys.size() == 0 && (!has_default_translation || locale.to_lower() == default_locale.to_lower())) {
@@ -2116,34 +2111,31 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 				}
 			}
 		}
-		Vector<String> messages = tr->get_translated_message_list();
 		if (locale.to_lower() == default_locale.to_lower() ||
 				// Some translations don't have the locale set, so we have to check the file name
 				(locale == "en" && path.get_basename().get_extension().to_lower() == default_locale.to_lower())) {
-			default_messages = messages;
 			default_translation = tr;
 		}
-		translation_messages.push_back(messages);
 		translations.push_back(tr);
 	}
-
+	ERR_FAIL_COND_V_MSG(translations.size() == 0, ERR_CANT_ACQUIRE_RESOURCE, "No translations found");
 	if (default_translation.is_null()) {
 		default_translation = translations[0];
-		default_messages = translation_messages[0];
 	}
 	// check default_messages for empty strings
 	size_t empty_strings = 0;
+	Vector<String> default_messages = default_translation->get_translated_message_list();
 	for (auto &message : default_messages) {
 		if (message.is_empty()) {
 			empty_strings++;
 		}
 	}
-	// if >20% of the strings are empty, this probably isn't the default translation; search the rest of the translations for a non-empty string
+	// if >20% of the strings are empty, this probably isn't the default translation; search the rest of the translations for non-empty strings
 	if (empty_strings > default_messages.size() * 0.2) {
 		size_t best_empty_strings = empty_strings;
 		for (int i = 0; i < translations.size(); i++) {
 			size_t empties = 0;
-			for (auto &message : translation_messages[i]) {
+			for (auto &message : translations[i]->get_translated_message_list()) {
 				if (message.is_empty()) {
 					empties++;
 				}
@@ -2151,10 +2143,34 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 			if (empties < best_empty_strings) {
 				best_empty_strings = empties;
 				default_translation = translations[i];
-				default_messages = translation_messages[i];
 			}
 		}
 	}
+	translations.erase(default_translation);
+	translations.insert(0, default_translation);
+
+	return OK;
+}
+
+Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir, Ref<ImportInfo> iinfo) {
+	Ref<ExportReport> report = memnew(ExportReport(iinfo, get_name()));
+	report->set_error(ERR_CANT_ACQUIRE_RESOURCE);
+
+	bl_debug("\n\n-----------------------------------------------------------");
+	bl_debug("Exporting translation file " + iinfo->get_export_dest());
+	String default_locale;
+	Vector<Ref<Translation>> translations;
+	Vector<String> keys;
+	Ref<Translation> default_translation;
+	report->set_error(get_translations(iinfo, default_locale, default_translation, translations, keys));
+	ERR_FAIL_COND_V_MSG(report->get_error() != OK, report, "Could not get translations");
+
+	Vector<String> default_messages = default_translation->get_translated_message_list();
+	Vector<Vector<String>> translation_messages;
+	for (auto &translation : translations) {
+		translation_messages.push_back(translation->get_translated_message_list());
+	}
+
 	// We can't recover the keys from Optimized translations, we have to guess
 	int missing_keys = 0;
 	bool is_optimized = keys.size() == 0;
@@ -2170,6 +2186,10 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 			}
 		}
 	}
+	String header = "key";
+	for (auto &translation : translations) {
+		header += "," + translation->get_locale();
+	}
 	header += "\n";
 	String export_dest = iinfo->get_export_dest();
 	// If greater than 15% of the keys are missing, we save the file to the export directory.
@@ -2181,11 +2201,11 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 		}
 	}
 	String output_path = output_dir.simplify_path().path_join(iinfo->get_export_dest().replace("res://", ""));
-	export_err = gdre::ensure_dir(output_path.get_base_dir());
-	ERR_FAIL_COND_V(export_err, report);
+	Error export_err = gdre::ensure_dir(output_path.get_base_dir());
+	ERR_FAIL_COND_V_MSG(export_err != OK, report, "Could not create directory " + output_path.get_base_dir());
 	Ref<FileAccess> f = FileAccess::open(output_path, FileAccess::WRITE, &export_err);
-	ERR_FAIL_COND_V(export_err, report);
-	ERR_FAIL_COND_V(f.is_null(), report);
+	ERR_FAIL_COND_V_MSG(export_err != OK, report, "Could not open file " + output_path);
+	ERR_FAIL_COND_V_MSG(f.is_null(), report, "Could not open file " + output_path);
 	// Set UTF-8 BOM (required for opening with Excel in UTF-8 format, works with all Godot versions)
 	f->store_8(0xef);
 	f->store_8(0xbb);
@@ -2246,4 +2266,285 @@ String TranslationExporter::get_name() const {
 
 String TranslationExporter::get_default_export_extension(const String &res_path) const {
 	return "csv";
+}
+
+Error TranslationExporter::parse_csv(const String &csv_path, HashMap<String, Vector<String>> &new_messages, int64_t &missing_keys, bool &has_non_empty_lines_without_key, int64_t &non_empty_line_count) {
+	Ref<FileAccess> f = FileAccess::open(csv_path, FileAccess::READ);
+	ERR_FAIL_COND_V_MSG(f.is_null(), ERR_CANT_ACQUIRE_RESOURCE, "Could not open file " + csv_path);
+	Vector<String> header = f->get_csv_line();
+	HashMap<String, int64_t> locales_in_csv;
+	int64_t key_id = -1;
+	for (int i = 0; i < header.size(); i++) {
+		auto &locale = header[i];
+		if (locale == "key") {
+			key_id = i;
+			continue;
+		}
+		if (!locale.is_empty()) {
+			locales_in_csv[locale] = i;
+		}
+	}
+	ERR_FAIL_COND_V_MSG(key_id == -1, ERR_INVALID_PARAMETER, "CSV file does not have a 'key' column");
+	// locale to key to value
+	new_messages["key"] = Vector<String>();
+	while (!f->eof_reached()) {
+		Vector<String> line = f->get_csv_line();
+		if (line.is_empty()) {
+			continue;
+		}
+		if (key_id >= line.size()) {
+			WARN_PRINT("CSV file has no value for key column, skipping line " + itos(non_empty_line_count));
+			has_non_empty_lines_without_key = true;
+			continue;
+		}
+		if (!line[key_id].is_empty()) {
+			non_empty_line_count++;
+			if (line[key_id].begins_with(TranslationExporter::MISSING_KEY_PREFIX)) {
+				missing_keys++;
+			}
+		}
+		new_messages["key"].push_back(line[key_id]);
+		for (auto &locale : locales_in_csv) {
+			if (locale.value < line.size()) {
+				if (!new_messages.has(locale.key)) {
+					new_messages[locale.key] = {};
+				}
+				new_messages[locale.key].push_back(line[locale.value]);
+			} else {
+				new_messages[locale.key].push_back("");
+			}
+		}
+	}
+	f->close();
+	return OK;
+}
+
+int64_t TranslationExporter::_count_non_empty_messages(const Vector<Vector<String>> &translation_messages) {
+	int64_t max_size = 0;
+	int64_t count = 0;
+	for (auto &messages : translation_messages) {
+		max_size = MAX(max_size, messages.size());
+	}
+	for (int i = 0; i < max_size; i++) {
+		for (auto &messages : translation_messages) {
+			if (i < messages.size() && !messages[i].is_empty()) {
+				count++;
+				break;
+			}
+		}
+	}
+	return count;
+}
+
+Error TranslationExporter::patch_translations(const String &output_dir, const String &csv_path, Ref<ImportInfo> translation_info, const Vector<String> &p_locales_to_patch, Dictionary r_file_map) {
+	String default_locale;
+	Vector<Ref<Translation>> translations;
+	Vector<String> keys;
+	Ref<Translation> default_translation;
+	Error err = get_translations(translation_info, default_locale, default_translation, translations, keys);
+	ERR_FAIL_COND_V_MSG(err != OK, err, "Could not get translations");
+
+	Vector<String> default_messages = default_translation->get_translated_message_list();
+	HashMap<String, Pair<Ref<Translation>, Vector<String>>> translation_messages;
+	for (auto &translation : translations) {
+		translation_messages[get_translation_locale(translation)] = Pair<Ref<Translation>, Vector<String>>(translation, translation->get_translated_message_list());
+	}
+	bool has_lines_without_key = false;
+	int64_t missing_keys = 0;
+	int64_t non_empty_line_count = 0;
+	HashMap<String, Vector<String>> new_messages;
+	err = parse_csv(csv_path, new_messages, missing_keys, has_lines_without_key, non_empty_line_count);
+	ERR_FAIL_COND_V_MSG(err != OK, err, "Could not parse CSV file");
+
+	int64_t max_size = 0;
+	int64_t non_empty_message_count = 0;
+	for (auto &messages : translation_messages) {
+		max_size = MAX(max_size, messages.value.second.size());
+	}
+	for (int i = 0; i < max_size; i++) {
+		for (auto &messages : translation_messages) {
+			if (i < messages.value.second.size() && !messages.value.second[i].is_empty()) {
+				non_empty_message_count++;
+				break;
+			}
+		}
+	}
+	if (non_empty_line_count != non_empty_message_count) {
+		print_line("CSV file has " + itos(non_empty_line_count) + " lines, but translations have " + itos(non_empty_message_count) + " messages");
+		if (missing_keys > 0) {
+			WARN_PRINT("Messages with missing keys may be patched to incorrect indices!!!");
+		}
+	}
+
+	ERR_FAIL_COND_V_MSG(err != OK, err, "Could not parse CSV file");
+
+	Vector<String> locales_to_patch = p_locales_to_patch;
+	// default to only new locales
+	if (locales_to_patch.size() == 0) {
+		for (auto &kv : new_messages) {
+			if (kv.key != "key" && !translation_messages.has(kv.key)) {
+				locales_to_patch.push_back(kv.key);
+			}
+		}
+	}
+
+	ERR_FAIL_COND_V_MSG(locales_to_patch.size() == 0, ERR_INVALID_PARAMETER, "No locales to patch");
+
+	Vector<String> dest_files = translation_info->get_dest_files();
+
+	for (auto &locale : locales_to_patch) {
+		Ref<OptimizedTranslationExtractor> extractor;
+		String dest_path;
+		if (translation_messages.has(locale)) {
+			auto translation = translation_messages[locale].first;
+			dest_path = translation->get_path();
+			extractor = OptimizedTranslationExtractor::create_from(translation);
+		} else {
+			extractor = OptimizedTranslationExtractor::create_from(default_translation);
+			dest_path = default_translation->get_path().get_basename().get_basename() + "." + locale + ".translation";
+		}
+		ERR_FAIL_COND_V_MSG(extractor.is_null(), ERR_INVALID_PARAMETER, "Could not create extractor for " + locale);
+		extractor->set_locale(locale);
+
+		Vector<Pair<String, String>> to_add;
+		for (int i = 0; i < new_messages[locale].size(); i++) {
+			auto &key = new_messages["key"][i];
+			auto &message = new_messages[locale][i];
+			if (key.begins_with(MISSING_KEY_PREFIX)) {
+				int64_t idx = key.get_slice(":", 1).to_int();
+				if (idx < 0) {
+					WARN_PRINT("Mangled missing key index for key " + key + " in " + locale + ", not setting...");
+					continue;
+				}
+				Error err = extractor->replace_message_at_index(idx, message);
+				if (err != OK) {
+					WARN_PRINT("Could not replace message with key " + key + " in " + locale + ", not setting...");
+				}
+			} else {
+				if (extractor->get_message(key) != message) {
+					Error err = extractor->replace_message(key, message);
+					if (err != OK) {
+						WARN_PRINT("Could not replace message with key " + key + " in " + locale + ", setting new message...");
+						// we have to add them at the end so as not to throw off the indices
+						to_add.push_back({ key, message });
+					}
+				}
+			}
+		}
+		for (auto &key_to_message : to_add) {
+			extractor->add_message(key_to_message.first, key_to_message.second);
+		}
+		if (!dest_files.has(dest_path)) {
+			dest_files.push_back(dest_path);
+		}
+
+		String output_path = output_dir.path_join(dest_path.trim_prefix("res://"));
+
+		err = gdre::ensure_dir(output_path.get_base_dir());
+		ERR_FAIL_COND_V_MSG(err != OK, err, "Could not ensure directory for " + output_path);
+		err = ResourceCompatLoader::save_custom(extractor, output_path, translation_info->get_ver_major(), translation_info->get_ver_minor());
+		ERR_FAIL_COND_V_MSG(err != OK, err, "Could not save translation file for " + locale);
+		r_file_map[output_path] = dest_path;
+#if DEBUG_ENABLED
+		err = ResourceCompatLoader::save_custom(extractor, output_path.get_basename() + ".tres", translation_info->get_ver_major(), translation_info->get_ver_minor());
+#endif
+	}
+	translation_info->set_dest_files(dest_files);
+
+	return OK;
+}
+
+Error TranslationExporter::patch_project_config(const String &output_dir, Dictionary file_map) {
+	Vector<String> new_translation_files;
+	for (auto &kv : file_map) {
+		new_translation_files.push_back(kv.value);
+	}
+	if (GDRESettings::get_singleton()->is_project_config_loaded()) {
+		String project_config_path = GDRESettings::get_singleton()->get_project_config_path();
+		Ref<ProjectConfigLoader> loader = memnew(ProjectConfigLoader);
+		int ver_major = GDRESettings::get_singleton()->get_ver_major();
+		int ver_minor = GDRESettings::get_singleton()->get_ver_minor();
+		const String locale_setting_key = GDRESettings::get_singleton()->get_ver_major() >= 4 ? "internationalization/locale/translations" : "locale/translations";
+		Error err = loader->load_cfb(project_config_path, ver_major, ver_minor);
+		ERR_FAIL_COND_V_MSG(err != OK, err, "Could not load project config");
+		Vector<String> curr_translations = loader->get_setting(locale_setting_key, Vector<String>());
+		for (auto &locale : new_translation_files) {
+			if (!curr_translations.has(locale)) {
+				curr_translations.push_back(locale);
+			}
+		}
+		curr_translations.sort_custom<FileNoCaseComparator>();
+		loader->set_setting(locale_setting_key, curr_translations);
+		String output_path = output_dir.path_join(project_config_path.trim_prefix("res://"));
+		gdre::ensure_dir(output_path.get_base_dir());
+		err = loader->save_custom(output_path, ver_major, ver_minor);
+		ERR_FAIL_COND_V_MSG(err != OK, err, "Could not save project config");
+#if DEBUG_ENABLED
+		err = loader->save_custom(output_path.get_basename() + ".godot", ver_major, ver_minor);
+#endif
+		file_map[output_path] = project_config_path;
+	}
+	return OK;
+}
+
+TypedDictionary<String, Vector<String>> TranslationExporter::get_messages_from_translation(Ref<ImportInfo> translation_info) {
+	String default_locale;
+	Vector<Ref<Translation>> translations;
+	Vector<String> keys;
+	Ref<Translation> default_translation;
+	Error err = get_translations(translation_info, default_locale, default_translation, translations, keys);
+	ERR_FAIL_COND_V_MSG(err != OK, {}, "Could not get translations");
+	TypedDictionary<String, Vector<String>> messages;
+	for (auto &translation : translations) {
+		messages[get_translation_locale(translation)] = translation->get_translated_message_list();
+	}
+	return messages;
+}
+
+int64_t TranslationExporter::count_non_empty_messages_from_info(Ref<ImportInfo> translation_info) {
+	String default_locale;
+	Vector<Ref<Translation>> translations;
+	Vector<String> keys;
+	Ref<Translation> default_translation;
+	Error err = get_translations(translation_info, default_locale, default_translation, translations, keys);
+	ERR_FAIL_COND_V_MSG(err != OK, 0, "Could not get translations");
+
+	Vector<Vector<String>> translation_messages;
+	for (auto &translation : translations) {
+		translation_messages.push_back(translation->get_translated_message_list());
+	}
+	return _count_non_empty_messages(translation_messages);
+}
+
+int64_t TranslationExporter::count_non_empty_messages(const TypedDictionary<String, Vector<String>> &translation_messages) {
+	Vector<Vector<String>> messages;
+	for (auto &kv : translation_messages) {
+		messages.push_back(kv.value);
+	}
+	return _count_non_empty_messages(messages);
+}
+
+TypedDictionary<String, Vector<String>> TranslationExporter::get_csv_messages(const String &csv_path, Dictionary ret_info) {
+	HashMap<String, Vector<String>> new_messages;
+	int64_t missing_keys = 0;
+	int64_t non_empty_line_count = 0;
+	bool has_non_empty_lines_without_key = false;
+	Error err = parse_csv(csv_path, new_messages, missing_keys, has_non_empty_lines_without_key, non_empty_line_count);
+
+	ret_info["error"] = err;
+	ret_info["missing_keys"] = missing_keys;
+	ret_info["new_non_empty_count"] = non_empty_line_count;
+	ret_info["has_non_empty_lines_without_key"] = has_non_empty_lines_without_key;
+	ERR_FAIL_COND_V_MSG(err != OK, {}, "Could not parse CSV file");
+
+	return gdre::hashmap_to_typed_dict(new_messages);
+}
+
+void TranslationExporter::_bind_methods() {
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("patch_translations", "output_dir", "csv_path", "translation_info", "locales_to_patch", "file_map"), &TranslationExporter::patch_translations);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("patch_project_config", "output_dir", "file_map"), &TranslationExporter::patch_project_config);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("get_messages_from_translation", "translation_info"), &TranslationExporter::get_messages_from_translation);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("count_non_empty_messages_from_info", "translation_info"), &TranslationExporter::count_non_empty_messages_from_info);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("count_non_empty_messages", "translation_messages"), &TranslationExporter::count_non_empty_messages);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("get_csv_messages", "csv_path", "ret_info"), &TranslationExporter::get_csv_messages);
 }

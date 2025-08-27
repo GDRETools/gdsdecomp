@@ -18,10 +18,12 @@ var _file_dialog: Window = null
 var last_dir: String = ""
 var REAL_ROOT_WINDOW = null
 var deferred_calls = []
+var ret_code = 0
 
 enum PckMenuID {
 	NEW_PCK,
-	PATCH_PCK
+	PATCH_PCK,
+	PATCH_TRANSLATION = 3
 }
 
 enum GDScriptMenuID {
@@ -47,7 +49,7 @@ enum ResourcesMenuID {
 	MP3STREAM_TO_MP3,
 	SAMPLE_TO_WAV,
 }
-\
+
 func dequote(arg):
 	if arg.begins_with("\"") and arg.ends_with("\""):
 		return arg.substr(1, arg.length() - 2)
@@ -391,6 +393,8 @@ func _on_PCKMenu_item_selected(index):
 			launch_new_pck_window()
 		PckMenuID.PATCH_PCK:
 			launch_patch_pck_window()
+		PckMenuID.PATCH_TRANSLATION:
+			%GdrePatchTranslation.show_win()
 
 func register_dropped_files():
 	pass
@@ -683,7 +687,10 @@ var MAIN_CMD_NOTES = """Main commands:
 --dump-bytecode-versions=<DIR>     Dump all available bytecode definitions to the specified directory in JSON format
 --txt-to-bin=<FILE>                Convert text-based scene or resource files to binary format (can be repeated)
 --bin-to-txt=<FILE>                Convert binary scene or resource files to text-based format (can be repeated)
+--patch-translations=<CSV_FILE>=<SRC_PATH>    Patch translations with the specified CSV file and source path
+												(e.g. "/path/to/translation.csv=res://translations/translation.csv") (can be repeated)
 """
+# TODO: add --list-files to list all files in the project and exit
 
 var GLOB_NOTES = """Notes on Include/Exclude globs:
 	- Recursive patterns can be specified with '**'
@@ -745,6 +752,13 @@ var PATCH_OPTS_NOTES = """Patch PCK Options:
 --key=<KEY>                              64-character hex string to decrypt/encrypt the PCK with
 """
 
+var PATCH_TRANSLATIONS_OPTS_NOTES = """Patch Translations Options:
+(Note: This can be used in combination with --pck-patch and its options)
+--pck=<GAME_PCK>                        The PCK file with the source translations (if used in combination with --pck-patch, this can be omitted)
+--output=<OUTPUT_DIR>                   The output directory to save the patched translations to (optional if used in combination with --pck-patch)
+--locales=<LOCALES>                     The locales to patch (comma-separated list, defaults to only newly-added locales)
+"""
+
 func print_usage():
 	print("Godot Reverse Engineering Tools")
 	print("")
@@ -759,6 +773,7 @@ func print_usage():
 	print(COMPILE_OPTS_NOTES)
 	print(CREATE_OPTS_NOTES)
 	print(PATCH_OPTS_NOTES)
+	print(PATCH_TRANSLATIONS_OPTS_NOTES)
 
 
 # TODO: remove this hack
@@ -1301,6 +1316,50 @@ func set_bytecode_version_override(bytecode_version: String):
 	GDREConfig.set_setting("Bytecode/force_bytecode_revision", decomp.get_bytecode_rev(), true)
 	return true
 
+func patch_translations(pck_files: PackedStringArray, patch_translations: Dictionary[String, String], output_dir: String, locales_to_patch: PackedStringArray, r_file_map: Dictionary):
+	var files = load_pck(pck_files, true, [], [], "")
+	if files.size() == 0:
+		print("Error: failed to load PCK files: ", pck_files)
+		return -1
+
+	var err = GDRESettings.load_import_files()
+	if err != OK:
+		print("Error: failed to load import files: " + err)
+		return -1
+
+	err = GDRESettings.load_project_config()
+	if err != OK:
+		print("Error: failed to load project config: " + err)
+		return -1
+
+	for patch_file in patch_translations.keys():
+		var csv_file = patch_file
+		var source_path = patch_translations[patch_file]
+
+		var import_info = GDRESettings.get_import_info_by_source(source_path)
+		if import_info == null:
+			print("Error: failed to get import info: " + source_path)
+			return -1
+		import_info = ImportInfo.copy(import_info)
+
+		err = TranslationExporter.patch_translations(output_dir, csv_file, import_info, locales_to_patch, r_file_map)
+		if err != OK:
+			print("Error: failed to patch translations: " + err)
+			return -1
+
+		err = TranslationExporter.patch_project_config(output_dir, r_file_map)
+		if err != OK:
+			print("Error: failed to patch project config: " + err)
+			return -1
+	return 0
+
+func split_map_arg(arg: String) -> PackedStringArray:
+	var parsed_arg = get_arg_value(arg)
+	var patch_files = parsed_arg.split("=", false, 2)
+	if patch_files.size() != 2:
+		return []
+	return patch_files
+
 
 func handle_cli(args: PackedStringArray) -> bool:
 	var custom_bytecode_file: String = ""
@@ -1327,6 +1386,8 @@ func handle_cli(args: PackedStringArray) -> bool:
 	var prepop: PackedStringArray = []
 	var csharp_assembly: String = ""
 	var set_setting: bool = false
+	var patch_translations: Dictionary[String, String] = {}
+	var locales_to_patch: PackedStringArray = []
 	if (args.size() == 0):
 		return false
 	var any_commands = false
@@ -1436,15 +1497,25 @@ func handle_cli(args: PackedStringArray) -> bool:
 		elif arg.begins_with("--dump-resource-strings"):
 			GDREConfig.set_setting("Exporter/Translation/dump_resource_strings", true, true)
 			set_setting = true
+
+		elif arg.begins_with("--patch-translations"):
+			# We can use it in combination with --pck-patch, so we need to set the pck-patch flag, we handle this below
+			main_cmds["pck-patch"] = true
+			var patch_files = split_map_arg(arg)
+			if patch_files.is_empty():
+				print_usage()
+				print("ERROR: invalid --patch-translations format: must be <src_file>=<dest_file>")
+				return true
+			patch_translations[get_cli_abs_path(dequote(patch_files[0]).strip_edges())] = dequote(patch_files[1]).strip_edges()
+		elif arg.begins_with("--pck"):
+			input_file.append(get_arg_value(arg).simplify_path())
+		elif arg.begins_with("--locales"):
+			locales_to_patch = get_arg_value(arg).split(",")
 		elif arg.begins_with("--patch-file"):
-			var parsed_arg = get_arg_value(arg)
-			var patch_files = parsed_arg.split("=", false, 2)
-			if patch_files.size() != 2:
+			var patch_files = split_map_arg(arg)
+			if patch_files.is_empty():
 				print_usage()
 				print("ERROR: invalid --patch-file format: must be <src_file>=<dest_file>")
-				print(arg)
-				print(parsed_arg)
-				print(patch_files)
 				return true
 			patch_map[get_cli_abs_path(dequote(patch_files[0]).strip_edges())] = dequote(patch_files[1]).strip_edges()
 		elif arg.begins_with("--csharp-assembly"):
@@ -1488,9 +1559,29 @@ func handle_cli(args: PackedStringArray) -> bool:
 			var secs_taken = (end_time - start_time) / 1000
 			print("Prepop complete in %02dm%02ds" % [(secs_taken) / 60, (secs_taken) % 60])
 		elif compile_files.size() > 0:
-			compile(compile_files, bytecode_version, output_dir)
+			ret_code = compile(compile_files, bytecode_version, output_dir)
 		elif decompile_files.size() > 0:
-			decompile(decompile_files, bytecode_version, output_dir, enc_key)
+			ret_code = decompile(decompile_files, bytecode_version, output_dir, enc_key)
+		elif not pck_patch_pck.is_empty():
+			if patch_translations.size() > 0:
+				var tmp_dir = GDRESettings.get_gdre_user_path().path_join(".tmp_translations")
+				if DirAccess.dir_exists_absolute(tmp_dir):
+					GDRECommon.rimraf(tmp_dir)
+				GDRECommon.ensure_dir(tmp_dir)
+				var r_file_map: Dictionary = {}
+				ret_code = patch_translations([pck_patch_pck], patch_translations, tmp_dir, locales_to_patch, r_file_map)
+				if ret_code != 0:
+					return
+				for patch_file in r_file_map.keys():
+					patch_map[patch_file] = r_file_map[patch_file]
+
+			ret_code = patch_pck(pck_patch_pck, output_dir, patch_map, includes, excludes, enc_key, embed_pck)
+			GDRESettings.unload_project()
+			if ret_code != 0:
+				return
+		elif patch_translations.size() > 0:
+			var rmap = {}
+			patch_translations(input_file, patch_translations, output_dir, locales_to_patch, rmap)
 		elif not input_file.is_empty():
 			print("Recovery started")
 			print("input_file: ", input_file)
@@ -1507,9 +1598,6 @@ func handle_cli(args: PackedStringArray) -> bool:
 			bin_to_text(bin_to_txt, output_dir)
 		elif not pck_create_dir.is_empty():
 			create_pck(output_dir, pck_create_dir, pck_version, pck_engine_version, includes, excludes, enc_key, embed_pck)
-		elif not pck_patch_pck.is_empty():
-			patch_pck(pck_patch_pck, output_dir, patch_map, includes, excludes, enc_key, embed_pck)
-			GDRESettings.unload_project()
 		else:
 			print_usage()
 			print("ERROR: invalid option! Must specify one of " + ", ".join(MAIN_COMMANDS))
@@ -1593,9 +1681,9 @@ func patch_pck(src_file: String, dest_pck:String, patch_file_map: Dictionary, in
 	return ""
 
 
-func _on_gdre_patch_pck_do_patch_pck(dest_pck: String, file_map: Dictionary[String, String]) -> void:
-	var should_embed = PATCH_PCK_DIALOG.should_embed()
-	PATCH_PCK_DIALOG.hide_win()
+func _on_gdre_patch_pck_do_patch_pck(dest_pck: String, file_map: Dictionary[String, String], should_embed: bool) -> void:
+	PATCH_PCK_DIALOG.hide()
+	%GdrePatchTranslation.hide()
 	var pack_infos = GDRESettings.get_pack_info_list()
 	if (pack_infos.is_empty()):
 		GDRESettings.unload_project()
