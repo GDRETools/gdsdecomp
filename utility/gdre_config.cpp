@@ -262,6 +262,9 @@ void GDREConfig::load_config() {
 	settings.clear();
 
 	for (const auto &setting : default_settings) {
+		if (setting->is_virtual_setting()) {
+			continue;
+		}
 		if (setting->is_ephemeral()) {
 			ephemeral_settings.try_emplace_l(setting->get_full_name(), [=](auto &v) { v.second = setting->get_default_value(); }, setting->get_default_value());
 		} else {
