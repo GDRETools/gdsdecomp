@@ -35,7 +35,6 @@ class FakeGDScript : public FakeScript {
 	GDScriptDecomp::ScriptState script_state;
 	String script_path;
 	bool path_valid = false; // False if using default path.
-	StringName base_type; // `extends`.
 	StringName local_name; // Inner class identifier or `class_name`.
 	StringName global_name; // `class_name`.
 

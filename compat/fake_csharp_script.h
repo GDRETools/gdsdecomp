@@ -36,7 +36,6 @@ class FakeCSharpScript : public FakeScript {
 	bool path_valid = false; // False if using default path.
 	Vector<String> base_classes;
 	Vector<String> base_type_paths;
-	StringName base_type; // `extends`.
 	StringName local_name; // Inner class identifier or `class_name`.
 	StringName global_name; // `class_name`.
 	Dictionary script_info;

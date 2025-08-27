@@ -163,6 +163,10 @@ Ref<GDScriptNativeClass> FakeScript::get_native_script(StringName base_type) {
 	return nullptr;
 }
 
+StringName FakeScript::get_direct_base_type() const {
+	return base_type;
+}
+
 void FakeScript::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_script_path"), &FakeScript::get_script_path);
 	ClassDB::bind_method(D_METHOD("load_source_code", "path"), &FakeScript::load_source_code);
@@ -170,6 +174,7 @@ void FakeScript::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_original_class", "class_name"), &FakeScript::set_original_class);
 	ClassDB::bind_method(D_METHOD("get_original_class"), &FakeScript::get_original_class);
 	ClassDB::bind_method(D_METHOD("get_error_message"), &FakeScript::get_error_message);
+	ClassDB::bind_method(D_METHOD("get_direct_base_type"), &FakeScript::get_direct_base_type);
 }
 
 #undef FAKEGDSCRIPT_FAIL_COND_V_MSG

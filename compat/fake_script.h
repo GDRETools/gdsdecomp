@@ -19,6 +19,7 @@ protected:
 	bool can_instantiate_instance = true;
 	String source;
 	String error_message;
+	StringName base_type;
 	ResourceInfo::LoadType load_type = ResourceInfo::LoadType::NON_GLOBAL_LOAD;
 
 	String _get_normalized_path() const;
@@ -109,6 +110,7 @@ public:
 	ResourceInfo::LoadType get_load_type() const;
 
 	void set_can_instantiate(bool p_can_instantiate);
+	StringName get_direct_base_type() const;
 };
 
 class FakeCSharpScript;

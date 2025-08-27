@@ -2011,7 +2011,18 @@ struct ScriptCacheTask {
 			// 	"language": &"GDScript",
 			// 	"path": "res://source/audio/audio_manager.gd"
 			// 	}
-			tokens[i].d.set("base", script->get_instance_base_type());
+
+			Ref<FakeScript> fake_script = script;
+			if (fake_script.is_valid()) {
+				tokens[i].d.set("base", fake_script->get_direct_base_type());
+			} else {
+				auto base_script = script->get_base_script();
+				if (base_script.is_valid()) {
+					tokens[i].d.set("base", base_script->get_global_name());
+				} else {
+					tokens[i].d.set("base", script->get_instance_base_type());
+				}
+			}
 			tokens[i].d.set("class", script->get_global_name());
 			tokens[i].d.set("icon", "");
 			tokens[i].d.set("is_abstract", script->is_abstract());
