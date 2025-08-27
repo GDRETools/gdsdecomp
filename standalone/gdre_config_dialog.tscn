@@ -22,7 +22,7 @@ font_size = 18
 oversampling_override = 1.0
 title = "Settings"
 position = Vector2i(0, 24)
-size = Vector2i(680, 788)
+size = Vector2i(680, 768)
 min_size = Vector2i(680, 680)
 theme = ExtResource("1_g10qc")
 script = ExtResource("2_rnan2")
@@ -41,7 +41,7 @@ oversampling_override = 1.0
 size = Vector2i(339, 100)
 
 [node name="Label" type="Label" parent="ConfirmClose"]
-anchors_preset = -1
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 8.0
@@ -68,12 +68,11 @@ theme_override_constants/margin_bottom = 8
 [node name="WindowVBox" type="VBoxContainer" parent="MarginContainer"]
 layout_mode = 2
 
-[node name="MainHBox" type="HBoxContainer" parent="MarginContainer/WindowVBox"]
+[node name="MainHBox" type="ScrollContainer" parent="MarginContainer/WindowVBox"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 0
 
 [node name="FirstSectionVBox" type="VBoxContainer" parent="MarginContainer/WindowVBox/MainHBox"]
 unique_name_in_owner = true
@@ -189,7 +188,7 @@ layout_mode = 2
 
 [node name="ButtonHBox" type="HBoxContainer" parent="MarginContainer/WindowVBox"]
 layout_mode = 2
-size_flags_vertical = 10
+size_flags_vertical = 8
 theme_override_constants/separation = 30
 alignment = 1
 
