@@ -184,11 +184,11 @@ void ImportExporter::rewrite_metadata(ExportToken &token) {
 	bool not_in_res_tree = !iinfo->get_source_file().begins_with("res://");
 	bool export_matches_source = token_report->get_source_path() == token_report->get_new_source_path();
 	if (err == OK && (not_in_res_tree || !export_matches_source)) {
-		if (iinfo->get_ver_major() <= 2 && opt_rewrite_imd_v2) {
+		if (iinfo->get_ver_major() <= 2) {
 			// TODO: handle v2 imports with more than one source, like atlas textures
 			err = rewrite_import_source(token_report->get_new_source_path(), iinfo);
 			if_err_func();
-		} else if (not_in_res_tree && iinfo->get_ver_major() >= 3 && opt_rewrite_imd_v3 && (iinfo->get_source_file().find(token_report->get_new_source_path().replace("res://", "")) != -1)) {
+		} else if (not_in_res_tree && iinfo->get_ver_major() >= 3 && (iinfo->get_source_file().find(token_report->get_new_source_path().replace("res://", "")) != -1)) {
 			// Currently, we only rewrite the import data for v3 if the source file was somehow recorded as an absolute file path,
 			// But is still in the project structure
 			err = rewrite_import_source(token_report->get_new_source_path(), iinfo);
@@ -215,7 +215,7 @@ void ImportExporter::rewrite_metadata(ExportToken &token) {
 	if (mdat == ExportReport::FAILED || mdat == ExportReport::NOT_IMPORTABLE) {
 		return;
 	}
-	if (opt_write_md5_files && err == OK && iinfo->get_ver_major() > 2 && iinfo->get_iitype() == ImportInfo::MODERN) {
+	if (err == OK && iinfo->get_ver_major() > 2 && iinfo->get_iitype() == ImportInfo::MODERN) {
 		err = ERR_LINK_FAILED;
 		Ref<ImportInfoModern> modern_iinfo = iinfo;
 		if (modern_iinfo.is_valid()) {
@@ -322,13 +322,9 @@ Error ImportExporter::unzip_and_copy_addon(const Ref<ImportInfoGDExt> &iinfo, co
 
 void ImportExporter::_do_export(uint32_t i, ExportToken *tokens) {
 	// Taken care of in the main thread
-	if (unlikely(cancelled)) {
-		return;
-	}
 	auto &token = tokens[i];
 	token.report = ResourceExporter::_check_for_existing_resources(token.iinfo);
 	if (token.report.is_valid()) {
-		last_completed++;
 		return;
 	}
 
@@ -339,7 +335,6 @@ void ImportExporter::_do_export(uint32_t i, ExportToken *tokens) {
 	} else {
 		tokens[i].report->append_error_messages(GDRELogger::get_errors());
 	}
-	last_completed++;
 }
 
 String ImportExporter::get_export_token_description(uint32_t i, ExportToken *tokens) {
@@ -711,8 +706,6 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	// ***** Export resources *****
 	GDRELogger::clear_error_queues();
 	if (tokens.size() > 0) {
-		last_completed = -1;
-		cancelled = false;
 		err = TaskManager::get_singleton()->run_multithreaded_group_task(
 				this,
 				&ImportExporter::_do_export,
@@ -1140,18 +1133,7 @@ void ImportExporter::reset_log() {
 }
 
 void ImportExporter::reset() {
-	opt_bin2text = true;
-	opt_export_textures = true;
-	opt_export_samples = true;
-	opt_export_ogg = true;
-	opt_export_mp3 = true;
-	opt_lossy = true;
-	opt_export_jpg = true;
-	opt_export_webp = true;
-	opt_rewrite_imd_v2 = true;
-	opt_rewrite_imd_v3 = true;
-	opt_decompile = true;
-	opt_only_decompile = false;
+	output_dir.clear();
 	reset_log();
 }
 

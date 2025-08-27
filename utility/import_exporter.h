@@ -91,21 +91,6 @@ protected:
 
 class ImportExporter : public RefCounted {
 	GDCLASS(ImportExporter, RefCounted)
-	bool opt_bin2text = true;
-	bool opt_export_textures = true;
-	bool opt_export_samples = true;
-	bool opt_export_ogg = true;
-	bool opt_export_mp3 = true;
-	bool opt_lossy = true;
-	bool opt_export_jpg = true;
-	bool opt_export_webp = true;
-	bool opt_rewrite_imd_v2 = true;
-	bool opt_rewrite_imd_v3 = true;
-	bool opt_decompile = true;
-	bool opt_only_decompile = false;
-	bool opt_write_md5_files = true;
-	std::atomic<int> last_completed = 0;
-	std::atomic<bool> cancelled = false;
 	String output_dir;
 
 	struct ExportToken {
