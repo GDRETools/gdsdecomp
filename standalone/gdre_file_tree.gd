@@ -21,6 +21,7 @@ enum ColType {
 @export var file_encrypted: Texture2D = preload("res://gdre_icons/gdre_FileEncrypted.svg")
 @export var folder_icon: Texture2D = get_theme_icon("folder", "FileDialog")
 @export var root_name: String = "res://"
+@export var sortable: bool = true
 # @export var editable_only_when_checkbox_clicked: bool = true
 # make setters for the export
 
@@ -467,6 +468,8 @@ func sort_entire_tree():
 
 
 func _on_column_title_clicked(column: int, mouse_button_index: int):
+	if not sortable:
+		return
 	if (mouse_button_index == MOUSE_BUTTON_LEFT):
 		if column == _name_col:
 			current_sort = SortType.SORT_NAME_ASCENDING if current_sort != SortType.SORT_NAME_ASCENDING else SortType.SORT_NAME_DESCENDING
