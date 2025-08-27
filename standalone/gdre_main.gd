@@ -679,6 +679,7 @@ var MAIN_COMMANDS = ["--recover", "--extract", "--compile", "--list-bytecode-ver
 var MAIN_CMD_NOTES = """Main commands:
 --recover=<GAME_PCK/EXE/APK/DIR>   Perform full project recovery on the specified PCK, APK, EXE, or extracted project directory.
 --extract=<GAME_PCK/EXE/APK>       Extract the specified PCK, APK, or EXE.
+--list-files=<GAME_PCK/EXE/APK>    List all files in the specified PCK, APK, or EXE and exit (can be repeated)
 --compile=<GD_FILE>                Compile GDScript files to bytecode (can be repeated and use globs, requires --bytecode)
 --decompile=<GDC_FILE>             Decompile GDC files to text (can be repeated and use globs)
 --pck-create=<PCK_DIR>             Create a PCK file from the specified directory (requires --pck-version and --pck-engine-version)
@@ -690,7 +691,6 @@ var MAIN_CMD_NOTES = """Main commands:
 --patch-translations=<CSV_FILE>=<SRC_PATH>    Patch translations with the specified CSV file and source path
 												(e.g. "/path/to/translation.csv=res://translations/translation.csv") (can be repeated)
 """
-# TODO: add --list-files to list all files in the project and exit
 
 var GLOB_NOTES = """Notes on Include/Exclude globs:
 	- Recursive patterns can be specified with '**'
@@ -1353,6 +1353,16 @@ func patch_translations(pck_files: PackedStringArray, patch_translations: Dictio
 			return -1
 	return 0
 
+func list_files(pck_files: PackedStringArray):
+	var files = load_pck(pck_files, true, [], [], "")
+	print("\nContents:")
+	for file in files:
+		print(file)
+
+	print("\nTotal files: " + str(files.size()))
+
+	return 0
+
 func split_map_arg(arg: String) -> PackedStringArray:
 	var parsed_arg = get_arg_value(arg)
 	var patch_files = parsed_arg.split("=", false, 2)
@@ -1460,6 +1470,9 @@ func handle_cli(args: PackedStringArray) -> bool:
 			if not set_bytecode_version_override(bytecode_version):
 				return true
 			set_setting = true
+		elif arg.begins_with("--list-files"):
+			input_file.append(get_arg_value(arg).simplify_path())
+			main_cmds["list-files"] = true
 		elif arg.begins_with("--list-bytecode-versions"):
 			print_bytecode_versions()
 			return true
@@ -1558,6 +1571,8 @@ func handle_cli(args: PackedStringArray) -> bool:
 			var end_time = Time.get_ticks_msec()
 			var secs_taken = (end_time - start_time) / 1000
 			print("Prepop complete in %02dm%02ds" % [(secs_taken) / 60, (secs_taken) % 60])
+		elif main_cmds.has("list-files"):
+			list_files(input_file)
 		elif compile_files.size() > 0:
 			ret_code = compile(compile_files, bytecode_version, output_dir)
 		elif decompile_files.size() > 0:
