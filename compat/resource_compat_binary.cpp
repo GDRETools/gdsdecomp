@@ -2385,10 +2385,6 @@ static String _resource_get_class(Ref<Resource> p_resource) {
 Error ResourceFormatSaverCompatBinaryInstance::save(const String &p_path, const Ref<Resource> &p_resource, uint32_t p_flags) {
 	// Resource::seed_scene_unique_id(p_path.hash());
 	// get metadata from the resource
-	if (!ResourceInfo::resource_has_info(p_resource)) {
-		WARN_PRINT("Resource does not have compat metadata set?!?!?!?!");
-		ERR_FAIL_V_MSG(ERR_INVALID_DATA, "Resource does not have compat metadata set?!?!?!?!");
-	}
 
 	Error err;
 
