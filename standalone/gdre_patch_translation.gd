@@ -6,6 +6,11 @@ enum ActionOption {
 	PATCH_PCK_DIRECTLY = 2
 }
 
+enum TranslationTreeButton{
+	EDIT = 0,
+	DELETE = 1
+}
+
 const ONLY_DIR = false
 
 const ACTION_LABELS = {
@@ -13,27 +18,54 @@ const ACTION_LABELS = {
 	ActionOption.CREATE_PATCH_PCK: "Create New Patch PCK",
 	ActionOption.PATCH_PCK_DIRECTLY: "Patch PCK Directly"
 }
+@onready var edit_button: Texture2D = get_theme_icon("select_option", "Tree")
+@onready var delete_button: Texture2D = get_theme_icon("indeterminate", "Tree")
 
 signal do_patch_pck(dest_pck: String, file_map: Dictionary[String, String], should_embed: bool);
 
 var cached_csv_map: Dictionary[String, PackedStringArray] = {}
 var cached_translation_info: Dictionary[String, int] = {}
 var cached_translation_import_info: Dictionary[String, ImportInfo] = {}
+var cached_translation_locales: Dictionary[String, Dictionary] = {}
+# Multi-translation support
+var translation_entries: Dictionary[String, TranslationEntry] = {}
+
+
+var current_csv_messages: Dictionary[String, PackedStringArray] = {}
+var current_csv_info: Dictionary = {}
+
+class TranslationEntry:
+	var translation_source: String
+	var csv_path: String
+	var selected_locales: PackedStringArray
+	var import_info: ImportInfo
+	var non_empty_count: int
+	var missing_keys: int
+
+	func _init(source: String, csv: String, locales: PackedStringArray, info: ImportInfo, tr_info: Dictionary):
+		translation_source = source
+		csv_path = csv
+		selected_locales = locales
+		import_info = info
+		non_empty_count = tr_info.get("new_non_empty_count", 0)
+		missing_keys = tr_info.get("missing_keys", 0)
+
 func clear():
 	var opt: OptionButton = %ActionOptionButton
-	var opt2: OptionButton = %SelectTranslationButton
-	%CSVField.text = ""
 	%ProjectField.text = ""
-	opt2.clear()
 	cached_csv_map.clear()
 	cached_translation_info.clear()
 	cached_translation_import_info.clear()
-	for child in %CheckBoxGroup.get_children():
-		%CheckBoxGroup.remove_child(child)
-		child.queue_free()
+	cached_translation_locales.clear()
+	translation_entries.clear()
+	_clear_translation_tree()
 	opt.select(ActionOption.OUTPUT_TO_DIR)
 	if GDRESettings.is_pack_loaded():
 		GDRESettings.unload_project()
+
+func _clear_translation_tree():
+	var tree: Tree = %GDREFileTree
+	tree.clear()
 
 func show_win():
 	clear()
@@ -66,14 +98,54 @@ func cancelled():
 
 func load_test():
 	_load_project(['/Users/nikita/Library/Application Support/Steam/steamapps/common/Ex-Zodiac/Ex-Zodiac.app/Contents/Resources/Ex-Zodiac.pck'])
+	_repopulate_select_translation_button()
 	%SelectTranslationButton.select(1)
 	_on_select_csv_dialog_file_selected("/Users/nikita/Desktop/missions_patched.csv")
+	var container: VBoxContainer = %CheckBoxGroup
+	# Clear existing checkboxes
+	var children = container.get_children()
+	for i in range(1, min(3, container.get_child_count())):
+		var child = container.get_child(i)
+		if child is CheckBox:
+			child.button_pressed = true
 
+	_on_add_translation_dialog_confirmed()
+
+func _on_patch_tree_button_clicked(item: TreeItem, _column: int, id: int, mouse_button_index: int):
+	if (mouse_button_index != MOUSE_BUTTON_LEFT):
+		return
+	var src = item.get_metadata(0)
+	match id:
+		TranslationTreeButton.EDIT:
+			_on_add_translation_button_pressed() # pops up the dialog and populates the fields
+			# reopen the add translation dialog with the current entry
+			var entry = translation_entries[src]
+			# erase the entry from the list
+			translation_entries.erase(src)
+			for i in range(0, %SelectTranslationButton.get_item_count()):
+				if %SelectTranslationButton.get_item_text(i) == entry.translation_source:
+					%SelectTranslationButton.select(i)
+					break
+			_on_select_csv_dialog_file_selected(entry.csv_path)
+
+			for i in range(0, %CheckBoxGroup.get_child_count()):
+				var child = %CheckBoxGroup.get_child(i)
+				if entry.selected_locales.has(child.text):
+					child.button_pressed = true
+			_update_translation_entries_display()
+		TranslationTreeButton.DELETE:
+			translation_entries.erase(src)
+			_update_translation_entries_display()
+			pass
+	pass
 
 func _ready():
 	self.confirmed.connect(self.confirm)
 	self.close_requested.connect(self.close)
 	self.canceled.connect(self.cancelled)
+	var file_tree: Tree = %GDREFileTree
+	file_tree.columns = 3
+	%GDREFileTree.connect("button_clicked", self._on_patch_tree_button_clicked)
 	clear()
 	# load_test()
 
@@ -86,17 +158,16 @@ func get_translations():
 	return translations
 
 
-func get_selected_translation():
-	var opt: OptionButton = %SelectTranslationButton
-	var id = opt.selected
-	if id == -1:
-		return ""
-	var source = opt.get_item_text(id)
-	return source
+# This function is no longer needed in the main dialog
+# func get_selected_translation():
+# 	var opt: OptionButton = %SelectTranslationButton
+# 	var id = opt.selected
+# 	if id == -1:
+# 		return ""
+# 	var source = opt.get_item_text(id)
+# 	return source
 
-func _set_translation_option_button():
-	var opt: OptionButton = %SelectTranslationButton
-	opt.clear()
+func _populate_translation_tree():
 	var translations = get_translations()
 	var sources = []
 	for translation: ImportInfo in translations:
@@ -104,9 +175,10 @@ func _set_translation_option_button():
 			sources.append(translation.source_file)
 			cached_translation_info[translation.source_file] = TranslationExporter.count_non_empty_messages_from_info(translation)
 			cached_translation_import_info[translation.source_file] = translation
-	for source in sources:
-		opt.add_item(source)
-	opt.select(0)
+			cached_translation_locales[translation.source_file] = TranslationExporter.get_messages_from_translation(translation)
+
+	# Update the display
+	_update_translation_entries_display()
 
 func _load_project(paths: PackedStringArray):
 	if GDRESettings.is_pack_loaded():
@@ -126,7 +198,7 @@ func _load_project(paths: PackedStringArray):
 		GDRESettings.unload_project()
 		return
 	%ProjectField.text = GDRESettings.get_pack_path()
-	_set_translation_option_button()
+	_populate_translation_tree()
 	var pack_infos: Array[PackInfo] = GDRESettings.get_pack_info_list()
 	var enable_direct_patch = false
 	if (pack_infos.size() == 1 and pack_infos[0].get_type() == PackInfo.PCK):
@@ -161,25 +233,42 @@ func _reload_csv_option_buttons(keys: Dictionary[String, PackedStringArray]):
 		button.text = key
 		container.add_child(button)
 
-func get_selected_locales():
+func _reload_add_dialog_csv_option_buttons(keys: Dictionary[String, PackedStringArray]):
+	var dialog = %AddTranslationDialog
 	var container: VBoxContainer = %CheckBoxGroup
-	var selected = PackedStringArray()
+
+	# Clear existing checkboxes
 	for child in container.get_children():
-		if not child is CheckBox:
+		if child is CheckBox:
+			container.remove_child(child)
+			child.queue_free()
+
+	# Add new checkboxes for each locale
+	for key in keys.keys():
+		if key == "key":
 			continue
-		var box: CheckBox = child
-		if box.button_pressed:
-			selected.push_back(box.text)
-	print(str(selected))
-	return selected
+		var button: CheckBox = CheckBox.new()
+		button.text = key
+		container.add_child(button)
+
+# This function is no longer needed in the main dialog
+# func get_selected_locales():
+# 	var container: VBoxContainer = %CheckBoxGroup
+# 	var selected = PackedStringArray()
+# 	for child in container.get_children():
+# 		if not child is CheckBox:
+# 			continue
+# 		var box: CheckBox = child
+# 		if box.button_pressed:
+# 			selected.push_back(box.text)
+# 	print(str(selected))
+# 	return selected
 
 func _validate():
 	var disable_ok = false
 	if not GDRESettings.is_pack_loaded():
 		disable_ok = true
-	if %SelectTranslationButton.selected == -1:
-		disable_ok = true
-	if %CSVField.text == "":
+	if translation_entries.size() == 0:
 		disable_ok = true
 
 	if disable_ok:
@@ -209,25 +298,32 @@ func _on_select_csv_button_pressed() -> void:
 
 
 func _on_select_csv_dialog_file_selected(path: String) -> void:
-	%CSVField.text = path
-	var ret_info: Dictionary = {}
-	cached_csv_map = TranslationExporter.get_csv_messages(path, ret_info)
-	if cached_csv_map.size() == 0:
-		popup_error_box("Invalid CSV file:\n" + GDRESettings.get_recent_error_string(), "Error")
-		%CSVField.text = ""
-		return
-	_reload_csv_option_buttons(cached_csv_map)
-	_validate()
-	var selected = get_selected_translation()
-	if (not selected.is_empty() and ret_info.get("new_non_empty_count", 0) != cached_translation_info.get(selected, 0)):
-		var msg = "The CSV file has a different number of messages than the translation file.\n"
-		msg += "CSV file keys = " + str(ret_info.get("new_non_empty_count", 0))
-		msg += "Translation messages = " + str(cached_translation_info.get(selected, 0))
-		if ret_info.get("missing_keys", 0) > 0:
-			msg += "The resulting patched translation file may be corrupted\n"
-		popup_error_box(msg + "Please ensure that the correct translation is selected and the CSV file is up to date.", "Warning")
+	# This is called from the AddTranslationDialog
+	var dialog = %AddTranslationDialog
+	var csv_field: LineEdit = %CSVField
+	var opt: OptionButton = %SelectTranslationButton
 
-	pass # Replace with function body.
+	csv_field.text = path
+	current_csv_info.clear()
+	current_csv_messages = TranslationExporter.get_csv_messages(path, current_csv_info)
+	if current_csv_messages.size() == 0:
+		popup_error_box("Invalid CSV file:\n" + GDRESettings.get_recent_error_string(), "Error")
+		csv_field.text = ""
+		return
+
+	# Update checkboxes in the dialog
+	_reload_add_dialog_csv_option_buttons(current_csv_messages)
+
+	# Validate against selected translation
+	if opt.selected != -1:
+		var selected_source = opt.get_item_text(opt.selected)
+		if (not selected_source.is_empty() and current_csv_info.get("new_non_empty_count", 0) != cached_translation_info.get(selected_source, 0)):
+			var msg = "The CSV file has a different number of messages than the translation file.\n"
+			msg += "CSV file keys = %d\n" % current_csv_info.get("new_non_empty_count", 0)
+			msg += "Translation messages = %d\n" % cached_translation_info.get(selected_source, 0)
+			if current_csv_info.get("missing_keys", 0) > 0:
+				msg += "The resulting patched translation file may be corrupted!\n"
+			popup_error_box(msg + "Please ensure that the correct translation is selected and the CSV file is up to date.", "Warning")
 
 func do_it(output: String):
 	GDRESettings.get_recent_error_string()
@@ -243,15 +339,20 @@ func do_it(output: String):
 			GDRECommon.rimraf(output_dir)
 	GDRECommon.ensure_dir(output_dir)
 
-	var selected = get_selected_translation()
-	if selected.is_empty():
-		popup_error_box("Please select a translation file", "Error")
+	if translation_entries.size() == 0:
+		popup_error_box("Please add at least one translation", "Error")
 		return
+
 	var r_file_map: Dictionary[String, String] = {}
-	var err = TranslationExporter.patch_translations(output_dir, %CSVField.text, ImportInfo.copy(cached_translation_import_info[selected]), get_selected_locales(), r_file_map)
-	if err != OK:
-		popup_error_box("Failed to patch translation:\n" + GDRESettings.get_recent_error_string(), "Error")
-		return
+
+	# Process each translation entry
+	var err: int
+	for entry in translation_entries.values():
+		err = TranslationExporter.patch_translations(output_dir, entry.csv_path, ImportInfo.copy(entry.import_info), entry.selected_locales, r_file_map)
+		if err != OK:
+			popup_error_box("Failed to patch translation " + entry.translation_source + ":\n" + GDRESettings.get_recent_error_string(), "Error")
+			return
+
 	err = TranslationExporter.patch_project_config(output_dir, r_file_map)
 	if err != OK:
 		popup_error_box("Failed to patch project config:\n" + GDRESettings.get_recent_error_string(), "Error")
@@ -309,3 +410,111 @@ func _on_select_output_dialog_file_selected(path: String) -> void:
 
 func _on_select_project_button_pressed() -> void:
 	%SelectProjectDialog.popup_centered()
+
+func _repopulate_select_translation_button():
+	var opt: OptionButton = %SelectTranslationButton
+	opt.clear()
+	var translations = get_translations()
+	var sources = []
+	for translation: ImportInfo in translations:
+		if not sources.has(translation.source_file):
+			sources.append(translation.source_file)
+	for source in sources:
+		opt.add_item(source)
+	if sources.size() > 0:
+		opt.select(0)
+
+
+func _on_add_translation_button_pressed() -> void:
+	if not GDRESettings.is_pack_loaded():
+		popup_error_box("Please load a project first", "Error")
+		return
+
+	# Reset the AddTranslationDialog
+	var dialog = %AddTranslationDialog
+	_repopulate_select_translation_button()
+
+	# Clear CSV field and checkboxes
+	%CSVField.text = ""
+	_clear_add_dialog_checkboxes()
+
+	dialog.popup_centered()
+
+func _clear_add_dialog_checkboxes():
+	var container: VBoxContainer = %AddTranslationDialog.get_node("VBoxContainer/ScrollContainer/CheckBoxGroup")
+	for child in container.get_children():
+		if child is CheckBox:
+			child.queue_free()
+
+func _on_add_translation_dialog_confirmed() -> void:
+	var dialog = %AddTranslationDialog
+	var opt: OptionButton = %SelectTranslationButton
+	var csv_field: LineEdit = %CSVField
+
+	if opt.selected == -1:
+		popup_error_box("Please select a translation", "Error")
+		return
+
+	if csv_field.text.is_empty():
+		popup_error_box("Please select a CSV file", "Error")
+		return
+
+	var selected_source = opt.get_item_text(opt.selected)
+	var selected_locales = _get_add_dialog_selected_locales()
+
+	if selected_locales.size() == 0:
+		popup_error_box("Please select at least one locale", "Error")
+		return
+
+	# Create translation entry
+	var entry = TranslationEntry.new(
+		selected_source,
+		csv_field.text,
+		selected_locales,
+		cached_translation_import_info[selected_source],
+		current_csv_info
+	)
+
+	translation_entries[entry.translation_source] = entry
+	_update_translation_entries_display()
+	dialog.hide()
+	_validate()
+
+func _get_add_dialog_selected_locales() -> PackedStringArray:
+	var dialog = %AddTranslationDialog
+	var container: VBoxContainer = dialog.get_node("VBoxContainer/ScrollContainer/CheckBoxGroup")
+	var selected = PackedStringArray()
+	for child in container.get_children():
+		if child is CheckBox and child.button_pressed:
+			selected.push_back(child.text)
+	return selected
+
+func _update_translation_entries_display():
+	# Update the tree to show only added translations
+	var tree = %GDREFileTree
+	tree.clear()
+	tree.set_column_title(1, "CSV Path")
+	tree.set_column_custom_minimum_width(2, 300)
+
+	# Only show translations that have been added
+	for entry in translation_entries.values():
+		var icon = tree.file_ok
+		var message_count = cached_translation_info[entry.translation_source]
+		if message_count != entry.non_empty_count and entry.missing_keys > 0:
+			icon = tree.file_warning
+		var item: TreeItem = tree.add_file_tree_item(entry.translation_source, icon, -1, "", ", ".join(entry.selected_locales))
+		item.set_editable(0, false)
+		item.set_editable(1, false)
+		item.set_editable(2, false)
+		item.set_metadata(0, entry.translation_source)
+		item.set_cell_mode(1, TreeItem.CELL_MODE_STRING)
+		item.set_text_direction(1, Control.TextDirection.TEXT_DIRECTION_RTL)
+		item.set_structured_text_bidi_override(1, TextServer.STRUCTURED_TEXT_FILE)
+		item.set_text(1, "" + entry.csv_path)
+		item.add_button(2, edit_button, TranslationTreeButton.EDIT)
+		item.add_button(2, delete_button, TranslationTreeButton.DELETE)
+
+	_validate()
+
+func _on_add_translation_dialog_canceled() -> void:
+	%AddTranslationDialog.hide()

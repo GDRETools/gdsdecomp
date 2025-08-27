@@ -1,12 +1,15 @@
-[gd_scene load_steps=2 format=3 uid="uid://8tgbmg7tg5ys"]
+[gd_scene load_steps=4 format=3 uid="uid://8tgbmg7tg5ys"]
 
+[ext_resource type="Theme" uid="uid://crq1fwn0ajw7b" path="res://gdre_theme.tres" id="1_gn2oo"]
 [ext_resource type="Script" uid="uid://bshbaompivqso" path="res://gdre_patch_translation.gd" id="1_wjgv3"]
+[ext_resource type="Script" uid="uid://cww2hw50p8q3i" path="res://gdre_file_tree.gd" id="2_26ds8"]
 
 [node name="GdrePatchTranslation" type="GDREAcceptDialogBase"]
 oversampling_override = 1.0
 position = Vector2i(0, 36)
 size = Vector2i(1013, 600)
 visible = true
+theme = ExtResource("1_gn2oo")
 ok_button_text = "Patch"
 dialog_hide_on_ok = false
 script = ExtResource("1_wjgv3")
@@ -22,6 +25,7 @@ offset_right = -8.0
 offset_bottom = -49.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/separation = 6
 
 [node name="ProjectToPatchLabel" type="Label" parent="VBox"]
 layout_mode = 2
@@ -41,101 +45,37 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Select"
 
-[node name="SelectLabel" type="Label" parent="VBox"]
-layout_mode = 2
-text = "Select Translation to patch"
-
-[node name="SelectTranslationButton" type="OptionButton" parent="VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-item_count = 1
-popup/item_0/text = "<NONE>"
-popup/item_0/id = 0
-
-[node name="CSVLabel" type="Label" parent="VBox"]
-layout_mode = 2
-text = "CSV File..."
-
 [node name="HBoxContainer2" type="HBoxContainer" parent="VBox"]
 layout_mode = 2
 
-[node name="CSVField" type="LineEdit" parent="VBox/HBoxContainer2"]
+[node name="Translations" type="Label" parent="VBox/HBoxContainer2"]
+layout_mode = 2
+text = "Translations to Patch"
+
+[node name="Button" type="Button" parent="VBox/HBoxContainer2"]
+layout_mode = 2
+size_flags_horizontal = 10
+text = "Add Translation...
+"
+
+[node name="GDREFileTree" type="Tree" parent="VBox"]
 unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-editable = false
-
-[node name="SelectCSVButton" type="Button" parent="VBox/HBoxContainer2"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Select"
-
-[node name="HSeparator" type="HSeparator" parent="VBox"]
-layout_mode = 2
-
-[node name="SelectLocalesToPatch" type="Label" parent="VBox"]
-layout_mode = 2
-text = "Locales to patch..."
-
-[node name="ScrollContainer" type="ScrollContainer" parent="VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-
-[node name="CheckBoxGroup" type="VBoxContainer" parent="VBox/ScrollContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="CheckBox" type="CheckBox" parent="VBox/ScrollContainer/CheckBoxGroup"]
-layout_mode = 2
-text = "en_us"
-
-[node name="CheckBox2" type="CheckBox" parent="VBox/ScrollContainer/CheckBoxGroup"]
-layout_mode = 2
-text = "en_us"
-
-[node name="CheckBox3" type="CheckBox" parent="VBox/ScrollContainer/CheckBoxGroup"]
-layout_mode = 2
-text = "en_us"
-
-[node name="CheckBox4" type="CheckBox" parent="VBox/ScrollContainer/CheckBoxGroup"]
-layout_mode = 2
-text = "en_us"
-
-[node name="CheckBox5" type="CheckBox" parent="VBox/ScrollContainer/CheckBoxGroup"]
-layout_mode = 2
-text = "en_us"
-
-[node name="CheckBox6" type="CheckBox" parent="VBox/ScrollContainer/CheckBoxGroup"]
-layout_mode = 2
-text = "en_us"
-
-[node name="CheckBox7" type="CheckBox" parent="VBox/ScrollContainer/CheckBoxGroup"]
-layout_mode = 2
-text = "en_us"
-
-[node name="CheckBox8" type="CheckBox" parent="VBox/ScrollContainer/CheckBoxGroup"]
-layout_mode = 2
-text = "en_us"
-
-[node name="CheckBox9" type="CheckBox" parent="VBox/ScrollContainer/CheckBoxGroup"]
-layout_mode = 2
-text = "en_us"
-
-[node name="CheckBox10" type="CheckBox" parent="VBox/ScrollContainer/CheckBoxGroup"]
-layout_mode = 2
-text = "en_us"
-
-[node name="CheckBox11" type="CheckBox" parent="VBox/ScrollContainer/CheckBoxGroup"]
-layout_mode = 2
-text = "en_us"
-
-[node name="CheckBox12" type="CheckBox" parent="VBox/ScrollContainer/CheckBoxGroup"]
-layout_mode = 2
-text = "en_us"
-
-[node name="CheckBox13" type="CheckBox" parent="VBox/ScrollContainer/CheckBoxGroup"]
-layout_mode = 2
-text = "en_us"
+columns = 3
+column_titles_visible = true
+script = ExtResource("2_26ds8")
+root_name = ""
+check_mode = false
+flat_mode = true
+editable_only_when_checkbox_clicked = false
+columnMap = Dictionary[int, int]({
+0: 0,
+2: 2
+})
+nameColumnName = "Translation Source"
+infoColumnName = "Locales to Patch"
+metadata/_custom_type_script = "uid://cww2hw50p8q3i"
 
 [node name="SelectActionLabel" type="Label" parent="VBox"]
 layout_mode = 2
@@ -180,11 +120,128 @@ access = 2
 show_hidden_files = true
 use_native_dialog = true
 
+[node name="AddTranslationDialog" type="GDREAcceptDialogBase" parent="."]
+unique_name_in_owner = true
+oversampling_override = 1.0
+position = Vector2i(0, 36)
+size = Vector2i(500, 500)
+dialog_hide_on_ok = false
+
+[node name="VBoxContainer" type="VBoxContainer" parent="AddTranslationDialog"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -49.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SelectLabel" type="Label" parent="AddTranslationDialog/VBoxContainer"]
+layout_mode = 2
+text = "Select Translation to patch"
+
+[node name="SelectTranslationButton" type="OptionButton" parent="AddTranslationDialog/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+item_count = 1
+popup/item_0/text = "<NONE>"
+popup/item_0/id = 0
+
+[node name="CSVLabel" type="Label" parent="AddTranslationDialog/VBoxContainer"]
+layout_mode = 2
+text = "CSV File..."
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="AddTranslationDialog/VBoxContainer"]
+layout_mode = 2
+
+[node name="CSVField" type="LineEdit" parent="AddTranslationDialog/VBoxContainer/HBoxContainer2"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+editable = false
+
+[node name="SelectCSVButton" type="Button" parent="AddTranslationDialog/VBoxContainer/HBoxContainer2"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Select"
+
+[node name="HSeparator" type="HSeparator" parent="AddTranslationDialog/VBoxContainer"]
+layout_mode = 2
+
+[node name="SelectLocalesToPatch" type="Label" parent="AddTranslationDialog/VBoxContainer"]
+layout_mode = 2
+text = "Locales to patch..."
+
+[node name="ScrollContainer" type="ScrollContainer" parent="AddTranslationDialog/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="CheckBoxGroup" type="VBoxContainer" parent="AddTranslationDialog/VBoxContainer/ScrollContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="CheckBox" type="CheckBox" parent="AddTranslationDialog/VBoxContainer/ScrollContainer/CheckBoxGroup"]
+layout_mode = 2
+text = "en_us"
+
+[node name="CheckBox2" type="CheckBox" parent="AddTranslationDialog/VBoxContainer/ScrollContainer/CheckBoxGroup"]
+layout_mode = 2
+text = "en_us"
+
+[node name="CheckBox3" type="CheckBox" parent="AddTranslationDialog/VBoxContainer/ScrollContainer/CheckBoxGroup"]
+layout_mode = 2
+text = "en_us"
+
+[node name="CheckBox4" type="CheckBox" parent="AddTranslationDialog/VBoxContainer/ScrollContainer/CheckBoxGroup"]
+layout_mode = 2
+text = "en_us"
+
+[node name="CheckBox5" type="CheckBox" parent="AddTranslationDialog/VBoxContainer/ScrollContainer/CheckBoxGroup"]
+layout_mode = 2
+text = "en_us"
+
+[node name="CheckBox6" type="CheckBox" parent="AddTranslationDialog/VBoxContainer/ScrollContainer/CheckBoxGroup"]
+layout_mode = 2
+text = "en_us"
+
+[node name="CheckBox7" type="CheckBox" parent="AddTranslationDialog/VBoxContainer/ScrollContainer/CheckBoxGroup"]
+layout_mode = 2
+text = "en_us"
+
+[node name="CheckBox8" type="CheckBox" parent="AddTranslationDialog/VBoxContainer/ScrollContainer/CheckBoxGroup"]
+layout_mode = 2
+text = "en_us"
+
+[node name="CheckBox9" type="CheckBox" parent="AddTranslationDialog/VBoxContainer/ScrollContainer/CheckBoxGroup"]
+layout_mode = 2
+text = "en_us"
+
+[node name="CheckBox10" type="CheckBox" parent="AddTranslationDialog/VBoxContainer/ScrollContainer/CheckBoxGroup"]
+layout_mode = 2
+text = "en_us"
+
+[node name="CheckBox11" type="CheckBox" parent="AddTranslationDialog/VBoxContainer/ScrollContainer/CheckBoxGroup"]
+layout_mode = 2
+text = "en_us"
+
+[node name="CheckBox12" type="CheckBox" parent="AddTranslationDialog/VBoxContainer/ScrollContainer/CheckBoxGroup"]
+layout_mode = 2
+text = "en_us"
+
+[node name="CheckBox13" type="CheckBox" parent="AddTranslationDialog/VBoxContainer/ScrollContainer/CheckBoxGroup"]
+layout_mode = 2
+text = "en_us"
+
 [connection signal="pressed" from="VBox/HBoxContainer/SelectProjectButton" to="." method="_on_select_project_button_pressed"]
-[connection signal="pressed" from="VBox/HBoxContainer2/SelectCSVButton" to="." method="_on_select_csv_button_pressed"]
+[connection signal="pressed" from="VBox/HBoxContainer2/Button" to="." method="_on_add_translation_button_pressed"]
 [connection signal="dir_selected" from="SelectProjectDialog" to="." method="_on_select_project_dialog_dir_selected"]
 [connection signal="file_selected" from="SelectProjectDialog" to="." method="_on_select_project_dialog_file_selected"]
 [connection signal="files_selected" from="SelectProjectDialog" to="." method="_on_select_project_dialog_files_selected"]
 [connection signal="file_selected" from="SelectCSVDialog" to="." method="_on_select_csv_dialog_file_selected"]
 [connection signal="dir_selected" from="SelectOutputDialog" to="." method="_on_select_output_dialog_dir_selected"]
 [connection signal="file_selected" from="SelectOutputDialog" to="." method="_on_select_output_dialog_file_selected"]
+[connection signal="canceled" from="AddTranslationDialog" to="." method="_on_add_translation_dialog_canceled"]
+[connection signal="confirmed" from="AddTranslationDialog" to="." method="_on_add_translation_dialog_confirmed"]
+[connection signal="pressed" from="AddTranslationDialog/VBoxContainer/HBoxContainer2/SelectCSVButton" to="." method="_on_select_csv_button_pressed"]
