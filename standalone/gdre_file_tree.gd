@@ -666,9 +666,17 @@ func _filter(filter_str):
 	filter_str = filter_str.to_lower()
 	var is_glob = filter_str.contains("*")
 	var clear_filter = filter_str.is_empty() or filter_str == "*"
+	var selected_items = get_highlighted_items()
 	_filter_item(filter_str, root, is_glob, clear_filter)
 	if (userroot):
 		_filter_item(filter_str, userroot, is_glob, clear_filter)
+	if not selected_items.is_empty():
+		# get the currently selected item(s)
+		for item in selected_items:
+			if item.visible:
+				scroll_to_item(item)
+				break
+
 
 func _filter_timeout():
 	timer = null
