@@ -76,17 +76,6 @@ func instance_things():
 	VER_PATCH.value = DEFAULT_VER_PATCH
 
 
-func popup_error_box(message: String, err_title: String, parent_window: Window, call_func: Callable = parent_window.show) -> AcceptDialog:
-	var dialog = AcceptDialog.new()
-	dialog.set_text(message)
-	dialog.set_title(err_title)
-	parent_window.add_child(dialog)
-	dialog.connect("confirmed", call_func)
-	dialog.connect("canceled", call_func)
-	dialog.popup_centered()
-	return dialog
-
-
 # MUST CALL set_root_window() first!!!
 # Called when the node enters the scene tree for the first time.
 func _ready():

@@ -14,7 +14,6 @@ var gdre_patch_pck = preload("res://gdre_patch_pck.tscn")
 var RECOVERY_DIALOG: GDRERecoverDialog = null
 var NEW_PCK_DIALOG: GDRENewPck = null
 var PATCH_PCK_DIALOG: GDREPatchPCK = null
-var ERROR_DIALOG: AcceptDialog = null
 var _file_dialog: Window = null
 var last_dir: String = ""
 var REAL_ROOT_WINDOW = null
@@ -63,9 +62,6 @@ func _on_re_editor_standalone_dropped_files(files: PackedStringArray):
 	for file in files:
 		new_files.append(dequote(file))
 	_on_recover_project_files_selected(new_files)
-
-func popup_error_box(message: String, title: String = "Error", root_window = self):
-	GDREChildDialog.popup_box(root_window, ERROR_DIALOG, message, title)
 
 
 const ERR_SKIP = 45
@@ -209,8 +205,6 @@ func setup_new_pck_window():
 		NEW_PCK_DIALOG = $GdreNewPck
 	if not PATCH_PCK_DIALOG:
 		PATCH_PCK_DIALOG = $GdrePatchPck
-	if not ERROR_DIALOG:
-		ERROR_DIALOG = $ErrorDialog
 
 
 
@@ -423,7 +417,7 @@ func _on_setenc_key_ok_pressed():
 		if (err != OK):
 			keytextbox.text = ""
 			# pop up an accept dialog
-			popup_error_box("Invalid key!\nKey must be a hex string with 64 characters", "Error", $SetEncryptionKeyWindow)
+			$SetEncryptionKeyWindow.popup_error_box("Invalid key!\nKey must be a hex string with 64 characters", "Error")
 			return
 	# close the window
 	$SetEncryptionKeyWindow.hide()

@@ -20,7 +20,7 @@
 [sub_resource type="ButtonGroup" id="ButtonGroup_x51e8"]
 
 [node name="root" type="GodotREEditorStandalone"]
-anchors_preset = -1
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_top = 40.0
@@ -30,14 +30,15 @@ grow_vertical = 2
 theme = ExtResource("1")
 script = ExtResource("2")
 
-[node name="SetEncryptionKeyWindow" type="Window" parent="."]
+[node name="SetEncryptionKeyWindow" type="GDREWindow" parent="."]
+oversampling_override = 1.0
 title = "Set Encryption Key"
 position = Vector2i(144, 0)
 size = Vector2i(800, 150)
 visible = false
 
 [node name="VBoxContainer" type="VBoxContainer" parent="SetEncryptionKeyWindow"]
-anchors_preset = -1
+anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -350.0
@@ -205,7 +206,6 @@ size = Vector2i(650, 431)
 visible = false
 
 [node name="Label" type="Label" parent="LegalNoticeWindow"]
-anchors_preset = -1
 offset_left = 100.0
 offset_top = 20.0
 offset_right = 614.0
@@ -219,7 +219,6 @@ Please report any bugs to the GitHub repository.
 autowrap_mode = 3
 
 [node name="OkButton" type="Button" parent="LegalNoticeWindow"]
-anchors_preset = -1
 offset_left = 277.0
 offset_top = 378.0
 offset_right = 368.0
@@ -227,7 +226,6 @@ offset_bottom = 411.0
 text = "OK"
 
 [node name="TextureRect" type="TextureRect" parent="LegalNoticeWindow"]
-anchors_preset = -1
 offset_left = 15.0
 offset_top = 164.0
 offset_right = 79.0
@@ -253,8 +251,6 @@ visible = false
 [node name="GdreExportReport" parent="." instance=ExtResource("16_htlpu")]
 unique_name_in_owner = true
 visible = false
-
-[node name="ErrorDialog" type="AcceptDialog" parent="."]
 
 [node name="TextToBinFileDialog" type="FileDialog" parent="."]
 auto_translate_mode = 1
