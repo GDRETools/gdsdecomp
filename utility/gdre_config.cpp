@@ -220,7 +220,7 @@ Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 		memnew(GDREConfigSetting(
 				"Exporter/Scene/GLTF/replace_shader_materials",
 				"Replace shader materials",
-				"Replaces shader materials with generated standard materials when exporting the scene.\nSolves issues with exported scenes not having any textures.\nWARNING: This is experimental and may result in inaccurate exports that cannot be re-imported.",
+				"Replaces shader materials with generated standard materials when exporting the scene.\nSolves issues with exported scenes not having any textures.\nWARNING: This is experimental and may result in inaccurate exports.",
 				false)),
 		memnew(GDREConfigSetting(
 				"Exporter/Texture/create_lossless_copy",

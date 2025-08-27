@@ -957,6 +957,9 @@ void GLBExporterInstance::_set_stuff_from_instanced_scene(Node *root) {
 			auto mesh = mesh_instance->get_mesh();
 			if (mesh.is_valid()) {
 				meshes_in_mesh_instances.insert(mesh);
+				if (!mesh->get_name().is_empty()) {
+					mesh_name_to_instance_map[mesh->get_name()] = mesh_instance;
+				}
 			}
 		}
 	}
@@ -973,6 +976,11 @@ void GLBExporterInstance::_set_stuff_from_instanced_scene(Node *root) {
 			List<PropertyInfo> properties;
 			if (si) {
 				si->get_property_list(&properties);
+				MeshInstance3D *mesh_instance = nullptr;
+				HashSet<Variant> other_values;
+				Vector<MeshInstance3D *> mesh_instances;
+				HashSet<Ref<Skin>> skins;
+				HashSet<NodePath> skeleton_paths;
 				for (auto &prop : properties) {
 					Variant value;
 					if (si->get(prop.name, value)) {
@@ -983,8 +991,48 @@ void GLBExporterInstance::_set_stuff_from_instanced_scene(Node *root) {
 							auto mesh_instance = memnew(MeshInstance3D());
 							mesh_instance->set_mesh(mesh);
 							mesh_instance->set_name(mesh->get_name());
+							if (!mesh->get_name().is_empty()) {
+								mesh_name_to_instance_map[mesh->get_name()] = mesh_instance;
+							}
 							node->add_child(mesh_instance);
+							mesh_instances.push_back(mesh_instance);
 							// meshes_in_mesh_instances.insert(mesh);
+						}
+					}
+				}
+				for (auto &mesh_instance : mesh_instances) {
+					bool set_skin = false;
+					bool set_skeleton = false;
+					for (auto &prop : properties) {
+						Variant value;
+						if (si->get(prop.name, value) && !skins.has(value) && !skeleton_paths.has(value)) {
+							Ref<Skin> skin = value;
+							if (skin.is_valid() && !set_skin) {
+								has_skinned_meshes = true;
+								skinned_mesh_instances.insert(mesh_instance);
+								mesh_instance->set_skin(skin);
+								set_skin = true;
+								skins.insert(skin);
+							} else if (!set_skeleton) {
+								NodePath skeleton_path = value;
+								if (!skeleton_path.is_empty()) {
+									// we need to check to see if this is actually a skeleton
+									Node *skeleton = node->get_node(skeleton_path);
+									Skeleton3D *skeleton3d = skeleton ? Object::cast_to<Skeleton3D>(skeleton) : nullptr;
+									if (skeleton3d) {
+										NodePath actual_path = skeleton_path;
+										if (!skeleton_path.is_absolute()) {
+											actual_path = node->get_path_to(skeleton3d);
+										}
+										mesh_instance->set_skeleton_path(actual_path);
+										set_skeleton = true;
+										skeleton_paths.insert(skeleton_path);
+									}
+								}
+							}
+						}
+						if (set_skin && set_skeleton) {
+							break;
 						}
 					}
 				}
@@ -1141,178 +1189,66 @@ static const HashSet<String> shader_param_names = {
 	"fov_override",
 };
 
-// { "name": "RefCounted", "class_name": &"", "type": 0, "hint": 0, "hint_string": "RefCounted", "usage": 128 }
-// { "name": "Resource", "class_name": &"", "type": 0, "hint": 0, "hint_string": "Resource", "usage": 128 }
-// { "name": "Resource", "class_name": &"", "type": 0, "hint": 0, "hint_string": "resource_", "usage": 64 }
-// { "name": "resource_local_to_scene", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "resource_path", "class_name": &"", "type": 4, "hint": 0, "hint_string": "", "usage": 4 }
-// { "name": "resource_name", "class_name": &"", "type": 4, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "resource_scene_unique_id", "class_name": &"", "type": 4, "hint": 0, "hint_string": "", "usage": 0 }
-// { "name": "Material", "class_name": &"", "type": 0, "hint": 0, "hint_string": "Material", "usage": 128 }
-// { "name": "render_priority", "class_name": &"", "type": 2, "hint": 1, "hint_string": "-128,127,1", "usage": 6 }
-// { "name": "next_pass", "class_name": &"Material", "type": 24, "hint": 17, "hint_string": "Material", "usage": 6 }
-// { "name": "BaseMaterial3D", "class_name": &"", "type": 0, "hint": 0, "hint_string": "BaseMaterial3D", "usage": 128 }
-// { "name": "Transparency", "class_name": &"", "type": 0, "hint": 0, "hint_string": "", "usage": 64 }
-// { "name": "transparency", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Disabled,Alpha,Alpha Scissor,Alpha Hash,Depth Pre-Pass", "usage": 6 }
-// { "name": "alpha_scissor_threshold", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,1,0.001", "usage": 0 }
-// { "name": "alpha_hash_scale", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,2,0.01", "usage": 0 }
-// { "name": "alpha_antialiasing_mode", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Disabled,Alpha Edge Blend,Alpha Edge Clip", "usage": 0 }
-// { "name": "alpha_antialiasing_edge", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,1,0.01", "usage": 0 }
-// { "name": "blend_mode", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Mix,Add,Subtract,Multiply,Premultiplied Alpha", "usage": 6 }
-// { "name": "cull_mode", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Back,Front,Disabled", "usage": 6 }
-// { "name": "depth_draw_mode", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Opaque Only,Always,Never", "usage": 6 }
-// { "name": "no_depth_test", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "Shading", "class_name": &"", "type": 0, "hint": 0, "hint_string": "", "usage": 64 }
-// { "name": "shading_mode", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Unshaded,Per-Pixel", "usage": 6 }
-// { "name": "diffuse_mode", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Burley,Lambert,Lambert Wrap,Toon", "usage": 6 }
-// { "name": "specular_mode", "class_name": &"", "type": 2, "hint": 2, "hint_string": "SchlickGGX,Toon,Disabled", "usage": 6 }
-// { "name": "disable_ambient_light", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "disable_fog", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "Vertex Color", "class_name": &"", "type": 0, "hint": 0, "hint_string": "vertex_color", "usage": 64 }
-// { "name": "vertex_color_use_as_albedo", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "vertex_color_is_srgb", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "Albedo", "class_name": &"", "type": 0, "hint": 0, "hint_string": "albedo_", "usage": 64 }
-// { "name": "albedo_color", "class_name": &"", "type": 20, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "albedo_texture", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 6 }
-// { "name": "albedo_texture_force_srgb", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "albedo_texture_msdf", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "ORM", "class_name": &"", "type": 0, "hint": 0, "hint_string": "orm_", "usage": 64 }
-// { "name": "orm_texture", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 6 }
-// { "name": "Metallic", "class_name": &"", "type": 0, "hint": 0, "hint_string": "metallic_", "usage": 64 }
-// { "name": "metallic", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,1,0.01", "usage": 0 }
-// { "name": "metallic_specular", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,1,0.01", "usage": 0 }
-// { "name": "metallic_texture", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 0 }
-// { "name": "metallic_texture_channel", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Red,Green,Blue,Alpha,Gray", "usage": 0 }
-// { "name": "Roughness", "class_name": &"", "type": 0, "hint": 0, "hint_string": "roughness_", "usage": 64 }
-// { "name": "roughness", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,1,0.01", "usage": 0 }
-// { "name": "roughness_texture", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 0 }
-// { "name": "roughness_texture_channel", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Red,Green,Blue,Alpha,Gray", "usage": 0 }
-// { "name": "Emission", "class_name": &"", "type": 0, "hint": 0, "hint_string": "emission_", "usage": 64 }
-// { "name": "emission_enabled", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "emission", "class_name": &"", "type": 20, "hint": 21, "hint_string": "", "usage": 2 }
-// { "name": "emission_energy_multiplier", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,16,0.01,or_greater", "usage": 2 }
-// { "name": "emission_intensity", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,100000.0,0.01,or_greater,suffix:nt", "usage": 0 }
-// { "name": "emission_operator", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Add,Multiply", "usage": 2 }
-// { "name": "emission_on_uv2", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 2 }
-// { "name": "emission_texture", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 2 }
-// { "name": "Normal Map", "class_name": &"", "type": 0, "hint": 0, "hint_string": "normal_", "usage": 64 }
-// { "name": "normal_enabled", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "normal_scale", "class_name": &"", "type": 3, "hint": 1, "hint_string": "-16,16,0.01", "usage": 2 }
-// { "name": "normal_texture", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 2 }
-// { "name": "Rim", "class_name": &"", "type": 0, "hint": 0, "hint_string": "rim_", "usage": 64 }
-// { "name": "rim_enabled", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "rim", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,1,0.01", "usage": 2 }
-// { "name": "rim_tint", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,1,0.01", "usage": 2 }
-// { "name": "rim_texture", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 2 }
-// { "name": "Clearcoat", "class_name": &"", "type": 0, "hint": 0, "hint_string": "clearcoat_", "usage": 64 }
-// { "name": "clearcoat_enabled", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "clearcoat", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,1,0.01", "usage": 2 }
-// { "name": "clearcoat_roughness", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,1,0.01", "usage": 2 }
-// { "name": "clearcoat_texture", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 2 }
-// { "name": "Anisotropy", "class_name": &"", "type": 0, "hint": 0, "hint_string": "anisotropy_", "usage": 64 }
-// { "name": "anisotropy_enabled", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "anisotropy", "class_name": &"", "type": 3, "hint": 1, "hint_string": "-1,1,0.01", "usage": 2 }
-// { "name": "anisotropy_flowmap", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 2 }
-// { "name": "Ambient Occlusion", "class_name": &"", "type": 0, "hint": 0, "hint_string": "ao_", "usage": 64 }
-// { "name": "ao_enabled", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "ao_light_affect", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,1,0.01", "usage": 2 }
-// { "name": "ao_texture", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 0 }
-// { "name": "ao_on_uv2", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 2 }
-// { "name": "ao_texture_channel", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Red,Green,Blue,Alpha,Gray", "usage": 0 }
-// { "name": "Height", "class_name": &"", "type": 0, "hint": 0, "hint_string": "heightmap_", "usage": 64 }
-// { "name": "heightmap_enabled", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "heightmap_scale", "class_name": &"", "type": 3, "hint": 1, "hint_string": "-16,16,0.001", "usage": 2 }
-// { "name": "heightmap_deep_parallax", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 2 }
-// { "name": "heightmap_min_layers", "class_name": &"", "type": 2, "hint": 1, "hint_string": "1,64,1", "usage": 0 }
-// { "name": "heightmap_max_layers", "class_name": &"", "type": 2, "hint": 1, "hint_string": "1,64,1", "usage": 0 }
-// { "name": "heightmap_flip_tangent", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 2 }
-// { "name": "heightmap_flip_binormal", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 2 }
-// { "name": "heightmap_texture", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 2 }
-// { "name": "heightmap_flip_texture", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 2 }
-// { "name": "Subsurface Scattering", "class_name": &"", "type": 0, "hint": 0, "hint_string": "subsurf_scatter_", "usage": 64 }
-// { "name": "subsurf_scatter_enabled", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "subsurf_scatter_strength", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,1,0.01", "usage": 2 }
-// { "name": "subsurf_scatter_skin_mode", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 2 }
-// { "name": "subsurf_scatter_texture", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 2 }
-// { "name": "Transmittance", "class_name": &"", "type": 0, "hint": 0, "hint_string": "subsurf_scatter_transmittance_", "usage": 256 }
-// { "name": "subsurf_scatter_transmittance_enabled", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 2 }
-// { "name": "subsurf_scatter_transmittance_color", "class_name": &"", "type": 20, "hint": 0, "hint_string": "", "usage": 2 }
-// { "name": "subsurf_scatter_transmittance_texture", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 2 }
-// { "name": "subsurf_scatter_transmittance_depth", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0.001,8,0.001,or_greater", "usage": 2 }
-// { "name": "subsurf_scatter_transmittance_boost", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0.00,1.0,0.01", "usage": 2 }
-// { "name": "Back Lighting", "class_name": &"", "type": 0, "hint": 0, "hint_string": "backlight_", "usage": 64 }
-// { "name": "backlight_enabled", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "backlight", "class_name": &"", "type": 20, "hint": 21, "hint_string": "", "usage": 2 }
-// { "name": "backlight_texture", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 2 }
-// { "name": "Refraction", "class_name": &"", "type": 0, "hint": 0, "hint_string": "refraction_", "usage": 64 }
-// { "name": "refraction_enabled", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "refraction_scale", "class_name": &"", "type": 3, "hint": 1, "hint_string": "-1,1,0.01", "usage": 2 }
-// { "name": "refraction_texture", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 2 }
-// { "name": "refraction_texture_channel", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Red,Green,Blue,Alpha,Gray", "usage": 2 }
-// { "name": "Detail", "class_name": &"", "type": 0, "hint": 0, "hint_string": "detail_", "usage": 64 }
-// { "name": "detail_enabled", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "detail_mask", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 2 }
-// { "name": "detail_blend_mode", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Mix,Add,Subtract,Multiply", "usage": 2 }
-// { "name": "detail_uv_layer", "class_name": &"", "type": 2, "hint": 2, "hint_string": "UV1,UV2", "usage": 2 }
-// { "name": "detail_albedo", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 2 }
-// { "name": "detail_normal", "class_name": &"Texture2D", "type": 24, "hint": 17, "hint_string": "Texture2D", "usage": 2 }
-// { "name": "UV1", "class_name": &"", "type": 0, "hint": 0, "hint_string": "uv1_", "usage": 64 }
-// { "name": "uv1_scale", "class_name": &"", "type": 9, "hint": 5, "hint_string": "", "usage": 6 }
-// { "name": "uv1_offset", "class_name": &"", "type": 9, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "uv1_triplanar", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "uv1_triplanar_sharpness", "class_name": &"", "type": 3, "hint": 4, "hint_string": "", "usage": 2 }
-// { "name": "uv1_world_triplanar", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 2 }
-// { "name": "UV2", "class_name": &"", "type": 0, "hint": 0, "hint_string": "uv2_", "usage": 64 }
-// { "name": "uv2_scale", "class_name": &"", "type": 9, "hint": 5, "hint_string": "", "usage": 6 }
-// { "name": "uv2_offset", "class_name": &"", "type": 9, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "uv2_triplanar", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "uv2_triplanar_sharpness", "class_name": &"", "type": 3, "hint": 4, "hint_string": "", "usage": 2 }
-// { "name": "uv2_world_triplanar", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 2 }
-// { "name": "Sampling", "class_name": &"", "type": 0, "hint": 0, "hint_string": "texture_", "usage": 64 }
-// { "name": "texture_filter", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Nearest,Linear,Nearest Mipmap,Linear Mipmap,Nearest Mipmap Anisotropic,Linear Mipmap Anisotropic", "usage": 6 }
-// { "name": "texture_repeat", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "Shadows", "class_name": &"", "type": 0, "hint": 0, "hint_string": "", "usage": 64 }
-// { "name": "disable_receive_shadows", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "shadow_to_opacity", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "Billboard", "class_name": &"", "type": 0, "hint": 0, "hint_string": "billboard_", "usage": 64 }
-// { "name": "billboard_mode", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Disabled,Enabled,Y-Billboard,Particle Billboard", "usage": 6 }
-// { "name": "billboard_keep_scale", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 2 }
-// { "name": "Particles Anim", "class_name": &"", "type": 0, "hint": 0, "hint_string": "particles_anim_", "usage": 64 }
-// { "name": "particles_anim_h_frames", "class_name": &"", "type": 2, "hint": 1, "hint_string": "1,128,1", "usage": 0 }
-// { "name": "particles_anim_v_frames", "class_name": &"", "type": 2, "hint": 1, "hint_string": "1,128,1", "usage": 0 }
-// { "name": "particles_anim_loop", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 0 }
-// { "name": "Grow", "class_name": &"", "type": 0, "hint": 0, "hint_string": "grow_", "usage": 64 }
-// { "name": "grow", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "grow_amount", "class_name": &"", "type": 3, "hint": 1, "hint_string": "-16,16,0.001,suffix:m", "usage": 2 }
-// { "name": "Transform", "class_name": &"", "type": 0, "hint": 0, "hint_string": "", "usage": 64 }
-// { "name": "fixed_size", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "use_point_size", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "point_size", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0.1,128,0.1,suffix:px", "usage": 2 }
-// { "name": "use_particle_trails", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "Proximity Fade", "class_name": &"", "type": 0, "hint": 0, "hint_string": "proximity_fade_", "usage": 64 }
-// { "name": "proximity_fade_enabled", "class_name": &"", "type": 1, "hint": 0, "hint_string": "", "usage": 6 }
-// { "name": "proximity_fade_distance", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0.01,4096,0.01,suffix:m", "usage": 2 }
-// { "name": "MSDF", "class_name": &"", "type": 0, "hint": 0, "hint_string": "msdf_", "usage": 64 }
-// { "name": "msdf_pixel_range", "class_name": &"", "type": 3, "hint": 1, "hint_string": "1,100,1", "usage": 2 }
-// { "name": "msdf_outline_size", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,250,1", "usage": 2 }
-// { "name": "Distance Fade", "class_name": &"", "type": 0, "hint": 0, "hint_string": "distance_fade_", "usage": 64 }
-// { "name": "distance_fade_mode", "class_name": &"", "type": 2, "hint": 2, "hint_string": "Disabled,PixelAlpha,PixelDither,ObjectDither", "usage": 6 }
-// { "name": "distance_fade_min_distance", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,4096,0.01,suffix:m", "usage": 2 }
-// { "name": "distance_fade_max_distance", "class_name": &"", "type": 3, "hint": 1, "hint_string": "0,4096,0.01,suffix:m", "usage": 2 }
-// { "name": "ORMMaterial3D", "class_name": &"", "type": 0, "hint": 0, "hint_string": "ORMMaterial3D", "usage": 128 }
-// { "name": "script", "class_name": &"Script", "type": 24, "hint": 17, "hint_string": "Script", "usage": 1048582 }
+bool set_param_not_in_property_list(Ref<BaseMaterial3D> p_base_material, const String &p_param_name, const Variant &p_value) {
+	// if the param is not in the property list, but it does have a setter, we can set it
+	if (p_base_material->has_method(vformat("set_%s", p_param_name))) {
+		if (p_base_material->has_method(vformat("get_%s", p_param_name))) {
+			Variant base_material_val = p_base_material->call(vformat("get_%s", p_param_name));
+			if (base_material_val.get_type() != p_value.get_type()) {
+				return false;
+			}
+		}
+		p_base_material->call(vformat("set_%s", p_param_name), p_value);
+		return true;
+	} else if (p_param_name == "metallness" && p_value.get_type() == Variant::FLOAT) {
+		p_base_material->set_metallic(p_value);
+		return true;
+	}
+	return false;
+}
 
-Ref<BaseMaterial3D> convert_shader_material_to_base_material(Ref<ShaderMaterial> p_shader_material) {
+Pair<Ref<BaseMaterial3D>, bool> convert_shader_material_to_base_material(Ref<ShaderMaterial> p_shader_material, Node *p_parent = nullptr) {
 	// we need to manually create a BaseMaterial3D from the shader material
 	// We do this by getting the shader uniforms and then mapping them to the BaseMaterial3D properties
 	// We also need to handle the texture parameters and features
 	List<StringName> list;
 	Ref<Shader> shader = p_shader_material->get_shader();
 	List<PropertyInfo> prop_list;
-	Vector<String> shader_uniforms;
-	shader->get_shader_uniform_list(&prop_list, false);
+	List<PropertyInfo> uniform_list;
+	HashSet<String> shader_uniforms;
+	shader->get_shader_uniform_list(&uniform_list, false);
+	for (auto &E : uniform_list) {
+		shader_uniforms.insert(E.name);
+	}
+	HashSet<String> global_uniforms;
+	HashSet<String> instance_uniforms;
+	//(global|instance)?\s*uniform\s+(\w+)\s+(\w+)\s*(?:\:\s+(\w+))?
+
+	String shader_code = shader->get_code();
+	Ref<RegEx> re = RegEx::create_from_string("(global|instance)?\\s*uniform\\s+(\\w+)\\s+(\\w+)\\s*(?:\\:\\s+(\\w+))?");
+	auto matches = re->search_all(shader_code);
+	for (auto &E : matches) {
+		Ref<RegExMatch> match = E;
+		String specifier = match->get_string(1);
+		String param_type = match->get_string(2);
+		String param_name = match->get_string(3);
+		String hint = match->get_string(5);
+		shader_uniforms.insert(param_name);
+		if (specifier == "global") {
+			global_uniforms.insert(param_name);
+		} else if (specifier == "instance") {
+			instance_uniforms.insert(param_name);
+		}
+	}
+
+	p_shader_material->get_property_list(&prop_list, false);
 	for (auto &E : prop_list) {
-		shader_uniforms.push_back(E.name);
+		if (E.usage == PROPERTY_USAGE_CATEGORY || E.usage == PROPERTY_USAGE_GROUP || E.usage == PROPERTY_USAGE_SUBGROUP) {
+			continue;
+		}
+		if (E.name.begins_with("shader_parameter/")) {
+			shader_uniforms.insert(E.name.trim_prefix("shader_parameter/"));
+		}
 	}
 
 	Ref<BaseMaterial3D> base_material = memnew(BaseMaterial3D(false));
@@ -1415,24 +1351,44 @@ Ref<BaseMaterial3D> convert_shader_material_to_base_material(Ref<ShaderMaterial>
 		{ BaseMaterial3D::TEXTURE_DETAIL_NORMAL, BaseMaterial3D::FEATURE_DETAIL },
 	};
 
-	String shader_code = shader->get_code();
 	Vector<String> lines = shader_code.split("\n");
 	bool set_texture = false;
 	HashMap<BaseMaterial3D::TextureParam, Vector<Pair<String, Ref<Texture>>>> base_material_texture_candidates;
 	for (int i = 0; i < BaseMaterial3D::TEXTURE_MAX; i++) {
 		base_material_texture_candidates[BaseMaterial3D::TextureParam(i)] = Vector<Pair<String, Ref<Texture>>>();
 	}
+	HashMap<String, Variant> set_params;
+	HashMap<String, Variant> non_set_params;
 	for (auto &E : shader_uniforms) {
 		String param_name = E.trim_prefix("shader_parameter/");
 		Variant val = p_shader_material->get_shader_parameter(param_name);
 
 		bool did_set = false;
 		if (base_material_params.has(param_name)) {
-			Variant base_material_val = base_material->get(param_name);
+			Variant base_material_val;
+			if (global_uniforms.has(param_name)) {
+				base_material_val = ProjectSettings::get_singleton()->get_setting("shader_globals/" + param_name);
+			} else if (instance_uniforms.has(param_name) && p_parent) {
+				bool valid = false;
+				Variant parent_val = p_parent->get(param_name, &valid);
+				if (valid) {
+					base_material_val = parent_val;
+				}
+			} else {
+				base_material_val = base_material->get(param_name);
+			}
+
 			if (base_material_val.get_type() == val.get_type()) {
 				base_material->set(param_name, val);
 				did_set = true;
+				set_params[param_name] = val;
 			}
+		} else if (set_param_not_in_property_list(base_material, param_name, val)) {
+			did_set = true;
+			set_params[param_name] = val;
+		}
+		if (!did_set) {
+			non_set_params[param_name] = val;
 		}
 
 		Ref<Texture> tex = val;
@@ -1536,11 +1492,29 @@ Ref<BaseMaterial3D> convert_shader_material_to_base_material(Ref<ShaderMaterial>
 			set_texture = true;
 		}
 	}
-	if (!set_texture) {
-		return Ref<BaseMaterial3D>();
+	if (shader_uniforms.has("brightness") && p_shader_material->get_shader_parameter("brightness").get_type() == Variant::FLOAT) {
+		float brightness = p_shader_material->get_shader_parameter("brightness");
+		Color get_emission = base_material->get_emission();
+		if (get_emission == Color()) {
+			get_emission = base_material->get_albedo();
+		}
+		base_material->set_emission(get_emission * brightness);
 	}
+	if (shader_uniforms.has("alpha")) {
+		Variant alpha_val = p_shader_material->get_shader_parameter("alpha");
+		if (alpha_val.get_type() == Variant::FLOAT) {
+			base_material->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
+			base_material->set_alpha_antialiasing(BaseMaterial3D::ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE);
+			Color albedo = base_material->get_albedo();
+			albedo.a = alpha_val;
+			base_material->set_albedo(albedo);
+		}
+	}
+	base_material->set_name(p_shader_material->get_name());
+	// set the path to the shader material's path so that we can add it to the external deps found if necessary
+	base_material->set_path_cache(p_shader_material->get_path());
 
-	return base_material;
+	return { base_material, set_texture };
 }
 
 Error GLBExporterInstance::_export_instanced_scene(Node *root, const String &p_dest_path) {
@@ -1610,22 +1584,60 @@ Error GLBExporterInstance::_export_instanced_scene(Node *root, const String &p_d
 			for (auto &E : state->get_meshes()) {
 				Ref<GLTFMesh> mesh = E;
 				if (mesh.is_valid()) {
+					String original_name = mesh->get_original_name();
+					MeshInstance3D *instance = nullptr;
+					if (!original_name.is_empty() && mesh_name_to_instance_map.has(original_name)) {
+						instance = mesh_name_to_instance_map[original_name];
+					}
+					Ref<ImporterMesh> im = mesh->get_mesh();
+					ERR_CONTINUE_MSG(im.is_null(), "ImporterMesh is null");
 					auto instance_materials = mesh->get_instance_materials();
-					for (int i = instance_materials.size() - 1; i >= 0; i--) {
-						Ref<ShaderMaterial> shader_material = instance_materials[i];
+
+					for (int surface_i = 0; surface_i < im->get_surface_count(); surface_i++) {
+						Ref<ShaderMaterial> shader_material;
+						Ref<BaseMaterial3D> base_material;
+						Pair<Ref<BaseMaterial3D>, bool> base_material_pair;
+						if (surface_i < instance_materials.size()) {
+							shader_material = instance_materials[surface_i];
+						} else {
+							shader_material = im->get_surface_material(surface_i);
+						}
 						if (shader_material.is_valid()) {
-							Ref<BaseMaterial3D> base_material = convert_shader_material_to_base_material(shader_material);
-							if (base_material.is_valid()) {
-								instance_materials[i] = base_material;
-								continue;
+							base_material_pair = convert_shader_material_to_base_material(shader_material, instance);
+							if (!base_material_pair.second) {
+								base_material = im->get_surface_material(surface_i);
+								if (!base_material.is_valid()) {
+									Ref<ShaderMaterial> surface_shader_material = im->get_surface_material(surface_i);
+									if (surface_shader_material.is_valid() && surface_shader_material != shader_material) {
+										auto new_material_pair = convert_shader_material_to_base_material(surface_shader_material);
+										if (new_material_pair.second) {
+											shader_material = surface_shader_material;
+											base_material_pair = new_material_pair;
+										}
+									}
+								}
 							}
-							// maybe there's a base material on the mesh itself and the instance material is an override?
-							auto im = mesh->get_mesh();
-							if (im.is_valid() && i < im->get_surface_count()) {
-								base_material = im->get_surface_material(i);
+							if (!base_material.is_valid()) {
+								base_material = base_material_pair.first;
 							}
 							if (base_material.is_valid()) {
-								instance_materials[i] = base_material;
+								if (surface_i < instance_materials.size()) {
+									instance_materials[surface_i] = base_material;
+								}
+								im->set_surface_material(surface_i, base_material);
+							}
+						}
+					}
+					// This shouldn't happen??
+					if (instance_materials.size() > im->get_surface_count()) {
+						WARN_PRINT("Instance materials size is greater than the mesh's surface count????");
+						for (int i = im->get_surface_count(); i < instance_materials.size(); i++) {
+							Ref<ShaderMaterial> shader_material = instance_materials[i];
+							if (shader_material.is_valid()) {
+								auto new_material_pair = convert_shader_material_to_base_material(shader_material);
+								if (new_material_pair.second) {
+									instance_materials[i] = new_material_pair.first;
+								}
 							}
 						}
 					}
