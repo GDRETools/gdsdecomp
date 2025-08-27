@@ -353,6 +353,7 @@ func _on_gdre_resource_preview_visibility_changed() -> void:
 	pass # Replace with function body.
 
 func _ready():
+	reset()
 	self.connect("visibility_changed", self._on_gdre_resource_preview_visibility_changed)
 	self.connect("resized", self._on_resized)
 	previous_res_info_size = Vector2(0, 100)
