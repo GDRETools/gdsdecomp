@@ -1322,14 +1322,9 @@ func patch_translations(pck_files: PackedStringArray, patch_translations: Dictio
 		print("Error: failed to load PCK files: ", pck_files)
 		return -1
 
-	var err = GDRESettings.load_import_files()
+	var err = GDRESettings.post_load_patch_translation()
 	if err != OK:
 		print("Error: failed to load import files: " + err)
-		return -1
-
-	err = GDRESettings.load_project_config()
-	if err != OK:
-		print("Error: failed to load project config: " + err)
 		return -1
 
 	for patch_file in patch_translations.keys():
@@ -1351,6 +1346,7 @@ func patch_translations(pck_files: PackedStringArray, patch_translations: Dictio
 		if err != OK:
 			print("Error: failed to patch project config: " + err)
 			return -1
+	GDRESettings.unload_project()
 	return 0
 
 func list_files(pck_files: PackedStringArray):

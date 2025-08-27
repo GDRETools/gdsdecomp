@@ -95,7 +95,6 @@ func confirm():
 func cancelled():
 	close()
 
-
 func load_test():
 	_load_project(['/Users/nikita/Library/Application Support/Steam/steamapps/common/Ex-Zodiac/Ex-Zodiac.app/Contents/Resources/Ex-Zodiac.pck'])
 	_repopulate_select_translation_button()
@@ -157,16 +156,6 @@ func get_translations():
 			translations.append(import)
 	return translations
 
-
-# This function is no longer needed in the main dialog
-# func get_selected_translation():
-# 	var opt: OptionButton = %SelectTranslationButton
-# 	var id = opt.selected
-# 	if id == -1:
-# 		return ""
-# 	var source = opt.get_item_text(id)
-# 	return source
-
 func _populate_translation_tree():
 	var translations = get_translations()
 	var sources = []
@@ -187,14 +176,9 @@ func _load_project(paths: PackedStringArray):
 	if err != OK:
 		popup_error_box("Failed to load project:\n" + GDRESettings.get_recent_error_string(), "Error")
 		return
-	err = GDRESettings.load_import_files()
+	err = GDRESettings.post_load_patch_translation()
 	if err != OK:
 		popup_error_box("Failed to load import files:\n" + GDRESettings.get_recent_error_string(), "Error")
-		GDRESettings.unload_project()
-		return
-	err = GDRESettings.load_project_config()
-	if err != OK:
-		popup_error_box("Failed to load project config:\n" + GDRESettings.get_recent_error_string(), "Error")
 		GDRESettings.unload_project()
 		return
 	%ProjectField.text = GDRESettings.get_pack_path()
@@ -251,19 +235,6 @@ func _reload_add_dialog_csv_option_buttons(keys: Dictionary[String, PackedString
 		button.text = key
 		container.add_child(button)
 
-# This function is no longer needed in the main dialog
-# func get_selected_locales():
-# 	var container: VBoxContainer = %CheckBoxGroup
-# 	var selected = PackedStringArray()
-# 	for child in container.get_children():
-# 		if not child is CheckBox:
-# 			continue
-# 		var box: CheckBox = child
-# 		if box.button_pressed:
-# 			selected.push_back(box.text)
-# 	print(str(selected))
-# 	return selected
-
 func _validate():
 	var disable_ok = false
 	if not GDRESettings.is_pack_loaded():
@@ -275,8 +246,6 @@ func _validate():
 		get_ok_button().disabled = true
 	else:
 		get_ok_button().disabled = false
-
-
 
 func _on_select_project_dialog_files_selected(paths: PackedStringArray) -> void:
 	call_on_next_process(call_on_next_process.bind(_load_project.bind(paths)))
@@ -397,16 +366,11 @@ func do_it(output: String):
 		do_patch_pck.emit(output, new_map, false)
 		self.hide()
 
-
-
-
 func _on_select_output_dialog_dir_selected(dir: String) -> void:
 	call_on_next_process(call_on_next_process.bind(do_it.bind(dir)))
 
-
 func _on_select_output_dialog_file_selected(path: String) -> void:
 	call_on_next_process(call_on_next_process.bind(do_it.bind(path)))
-
 
 func _on_select_project_button_pressed() -> void:
 	%SelectProjectDialog.popup_centered()
@@ -423,7 +387,6 @@ func _repopulate_select_translation_button():
 		opt.add_item(source)
 	if sources.size() > 0:
 		opt.select(0)
-
 
 func _on_add_translation_button_pressed() -> void:
 	if not GDRESettings.is_pack_loaded():

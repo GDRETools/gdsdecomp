@@ -224,10 +224,6 @@ int GDRESettings::get_ver_major_from_dir() {
 // it will change the CWD to the executable dir
 String GDRESettings::exec_dir = GDRESettings::_get_cwd();
 GDRESettings *GDRESettings::get_singleton() {
-	// TODO: get rid of this hack (again), the in-editor menu requires this.
-	// if (!singleton) {
-	// 	memnew(GDRESettings);
-	// }
 	return singleton;
 }
 // This adds compatibility classes for old objects that we know can be loaded on v4 just by changing the name
@@ -801,6 +797,7 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 			unload_project();
 			ERR_FAIL_V_MSG(err, "FATAL ERROR: Can't determine engine version of project pack!");
 		}
+		current_project->suspect_version = false;
 	}
 
 	_init_bytecode_from_ephemeral_settings();
@@ -848,6 +845,42 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 	}
 
 	return OK;
+}
+
+Error GDRESettings::post_load_patch_translation() {
+	if (!is_pack_loaded()) {
+		return ERR_FILE_CANT_OPEN;
+	}
+	bool invalid_ver = !has_valid_version() || current_project->suspect_version;
+	Error err = OK;
+	if (invalid_ver) {
+		// We need to get the version from the binary resources.
+		err = get_version_from_bin_resources();
+		if (err) {
+			return err;
+		}
+		current_project->suspect_version = false;
+	}
+	if (!pack_has_project_config()) {
+		WARN_PRINT("Could not find project configuration in directory, may be a seperate resource pack...");
+	} else {
+		err = load_project_config();
+		ERR_FAIL_COND_V_MSG(err, err, "FATAL ERROR: Can't open project config!");
+	}
+
+	err = load_import_files();
+	ERR_FAIL_COND_V_MSG(err, ERR_FILE_CANT_READ, "FATAL ERROR: Could not load imported binary files!");
+
+	return err;
+}
+
+bool GDRESettings::needs_post_load_patch_translation() const {
+	if (!is_pack_loaded()) {
+		return false;
+	}
+	bool invalid_ver = !has_valid_version() || current_project->suspect_version;
+	bool should_load_project_config = pack_has_project_config() && !is_project_config_loaded();
+	return invalid_ver || should_load_project_config || import_files.is_empty();
 }
 
 constexpr bool GDRESettings::need_correct_patch(int ver_major, int ver_minor) {
@@ -1792,7 +1825,7 @@ Array GDRESettings::get_import_files(bool copy) {
 	return ifiles;
 }
 
-bool GDRESettings::has_path_loaded(const String &p_path) {
+bool GDRESettings::has_path_loaded(const String &p_path) const {
 	if (is_pack_loaded()) {
 		return GDREPackedData::get_singleton()->has_path(p_path);
 	}
@@ -2186,7 +2219,7 @@ Ref<ImportInfo> GDRESettings::get_import_info_by_dest(const String &p_path) cons
 	}
 	return Ref<ImportInfo>();
 }
-bool GDRESettings::pack_has_project_config() {
+bool GDRESettings::pack_has_project_config() const {
 	if (!is_pack_loaded()) {
 		return false;
 	}
@@ -2703,6 +2736,8 @@ String GDRESettings::get_recent_error_string(bool p_filter_backtraces) {
 void GDRESettings::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("load_project", "p_paths", "cmd_line_extract", "csharp_assembly_override"), &GDRESettings::load_project, DEFVAL(false), DEFVAL(""));
 	ClassDB::bind_method(D_METHOD("unload_project"), &GDRESettings::unload_project);
+	ClassDB::bind_method(D_METHOD("post_load_patch_translation"), &GDRESettings::post_load_patch_translation);
+	ClassDB::bind_method(D_METHOD("needs_post_load_patch_translation"), &GDRESettings::needs_post_load_patch_translation);
 	ClassDB::bind_method(D_METHOD("get_gdre_resource_path"), &GDRESettings::get_gdre_resource_path);
 	ClassDB::bind_method(D_METHOD("get_gdre_user_path"), &GDRESettings::get_gdre_user_path);
 	ClassDB::bind_method(D_METHOD("get_encryption_key"), &GDRESettings::get_encryption_key);

@@ -231,6 +231,9 @@ public:
 	Error load_project(const Vector<String> &p_paths, bool cmd_line_extract = false, const String &csharp_assembly_override = "");
 	Error load_pck(const String &p_path);
 
+	Error post_load_patch_translation();
+	bool needs_post_load_patch_translation() const;
+
 	Error unload_project();
 	String get_gdre_resource_path() const;
 	String get_gdre_user_path() const;
@@ -286,7 +289,7 @@ public:
 	String get_cwd();
 	Array get_import_files(bool copy = false);
 	// Whether or not the file is located in a loaded pack
-	bool has_path_loaded(const String &p_path);
+	bool has_path_loaded(const String &p_path) const;
 	Error load_import_files();
 	Error load_import_file(const String &p_path);
 	Ref<ImportInfo> get_import_info_by_dest(const String &p_path) const;
@@ -301,7 +304,7 @@ public:
 	Error load_project_config();
 	Error save_project_config(const String &p_out_dir);
 	Error save_project_config_binary(const String &p_out_dir);
-	bool pack_has_project_config();
+	bool pack_has_project_config() const;
 	float get_auto_display_scale() const;
 	String get_gdre_version() const;
 	String get_disclaimer_text() const;
