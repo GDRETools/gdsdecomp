@@ -1066,7 +1066,7 @@ Ref<ExportReport> TextureExporter::export_resource(const String &output_dir, Ref
 			img_format = Image::get_format_name(img->get_format());
 			err = ImageSaver::save_image(dest_path, img, lossy);
 		}
-	} else if (importer == "texture_atlas") {
+	} else if (importer == "texture_atlas" || (importer == "texture" && ver_major <= 2 && iinfo->get_additional_sources().size() > 0)) {
 		if (ver_major <= 2 && (iinfo->get_type() == "ImageTexture" || iinfo->get_additional_sources().size() > 0)) {
 			// this is the sprite sheet for the texture atlas; we can't save it to the original sources, so we save it to another file
 			String rel_base_dir = iinfo->get_path().trim_prefix("res://").get_base_dir();
