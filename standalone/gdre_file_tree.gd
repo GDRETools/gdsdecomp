@@ -19,6 +19,7 @@ enum ColType {
 @export var file_ok: Texture2D = preload("res://gdre_icons/gdre_FileOk.svg")
 @export var file_broken: Texture2D = preload("res://gdre_icons/gdre_FileBroken.svg")
 @export var file_encrypted: Texture2D = preload("res://gdre_icons/gdre_FileEncrypted.svg")
+@export var file_warning: Texture2D = preload("res://gdre_icons/gdre_FileWarning.svg")
 @export var folder_icon: Texture2D = get_theme_icon("folder", "FileDialog")
 @export var root_name: String = "res://"
 @export var sortable: bool = true
@@ -96,7 +97,8 @@ func set_column_map_cache(val: Dictionary):
 	_info_col = val.get(ColType.INFO, -1)
 	_size_col_exists = _size_col != -1
 	_info_col_exists = _info_col != -1
-	columns = val.size()
+	var max_col = max(_name_col, max(_size_col, _info_col))
+	columns = max(columns, max_col + 1)
 
 @export var columnMap: Dictionary[ColType, int] = { ColType.NAME: 0, ColType.SIZE: 1}:
 	set(val):
@@ -519,7 +521,7 @@ func set_fold_all(item: TreeItem, collapsed: bool = true, recursive: bool = fals
 
 # creating and adding items
 
-func create_file_item(p_parent_item: TreeItem, p_fullname: String, p_name: String, p_icon: Texture2D, p_size: int = -1, p_error: String = "", p_info: String = "", p_idx: int = -1) -> TreeItem:
+func create_file_item(p_parent_item: TreeItem, p_fullname: String, p_name: String, p_icon, p_size: int = -1, p_error: String = "", p_info: String = "", p_idx: int = -1) -> TreeItem:
 	var item: TreeItem = p_parent_item.create_child(p_idx)
 	if check_mode:
 		item.set_cell_mode(_name_col, TreeItem.CELL_MODE_CHECK)
@@ -586,7 +588,7 @@ func _add_file_from_packed_info(info: PackedFileInfo, skipped_md5_check: bool = 
 	if (num_files > LARGE_PCK):
 		FILTER_DELAY = 0.5
 
-func add_file_tree_item(path: String, icon: Texture2D, file_size: int = -1, errstr: String = "", p_info: String = ""):
+func add_file_tree_item(path: String, icon, file_size: int = -1, errstr: String = "", p_info: String = ""):
 	var root_name = root.get_text(_name_col) if root else ""
 	if not flat_mode:
 		if ("user://" in path):
@@ -595,6 +597,8 @@ func add_file_tree_item(path: String, icon: Texture2D, file_size: int = -1, errs
 			return add_file_to_item_node_mode(userroot, path, path.replace("user://", ""), icon, file_size, errstr, p_info)
 		else:
 			return add_file_to_item_node_mode(root, path, path.replace(root_name, ""), icon, file_size, errstr, p_info)
+	if not root:
+		root = create_root_item("")
 	return create_file_item(root, path, path, icon, file_size, errstr, p_info)
 
 
