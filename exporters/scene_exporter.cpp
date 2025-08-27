@@ -812,7 +812,7 @@ Error GLBExporterInstance::_load_deps() {
 			if (info.parent_is_script_or_shader) {
 				script_or_shader_deps.insert(info.dep);
 			}
-			if (info.type.contains("Animation")) {
+			if (info.type == "Animation" || info.type == "AnimationLibrary") {
 				animation_deps_needed.insert(info.dep);
 				need_to_be_updated.insert(info.dep);
 			} else if (info.type.contains("Material")) {
