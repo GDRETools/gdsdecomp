@@ -171,7 +171,7 @@ Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 		memnew(GDREConfigSetting(
 				"Preview/use_scene_view_by_default",
 				"Use scene view by default",
-				"Use scene view by default instead of the text preview.\nWarning: Scene view is still experimental and certain scenes may cause the program to become unresponsive.",
+				"Use scene view by default instead of the text preview.\nWARNING: Scene view is still experimental and certain scenes may cause the program to become unresponsive.",
 				false)),
 		memnew(GDREConfigSetting_BytecodeForceBytecodeRevision()),
 		memnew(GDREConfigSetting_LoadCustomBytecode()),
@@ -182,7 +182,7 @@ Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 				true)),
 		memnew(GDREConfigSetting(
 				"CSharp/copy_out_of_tree_references",
-				"Copy out of tree references",
+				"Copy referenced assemblies",
 				"Copy referenced assemblies to the project directory.",
 				true)),
 		memnew(GDREConfigSetting(
@@ -220,7 +220,12 @@ Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 		memnew(GDREConfigSetting(
 				"Exporter/Scene/GLTF/replace_shader_materials",
 				"Replace shader materials",
-				"Replaces shader materials with their referenced materials when exporting the scene (this may result in inaccurate exports)",
+				"Replaces shader materials with generated standard materials when exporting the scene.\nSolves issues with exported scenes not having any textures.\nWARNING: This is experimental and may result in inaccurate exports that cannot be re-imported.",
+				false)),
+		memnew(GDREConfigSetting(
+				"Exporter/Texture/create_lossless_copy",
+				"Create lossless copy",
+				"Create a lossless .png copy of exported textures in '<OUTPUT_DIR>/.assets' if the texture is stored in a lossy format (e.g. jpeg)",
 				false)),
 		memnew(GDREConfigSetting_TranslationExporter_LoadKeyHintFile()),
 		memnew(GDREConfigSetting(
@@ -233,9 +238,9 @@ Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 		memnew(GDREConfigSetting(
 				"Exporter/Translation/dump_resource_strings",
 				"Dump resource strings",
-				"Dump resource strings to a file",
+				"Dumps collected resource strings to '<OUTPUT_DIR>/.assets/resource_strings.stringdump'",
 				false,
-				true,
+				false,
 				true)),
 	};
 }
@@ -383,7 +388,7 @@ String GDREConfigSetting::get_full_name() const {
 }
 
 String GDREConfigSetting::get_name() const {
-	return full_name.get_slice("/", 1);
+	return full_name.get_file();
 }
 
 String GDREConfigSetting::get_brief_description() const {

@@ -1107,7 +1107,7 @@ Ref<ExportReport> TextureExporter::export_resource(const String &output_dir, Ref
 	}
 	report->set_saved_path(dest_path);
 	// If lossy, also convert it as a png
-	bool saving_lossless_copy = false; // TODO: add config option
+	bool saving_lossless_copy = GDREConfig::get_singleton()->get_setting("Exporter/Texture/create_lossless_copy", false);
 	if (saving_lossless_copy && lossy && importer == "texture") {
 		String dest = iinfo->get_export_dest().get_basename() + ".png";
 		if (!dest.replace("res://", "").begins_with(".assets")) {
