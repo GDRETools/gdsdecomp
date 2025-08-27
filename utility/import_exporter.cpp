@@ -1108,9 +1108,8 @@ Error ImportExporter::rewrite_import_source(const String &rel_dest_path, const R
 		for (int i = 0; i < dest_files.size(); i++) {
 			Ref<ImportInfo> new_import = ImportInfo::copy(GDRESettings::get_singleton()->get_import_info_by_dest(dest_files[i]));
 			ERR_CONTINUE_MSG(new_import.is_null(), "Failed to copy import info for " + dest_files[i]);
-			new_import->set_params(iinfo->get_params());
 			String new_import_file = output_dir.path_join(dest_files[i].replace("res://", ""));
-			new_import->set_source_and_md5(new_import_file, source_md5);
+			new_import->set_source_and_md5(new_source, source_md5);
 			Error err = new_import->save_to(new_import_file);
 			ERR_FAIL_COND_V_MSG(err, err, "Failed to save import data for " + new_import_file);
 		}
