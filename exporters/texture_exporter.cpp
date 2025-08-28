@@ -373,6 +373,9 @@ Error TextureExporter::_convert_tex(const String &p_path, const String &dest_pat
 		print_line("Did not convert deprecated Texture resource " + p_path);
 		return err;
 	}
+	if (err == ERR_FILE_EOF) {
+		return ERR_FILE_EOF;
+	}
 	ERR_FAIL_COND_V_MSG(err != OK || tex.is_null(), err, "Failed to load texture " + p_path);
 
 	Ref<Image> img = tex->get_image();
@@ -404,6 +407,9 @@ Error TextureExporter::_convert_atex(const String &p_path, const String &dest_pa
 		// implement functionality to pass it back
 		image_format = "Unknown deprecated image format";
 		return err;
+	}
+	if (err == ERR_FILE_EOF) {
+		return ERR_FILE_EOF;
 	}
 	ERR_FAIL_COND_V_MSG(err != OK || loaded_tex.is_null(), err, "Failed to load texture " + p_path);
 	Ref<AtlasTexture> atex = loaded_tex;
@@ -612,6 +618,9 @@ Error TextureExporter::_convert_3d(const String &p_path, const String &dest_path
 		print_line("Did not convert deprecated Texture resource " + p_path);
 		return err;
 	}
+	if (err == ERR_FILE_EOF) {
+		return ERR_FILE_EOF;
+	}
 	ERR_FAIL_COND_V_MSG(err != OK || tex.is_null(), err, "Failed to load texture " + p_path);
 	ERR_FAIL_COND_V_MSG(tex->get_depth() <= 0, ERR_PARSE_ERROR, "Texture " + p_path + " has no layers");
 
@@ -809,6 +818,9 @@ Error TextureExporter::_convert_layered_2d(const String &p_path, const String &d
 		image_format = "Unknown deprecated image format";
 		print_line("Did not convert deprecated Texture resource " + p_path);
 		return err;
+	}
+	if (err == ERR_FILE_EOF) {
+		return ERR_FILE_EOF;
 	}
 	ERR_FAIL_COND_V_MSG(err != OK || tex.is_null(), err, "Failed to load texture " + p_path);
 
@@ -1103,6 +1115,9 @@ Ref<ExportReport> TextureExporter::export_resource(const String &output_dir, Ref
 		// Already reported in export functions above
 		return report;
 	} else if (err) {
+		if (err == ERR_FILE_EOF) {
+			report->set_message("Texture file is empty.");
+		}
 		return report;
 	}
 	report->set_saved_path(dest_path);

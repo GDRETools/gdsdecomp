@@ -94,17 +94,22 @@ Ref<ResourceInfo> TextureLoaderCompat::_get_resource_info(const String &original
 }
 
 TextureLoaderCompat::TextureVersionType TextureLoaderCompat::recognize(const String &p_path, Error *r_err) {
-	Error err;
+	Error err = OK;
 	if (!r_err) {
 		r_err = &err;
 	}
+	*r_err = OK;
 	const String res_path = p_path;
 	Ref<FileAccess> f = FileAccess::open(res_path, FileAccess::READ, r_err);
 
 	ERR_FAIL_COND_V_MSG(*r_err != OK || f.is_null(), FORMAT_NOT_TEXTURE, "Can't open texture file " + p_path);
 
 	uint8_t header[4];
-	f->get_buffer(header, 4);
+	uint64_t got = f->get_buffer(header, 4);
+	if (got != 4) { // empty file/corrupt
+		*r_err = ERR_FILE_EOF;
+		return FORMAT_NOT_TEXTURE;
+	}
 	//Only reading the header
 	if (header[0] == 'G' && header[1] == 'D' && header[2] == 'S' && header[3] == 'T') {
 		return TextureVersionType::FORMAT_V3_STREAM_TEXTURE2D;
@@ -282,6 +287,7 @@ Error TextureLoaderCompat::load_image_from_fileV3(Ref<FileAccess> f, int tw, int
 
 		//print_line("mipmaps: " + itos(mipmaps));
 
+		// This is dead code; p_size_limit is always 0, and Godot 3.x never uses it
 		while (mipmaps > 1 && p_size_limit > 0 && (sw > p_size_limit || sh > p_size_limit)) {
 			f->seek(f->get_position() + size);
 			mipmaps = f->get_32();
@@ -301,7 +307,7 @@ Error TextureLoaderCompat::load_image_from_fileV3(Ref<FileAccess> f, int tw, int
 				size = f->get_32();
 			}
 			if (size == 0) {
-				ERR_FAIL_V_MSG(ERR_FILE_CORRUPT, "Texture is empty");
+				ERR_FAIL_V_MSG(ERR_FILE_EOF, "Texture is empty");
 			}
 			Vector<uint8_t> pv;
 			pv.resize(size);
@@ -814,7 +820,7 @@ bool ResourceFormatLoaderCompatTexture2D::handles_type(const String &p_type) con
 
 // get resource type
 String ResourceFormatLoaderCompatTexture2D::get_resource_type(const String &p_path) const {
-	Error err;
+	Error err = OK;
 	String type = TextureLoaderCompat::get_type_name_from_textype(TextureLoaderCompat::recognize(p_path, &err));
 	return type;
 }
@@ -858,7 +864,7 @@ Ref<ResourceInfo> ResourceFormatLoaderCompatTextureLayered::get_resource_info(co
 }
 
 Ref<ResourceInfo> TextureLoaderCompat::get_resource_info(const String &p_path, Error *r_error) {
-	Error err;
+	Error err = OK;
 	TextureLoaderCompat::TextureVersionType t = TextureLoaderCompat::recognize(p_path, &err);
 	if (t == TextureLoaderCompat::FORMAT_NOT_TEXTURE) {
 		if (r_error) {
@@ -878,7 +884,7 @@ Ref<Resource> ResourceFormatLoaderCompatTexture2D::load(const String &p_path, co
 }
 
 Ref<Resource> ResourceFormatLoaderCompatTexture2D::custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
-	Error err;
+	Error err = OK;
 	Ref<Resource> res;
 	TextureLoaderCompat::TextureVersionType t = TextureLoaderCompat::recognize(p_path, &err);
 	if (t == TextureLoaderCompat::FORMAT_NOT_TEXTURE) {
@@ -927,7 +933,7 @@ bool ResourceFormatLoaderCompatTexture3D::handles_type(const String &p_type) con
 }
 
 String ResourceFormatLoaderCompatTexture3D::get_resource_type(const String &p_path) const {
-	Error err;
+	Error err = OK;
 	String type = TextureLoaderCompat::get_type_name_from_textype(TextureLoaderCompat::recognize(p_path, &err));
 	return type;
 }
@@ -957,7 +963,7 @@ Ref<CompressedTexture3D> ResourceFormatLoaderCompatTexture3D::_set_tex(const Str
 }
 
 Ref<Resource> ResourceFormatLoaderCompatTexture3D::custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
-	Error err;
+	Error err = OK;
 	TextureLoaderCompat::TextureVersionType t = TextureLoaderCompat::recognize(p_path, &err);
 	if (t == TextureLoaderCompat::FORMAT_NOT_TEXTURE) {
 		if (r_error) {
@@ -1009,7 +1015,7 @@ bool ResourceFormatLoaderCompatTextureLayered::handles_type(const String &p_type
 }
 
 String ResourceFormatLoaderCompatTextureLayered::get_resource_type(const String &p_path) const {
-	Error err;
+	Error err = OK;
 	String type = TextureLoaderCompat::get_type_name_from_textype(TextureLoaderCompat::recognize(p_path, &err));
 	return type;
 }
@@ -1058,7 +1064,7 @@ Ref<CompressedTextureLayered> ResourceFormatLoaderCompatTextureLayered::_set_tex
 }
 
 Ref<Resource> ResourceFormatLoaderCompatTextureLayered::custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
-	Error err;
+	Error err = OK;
 	Ref<Resource> res;
 	TextureLoaderCompat::TextureVersionType t = TextureLoaderCompat::recognize(p_path, &err);
 	if (t == TextureLoaderCompat::FORMAT_NOT_TEXTURE) {
