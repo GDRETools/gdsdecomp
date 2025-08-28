@@ -1569,13 +1569,10 @@ Error GLBExporterInstance::_export_instanced_scene(Node *root, const String &p_d
 		other_error_messages = _get_logged_error_messages();
 		auto errors_before = _get_error_count();
 		err = doc->append_from_scene(root, state, flags);
+		_silence_errors(was_silenced);
 		if (err) {
-			_silence_errors(was_silenced);
 			gltf_serialization_error_messages.append_array(_get_logged_error_messages());
 			GDRE_SCN_EXP_FAIL_V_MSG(ERR_COMPILATION_FAILED, "Failed to append scene " + source_path + " to glTF document");
-		}
-		if (canceled) {
-			_silence_errors(was_silenced);
 		}
 		GDRE_SCN_EXP_CHECK_CANCEL();
 
@@ -1646,6 +1643,7 @@ Error GLBExporterInstance::_export_instanced_scene(Node *root, const String &p_d
 			}
 		}
 
+		_silence_errors(true);
 		err = doc->_serialize(state);
 		_silence_errors(was_silenced);
 		GDRE_SCN_EXP_CHECK_CANCEL();
