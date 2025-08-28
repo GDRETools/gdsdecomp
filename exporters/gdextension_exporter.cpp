@@ -121,6 +121,13 @@ Ref<ExportReport> GDExtensionExporter::export_resource(const String &output_dir,
 	String parent_dir = GDRESettings::get_singleton()->get_pack_path().get_base_dir();
 
 	auto libs = iinfo->get_libaries();
+	// nothing to do if there are no libraries
+	if (libs.is_empty()) {
+		print_line("No libraries found in plugin " + import_infos->get_import_md_path() + ", skipping...");
+		report->set_error(ERR_SKIP);
+		report->set_message("No libraries found for plugin " + import_infos->get_import_md_path());
+		return report;
+	}
 	HashMap<String, SharedObject> lib_paths;
 	Error err = OK;
 	err = find_libs(libs, lib_paths);
