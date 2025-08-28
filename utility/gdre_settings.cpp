@@ -2366,9 +2366,17 @@ void GDRESettings::_do_string_load(uint32_t i, StringLoadToken *tokens) {
 			tokens[i].strings.push_back(res->get_message(key));
 		}
 	} else if (!(src_ext == "csv" || src_ext == "json") && ResourceCompatLoader::handles_resource(tokens[i].path)) {
+		// avoid spamming the console with errors for empty files
+		GDRELogger::get_thread_errors(); // clear errors if any
+		GDRELogger::set_thread_local_silent_errors(true);
 		auto res = ResourceCompatLoader::fake_load(tokens[i].path, "", &tokens[i].err);
+		GDRELogger::set_thread_local_silent_errors(false);
 		if (res.is_null()) {
-			WARN_PRINT("Failed to load resource " + tokens[i].path);
+			Vector<String> errors = GDRELogger::get_thread_errors();
+			if (tokens[i].err == ERR_FILE_EOF && !errors.is_empty() && errors[0].contains("Empty file")) { // empty file, ignore
+				return;
+			}
+			ERR_PRINT("Failed to load resource: " + tokens[i].path + "\n" + String(" \n").join(errors));
 		} else {
 			gdre::get_strings_from_variant(res, tokens[i].strings, tokens[i].engine_version);
 		}
