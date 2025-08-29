@@ -13,6 +13,7 @@
 #include "core/string/translation.h"
 #include "core/string/ustring.h"
 #include "modules/regex/regex.h"
+#include "utility/glob.h"
 #include "utility/pcfg_loader.h"
 #include <cstdio>
 
@@ -2069,10 +2070,18 @@ struct KeyWorker {
 
 inline String get_translation_locale(const Ref<Translation> &tr) {
 	String locale = tr->get_locale();
-	if (locale.is_empty()) {
+	if (locale.is_empty() && !tr->get_path().contains("::")) {
 		locale = tr->get_path().get_basename().get_extension().to_lower();
 	}
 	return locale;
+}
+
+inline void get_keys_from_translation(const Ref<Translation> &tr, Vector<String> &keys) {
+	List<StringName> key_list;
+	tr->get_message_list(&key_list);
+	for (auto key : key_list) {
+		keys.push_back(key);
+	}
 }
 
 Error TranslationExporter::get_translations(Ref<ImportInfo> iinfo, String &default_locale, Ref<Translation> &default_translation, Vector<Ref<Translation>> &translations, Vector<String> &keys) {
@@ -2083,42 +2092,54 @@ Error TranslationExporter::get_translations(Ref<ImportInfo> iinfo, String &defau
 			? GDRESettings::get_singleton()->get_project_setting(locale_setting_key)
 			: "en";
 	auto dest_files = iinfo->get_dest_files();
-	bool has_default_translation = false;
-	if (dest_files.size() > 1) {
+	Vector<Vector<String>> all_keys;
+	if (iinfo->get_importer() == "tccoxon.translation_plus") {
 		for (const String &path : dest_files) {
-			if (path.get_basename().get_extension().to_lower() == default_locale) {
-				has_default_translation = true;
-				break;
-			}
-		}
-	}
-	if (!has_default_translation) {
-		default_locale = dest_files[0].get_basename().get_extension().to_lower();
-		has_default_translation = !default_locale.is_empty();
-	}
-	for (String path : dest_files) {
-		Ref<Translation> tr = ResourceCompatLoader::non_global_load(path, "", &export_err);
-		ERR_FAIL_COND_V_MSG(export_err != OK, export_err, "Could not load translation file " + iinfo->get_path());
-		ERR_FAIL_COND_V_MSG(!tr.is_valid(), ERR_CANT_ACQUIRE_RESOURCE, "Translation file " + iinfo->get_path() + " was not valid");
-		String locale = get_translation_locale(tr);
-		if (tr->get_class_name() != "OptimizedTranslation") {
-			// We have a real translation class, get the keys
-			if (keys.size() == 0 && (!has_default_translation || locale.to_lower() == default_locale.to_lower())) {
-				List<StringName> key_list;
-				tr->get_message_list(&key_list);
-				for (auto key : key_list) {
-					keys.push_back(key);
+			Ref<Resource> res = ResourceCompatLoader::custom_load(path, "", ResourceInfo::GLTF_LOAD, &export_err, false, ResourceFormatLoader::CACHE_MODE_IGNORE);
+			Dictionary d = res->get("translations");
+			for (auto &locale : d.keys()) {
+				Ref<Translation> tr = d.get(locale, Ref<Translation>());
+				if (tr.is_valid()) {
+					if (default_translation.is_null() && locale.operator String().to_lower() == default_locale.to_lower()) {
+						default_translation = tr;
+					}
+					translations.push_back(tr);
 				}
 			}
 		}
-		if (locale.to_lower() == default_locale.to_lower() ||
-				// Some translations don't have the locale set, so we have to check the file name
-				(locale == "en" && path.get_basename().get_extension().to_lower() == default_locale.to_lower())) {
-			default_translation = tr;
+	} else {
+		for (const String &path : dest_files) {
+			Ref<Translation> tr = ResourceCompatLoader::non_global_load(path, "", &export_err);
+			ERR_CONTINUE_MSG(export_err != OK, "Could not load translation file " + iinfo->get_path());
+			ERR_CONTINUE_MSG(!tr.is_valid(), "Translation file " + iinfo->get_path() + " was not valid");
+			String locale = get_translation_locale(tr);
+			if (default_translation.is_null() && (locale.to_lower() == default_locale.to_lower() ||
+														 // Some translations don't have the locale set, so we have to check the file name
+														 (locale == "en" && tr->get_path().get_basename().get_extension().to_lower() == default_locale.to_lower()))) {
+				default_translation = tr;
+			}
+			translations.push_back(tr);
 		}
-		translations.push_back(tr);
 	}
+
 	ERR_FAIL_COND_V_MSG(translations.size() == 0, ERR_CANT_ACQUIRE_RESOURCE, "No translations found");
+	if (default_translation.is_null()) {
+		default_translation = translations[0];
+		default_locale = get_translation_locale(default_translation);
+	}
+	for (Ref<Translation> &tr : translations) {
+		if (tr->get_class_name() != "OptimizedTranslation") {
+			Vector<String> tr_keys;
+			get_keys_from_translation(tr, tr_keys);
+			all_keys.push_back(tr_keys);
+			break;
+		}
+	}
+	if (default_translation->get_class_name() != "OptimizedTranslation") {
+		get_keys_from_translation(default_translation, keys);
+	} else if (all_keys.size() > 0) {
+		keys = all_keys[0];
+	}
 	if (default_translation.is_null()) {
 		default_translation = translations[0];
 	}
@@ -2144,6 +2165,11 @@ Error TranslationExporter::get_translations(Ref<ImportInfo> iinfo, String &defau
 				best_empty_strings = empties;
 				default_translation = translations[i];
 			}
+		}
+		if (default_translation->get_class_name() != "OptimizedTranslation") {
+			// re-get the keys
+			keys.clear();
+			get_keys_from_translation(default_translation, keys);
 		}
 	}
 	translations.erase(default_translation);
@@ -2258,6 +2284,7 @@ void TranslationExporter::get_handled_importers(List<String> *out) const {
 	out->push_back("csv_translation");
 	out->push_back("translation_csv");
 	out->push_back("translation");
+	out->push_back("tccoxon.translation_plus");
 }
 
 String TranslationExporter::get_name() const {
