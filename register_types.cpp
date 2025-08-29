@@ -22,6 +22,7 @@
 #include "compat/fake_gdscript.h"
 #include "compat/fake_mesh.h"
 #include "compat/oggstr_loader_compat.h"
+#include "compat/optimized_translation_extractor.h"
 #include "compat/resource_compat_binary.h"
 #include "compat/resource_compat_text.h"
 #include "compat/resource_loader_compat.h"
@@ -93,6 +94,7 @@ static Ref<ImageTextureConverterCompat> image_texture_converter = nullptr;
 static Ref<OggStreamConverterCompat> ogg_converter = nullptr;
 static Ref<LargeTextureConverterCompat> large_texture_converter = nullptr;
 static Ref<FakeScriptConverterCompat> fake_script_converter = nullptr;
+static Ref<TranslationConverterCompat> translation_converter = nullptr;
 
 //exporters
 static Ref<AutoConvertedExporter> auto_converted_exporter = nullptr;
@@ -142,6 +144,7 @@ void init_loaders() {
 	ogg_converter = memnew(OggStreamConverterCompat);
 	large_texture_converter = memnew(LargeTextureConverterCompat);
 	fake_script_converter = memnew(FakeScriptConverterCompat);
+	translation_converter = memnew(TranslationConverterCompat);
 	ResourceCompatLoader::add_resource_format_loader(binary_loader, true);
 	ResourceCompatLoader::add_resource_format_loader(text_loader, true);
 	ResourceCompatLoader::add_resource_format_loader(texture_loader, true);
@@ -156,6 +159,7 @@ void init_loaders() {
 	ResourceCompatLoader::add_resource_object_converter(ogg_converter, true);
 	ResourceCompatLoader::add_resource_object_converter(large_texture_converter, true);
 	ResourceCompatLoader::add_resource_object_converter(fake_script_converter, true);
+	ResourceCompatLoader::add_resource_object_converter(translation_converter, true);
 }
 
 void init_exporters() {
@@ -306,6 +310,9 @@ void deinit_loaders() {
 	if (fake_script_converter.is_valid()) {
 		ResourceCompatLoader::remove_resource_object_converter(fake_script_converter);
 	}
+	if (translation_converter.is_valid()) {
+		ResourceCompatLoader::remove_resource_object_converter(translation_converter);
+	}
 	text_loader = nullptr;
 	binary_loader = nullptr;
 	texture_loader = nullptr;
@@ -320,6 +327,7 @@ void deinit_loaders() {
 	ogg_converter = nullptr;
 	large_texture_converter = nullptr;
 	fake_script_converter = nullptr;
+	translation_converter = nullptr;
 }
 
 void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
@@ -387,6 +395,9 @@ void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
 	ClassDB::register_class<ImageTextureConverterCompat>();
 	ClassDB::register_class<OggStreamConverterCompat>();
 	ClassDB::register_class<FakeScriptConverterCompat>();
+	ClassDB::register_class<TranslationConverterCompat>();
+	ClassDB::register_class<OptimizedTranslationExtractor>();
+
 	ClassDB::register_class<FakeScript>();
 	ClassDB::register_class<FakeGDScript>();
 	ClassDB::register_class<FakeCSharpScript>();

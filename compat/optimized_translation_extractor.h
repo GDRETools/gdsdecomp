@@ -1,5 +1,5 @@
-#ifndef __OPTIMIZED_TRANSLATION_EXTRACTOR_H__
-#define __OPTIMIZED_TRANSLATION_EXTRACTOR_H__
+#pragma once
+#include "compat/resource_loader_compat.h"
 
 #include "core/string/optimized_translation.h"
 
@@ -70,4 +70,11 @@ public:
 	static Ref<OptimizedTranslationExtractor> create_from(const Ref<OptimizedTranslation> &p_otr);
 	OptimizedTranslationExtractor() {}
 };
-#endif // __OPTIMIZED_TRANSLATION_EXTRACTOR_H__
+
+class TranslationConverterCompat : public ResourceCompatConverter {
+	GDCLASS(TranslationConverterCompat, ResourceCompatConverter);
+
+public:
+	virtual Ref<Resource> convert(const Ref<MissingResource> &res, ResourceInfo::LoadType p_type, int ver_major, Error *r_error = nullptr) override;
+	virtual bool handles_type(const String &p_type, int ver_major) const override;
+};

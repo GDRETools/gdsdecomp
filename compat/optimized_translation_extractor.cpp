@@ -30,6 +30,8 @@
 
 #include "optimized_translation_extractor.h"
 
+#include "utility/resource_info.h"
+
 #include "core/templates/pair.h"
 
 extern "C" {
@@ -631,4 +633,38 @@ Ref<OptimizedTranslationExtractor> OptimizedTranslationExtractor::create_from(co
 	ote->set("bucket_table", p_otr->get("bucket_table"));
 	ote->set("strings", p_otr->get("strings"));
 	return ote;
+}
+
+Ref<Resource> TranslationConverterCompat::convert(const Ref<MissingResource> &res, ResourceInfo::LoadType p_type, int ver_major, Error *r_error) {
+	Ref<Translation> ote;
+	if (res->get_original_class() == "PHashTranslation" || res->get_original_class() == "OptimizedTranslation") {
+		ote = memnew(OptimizedTranslation);
+		ote->set("hash_table", res->get("hash_table"));
+		ote->set("bucket_table", res->get("bucket_table"));
+		ote->set("strings", res->get("strings"));
+	} else {
+		ote = memnew(Translation);
+	}
+	Variant v = res->get("messages");
+	Dictionary d;
+	if (v.get_type() == Variant::Type::PACKED_STRING_ARRAY) {
+		// convert to a Dictionary
+		PackedStringArray psa = v;
+		for (int i = 0; i < psa.size(); i += 2) {
+			d[psa[i]] = psa[i + 1];
+		}
+	} else if (v.get_type() == Variant::Type::DICTIONARY) {
+		d = v;
+	}
+	ote->set("messages", d);
+	Variant locale = res->get("locale");
+	if (locale != Variant()) {
+		ote->set("locale", locale);
+	}
+	ote->merge_meta_from(res.ptr());
+	return ote;
+}
+
+bool TranslationConverterCompat::handles_type(const String &p_type, int ver_major) const {
+	return (p_type == "Translation" || p_type == "PHashTranslation" || p_type == "OptimizedTranslation") && ver_major <= 3;
 }
