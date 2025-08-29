@@ -2,6 +2,7 @@ using System.Net;
 using System.Xml.Linq;
 using NuGet.Packaging;
 using NuGet.Common;
+using Newtonsoft.Json;
 
 namespace GodotMonoDecomp;
 
@@ -36,11 +37,25 @@ public static class NugetDetails
 				var dir = Path.Combine(UserPackagesPath, name.ToLower(), version.ToLower());
 				// check the metadata file
 				var metadataPath = Path.Combine(dir, $".nupkg.metadata");
-				var metadata = File.Exists(metadataPath) ? NupkgMetadataFileFormat.Read(metadataPath) : null;
-				if (!string.IsNullOrEmpty(metadata?.Source) && metadata.Source.StartsWith("https://api.nuget.org"))
+				// {
+				// "version": 2,
+				// "contentHash": "FRQlhMAcHf0GjAXIfhN6RydfZncLLXNNTOtpLL1bt57kp59vu40faW+dr6Vwl7ef/IUFfF38aiB5jvhAA/9Aow==",
+				// "source": "https://api.nuget.org/v3/index.json"
+				// }
+				// we can't use the nupkgemetadatafileformat reader because it doesn't work on NativeAOT, so just read it as JSON and get the fields manually
+				if (File.Exists(metadataPath))
 				{
-					return $"sha512-{metadata.ContentHash}";
+					var metadataJson = File.ReadAllText(metadataPath);
+					if (!string.IsNullOrEmpty(metadataJson))
+					{
+						var metadata = JsonConvert.DeserializeObject<Dictionary<string, object>>(metadataJson);
+						if (metadata != null && metadata.TryGetValue("contentHash", out var contentHash) && metadata.TryGetValue("source", out var source) && source != null && source.ToString().StartsWith("https://api.nuget.org"))
+						{
+							return $"sha512-{contentHash}";
+						}
+					}
 				}
+
 				// either we didn't have a metadata file or it wasn't from nuget.org, so we need to download it again
 				// save it to a temporary directory so as not to clobber the local cache
 				var tempDir = Path.Combine(NuGetEnvironment.GetFolderPath(NuGetFolderPath.Temp), name.ToLower(), version.ToLower());

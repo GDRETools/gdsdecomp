@@ -41,6 +41,7 @@ int Main(string[] args)
 	settings.WriteNuGetPackageReferences = !result.Value.NoWriteNuGetPackageReferences;
 	settings.CopyOutOfTreeReferences = !result.Value.NoCopyOutOfTreeReferences;
 	settings.CreateAdditionalProjectsForProjectReferences = !result.Value.NoCreateAdditionalProjectsForProjectReferences;
+	settings.VerifyNuGetPackageIsFromNugetOrg = result.Value.VerifyNuGetPackages;
 	settings.GodotVersionOverride = result.Value.GodotVersion == null ? null : GodotStuff.ParseGodotVersionFromString(result.Value.GodotVersion);
 	// get the current time
 	var startTime = DateTime.Now;
@@ -98,6 +99,9 @@ public class Options
 
 	[Option("no-copy-out-of-tree-references", Required = false, HelpText = "Whether to copy out-of-tree references (i.e. references that are not within the same directory structure as the project file) to the project file.")]
 	public bool NoCopyOutOfTreeReferences { get; set; }
+
+	[Option("verify-nuget-packages", Required = false, HelpText = "Whether to verify that NuGet package references are in-fact from nuget.org before writing them to the project file.")]
+	public bool VerifyNuGetPackages { get; set; }
 
 	[Option("no-multi-project", Required = false, HelpText = "Whether to create additional projects for project references in main module.")]
 	public bool NoCreateAdditionalProjectsForProjectReferences { get; set; }
