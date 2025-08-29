@@ -1,6 +1,7 @@
 #ifndef INPUT_EVENT_PARSER_V2_H
 #define INPUT_EVENT_PARSER_V2_H
 
+#include "compat/resource_loader_compat.h"
 #include "core/variant/variant_parser.h"
 
 namespace V2InputEvent {
@@ -395,6 +396,18 @@ public:
 
 	static Error decode_input_event(Variant &r_variant, const uint8_t *p_buffer, int p_len, int *r_len);
 	static Error parse_input_event_construct_v2(VariantParser::Stream *f, Variant &r_v, int &line, String &p_err_str, String id = "");
+};
+
+class InputEventConverterCompat : public ResourceCompatConverter {
+	GDCLASS(InputEventConverterCompat, ResourceCompatConverter);
+
+public:
+	static const HashMap<String, String> old_prop_to_new_prop;
+	virtual Ref<Resource> convert(const Ref<MissingResource> &res, ResourceInfo::LoadType p_type, int ver_major, Error *r_error = nullptr) override;
+	virtual bool handles_type(const String &p_type, int ver_major) const override;
+	virtual bool has_convert_back() const override { return true; }
+	virtual Ref<MissingResource> convert_back(const Ref<Resource> &res, int ver_major, Error *r_error = nullptr) override;
+	static bool handles_type_static(const String &p_type, int ver_major);
 };
 
 #endif // INPUT_EVENT_PARSER_V2_H

@@ -671,7 +671,7 @@ bool CompatFormatLoader::handles_fake_load() const {
 	return false;
 }
 
-Ref<Resource> ResourceCompatConverter::set_real_from_missing_resource(Ref<MissingResource> mr, Ref<Resource> res, ResourceInfo::LoadType load_type) {
+Ref<Resource> ResourceCompatConverter::set_real_from_missing_resource(Ref<MissingResource> mr, Ref<Resource> res, ResourceInfo::LoadType load_type, const HashMap<String, String> &prop_map) {
 	if (res.is_null()) {
 		ERR_FAIL_V_MSG(Ref<Resource>(), "Failed to cast material to object: " + mr->get_path());
 	}
@@ -684,10 +684,11 @@ Ref<Resource> ResourceCompatConverter::set_real_from_missing_resource(Ref<Missin
 			res->set_path_cache(mr->get(property.name));
 		} else if (is_storage) {
 			Ref<MissingResource> m_res = mr->get(property.name);
+			String set_prop = prop_map.has(property.name) ? prop_map[property.name] : property.name;
 			if (m_res.is_valid()) {
-				res->set(property.name, get_real_from_missing_resource(m_res, load_type));
+				res->set(set_prop, get_real_from_missing_resource(m_res, load_type));
 			} else {
-				res->set(property.name, mr->get(property.name));
+				res->set(set_prop, mr->get(property.name));
 			}
 		} else {
 			// WARN_PRINT("Property " + property.name + " is not storage");
@@ -710,7 +711,29 @@ bool ResourceCompatConverter::is_external_resource(Ref<MissingResource> mr) {
 	return is_external;
 }
 
-Ref<Resource> ResourceCompatConverter::get_real_from_missing_resource(Ref<MissingResource> mr, ResourceInfo::LoadType load_type) {
+Ref<MissingResource> ResourceCompatConverter::get_missing_resource_from_real(Ref<Resource> res, int ver_major, const HashMap<String, String> &required_prop_map) {
+	Ref<MissingResource> mr;
+	mr.instantiate();
+	mr->set_original_class(res->get_class());
+	mr->set_recording_properties(true);
+	mr->set_path_cache(res->get_path());
+	mr->set_name(res->get_name());
+	mr->set_local_to_scene(res->is_local_to_scene());
+	mr->set_script(res->get_script());
+	if (ver_major >= 4 && !res->get_scene_unique_id().is_empty()) {
+		mr->set_scene_unique_id(res->get_scene_unique_id());
+	}
+	List<PropertyInfo> property_info;
+	res->get_property_list(&property_info);
+	for (auto &property : property_info) {
+		if (required_prop_map.has(property.name)) {
+			mr->set(required_prop_map[property.name], res->get(property.name));
+		}
+	}
+	return mr;
+}
+
+Ref<Resource> ResourceCompatConverter::get_real_from_missing_resource(Ref<MissingResource> mr, ResourceInfo::LoadType load_type, const HashMap<String, String> &prop_map) {
 	auto resource_info = ResourceInfo::get_info_from_resource(mr);
 	if (is_external_resource(mr)) {
 		if (load_type == ResourceInfo::LoadType::FAKE_LOAD || load_type == ResourceInfo::LoadType::NON_GLOBAL_LOAD) {
@@ -734,5 +757,5 @@ Ref<Resource> ResourceCompatConverter::get_real_from_missing_resource(Ref<Missin
 	if (res.is_null()) {
 		ERR_FAIL_V_MSG(Ref<Material>(), "Failed to cast material to object: " + mr->get_path());
 	}
-	return set_real_from_missing_resource(mr, res, load_type);
+	return set_real_from_missing_resource(mr, res, load_type, prop_map);
 }

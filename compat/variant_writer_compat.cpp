@@ -152,8 +152,9 @@ Error VariantParserCompat::parse_value(VariantParser::Token &token, Variant &r_v
 			}
 
 			String type = token.value;
+			// TODO: Need to make ParserCompat take in a ver_major so we can make use of the converters; as it stands, this rarely ever is needed
 			// hacks for v3 input_event
-			bool v3_input_key_hacks = type == "InputEventKey";
+			bool v3_input_key_hacks = InputEventConverterCompat::handles_type_static(type, 3);
 			Object *obj = ClassDB::instantiate(type);
 
 			if (!obj) {
@@ -237,10 +238,8 @@ Error VariantParserCompat::parse_value(VariantParser::Token &token, Variant &r_v
 					// If this is a v4 input_event, it won't have these
 					// v2 input_events were variants and are handled below
 					if (v3_input_key_hacks) {
-						if (key == "scancode") {
-							key = "keycode";
-						} else if (key == "physical_scancode") {
-							key = "physical_keycode";
+						if (InputEventConverterCompat::old_prop_to_new_prop.has(key)) {
+							key = InputEventConverterCompat::old_prop_to_new_prop[key];
 						}
 					}
 					obj->set(key, v);
@@ -1549,13 +1548,22 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_3>::write_compa
 					res_text = p_encode_res_func(p_encode_res_ud, res);
 				}
 				if (res_text.is_empty()) {
-					if (ver_major == 3 && res->is_class("InputEventKey") && is_pcfg) {
-						// Hacks for v3 InputEventKeys stored inline in project.godot
-						v3_input_key_hacks = true;
-					} else if (res->get_path().is_resource_file()) {
+					if (res->get_path().is_resource_file()) {
 						// external resource
 						String path = res->get_path();
 						res_text = "Resource( \"" + path + "\")";
+					} else {
+						auto converter = ResourceCompatLoader::get_converter_for_type(obj->get_save_class(), ver_major);
+						if (converter.is_valid()) {
+							if (converter->has_convert_back()) {
+								Error err;
+								res = converter->convert_back(res, ver_major, &err);
+								obj = res.ptr();
+							} else {
+								WARN_PRINT("No convert_back for " + obj->get_save_class());
+								// do nothing
+							}
+						}
 					}
 				}
 
@@ -1568,7 +1576,7 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_3>::write_compa
 
 			// store as generic object
 
-			p_store_string_func(p_store_string_ud, "Object(" + obj->get_class() + ",");
+			p_store_string_func(p_store_string_ud, "Object(" + obj->get_save_class() + ",");
 
 			List<PropertyInfo> props;
 			obj->get_property_list(&props);
@@ -1582,16 +1590,7 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_3>::write_compa
 					} else {
 						p_store_string_func(p_store_string_ud, ",");
 					}
-					// v3 InputEventKey hacks
-					String compat_name = E->get().name;
-					if (v3_input_key_hacks) {
-						if (compat_name == "keycode") {
-							compat_name = "scancode";
-						} else if (compat_name == "physical_keycode") {
-							compat_name = "physical_scancode";
-						}
-					}
-					p_store_string_func(p_store_string_ud, "\"" + compat_name + "\":");
+					p_store_string_func(p_store_string_ud, "\"" + E->get().name + "\":");
 					write_compat_v2_v3(obj->get(E->get().name), p_store_string_func, p_store_string_ud, p_encode_res_func, p_encode_res_ud);
 				}
 			}

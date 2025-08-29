@@ -800,8 +800,18 @@ Error VariantDecoderCompat::decode_variant_3(Variant &r_variant, const uint8_t *
 				if (str == String()) {
 					r_variant = (Object *)nullptr;
 				} else {
-					Object *obj = ClassDB::instantiate(str);
-					bool is_input_event_key = str == "InputEventKey";
+					Ref<MissingResource> missing_resource;
+					Object *obj;
+
+					auto converter = ResourceCompatLoader::get_converter_for_type(str, 3);
+					if (converter.is_valid()) {
+						missing_resource.instantiate();
+						missing_resource->set_original_class(str);
+						missing_resource->set_recording_properties(true);
+						obj = missing_resource.ptr();
+					} else {
+						obj = ClassDB::instantiate(str);
+					}
 					ERR_FAIL_COND_V(!obj, ERR_UNAVAILABLE);
 					ERR_FAIL_COND_V(len < 4, ERR_INVALID_DATA);
 
@@ -831,19 +841,11 @@ Error VariantDecoderCompat::decode_variant_3(Variant &r_variant, const uint8_t *
 						if (r_len) {
 							(*r_len) += used;
 						}
-						// Hack for v3 Input Events, which will be the only Objects we encounter encoded into the project.binary
-						// scancode was renamed to keycode in v4
-						if (is_input_event_key) {
-							if (str == "scancode") {
-								str = "keycode";
-							} else if (str == "physical_scancode") {
-								str = "physical_keycode";
-							}
-						}
 						obj->set(str, value);
 					}
-
-					if (Object::cast_to<RefCounted>(obj)) {
+					if (converter.is_valid()) {
+						r_variant = converter->convert(missing_resource, ResourceInfo::LoadType::REAL_LOAD, 3, &err);
+					} else if (Object::cast_to<RefCounted>(obj)) {
 						Ref<RefCounted> ref = Ref<RefCounted>(Object::cast_to<RefCounted>(obj));
 						r_variant = ref;
 					} else {
@@ -1497,7 +1499,18 @@ Error VariantDecoderCompat::decode_variant_2(Variant &r_variant, const uint8_t *
 				if (str == String()) {
 					r_variant = (Object *)nullptr;
 				} else {
-					Object *obj = ClassDB::instantiate(str);
+					Ref<MissingResource> missing_resource;
+					Object *obj;
+
+					auto converter = ResourceCompatLoader::get_converter_for_type(str, 2);
+					if (converter.is_valid()) {
+						missing_resource.instantiate();
+						missing_resource->set_original_class(str);
+						missing_resource->set_recording_properties(true);
+						obj = missing_resource.ptr();
+					} else {
+						obj = ClassDB::instantiate(str);
+					}
 
 					ERR_FAIL_COND_V(!obj, ERR_UNAVAILABLE);
 					ERR_FAIL_COND_V(len < 4, ERR_INVALID_DATA);
@@ -1532,7 +1545,9 @@ Error VariantDecoderCompat::decode_variant_2(Variant &r_variant, const uint8_t *
 						obj->set(str, value);
 					}
 
-					if (Object::cast_to<RefCounted>(obj)) {
+					if (converter.is_valid()) {
+						r_variant = converter->convert(missing_resource, ResourceInfo::LoadType::REAL_LOAD, 2, &err);
+					} else if (Object::cast_to<RefCounted>(obj)) {
 						Ref<RefCounted> ref = Ref<RefCounted>(Object::cast_to<RefCounted>(obj));
 						r_variant = ref;
 					} else {
@@ -2152,10 +2167,19 @@ Error VariantDecoderCompat::encode_variant_3(const Variant &p_variant, uint8_t *
 
 				} else {
 					_encode_string(obj->get_save_class(), buf, r_len);
-					bool is_input_event_key = false;
-					if (obj->get_save_class() == "InputEventKey") {
-						is_input_event_key = true;
+					Ref<MissingResource> missing_resource;
+					auto converter = ResourceCompatLoader::get_converter_for_type(obj->get_save_class(), 3);
+					if (converter.is_valid()) {
+						if (converter->has_convert_back()) {
+							Error err;
+							missing_resource = converter->convert_back(Ref<Resource>(obj), 3, &err);
+							obj = missing_resource.ptr();
+						} else {
+							WARN_PRINT("No convert_back for " + obj->get_save_class());
+							// do nothing
+						}
 					}
+
 					List<PropertyInfo> props;
 					obj->get_property_list(&props);
 
@@ -2178,17 +2202,7 @@ Error VariantDecoderCompat::encode_variant_3(const Variant &p_variant, uint8_t *
 						if (!(E->get().usage & PROPERTY_USAGE_STORAGE)) {
 							continue;
 						}
-						// InputEvent hack
-						// keycode -> scancode
-						// physical_keycode -> physical_scancode
 						String name = E->get().name;
-						if (is_input_event_key) {
-							if (name == "keycode") {
-								name = "scancode";
-							} else if (name == "physical_keycode") {
-								name = "physical_scancode";
-							}
-						}
 						_encode_string(name, buf, r_len);
 
 						int len;

@@ -209,7 +209,11 @@ public:
 	static String get_resource_name(const Ref<Resource> &res, int ver_major);
 	virtual Ref<Resource> convert(const Ref<MissingResource> &res, ResourceInfo::LoadType p_type, int ver_major, Error *r_error = nullptr) = 0;
 	virtual bool handles_type(const String &p_type, int ver_major) const = 0;
-	static Ref<Resource> get_real_from_missing_resource(Ref<MissingResource> mr, ResourceInfo::LoadType load_type);
-	static Ref<Resource> set_real_from_missing_resource(Ref<MissingResource> mr, Ref<Resource> res, ResourceInfo::LoadType load_type);
+	virtual bool has_convert_back() const { return false; }
+	virtual Ref<MissingResource> convert_back(const Ref<Resource> &res, int ver_major, Error *r_error = nullptr) { return Ref<MissingResource>(); }
+	// the required_prop_map MUST have all the properties that are required to be set in the missing resource
+	static Ref<MissingResource> get_missing_resource_from_real(Ref<Resource> res, int ver_major, const HashMap<String, String> &required_prop_map);
+	static Ref<Resource> get_real_from_missing_resource(Ref<MissingResource> mr, ResourceInfo::LoadType load_type, const HashMap<String, String> &prop_map = {});
+	static Ref<Resource> set_real_from_missing_resource(Ref<MissingResource> mr, Ref<Resource> res, ResourceInfo::LoadType load_type, const HashMap<String, String> &prop_map = {});
 	static bool is_external_resource(Ref<MissingResource> mr);
 };
