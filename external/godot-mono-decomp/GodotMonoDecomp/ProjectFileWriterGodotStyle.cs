@@ -159,6 +159,19 @@ namespace GodotMonoDecomp
 			if (settings.CreateAdditionalProjectsForProjectReferences && depInfo != null)
 			{
 				PlaceIntoTag("ItemGroup", xml, () => WriteProjectReferences(xml, module, project, projectType, depInfo, settings));
+				HashSet<string> excludes = [];
+				HashSet<string> alreadyProcessed = [];
+				GetProjectReferenceExcludes(project, depInfo, excludes, alreadyProcessed);
+				if (excludes.Count > 0)
+				{
+					PlaceIntoTag("ItemGroup", xml, () => {
+						WriteCompileExcludes(xml, excludes);
+					});
+					PlaceIntoTag("ItemGroup", xml, () => {
+						WriteEmbeddedResourceExcludes(xml, excludes);
+					});
+				}
+
 			}
 			if (settings.WriteNuGetPackageReferences && depInfo != null){
 				PlaceIntoTag("ItemGroup", xml,
@@ -510,6 +523,60 @@ namespace GodotMonoDecomp
 					xml.WriteAttributeString("Include", relativePath);
 					xml.WriteEndElement();
 				}
+			}
+			return;
+		}
+
+
+		static void GetProjectReferenceExcludes(IGodotProjectWithSettingsProvider project, DotNetCoreDepInfo? deps, HashSet<string> excludes, HashSet<string> alreadyProcessed)
+		{
+			if (deps == null)
+			{
+				return;
+			}
+
+			alreadyProcessed.Add(deps.Name);
+			foreach (var dep in deps.deps)
+			{
+
+				if (dep.Type == "project")
+				{
+					if (alreadyProcessed.Contains(dep.Name))
+					{
+						continue;
+					}
+
+					alreadyProcessed.Add(dep.Name);
+					var path = project.SubProjectMap.TryGetValue(dep.Name, out var p) ? p : Path.Join(dep.Name, dep.Name + ".csproj");
+					var relativePath = FileUtility.GetRelativePath(Path.GetDirectoryName(project.ProjectCSProjPath), path);
+					// if relativePath is a subdirectory of the project directory, add it to the excludes
+					if (!relativePath.StartsWith(".."))
+					{
+						excludes.Add(Path.GetDirectoryName(relativePath));
+					}
+					// this is recursive, so we need to get the excludes for the referenced project as well
+					GetProjectReferenceExcludes(project, dep, excludes, alreadyProcessed);
+				}
+			}
+		}
+
+		static void WriteCompileExcludes(XmlTextWriter xml, HashSet<string> excludes)
+		{
+			foreach (var exclude in excludes)
+			{
+				xml.WriteStartElement("Compile");
+				xml.WriteAttributeString("Remove", Path.Join(exclude, "**"));
+				xml.WriteEndElement();
+			}
+		}
+
+		static void WriteEmbeddedResourceExcludes(XmlTextWriter xml, HashSet<string> excludes)
+		{
+			foreach (var exclude in excludes)
+			{
+				xml.WriteStartElement("EmbeddedResource");
+				xml.WriteAttributeString("Remove", Path.Join(exclude, "**"));
+				xml.WriteEndElement();
 			}
 		}
 

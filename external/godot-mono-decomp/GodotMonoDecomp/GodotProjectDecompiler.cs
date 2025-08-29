@@ -174,17 +174,16 @@ namespace GodotMonoDecomp
 			ProjectId projectId;
 			if (projectFileWriter == null)
 			{
-				ProjectCSProjPath = Path.Combine(targetDirectory, CleanUpFileName(file.Name, ".csproj"));
-				using (var writer = CreateFile(ProjectCSProjPath)){
-					projectId = DecompileProject(file, targetDirectory, writer, cancellationToken);
-				}
+				projectId = DecompileProject(file, targetDirectory, cancellationToken);
 			} else {
-				if (projectFileWriter is StreamWriter sw)
+				if (projectFileWriter is StreamWriter { BaseStream: FileStream fs })
 				{
-					if (sw.BaseStream is FileStream fs)
-					{
-						ProjectCSProjPath = fs.Name;
-					}
+					ProjectCSProjPath = fs.Name;
+				}
+				else
+				{
+					Console.WriteLine("Warning: projectFileWriter is not a StreamWriter, cannot determine .csproj path. Using default name.");
+					ProjectCSProjPath = Path.Join(targetDirectory, file.Name + ".csproj");
 				}
 				projectId = DecompileProject(file, targetDirectory, projectFileWriter, cancellationToken);
 			}
