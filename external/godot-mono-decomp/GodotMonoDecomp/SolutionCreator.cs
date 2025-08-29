@@ -66,8 +66,7 @@ namespace GodotMonoDecomp
 				WriteSolutionFile(writer, projects, targetFile);
 			}
 
-			// No.
-			// FixProjectReferences(projects);
+			FixProjectReferences(projects);
 		}
 
 		private static void WriteSolutionFile(TextWriter writer, IEnumerable<ProjectItem> projects, string solutionFilePath)
@@ -157,6 +156,16 @@ namespace GodotMonoDecomp
 			writer.WriteLine("\tEndGlobalSection");
 		}
 
+		private static void RemoveXmlDeclarationAtTopOfFile(string filePath)
+		{
+			var lines = File.ReadAllLines(filePath).ToList();
+			if (lines.Count > 0 && lines[0].StartsWith("<?xml"))
+			{
+				lines.RemoveAt(0);
+			}
+			File.WriteAllLines(filePath, lines);
+		}
+
 		private static void FixProjectReferences(IEnumerable<ProjectItem> projects)
 		{
 			var projectsMap = projects.ToDictionary(p => p.ProjectName, p => p);
@@ -175,6 +184,7 @@ namespace GodotMonoDecomp
 				}
 
 				projectDoc.Save(project.FilePath);
+				RemoveXmlDeclarationAtTopOfFile(project.FilePath);
 			}
 		}
 

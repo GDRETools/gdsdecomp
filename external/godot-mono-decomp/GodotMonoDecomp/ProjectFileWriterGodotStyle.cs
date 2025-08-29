@@ -36,6 +36,10 @@ public interface IGodotProjectWithSettingsProvider : IProjectInfoProvider
 	GodotMonoDecompSettings Settings { get; }
 
 	// DotNetCoreDepInfo? DepInfo { get; }
+	public Dictionary<string, string> SubProjectMap { get; }
+
+	public string ProjectCSProjPath { get; }
+
 }
 
 namespace GodotMonoDecomp
@@ -489,7 +493,7 @@ namespace GodotMonoDecomp
 			}
 		}
 
-		static void WriteProjectReferences(XmlTextWriter xml, MetadataFile module, IProjectInfoProvider project,
+		static void WriteProjectReferences(XmlTextWriter xml, MetadataFile module, IGodotProjectWithSettingsProvider project,
 			ProjectType projectType, DotNetCoreDepInfo? deps, GodotMonoDecompSettings settings)
 		{
 			if (deps == null)
@@ -501,9 +505,9 @@ namespace GodotMonoDecomp
 				if (dep.Type == "project")
 				{
 					xml.WriteStartElement("ProjectReference");
-					// TODO: Pass in a hashmap with the map of project names to paths;
-					// right now we're forcing project references to be in a subdirectory named after the project
-					xml.WriteAttributeString("Include", Path.Join(dep.Name, dep.Name + ".csproj"));
+					var path = project.SubProjectMap.TryGetValue(dep.Name, out var p) ? p : Path.Join(dep.Name, dep.Name + ".csproj");
+					var relativePath = FileUtility.GetRelativePath(Path.GetDirectoryName(project.ProjectCSProjPath), path);
+					xml.WriteAttributeString("Include", relativePath);
 					xml.WriteEndElement();
 				}
 			}

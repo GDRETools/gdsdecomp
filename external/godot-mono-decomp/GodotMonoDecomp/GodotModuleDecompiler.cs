@@ -57,6 +57,49 @@ public class GodotModuleDecompiler
 	private readonly CancellationTokenSource packageHashTaskCancelSrc;
 
 
+	public void AddSubProjects(string assemblyPath, DotNetCoreDepInfo depInfo, List<string> names, HashSet<string> canonicalSubDirs)
+	{
+		foreach (var dep in depInfo.deps.Where(d => d is { Type: "project" })
+			         .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase))
+		{
+
+			if (names.Contains(dep.Name)) // already added
+			{
+				continue;
+			}
+
+			names.Add(dep.Name);
+
+			var assemblynameRef = dep.AssemblyRef;
+			var supposedPath = Path.Combine(Path.GetDirectoryName(assemblyPath) ?? "", assemblynameRef.Name + ".dll");
+			MetadataFile reference = File.Exists(supposedPath) ? new PEFile(supposedPath) : null;
+
+			if (reference == null)
+			{
+				reference = AssemblyResolver.Resolve(assemblynameRef);
+			}
+
+			if (reference == null)
+			{
+				Console.Error.WriteLine(
+					$"Warning: Could not resolve project reference '{dep.Name}' for assembly '{MainModule.Name}'.");
+				continue;
+			}
+
+			if (reference is PEFile module)
+			{
+				var subdir = canonicalSubDirs.Contains(module.Name) ? "subprojects" + "/" + module.Name : module.Name;
+				while (subdir != null && canonicalSubDirs.Contains(subdir))
+				{
+					subdir = "_" + subdir;
+				}
+
+				AdditionalModules.Add(new GodotModule(module, dep, subdir));
+			}
+
+			AddSubProjects(assemblyPath, dep, names, canonicalSubDirs);
+		}
+	}
 
 	public GodotModuleDecompiler(string assemblyPath, string[]? originalProjectFiles, string[]? ReferencePaths = null,
 		GodotMonoDecompSettings? settings = default(GodotMonoDecompSettings))
@@ -101,38 +144,7 @@ public class GodotModuleDecompiler
 				.Select(p => Path.GetDirectoryName(p)!)
 				.ToHashSet();
 
-			foreach (var dep in MainModule.depInfo.deps.Where(d => d is { Type: "project" }).OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase))
-			{
-				if (names.Contains(dep.Name))
-				{
-					Console.Error.WriteLine($"Warning: Duplicate project reference '{dep.Name}' found in assembly '{MainModule.Name}'.");
-					continue;
-				}
-
-				var assemblynameRef = dep.AssemblyRef;
-				var supposedPath = Path.Combine(Path.GetDirectoryName(assemblyPath) ?? "", assemblynameRef.Name + ".dll");
-				MetadataFile reference = File.Exists(supposedPath) ? new PEFile(supposedPath) : null;
-
-				if (reference == null)
-				{
-					reference = AssemblyResolver.Resolve(assemblynameRef);
-				}
-				if (reference == null)
-				{
-					Console.Error.WriteLine($"Warning: Could not resolve project reference '{dep.Name}' for assembly '{MainModule.Name}'.");
-					continue;
-				}
-				if (reference is PEFile module)
-				{
-					var subdir = canonicalSubDirs.Contains(module.Name) ? "subprojects" + "/" + module.Name : module.Name;
-					while (subdir != null && canonicalSubDirs.Contains(subdir))
-					{
-						subdir = "_" + subdir;
-					}
-					AdditionalModules.Add(new GodotModule(module, dep, subdir));
-				}
-
-			}
+			AddSubProjects(assemblyPath, MainModule.depInfo, names, canonicalSubDirs);
 
 			if (Settings.VerifyNuGetPackageIsFromNugetOrg)
 			{
@@ -161,8 +173,6 @@ public class GodotModuleDecompiler
 		var typesToDecompile = CreateProjectDecompiler(MainModule).GetTypesToDecompile(MainModule.Module).ToHashSet();
 		MainModule.fileMap = GodotStuff.CreateFileMap(MainModule.Module, typesToDecompile, this.originalProjectFiles, godot3xMetadata, excludeSubdirs, true);
 		var additionalModuleCount = 0;
-		var dupeCount = 0;
-		var alreadyExistsCount = 0;
 		var fileToModuleMap = MainModule.fileMap.ToDictionary(
 			pair => pair.Key,
 			pair => MainModule,//.Module.FileName,
@@ -263,6 +273,15 @@ public class GodotModuleDecompiler
 			}
 			Common.EnsureDir(targetDirectory);
 
+			Dictionary<string, string> moduleToCsProjPath = [];
+			moduleToCsProjPath.Add(MainModule.Name, outputCSProjectPath);
+
+			foreach (var module in AdditionalModules)
+			{
+				var csProjPath = Path.Combine(targetDirectory, module.SubDirectory!, module.Name + ".csproj");
+				moduleToCsProjPath.Add(module.Name, csProjPath);
+			}
+
 			ProjectItem decompileFile(GodotModule module, string csprojPath)
 			{
 				var godotProjectDecompiler = CreateProjectDecompiler(module, progress_reporter);
@@ -276,7 +295,7 @@ public class GodotModuleDecompiler
 				using (var projectFileWriter = new StreamWriter(File.OpenWrite(csprojPath)))
 				{
 					projectId = godotProjectDecompiler.DecompileGodotProject(
-						module.Module, targetDirectory, projectFileWriter, typesToExclude, module.fileMap.ToDictionary(pair => pair.Value, pair => pair.Key), module.depInfo, token);
+						module.Module, targetDirectory, projectFileWriter, typesToExclude, module.fileMap.ToDictionary(pair => pair.Value, pair => pair.Key), module.depInfo, token, moduleToCsProjPath);
 				}
 
 				ProjectItem item = new ProjectItem(csprojPath, projectId.PlatformName, projectId.Guid, projectId.TypeGuid);
@@ -288,8 +307,7 @@ public class GodotModuleDecompiler
 			projectIDs.Add(decompileFile(MainModule, outputCSProjectPath));
 			foreach (var module in AdditionalModules)
 			{
-				var csProjPath = Path.Combine(targetDirectory, module.SubDirectory!, module.Name + ".csproj");
-				projectIDs.Add(decompileFile(module, csProjPath));
+				projectIDs.Add(decompileFile(module, moduleToCsProjPath[module.Name]));
 			}
 			var solutionPath = Path.ChangeExtension(outputCSProjectPath, ".sln");
 			removeIfExists(solutionPath);

@@ -151,6 +151,11 @@ namespace GodotMonoDecomp
 		IProjectFileWriter projectWriter;
 		HashSet<TypeDefinitionHandle> excludeTypes = [];
 		Dictionary<TypeDefinitionHandle, string> handleToFileMap = [];
+
+		public Dictionary<string, string> SubProjectMap { get; private set; } = [];
+
+		public string ProjectCSProjPath { get; private set; } = "";
+
 		DotNetCoreDepInfo? depInfo;
 
 		public ProjectId DecompileGodotProject(MetadataFile file,
@@ -159,18 +164,28 @@ namespace GodotMonoDecomp
 											IEnumerable<TypeDefinitionHandle>? excludeTypes = null,
 											Dictionary<TypeDefinitionHandle, string> handleToFileMap = default,
 											DotNetCoreDepInfo? depInfo = null,
-											CancellationToken cancellationToken = default(CancellationToken))
+											CancellationToken cancellationToken = default(CancellationToken),
+											Dictionary<string, string> subProjectMap = default)
 		{
 			this.excludeTypes = excludeTypes?.ToHashSet() ?? [];
 			this.handleToFileMap = handleToFileMap ?? [];
 			this.depInfo = depInfo;
+			this.SubProjectMap = subProjectMap ?? [];
 			ProjectId projectId;
 			if (projectFileWriter == null)
 			{
-				using (var writer = CreateFile(Path.Combine(targetDirectory, CleanUpFileName(file.Name, ".csproj")))){
+				ProjectCSProjPath = Path.Combine(targetDirectory, CleanUpFileName(file.Name, ".csproj"));
+				using (var writer = CreateFile(ProjectCSProjPath)){
 					projectId = DecompileProject(file, targetDirectory, writer, cancellationToken);
 				}
 			} else {
+				if (projectFileWriter is StreamWriter sw)
+				{
+					if (sw.BaseStream is FileStream fs)
+					{
+						ProjectCSProjPath = fs.Name;
+					}
+				}
 				projectId = DecompileProject(file, targetDirectory, projectFileWriter, cancellationToken);
 			}
 			this.excludeTypes.Clear();
@@ -181,8 +196,8 @@ namespace GodotMonoDecomp
 
 		protected ProjectId DecompileProject(MetadataFile file, string targetDirectory, CancellationToken cancellationToken = default(CancellationToken))
 		{
-			string projectFileName = Path.Combine(targetDirectory, CleanUpFileName(file.Name, ".csproj"));
-			using (var writer = CreateFile(projectFileName))
+			ProjectCSProjPath = Path.Combine(targetDirectory, CleanUpFileName(file.Name, ".csproj"));
+			using (var writer = CreateFile(ProjectCSProjPath))
 			{
 				return DecompileProject(file, targetDirectory, writer, cancellationToken);
 			}
