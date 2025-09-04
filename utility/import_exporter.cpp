@@ -960,11 +960,19 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 
 Error ImportExporter::recreate_plugin_config(const String &plugin_cfg_path) {
 	Error err;
-	static const Vector<String> wildcards = { "*.gdc", "*.gde", "*.gd" };
+	Vector<String> wildcards = { "*.gdc", "*.gde", "*.gd" };
+
+	HashSet<String> non_present_scripts;
 	String abs_plugin_path = plugin_cfg_path.get_base_dir();
 	String rel_plugin_path = abs_plugin_path.trim_prefix("res://");
 	String plugin_dir = rel_plugin_path.trim_prefix("addons/").trim_prefix("Addons/");
 	String plugin_name = plugin_dir.replace("_", " ").replace(".", " ").replace("/", " ");
+	Ref<GodotMonoDecompWrapper> decompiler;
+	if (GDRESettings::get_singleton()->has_loaded_dotnet_assembly()) {
+		wildcards.push_back("*.cs");
+		decompiler = GDRESettings::get_singleton()->get_dotnet_decompiler();
+		non_present_scripts = gdre::vector_to_hashset(decompiler->get_files_not_present_in_file_map());
+	}
 
 	auto gd_scripts = gdre::get_recursive_dir_list(abs_plugin_path, wildcards, false);
 	String main_script;
@@ -973,7 +981,6 @@ Error ImportExporter::recreate_plugin_config(const String &plugin_cfg_path) {
 		return OK;
 	}
 
-	bool tool_scripts_found = false;
 	bool cant_decompile = false;
 
 	for (int j = 0; j < gd_scripts.size(); j++) {
@@ -983,22 +990,25 @@ Error ImportExporter::recreate_plugin_config(const String &plugin_cfg_path) {
 			continue;
 		}
 		String gd_script_abs_path = abs_plugin_path.path_join(gd_scripts[j]);
-		Ref<FakeGDScript> gd_script = ResourceCompatLoader::non_global_load(gd_script_abs_path, "", &err);
+		if (ext == "cs") {
+			if (decompiler.is_null() || non_present_scripts.has(gd_script_abs_path) || decompiler->get_script_info(gd_script_abs_path).is_empty()) {
+				continue;
+			}
+		}
+		Ref<FakeScript> gd_script = ResourceCompatLoader::non_global_load(gd_script_abs_path, "", &err);
 		if (gd_script.is_valid()) {
 			if (gd_script->get_instance_base_type() == "EditorPlugin") {
-				main_script = gd_scripts[j].get_basename() + ".gd";
+				main_script = gd_scripts[j];
+				if (ext != "cs" && ext != "gd") {
+					main_script = main_script.get_basename() + ".gd";
+				}
 				break;
-			}
-			if (gd_script->is_tool()) {
-				tool_scripts_found = true;
 			}
 		}
 	}
 	if (main_script == "") {
 		if (cant_decompile) {
 			return ERR_UNCONFIGURED;
-		} else if (!tool_scripts_found) {
-			return ERR_UNAVAILABLE;
 		} else {
 			return ERR_CANT_CREATE;
 		}

@@ -211,7 +211,7 @@ Vector<String> GodotMonoDecompWrapper::get_files_not_present_in_file_map() {
 	const char **files_not_present_in_file_map_c_array = GodotMonoDecomp_GetFilesNotPresentInFileMap(decompilerHandle);
 	Vector<String> files_not_present_in_file_map_strs;
 	for (int i = 0; i < num; i++) {
-		files_not_present_in_file_map_strs.push_back(String::utf8(files_not_present_in_file_map_c_array[i]));
+		files_not_present_in_file_map_strs.push_back("res://" + String::utf8(files_not_present_in_file_map_c_array[i]).trim_prefix("res://"));
 	}
 	GodotMonoDecomp_FreeArray((void *)files_not_present_in_file_map_c_array, num);
 	return files_not_present_in_file_map_strs;
