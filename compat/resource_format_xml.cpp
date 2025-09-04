@@ -29,15 +29,14 @@
 /*************************************************************************/
 
 #include "resource_format_xml.h"
+#include "compat/image_enum_compat.h"
+#include "compat/input_event_parser_v2.h"
 #include "core/config/project_settings.h"
 #include "core/io/dir_access.h"
-#include "core/version.h"
 #include "core/io/image.h"
-#include "compat/image_enum_compat.h"
 #include "core/string/ustring.h"
-#include "compat/input_event_parser_v2.h"
+#include "core/version.h"
 #include "utility/gdre_settings.h"
-
 
 typedef uint8_t CharType;
 /* clang-format off */
@@ -49,7 +48,6 @@ typedef uint8_t CharType;
 
 #if !GDRE_DISABLE_XML_LOADER
 ResourceInteractiveLoaderXML::Tag *ResourceInteractiveLoaderXML::parse_tag(bool *r_exit, bool p_printerr, List<String> *r_order) {
-
 	while (get_char() != '<' && !f->eof_reached()) {
 	}
 	if (f->eof_reached()) {
@@ -63,7 +61,6 @@ ResourceInteractiveLoaderXML::Tag *ResourceInteractiveLoaderXML::parse_tag(bool 
 
 	bool complete = false;
 	while (!f->eof_reached()) {
-
 		CharType c = get_char();
 		if (c < 33 && tag.name.length() && !exit) {
 			break;
@@ -78,7 +75,6 @@ ResourceInteractiveLoaderXML::Tag *ResourceInteractiveLoaderXML::parse_tag(bool 
 	}
 
 	if (f->eof_reached()) {
-
 		return NULL;
 	}
 
@@ -115,7 +111,6 @@ ResourceInteractiveLoaderXML::Tag *ResourceInteractiveLoaderXML::parse_tag(bool 
 		bool reading_value = false;
 
 		while (!f->eof_reached()) {
-
 			CharType c = get_char();
 			if (c == '>') {
 				if (r_value.size()) {
@@ -129,12 +124,9 @@ ResourceInteractiveLoaderXML::Tag *ResourceInteractiveLoaderXML::parse_tag(bool 
 				break;
 
 			} else if (((!reading_value && (c < 33)) || c == '=' || c == '"' || c == '\'') && tag.name.length()) {
-
 				if (!reading_value && name.length()) {
-
 					reading_value = true;
 				} else if (reading_value && r_value.size()) {
-
 					r_value.push_back(0);
 					String str;
 					str.append_utf8((const char *)r_value.ptr());
@@ -147,10 +139,8 @@ ResourceInteractiveLoaderXML::Tag *ResourceInteractiveLoaderXML::parse_tag(bool 
 				}
 
 			} else if (reading_value) {
-
 				r_value.push_back(c);
 			} else {
-
 				name += c;
 			}
 		}
@@ -165,35 +155,28 @@ ResourceInteractiveLoaderXML::Tag *ResourceInteractiveLoaderXML::parse_tag(bool 
 }
 
 Error ResourceInteractiveLoaderXML::close_tag(const String &p_name) {
-
 	int level = 0;
 	bool inside_tag = false;
 
 	while (true) {
-
 		if (f->eof_reached()) {
-
 			ERR_FAIL_COND_V_MSG(f->eof_reached(), ERR_FILE_CORRUPT, local_path + ":" + itos(get_current_line()) + ": EOF found while attempting to find  </" + p_name + ">");
 		}
 
 		uint8_t c = get_char();
 
 		if (c == '<') {
-
 			if (inside_tag) {
 				ERR_FAIL_COND_V_MSG(inside_tag, ERR_FILE_CORRUPT, local_path + ":" + itos(get_current_line()) + ": Malformed XML. Already inside Tag.");
 			}
 			inside_tag = true;
 			c = get_char();
 			if (c == '/') {
-
 				--level;
 			} else {
-
 				++level;
 			};
 		} else if (c == '>') {
-
 			if (!inside_tag) {
 				ERR_FAIL_COND_V_MSG(!inside_tag, ERR_FILE_CORRUPT, local_path + ":" + itos(get_current_line()) + ": Malformed XML. Already outside Tag");
 			}
@@ -209,7 +192,6 @@ Error ResourceInteractiveLoaderXML::close_tag(const String &p_name) {
 }
 
 void ResourceInteractiveLoaderXML::unquote(String &p_str) {
-
 	p_str = p_str.strip_edges().replace("\"", "").xml_unescape();
 
 	/*p_str=p_str.strip_edges();
@@ -229,15 +211,12 @@ void ResourceInteractiveLoaderXML::unquote(String &p_str) {
 }
 
 Error ResourceInteractiveLoaderXML::goto_end_of_tag() {
-
 	uint8_t c;
 	while (true) {
-
 		c = get_char();
 		if (c == '>') //closetag
 			break;
 		if (f->eof_reached()) {
-
 			ERR_FAIL_COND_V_MSG(f->eof_reached(), ERR_FILE_CORRUPT, local_path + ":" + itos(get_current_line()) + ": EOF found while attempting to find close tag.");
 		}
 	}
@@ -247,11 +226,9 @@ Error ResourceInteractiveLoaderXML::goto_end_of_tag() {
 }
 
 Error ResourceInteractiveLoaderXML::parse_property_data(String &r_data) {
-
 	r_data = "";
 	Vector<CharType> cs;
 	while (true) {
-
 		CharType c = get_char();
 		if (c == '<')
 			break;
@@ -266,7 +243,6 @@ Error ResourceInteractiveLoaderXML::parse_property_data(String &r_data) {
 	while (get_char() != '>' && !f->eof_reached()) {
 	}
 	if (f->eof_reached()) {
-
 		ERR_FAIL_COND_V_MSG(f->eof_reached(), ERR_FILE_CORRUPT, local_path + ":" + itos(get_current_line()) + ": Malformed XML.");
 	}
 
@@ -277,7 +253,6 @@ Error ResourceInteractiveLoaderXML::parse_property_data(String &r_data) {
 }
 
 Error ResourceInteractiveLoaderXML::_parse_array_element(Vector<char> &buff, bool p_number_only, Ref<FileAccess> f, bool *end) {
-
 	if (buff.is_empty())
 		buff.resize(32); // optimi
 
@@ -289,7 +264,6 @@ Error ResourceInteractiveLoaderXML::_parse_array_element(Vector<char> &buff, boo
 	bool quoted = false;
 
 	while (true) {
-
 		char c = get_char();
 
 		if (c == 0) {
@@ -297,7 +271,6 @@ Error ResourceInteractiveLoaderXML::_parse_array_element(Vector<char> &buff, boo
 		} else if (c == '"') {
 			quoted = !quoted;
 		} else if ((!quoted && ((p_number_only && c < 33) || c == ',')) || c == '<') {
-
 			if (c == '<') {
 				*end = true;
 				break;
@@ -311,10 +284,8 @@ Error ResourceInteractiveLoaderXML::_parse_array_element(Vector<char> &buff, boo
 				break;
 
 		} else {
-
 			found = true;
 			if (buff_size >= buff_max) {
-
 				buff_max++;
 				buff.resize(buff_max);
 				buffptr = buff.ptrw();
@@ -326,7 +297,6 @@ Error ResourceInteractiveLoaderXML::_parse_array_element(Vector<char> &buff, boo
 	}
 
 	if (buff_size >= buff_max) {
-
 		buff_max++;
 		buff.resize(buff_max);
 	}
@@ -338,7 +308,6 @@ Error ResourceInteractiveLoaderXML::_parse_array_element(Vector<char> &buff, boo
 }
 
 Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name, bool p_for_export_data) {
-
 	bool exit;
 	Tag *tag = parse_tag(&exit);
 
@@ -365,11 +334,9 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 	}
 
 	if (type == "dictionary") {
-
-		Dictionary d;//(tag->args.has("shared") && (String(tag->args["shared"]) == "true" || String(tag->args["shared"]) == "1"));
+		Dictionary d; //(tag->args.has("shared") && (String(tag->args["shared"]) == "true" || String(tag->args["shared"]) == "1"));
 
 		while (true) {
-
 			Error err;
 			String tagname;
 			Variant key;
@@ -401,7 +368,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		return OK;
 
 	} else if (type == "array") {
-
 		if (!tag->args.has("len")) {
 			ERR_FAIL_COND_V_MSG(!tag->args.has("len"), ERR_FILE_CORRUPT, local_path + ":" + itos(get_current_line()) + ": Array missing 'len' field: " + name);
 		}
@@ -417,7 +383,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		String tagname;
 		int idx = 0;
 		while ((err = parse_property(v, tagname, p_for_export_data)) == OK) {
-
 			ERR_CONTINUE(idx < 0 || idx >= len);
 
 			array.set(idx, v);
@@ -440,16 +405,13 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		return OK;
 
 	} else if (type == "resource") {
-
 		if (tag->args.has("path")) {
-
 			String path = tag->args["path"];
 			String hint;
 			if (tag->args.has("resource_type"))
 				hint = tag->args["resource_type"];
 
 			if (p_for_export_data) {
-
 				String prop;
 
 				if (path.begins_with("local://")) {
@@ -476,17 +438,14 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 			Ref<Resource> res = load_external_resource(path, hint, -1);
 
 			if (res.is_null()) {
-
 				WARN_PRINT(String("Couldn't load resource: " + path).ascii().get_data());
 			}
 
 			r_v = res.ptr();
 		} else if (tag->args.has("external")) {
-
 			int index = tag->args["external"].to_int();
 
 			if (p_for_export_data) {
-
 				String prop;
 
 				prop = "@RESEXTERNAL:" + itos(index);
@@ -500,10 +459,9 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 				String type = ext_resources[index].type;
 
 				//take advantage of the resource loader cache. The resource is cached on it, even if
-				Ref<Resource> res = ext_resources[index].cached_resource;//load_external_resource(path, type, index);
+				Ref<Resource> res = ext_resources[index].cached_resource; //load_external_resource(path, type, index);
 
 				if (res.is_null()) {
-
 					WARN_PRINT(String("Couldn't load externalresource: " + path).ascii().get_data());
 				}
 
@@ -523,7 +481,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		return OK;
 
 	} else if (type == "image") {
-
 		if (!tag->args.has("encoding")) {
 			//empty image
 			r_v = Ref<Image>(memnew(Image));
@@ -593,7 +550,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 			} else if (format == "custom") {
 				imgformat = V2Image::IMAGE_FORMAT_CUSTOM;
 			} else {
-
 				ERR_FAIL_V(ERR_FILE_CORRUPT);
 			}
 
@@ -620,10 +576,8 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 			};
 
 			if (imgformat == V2Image::IMAGE_FORMAT_CUSTOM) {
-
 				datasize = custom_size;
 			} else {
-
 				datasize = Image::get_image_data_size(h, w, imgformat_v4, mipmaps);
 			}
 
@@ -642,19 +596,15 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 			int idx = 0;
 			uint8_t byte;
 			while (idx < datasize * 2) {
-
 				CharType c = get_char();
 
 				ERR_FAIL_COND_V(c == '<', ERR_FILE_CORRUPT);
 
 				if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')) {
-
 					if (idx & 1) {
-
 						byte |= HEX2CHR(c);
 						wb[idx >> 1] = byte;
 					} else {
-
 						byte = HEX2CHR(c) << 4;
 					}
 
@@ -662,7 +612,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 				}
 			}
 			ERR_FAIL_COND_V(f->eof_reached(), ERR_FILE_CORRUPT);
-
 
 			r_v = Image::create_from_data(w, h, mipmaps, imgformat_v4, pixels);
 			String sdfsdfg;
@@ -675,7 +624,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		ERR_FAIL_V(ERR_FILE_CORRUPT);
 
 	} else if (type == "raw_array") {
-
 		if (!tag->args.has("len")) {
 			ERR_FAIL_COND_V_MSG(!tag->args.has("len"), ERR_FILE_CORRUPT, local_path + ":" + itos(get_current_line()) + ": RawArray missing 'len' field: " + name);
 		}
@@ -690,18 +638,15 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		uint8_t byte;
 
 		while (idx < len * 2) {
-
 			CharType c = get_char();
 			if (c <= 32)
 				continue;
 
 			if (idx & 1) {
-
 				byte |= HEX2CHR(c);
 				bytesptr[idx >> 1] = byte;
 				//printf("%x\n",int(byte));
 			} else {
-
 				byte = HEX2CHR(c) << 4;
 			}
 
@@ -719,7 +664,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		return OK;
 
 	} else if (type == "int_array") {
-
 		if (!tag->args.has("len")) {
 			ERR_FAIL_COND_V_MSG(!tag->args.has("len"), ERR_FILE_CORRUPT, local_path + ":" + itos(get_current_line()) + ": Array missing 'len' field: " + name);
 		}
@@ -765,7 +709,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		Vector<char> tmpdata;
 
 		while (idx < len) {
-
 			bool end = false;
 			Error err = _parse_array_element(tmpdata, true, f, &end);
 			ERR_FAIL_COND_V(err, err);
@@ -786,7 +729,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 
 		return OK;
 	} else if (type == "real_array") {
-
 		if (!tag->args.has("len")) {
 			ERR_FAIL_COND_V_MSG(!tag->args.has("len"), ERR_FILE_CORRUPT, local_path + ":" + itos(get_current_line()) + ": Array missing 'len' field: " + name);
 		}
@@ -835,7 +777,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		Vector<char> tmpdata;
 
 		while (idx < len) {
-
 			bool end = false;
 			Error err = _parse_array_element(tmpdata, true, f, &end);
 			ERR_FAIL_COND_V(err, err);
@@ -932,7 +873,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		int idx = 0;
 
 		while ((err = parse_property(v, tagname)) == OK) {
-
 			ERR_CONTINUE(idx < 0 || idx >= len);
 			String str = v; //convert back to string
 			w[idx] = str;
@@ -955,7 +895,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		return OK;
 
 	} else if (type == "vector3_array") {
-
 		if (!tag->args.has("len")) {
 			ERR_FAIL_COND_V_MSG(!tag->args.has("len"), ERR_FILE_CORRUPT, local_path + ":" + itos(get_current_line()) + ": Array missing 'len' field: " + name);
 		}
@@ -1012,7 +951,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		Vector<char> tmpdata;
 
 		while (idx < len) {
-
 			bool end = false;
 			Error err = _parse_array_element(tmpdata, true, f, &end);
 			ERR_FAIL_COND_V(err, err);
@@ -1044,7 +982,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		return OK;
 
 	} else if (type == "vector2_array") {
-
 		if (!tag->args.has("len")) {
 			ERR_FAIL_COND_V_MSG(!tag->args.has("len"), ERR_FILE_CORRUPT, local_path + ":" + itos(get_current_line()) + ": Array missing 'len' field: " + name);
 		}
@@ -1101,7 +1038,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		Vector<char> tmpdata;
 
 		while (idx < len) {
-
 			bool end = false;
 			Error err = _parse_array_element(tmpdata, true, f, &end);
 			ERR_FAIL_COND_V(err, err);
@@ -1133,7 +1069,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		return OK;
 
 	} else if (type == "color_array") {
-
 		if (!tag->args.has("len")) {
 			ERR_FAIL_COND_V_MSG(!tag->args.has("len"), ERR_FILE_CORRUPT, local_path + ":" + itos(get_current_line()) + ": Array missing 'len' field: " + name);
 		}
@@ -1150,14 +1085,11 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		String str;
 
 		while (idx < len) {
-
 			CharType c = get_char();
 			ERR_FAIL_COND_V(f->eof_reached(), ERR_FILE_CORRUPT);
 
 			if (c < 33 || c == ',' || c == '<') {
-
 				if (str.length()) {
-
 					auxcol[subidx] = str.to_float();
 					subidx++;
 					str = "";
@@ -1169,7 +1101,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 				}
 
 				if (c == '<') {
-
 					while (get_char() != '>' && !f->eof_reached()) {
 					}
 					ERR_FAIL_COND_V(f->eof_reached(), ERR_FILE_CORRUPT);
@@ -1177,7 +1108,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 				}
 
 			} else {
-
 				str += c;
 			}
 		}
@@ -1201,35 +1131,29 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 	} else if (type == "bool") {
 		// uh do nothing
 		if (data.nocasecmp_to("true") == 0 || data.to_int() != 0)
-		r_v = true;
+			r_v = true;
 		else
 			r_v = false;
 	} else if (type == "int") {
-
 		r_v = data.to_int();
 	} else if (type == "real") {
-
 		r_v = data.to_float();
 	} else if (type == "string") {
-
 		String str = data;
 		unquote(str);
 		r_v = str;
 	} else if (type == "vector3") {
-
 		r_v = Vector3(
 				data.get_slicec(',', 0).to_float(),
 				data.get_slicec(',', 1).to_float(),
 				data.get_slicec(',', 2).to_float());
 
 	} else if (type == "vector2") {
-
 		r_v = Vector2(
 				data.get_slicec(',', 0).to_float(),
 				data.get_slicec(',', 1).to_float());
 
 	} else if (type == "plane") {
-
 		r_v = Plane(
 				data.get_slicec(',', 0).to_float(),
 				data.get_slicec(',', 1).to_float(),
@@ -1237,7 +1161,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 				data.get_slicec(',', 3).to_float());
 
 	} else if (type == "quaternion") {
-
 		r_v = Quaternion(
 				data.get_slicec(',', 0).to_float(),
 				data.get_slicec(',', 1).to_float(),
@@ -1245,7 +1168,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 				data.get_slicec(',', 3).to_float());
 
 	} else if (type == "rect2") {
-
 		r_v = Rect2(
 				Vector2(
 						data.get_slicec(',', 0).to_float(),
@@ -1255,7 +1177,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 						data.get_slicec(',', 3).to_float()));
 
 	} else if (type == "aabb") {
-
 		r_v = AABB(
 				Vector3(
 						data.get_slicec(',', 0).to_float(),
@@ -1267,7 +1188,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 						data.get_slicec(',', 5).to_float()));
 
 	} else if (type == "matrix32") {
-
 		Transform2D m3;
 		for (int i = 0; i < 3; i++) {
 			for (int j = 0; j < 2; j++) {
@@ -1277,7 +1197,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		r_v = m3;
 
 	} else if (type == "matrix3") {
-
 		Basis m3;
 		for (int i = 0; i < 3; i++) {
 			for (int j = 0; j < 3; j++) {
@@ -1287,7 +1206,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		r_v = m3;
 
 	} else if (type == "transform") {
-
 		Transform3D tr;
 		for (int i = 0; i < 3; i++) {
 			for (int j = 0; j < 3; j++) {
@@ -1301,7 +1219,6 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 		r_v = tr;
 
 	} else if (type == "color") {
-
 		r_v = Color(
 				data.get_slicec(',', 0).to_float(),
 				data.get_slicec(',', 1).to_float(),
@@ -1309,12 +1226,10 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 				data.get_slicec(',', 3).to_float());
 
 	} else if (type == "node_path") {
-
 		String str = data;
 		unquote(str);
 		r_v = NodePath(str);
 	} else if (type == "input_event") {
-
 		// ?
 	} else {
 		ERR_FAIL_V_MSG(ERR_FILE_CORRUPT, local_path + ":" + itos(get_current_line()) + ": Unrecognized tag in file: " + type);
@@ -1324,12 +1239,10 @@ Error ResourceInteractiveLoaderXML::parse_property(Variant &r_v, String &r_name,
 }
 
 int ResourceInteractiveLoaderXML::get_current_line() const {
-
 	return lines;
 }
 
 uint8_t ResourceInteractiveLoaderXML::get_char() const {
-
 	uint8_t c = f->get_8();
 	if (c == '\n')
 		lines++;
@@ -1339,16 +1252,13 @@ uint8_t ResourceInteractiveLoaderXML::get_char() const {
 ///
 
 void ResourceInteractiveLoaderXML::set_local_path(const String &p_local_path) {
-
 	res_path = p_local_path;
 }
 
 Ref<Resource> ResourceInteractiveLoaderXML::get_resource() {
-
 	return resource;
 }
 Error ResourceInteractiveLoaderXML::poll() {
-
 	if (error != OK)
 		return error;
 
@@ -1370,7 +1280,6 @@ Error ResourceInteractiveLoaderXML::poll() {
 	bool main;
 
 	if (tag->name == "ext_resource") {
-
 		error = ERR_FILE_CORRUPT;
 		ERR_FAIL_COND_V_MSG(!tag->args.has("path"), ERR_FILE_CORRUPT, local_path + ":" + itos(get_current_line()) + ": <ext_resource> missing 'path' field.");
 
@@ -1396,14 +1305,12 @@ Error ResourceInteractiveLoaderXML::poll() {
 		Ref<Resource> res = load_external_resource(path, type, er_idx);
 
 		if (res.is_null()) {
-
 			if (ResourceLoader::get_abort_on_missing_resources()) {
 				ERR_FAIL_V_MSG(error, local_path + ":" + itos(get_current_line()) + ": <ext_resource> referenced nonexistent resource at: " + path);
 			} else {
 				ResourceLoader::notify_dependency_error(local_path, path, type);
 			}
 		} else {
-
 			resource_cache.push_back(res);
 		}
 
@@ -1424,7 +1331,6 @@ Error ResourceInteractiveLoaderXML::poll() {
 		return error;
 
 	} else if (tag->name == "resource") {
-
 		main = false;
 	} else if (tag->name == "main_resource") {
 		main = true;
@@ -1501,7 +1407,6 @@ Error ResourceInteractiveLoaderXML::poll() {
 	//load properties
 
 	while (true) {
-
 		String name;
 		Variant v;
 		Error err;
@@ -1531,16 +1436,13 @@ Error ResourceInteractiveLoaderXML::poll() {
 }
 
 int ResourceInteractiveLoaderXML::get_stage() const {
-
 	return resource_current;
 }
 int ResourceInteractiveLoaderXML::get_stage_count() const {
-
 	return resources_total; //+ext_resources;
 }
 
 ResourceInteractiveLoaderXML::~ResourceInteractiveLoaderXML() {
-
 	if (f.is_valid()) {
 		f->close();
 	}
@@ -1548,7 +1450,6 @@ ResourceInteractiveLoaderXML::~ResourceInteractiveLoaderXML() {
 }
 
 void ResourceInteractiveLoaderXML::get_dependencies(Ref<FileAccess> f, List<String> *p_dependencies, bool p_add_types) {
-
 	open(f);
 	ERR_FAIL_COND(error != OK);
 
@@ -1564,7 +1465,6 @@ void ResourceInteractiveLoaderXML::get_dependencies(Ref<FileAccess> f, List<Stri
 		}
 
 		if (tag->name != "ext_resource") {
-
 			return;
 		}
 
@@ -1603,7 +1503,6 @@ void ResourceInteractiveLoaderXML::get_dependencies(Ref<FileAccess> f, List<Stri
 }
 
 Error ResourceInteractiveLoaderXML::get_export_data(Ref<FileAccess> p_f, ExportData &r_export_data) {
-
 	open(p_f);
 	ERR_FAIL_COND_V(error != OK, error);
 
@@ -1623,7 +1522,6 @@ Error ResourceInteractiveLoaderXML::get_export_data(Ref<FileAccess> p_f, ExportD
 		bool main;
 
 		if (tag->name == "ext_resource") {
-
 			ExportData::Dependency dep;
 
 			error = ERR_FILE_CORRUPT;
@@ -1644,7 +1542,6 @@ Error ResourceInteractiveLoaderXML::get_export_data(Ref<FileAccess> p_f, ExportD
 				er.type = type;
 				r_export_data.dependencies[tag->args["index"].to_int()] = dep;
 			} else {
-
 				int index = r_export_data.dependencies.size();
 				r_export_data.dependencies[index] = dep;
 			}
@@ -1656,7 +1553,6 @@ Error ResourceInteractiveLoaderXML::get_export_data(Ref<FileAccess> p_f, ExportD
 			continue;
 
 		} else if (tag->name == "resource") {
-
 			main = false;
 		} else if (tag->name == "main_resource") {
 			main = true;
@@ -1692,7 +1588,6 @@ Error ResourceInteractiveLoaderXML::get_export_data(Ref<FileAccess> p_f, ExportD
 		//load properties
 
 		while (true) {
-
 			String name;
 			Variant v;
 			Error err;
@@ -1719,7 +1614,6 @@ Error ResourceInteractiveLoaderXML::get_export_data(Ref<FileAccess> p_f, ExportD
 }
 
 Error ResourceInteractiveLoaderXML::rename_dependencies(Ref<FileAccess> p_f, const String &p_path, const HashMap<String, String> &p_map) {
-
 	open(p_f);
 	ERR_FAIL_COND_V(error != OK, error);
 
@@ -1751,14 +1645,12 @@ Error ResourceInteractiveLoaderXML::rename_dependencies(Ref<FileAccess> p_f, con
 		}
 
 		if (tag->name == "ext_resource") {
-
 			if (!tag->args.has("index") || !tag->args.has("path") || !tag->args.has("type")) {
 				old_format = true;
 				break;
 			}
 
 			if (!fw.is_valid()) {
-
 				fw = FileAccess::open(p_path + ".depren", FileAccess::WRITE);
 				fw->store_line("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>"); //no escape
 				fw->store_line("<resource_file type=\"" + resource_type + "\" subresource_count=\"" + itos(resources_total) + "\" version=\"" + itos(VERSION_MAJOR) + "." + itos(VERSION_MINOR) + "\" version_name=\"" + VERSION_FULL_NAME + "\">");
@@ -1789,7 +1681,6 @@ Error ResourceInteractiveLoaderXML::rename_dependencies(Ref<FileAccess> p_f, con
 			tag->args["type"] = type;
 
 		} else {
-
 			done = true;
 		}
 
@@ -1813,7 +1704,7 @@ Error ResourceInteractiveLoaderXML::rename_dependencies(Ref<FileAccess> p_f, con
 		// if (fw)
 		// 	memdelete(fw);
 
-		Ref<DirAccess>da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
+		Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
 		da->remove(p_path + ".depren");
 		// memdelete(da);
 		//fuck it, use the old approach;
@@ -1847,7 +1738,6 @@ Error ResourceInteractiveLoaderXML::rename_dependencies(Ref<FileAccess> p_f, con
 	}
 
 	if (!fw.is_valid()) {
-
 		return OK; //nothing to rename, do nothing
 	}
 
@@ -1867,7 +1757,7 @@ Error ResourceInteractiveLoaderXML::rename_dependencies(Ref<FileAccess> p_f, con
 		return ERR_CANT_CREATE;
 	}
 
-	Ref<DirAccess>da = DirAccess::create(DirAccess::ACCESS_RESOURCES);
+	Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_RESOURCES);
 	da->remove(p_path);
 	da->rename(p_path + ".depren", p_path);
 	// memdelete(da);
@@ -1876,7 +1766,6 @@ Error ResourceInteractiveLoaderXML::rename_dependencies(Ref<FileAccess> p_f, con
 }
 
 void ResourceInteractiveLoaderXML::open(Ref<FileAccess> p_f) {
-
 	error = OK;
 
 	lines = 1;
@@ -1884,7 +1773,6 @@ void ResourceInteractiveLoaderXML::open(Ref<FileAccess> p_f) {
 
 	ResourceInteractiveLoaderXML::Tag *tag = parse_tag();
 	if (!tag || tag->name != "?xml" || !tag->args.has("version") || !tag->args.has("encoding") || tag->args["encoding"] != "UTF-8") {
-
 		error = ERR_FILE_CORRUPT;
 		ResourceLoader::notify_load_error("XML is invalid (missing header tags)");
 		ERR_FAIL_MSG("Not a XML:UTF-8 File: " + local_path);
@@ -1895,7 +1783,6 @@ void ResourceInteractiveLoaderXML::open(Ref<FileAccess> p_f) {
 	tag = parse_tag();
 
 	if (!tag || tag->name != "resource_file" || !tag->args.has("type") || !tag->args.has("version")) {
-
 		ResourceLoader::notify_load_error(local_path + ": XML is not a valid resource file.");
 		error = ERR_FILE_CORRUPT;
 		ERR_FAIL_MSG("Unrecognized XML File: " + local_path);
@@ -1908,7 +1795,6 @@ void ResourceInteractiveLoaderXML::open(Ref<FileAccess> p_f) {
 
 	String version = tag->args["version"];
 	if (version.get_slice_count(".") != 2) {
-
 		error = ERR_FILE_CORRUPT;
 		ResourceLoader::notify_load_error(local_path + ":XML version string is invalid: " + version);
 		ERR_FAIL_MSG("Invalid Version String '" + version + "'' in file: " + local_path);
@@ -1916,7 +1802,6 @@ void ResourceInteractiveLoaderXML::open(Ref<FileAccess> p_f) {
 
 	int major = version.get_slicec('.', 0).to_int();
 	if (major > VERSION_MAJOR) {
-
 		error = ERR_FILE_UNRECOGNIZED;
 		ResourceLoader::notify_load_error(local_path + ": File Format '" + version + "' is too new. Please upgrade to a newer engine version.");
 		ERR_FAIL_MSG("File Format '" + version + "' is too new! Please upgrade to a a new engine version: " + local_path);
@@ -1938,7 +1823,6 @@ void ResourceInteractiveLoaderXML::open(Ref<FileAccess> p_f) {
 }
 
 String ResourceInteractiveLoaderXML::recognize(Ref<FileAccess> p_f) {
-
 	error = OK;
 
 	lines = 1;
@@ -1946,7 +1830,6 @@ String ResourceInteractiveLoaderXML::recognize(Ref<FileAccess> p_f) {
 
 	ResourceInteractiveLoaderXML::Tag *tag = parse_tag();
 	if (!tag || tag->name != "?xml" || !tag->args.has("version") || !tag->args.has("encoding") || tag->args["encoding"] != "UTF-8") {
-
 		return ""; //unrecognized
 	}
 
@@ -1955,7 +1838,6 @@ String ResourceInteractiveLoaderXML::recognize(Ref<FileAccess> p_f) {
 	tag = parse_tag();
 
 	if (!tag || tag->name != "resource_file" || !tag->args.has("type") || !tag->args.has("version")) {
-
 		return ""; //unrecognized
 	}
 
@@ -1969,7 +1851,6 @@ bool ResourceInteractiveLoaderXML::is_real_load() const {
 }
 
 void ResourceInteractiveLoaderXML::set_path_on_resource(Ref<Resource> &p_resource, const String &p_path) {
-
 	if (cache_mode != ResourceFormatLoader::CACHE_MODE_IGNORE && cache_mode != ResourceFormatLoader::CACHE_MODE_IGNORE_DEEP) {
 		bool replace = cache_mode == ResourceFormatLoader::CACHE_MODE_REPLACE || cache_mode == ResourceFormatLoader::CACHE_MODE_REPLACE_DEEP;
 		p_resource->set_path(p_path, replace);
@@ -1979,7 +1860,6 @@ void ResourceInteractiveLoaderXML::set_path_on_resource(Ref<Resource> &p_resourc
 }
 
 Ref<Resource> ResourceInteractiveLoaderXML::load_external_resource(const String &p_path, const String &p_type_hint, int p_index) {
-
 	Ref<Resource> res;
 
 	if (load_type == ResourceInfo::LoadType::FAKE_LOAD) {
@@ -1998,12 +1878,10 @@ Ref<Resource> ResourceInteractiveLoaderXML::load_external_resource(const String 
 /////////////////////
 
 Ref<Resource> ResourceFormatLoaderXML::load(const String &p_path, const String &p_original_path, Error *r_error, bool p_use_sub_threads, float *r_progress, CacheMode p_cache_mode) {
-
 	return custom_load(p_path, p_original_path, ResourceCompatLoader::get_default_load_type(), r_error, p_use_sub_threads, p_cache_mode);
 }
 
 Ref<Resource> ResourceFormatLoaderXML::custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool p_use_sub_threads, ResourceFormatLoader::CacheMode p_cache_mode) {
-
 	if (r_error)
 		*r_error = ERR_CANT_OPEN;
 
@@ -2011,7 +1889,6 @@ Ref<Resource> ResourceFormatLoaderXML::custom_load(const String &p_path, const S
 	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ, &err);
 
 	if (err != OK) {
-
 		ERR_FAIL_COND_V(err != OK, Ref<Resource>());
 	}
 
@@ -2044,7 +1921,6 @@ Ref<Resource> ResourceFormatLoaderXML::custom_load(const String &p_path, const S
 }
 
 void ResourceFormatLoaderXML::get_recognized_extensions_for_type(const String &p_type, List<String> *p_extensions) const {
-
 	if (p_type == "") {
 		get_recognized_extensions(p_extensions);
 		return;
@@ -2065,7 +1941,6 @@ void ResourceFormatLoaderXML::get_recognized_extensions_for_type(const String &p
 	p_extensions->push_back("xml");
 }
 void ResourceFormatLoaderXML::get_recognized_extensions(List<String> *p_extensions) const {
-
 	List<String> extensions;
 	ClassDB::get_resource_base_extensions(&extensions);
 	extensions.sort();
@@ -2081,18 +1956,15 @@ void ResourceFormatLoaderXML::get_recognized_extensions(List<String> *p_extensio
 }
 
 bool ResourceFormatLoaderXML::handles_type(const String &p_type) const {
-
 	return true;
 }
 String ResourceFormatLoaderXML::get_resource_type(const String &p_path) const {
-
 	String ext = p_path.get_extension().to_lower();
 	if (!ext.begins_with("x")) //a lie but..
 		return "";
 
 	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
 	if (!f.is_valid()) {
-
 		return ""; //could not rwead
 	}
 
@@ -2105,10 +1977,8 @@ String ResourceFormatLoaderXML::get_resource_type(const String &p_path) const {
 }
 
 void ResourceFormatLoaderXML::get_dependencies(const String &p_path, List<String> *p_dependencies, bool p_add_types) {
-
 	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
 	if (!f.is_valid()) {
-
 		ERR_FAIL();
 	}
 
@@ -2120,10 +1990,8 @@ void ResourceFormatLoaderXML::get_dependencies(const String &p_path, List<String
 }
 
 Error ResourceFormatLoaderXML::get_export_data(const String &p_path, ExportData &r_export_data) {
-
 	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
 	if (!f.is_valid()) {
-
 		ERR_FAIL_V(ERR_CANT_OPEN);
 	}
 
@@ -2135,10 +2003,8 @@ Error ResourceFormatLoaderXML::get_export_data(const String &p_path, ExportData 
 }
 
 Error ResourceFormatLoaderXML::rename_dependencies(const String &p_path, const HashMap<String, String> &p_map) {
-
 	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
 	if (!f.is_valid()) {
-
 		ERR_FAIL_V(ERR_CANT_OPEN);
 	}
 
@@ -2167,14 +2033,12 @@ ResourceFormatLoaderXML *ResourceFormatLoaderXML::singleton = NULL;
 /****************************************************************************************/
 
 void ResourceFormatSaverXMLInstance::escape(String &p_str) {
-
 	p_str = p_str.replace("&", "&amp;");
 	p_str = p_str.replace("<", "&lt;");
 	p_str = p_str.replace(">", "&gt;");
 	p_str = p_str.replace("'", "&apos;");
 	p_str = p_str.replace("\"", "&quot;");
 	for (char i = 1; i < 32; i++) {
-
 		char chr[2] = { i, 0 };
 		const char hexn[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 		const char hex[8] = { '&', '#', '0', '0', hexn[i >> 4], hexn[i & 0xf], ';', 0 };
@@ -2183,15 +2047,12 @@ void ResourceFormatSaverXMLInstance::escape(String &p_str) {
 	}
 }
 void ResourceFormatSaverXMLInstance::write_tabs(int p_diff) {
-
 	for (int i = 0; i < depth + p_diff; i++) {
-
 		f->store_8('\t');
 	}
 }
 
 void ResourceFormatSaverXMLInstance::write_string(String p_str, bool p_escape) {
-
 	/* write an UTF8 string */
 	if (p_escape)
 		escape(p_str);
@@ -2209,7 +2070,6 @@ void ResourceFormatSaverXMLInstance::write_string(String p_str, bool p_escape) {
 }
 
 Error ResourceFormatSaverXMLInstance::set_save_settings(const Ref<Resource> &p_resource, uint32_t p_flags) {
-
 	Ref<ResourceInfo> compat = ResourceInfo::get_info_from_resource(p_resource);
 	// format_version = CompatFormatLoader::get_format_version_from_flags(p_flags);
 	ver_major = CompatFormatLoader::get_ver_major_from_flags(p_flags);
@@ -2244,9 +2104,7 @@ Error ResourceFormatSaverXMLInstance::set_save_settings(const Ref<Resource> &p_r
 	return OK;
 }
 
-
 void ResourceFormatSaverXMLInstance::enter_tag(const char *p_tag, const String &p_args) {
-
 	f->store_8('<');
 	int cc = 0;
 	const char *c = p_tag;
@@ -2263,7 +2121,6 @@ void ResourceFormatSaverXMLInstance::enter_tag(const char *p_tag, const String &
 	depth++;
 }
 void ResourceFormatSaverXMLInstance::exit_tag(const char *p_tag) {
-
 	depth--;
 	f->store_8('<');
 	f->store_8('/');
@@ -2292,7 +2149,6 @@ static bool _check_type(const Variant& p_property) {
 }*/
 
 void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const Variant &p_property, bool *r_ok) {
-
 	if (r_ok)
 		*r_ok = false;
 
@@ -2301,23 +2157,54 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 	bool oneliner = true;
 
 	switch (p_property.get_type()) {
-
-		case Variant::NIL: type = "nil"; break;
-		case Variant::BOOL: type = "bool"; break;
-		case Variant::INT: type = "int"; break;
-		case Variant::FLOAT: type = "real"; break;
-		case Variant::STRING: type = "string"; break;
-		case Variant::VECTOR2: type = "vector2"; break;
-		case Variant::RECT2: type = "rect2"; break;
-		case Variant::VECTOR3: type = "vector3"; break;
-		case Variant::PLANE: type = "plane"; break;
-		case Variant::AABB: type = "aabb"; break;
-		case Variant::QUATERNION: type = "quaternion"; break;
-		case Variant::TRANSFORM2D: type = "matrix32"; break;
-		case Variant::BASIS: type = "matrix3"; break;
-		case Variant::TRANSFORM3D: type = "transform"; break;
-		case Variant::COLOR: type = "color"; break;
-		case Variant::NODE_PATH: type = "node_path"; break;
+		case Variant::NIL:
+			type = "nil";
+			break;
+		case Variant::BOOL:
+			type = "bool";
+			break;
+		case Variant::INT:
+			type = "int";
+			break;
+		case Variant::FLOAT:
+			type = "real";
+			break;
+		case Variant::STRING:
+			type = "string";
+			break;
+		case Variant::VECTOR2:
+			type = "vector2";
+			break;
+		case Variant::RECT2:
+			type = "rect2";
+			break;
+		case Variant::VECTOR3:
+			type = "vector3";
+			break;
+		case Variant::PLANE:
+			type = "plane";
+			break;
+		case Variant::AABB:
+			type = "aabb";
+			break;
+		case Variant::QUATERNION:
+			type = "quaternion";
+			break;
+		case Variant::TRANSFORM2D:
+			type = "matrix32";
+			break;
+		case Variant::BASIS:
+			type = "matrix3";
+			break;
+		case Variant::TRANSFORM3D:
+			type = "transform";
+			break;
+		case Variant::COLOR:
+			type = "color";
+			break;
+		case Variant::NODE_PATH:
+			type = "node_path";
+			break;
 		case Variant::OBJECT: {
 			type = "resource";
 			Ref<Resource> res = p_property;
@@ -2350,28 +2237,69 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 				auto v2format = ImageEnumCompat::convert_image_format_enum_v4_to_v2(v4format);
 
 				switch (v2format) {
-
-					case V2Image::IMAGE_FORMAT_GRAYSCALE: params += " format=\"grayscale\""; break;
-					case V2Image::IMAGE_FORMAT_INTENSITY: params += " format=\"intensity\""; break;
-					case V2Image::IMAGE_FORMAT_GRAYSCALE_ALPHA: params += " format=\"grayscale_alpha\""; break;
-					case V2Image::IMAGE_FORMAT_RGB: params += " format=\"rgb\""; break;
-					case V2Image::IMAGE_FORMAT_RGBA: params += " format=\"rgba\""; break;
-					case V2Image::IMAGE_FORMAT_INDEXED: params += " format=\"indexed\""; break;
-					case V2Image::IMAGE_FORMAT_INDEXED_ALPHA: params += " format=\"indexed_alpha\""; break;
-					case V2Image::IMAGE_FORMAT_BC1: params += " format=\"bc1\""; break;
-					case V2Image::IMAGE_FORMAT_BC2: params += " format=\"bc2\""; break;
-					case V2Image::IMAGE_FORMAT_BC3: params += " format=\"bc3\""; break;
-					case V2Image::IMAGE_FORMAT_BC4: params += " format=\"bc4\""; break;
-					case V2Image::IMAGE_FORMAT_BC5: params += " format=\"bc5\""; break;
-					case V2Image::IMAGE_FORMAT_PVRTC2: params += " format=\"pvrtc2\""; break;
-					case V2Image::IMAGE_FORMAT_PVRTC2_ALPHA: params += " format=\"pvrtc2a\""; break;
-					case V2Image::IMAGE_FORMAT_PVRTC4: params += " format=\"pvrtc4\""; break;
-					case V2Image::IMAGE_FORMAT_PVRTC4_ALPHA: params += " format=\"pvrtc4a\""; break;
-					case V2Image::IMAGE_FORMAT_ETC: params += " format=\"etc\""; break;
-					case V2Image::IMAGE_FORMAT_ATC: params += " format=\"atc\""; break;
-					case V2Image::IMAGE_FORMAT_ATC_ALPHA_EXPLICIT: params += " format=\"atcae\""; break;
-					case V2Image::IMAGE_FORMAT_ATC_ALPHA_INTERPOLATED: params += " format=\"atcai\""; break;
-					case V2Image::IMAGE_FORMAT_CUSTOM: params += " format=\"custom\" custom_size=\"" + itos(img->get_data().size()) + "\""; break;
+					case V2Image::IMAGE_FORMAT_GRAYSCALE:
+						params += " format=\"grayscale\"";
+						break;
+					case V2Image::IMAGE_FORMAT_INTENSITY:
+						params += " format=\"intensity\"";
+						break;
+					case V2Image::IMAGE_FORMAT_GRAYSCALE_ALPHA:
+						params += " format=\"grayscale_alpha\"";
+						break;
+					case V2Image::IMAGE_FORMAT_RGB:
+						params += " format=\"rgb\"";
+						break;
+					case V2Image::IMAGE_FORMAT_RGBA:
+						params += " format=\"rgba\"";
+						break;
+					case V2Image::IMAGE_FORMAT_INDEXED:
+						params += " format=\"indexed\"";
+						break;
+					case V2Image::IMAGE_FORMAT_INDEXED_ALPHA:
+						params += " format=\"indexed_alpha\"";
+						break;
+					case V2Image::IMAGE_FORMAT_BC1:
+						params += " format=\"bc1\"";
+						break;
+					case V2Image::IMAGE_FORMAT_BC2:
+						params += " format=\"bc2\"";
+						break;
+					case V2Image::IMAGE_FORMAT_BC3:
+						params += " format=\"bc3\"";
+						break;
+					case V2Image::IMAGE_FORMAT_BC4:
+						params += " format=\"bc4\"";
+						break;
+					case V2Image::IMAGE_FORMAT_BC5:
+						params += " format=\"bc5\"";
+						break;
+					case V2Image::IMAGE_FORMAT_PVRTC2:
+						params += " format=\"pvrtc2\"";
+						break;
+					case V2Image::IMAGE_FORMAT_PVRTC2_ALPHA:
+						params += " format=\"pvrtc2a\"";
+						break;
+					case V2Image::IMAGE_FORMAT_PVRTC4:
+						params += " format=\"pvrtc4\"";
+						break;
+					case V2Image::IMAGE_FORMAT_PVRTC4_ALPHA:
+						params += " format=\"pvrtc4a\"";
+						break;
+					case V2Image::IMAGE_FORMAT_ETC:
+						params += " format=\"etc\"";
+						break;
+					case V2Image::IMAGE_FORMAT_ATC:
+						params += " format=\"atc\"";
+						break;
+					case V2Image::IMAGE_FORMAT_ATC_ALPHA_EXPLICIT:
+						params += " format=\"atcae\"";
+						break;
+					case V2Image::IMAGE_FORMAT_ATC_ALPHA_INTERPOLATED:
+						params += " format=\"atcai\"";
+						break;
+					case V2Image::IMAGE_FORMAT_CUSTOM:
+						params += " format=\"custom\" custom_size=\"" + itos(img->get_data().size()) + "\"";
+						break;
 					default: {
 					}
 				}
@@ -2382,7 +2310,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 			}
 
 			if (external_resources.has(res)) {
-
 				params = "external=\"" + itos(external_resources[res]) + "\"";
 			} else {
 				params = "resource_type=\"" + res->get_save_class() + "\"";
@@ -2393,7 +2320,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 					escape(path);
 					params += " path=\"" + path + "\"";
 				} else {
-
 					//internal resource
 					ERR_FAIL_COND_MSG(!resource_set.has(res), "Resource was not pre cached for the resource section, bug?");
 
@@ -2444,7 +2370,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 			params = "len=\"" + itos(p_property.operator Vector<Color>().size()) + "\"";
 			break;
 		default: {
-
 			ERR_FAIL_MSG("Unknown Variant type.");
 		}
 	}
@@ -2469,70 +2394,56 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 		f->store_8(' ');
 
 	switch (p_property.get_type()) {
-
 		case Variant::NIL: {
-
 		} break;
 		case Variant::BOOL: {
-
 			write_string(p_property.operator bool() ? "True" : "False");
 		} break;
 		case Variant::INT: {
-
 			write_string(itos(p_property.operator int()));
 		} break;
 		case Variant::FLOAT: {
-
 			write_string(rtos(p_property.operator real_t()));
 		} break;
 		case Variant::STRING: {
-
 			String str = p_property;
 			escape(str);
 			str = "\"" + str + "\"";
 			write_string(str, false);
 		} break;
 		case Variant::VECTOR2: {
-
 			Vector2 v = p_property;
 			write_string(rtoss(v.x) + ", " + rtoss(v.y));
 		} break;
 		case Variant::RECT2: {
-
 			Rect2 aabb = p_property;
 			write_string(rtoss(aabb.position.x) + ", " + rtoss(aabb.position.y) + ", " + rtoss(aabb.size.x) + ", " + rtoss(aabb.size.y));
 
 		} break;
 		case Variant::VECTOR3: {
-
 			Vector3 v = p_property;
 			write_string(rtoss(v.x) + ", " + rtoss(v.y) + ", " + rtoss(v.z));
 		} break;
 		case Variant::PLANE: {
-
 			Plane p = p_property;
 			write_string(rtoss(p.normal.x) + ", " + rtoss(p.normal.y) + ", " + rtoss(p.normal.z) + ", " + rtoss(p.d));
 
 		} break;
 		case Variant::AABB: {
-
 			AABB aabb = p_property;
 			write_string(rtoss(aabb.position.x) + ", " + rtoss(aabb.position.y) + ", " + rtoss(aabb.position.z) + ", " + rtoss(aabb.size.x) + ", " + rtoss(aabb.size.y) + ", " + rtoss(aabb.size.z));
 
 		} break;
 		case Variant::QUATERNION: {
-
 			Quaternion quat = p_property;
 			write_string(rtoss(quat.x) + ", " + rtoss(quat.y) + ", " + rtoss(quat.z) + ", " + rtoss(quat.w) + ", ");
 
 		} break;
 		case Variant::TRANSFORM2D: {
-
 			String s;
 			Transform2D m3 = p_property;
 			for (int i = 0; i < 3; i++) {
 				for (int j = 0; j < 2; j++) {
-
 					if (i != 0 || j != 0)
 						s += ", ";
 					s += rtoss(m3.columns[i][j]);
@@ -2543,12 +2454,10 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 
 		} break;
 		case Variant::BASIS: {
-
 			String s;
 			Basis m3 = p_property;
 			for (int i = 0; i < 3; i++) {
 				for (int j = 0; j < 3; j++) {
-
 					if (i != 0 || j != 0)
 						s += ", ";
 					s += rtoss(m3.rows[i][j]);
@@ -2559,13 +2468,11 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 
 		} break;
 		case Variant::TRANSFORM3D: {
-
 			String s;
 			Transform3D t = p_property;
 			Basis &m3 = t.basis;
 			for (int i = 0; i < 3; i++) {
 				for (int j = 0; j < 3; j++) {
-
 					if (i != 0 || j != 0)
 						s += ", ";
 					s += rtoss(m3.rows[i][j]);
@@ -2579,7 +2486,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 
 		// misc types
 		case Variant::COLOR: {
-
 			Color c = p_property;
 			write_string(rtoss(c.r) + ", " + rtoss(c.g) + ", " + rtoss(c.b) + ", " + rtoss(c.a));
 
@@ -2604,7 +2510,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 		// 	write_string(s);
 		// } break;
 		case Variant::NODE_PATH: {
-
 			String str = p_property;
 			escape(str);
 			str = "\"" + str + "\"";
@@ -2623,7 +2528,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 					int len = data.size();
 					const uint8_t *ptr = data.ptr();
 					for (int i = 0; i < len; i++) {
-
 						uint8_t byte = ptr[i];
 						const char hex[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 						char str[3] = { hex[byte >> 4], hex[byte & 0xF], 0 };
@@ -2655,7 +2559,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 		// 	write_string(p_property.operator String());
 		// } break;
 		case Variant::DICTIONARY: {
-
 			Dictionary dict = p_property;
 
 			auto keys = dict.get_key_list();
@@ -2663,7 +2566,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 			keys.sort();
 
 			for (auto &key : keys) {
-
 				//if (!_check_type(dict[E->get()]))
 				//	continue;
 				bool ok;
@@ -2677,18 +2579,15 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 
 		} break;
 		case Variant::ARRAY: {
-
 			Array array = p_property;
 			int len = array.size();
 			for (int i = 0; i < len; i++) {
-
 				write_property("", array[i]);
 			}
 
 		} break;
 
 		case Variant::PACKED_BYTE_ARRAY: {
-
 			String s;
 			Vector<uint8_t> data = p_property;
 			int len = data.size();
@@ -2696,7 +2595,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 			const uint8_t *ptr = data.ptr();
 			;
 			for (int i = 0; i < len; i++) {
-
 				uint8_t byte = ptr[i];
 				const char hex[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 				char str[3] = { hex[byte >> 4], hex[byte & 0xF], 0 };
@@ -2707,7 +2605,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 
 		} break;
 		case Variant::PACKED_INT32_ARRAY: {
-
 			Vector<int> data = p_property;
 			int len = data.size();
 			// Vector<int>::Read r = data.read();
@@ -2716,7 +2613,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 			write_tabs();
 
 			for (int i = 0; i < len; i++) {
-
 				if (i > 0)
 					write_string(", ", false);
 
@@ -2725,7 +2621,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 
 		} break;
 		case Variant::PACKED_FLOAT32_ARRAY: {
-
 			Vector<real_t> data = p_property;
 			int len = data.size();
 			// Vector<real_t>::Read r = data.read();
@@ -2735,7 +2630,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 			String cm = ", ";
 
 			for (int i = 0; i < len; i++) {
-
 				if (i > 0)
 					write_string(cm, false);
 				write_string(rtoss(ptr[i]), false);
@@ -2743,7 +2637,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 
 		} break;
 		case Variant::PACKED_STRING_ARRAY: {
-
 			Vector<String> data = p_property;
 			int len = data.size();
 			// Vector<String>::Read r = data.read();
@@ -2753,7 +2646,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 			//write_string("\n");
 
 			for (int i = 0; i < len; i++) {
-
 				write_tabs(0);
 				String str = ptr[i];
 				escape(str);
@@ -2761,7 +2653,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 			}
 		} break;
 		case Variant::PACKED_VECTOR2_ARRAY: {
-
 			Vector<Vector2> data = p_property;
 			int len = data.size();
 			// Vector<Vector2>::Read r = data.read();
@@ -2770,7 +2661,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 			write_tabs();
 
 			for (int i = 0; i < len; i++) {
-
 				if (i > 0)
 					write_string(", ", false);
 				write_string(rtoss(ptr[i].x), false);
@@ -2779,7 +2669,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 
 		} break;
 		case Variant::PACKED_VECTOR3_ARRAY: {
-
 			Vector<Vector3> data = p_property;
 			int len = data.size();
 			// Vector<Vector3>::Read r = data.read();
@@ -2788,7 +2677,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 			write_tabs();
 
 			for (int i = 0; i < len; i++) {
-
 				if (i > 0)
 					write_string(", ", false);
 				write_string(rtoss(ptr[i].x), false);
@@ -2798,7 +2686,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 
 		} break;
 		case Variant::PACKED_COLOR_ARRAY: {
-
 			Vector<Color> data = p_property;
 			int len = data.size();
 			// Vector<Color>::Read r = data.read();
@@ -2807,7 +2694,6 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 			write_tabs();
 
 			for (int i = 0; i < len; i++) {
-
 				if (i > 0)
 					write_string(", ", false);
 
@@ -2833,13 +2719,9 @@ void ResourceFormatSaverXMLInstance::write_property(const String &p_name, const 
 		*r_ok = true;
 }
 
-
-
 void ResourceFormatSaverXMLInstance::_find_resources(const Variant &p_variant, bool p_main) {
-
 	switch (p_variant.get_type()) {
 		case Variant::OBJECT: {
-
 			Ref<Resource> res = p_variant;
 
 			if (res.is_null() || external_resources.has(res))
@@ -2865,11 +2747,9 @@ void ResourceFormatSaverXMLInstance::_find_resources(const Variant &p_variant, b
 			List<PropertyInfo>::Element *I = property_list.front();
 
 			while (I) {
-
 				PropertyInfo pi = I->get();
 
 				if (pi.name != META_PROPERTY_COMPAT_DATA && pi.usage & PROPERTY_USAGE_STORAGE) {
-
 					Variant v = res->get(I->get().name);
 					_find_resources(v);
 				}
@@ -2882,18 +2762,15 @@ void ResourceFormatSaverXMLInstance::_find_resources(const Variant &p_variant, b
 
 		} break;
 		case Variant::ARRAY: {
-
 			Array varray = p_variant;
 			int len = varray.size();
 			for (int i = 0; i < len; i++) {
-
 				Variant v = varray.get(i);
 				_find_resources(v);
 			}
 
 		} break;
 		case Variant::DICTIONARY: {
-
 			Dictionary d = p_variant;
 			auto keys = d.get_key_list();
 			for (auto &key : keys) {
@@ -2908,7 +2785,6 @@ void ResourceFormatSaverXMLInstance::_find_resources(const Variant &p_variant, b
 }
 
 Error ResourceFormatSaverXMLInstance::save(const String &p_path, const Ref<Resource> &p_resource, uint32_t p_flags) {
-
 	Error err;
 	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::WRITE, &err);
 	ERR_FAIL_COND_V(err, ERR_CANT_OPEN);
@@ -2917,7 +2793,6 @@ Error ResourceFormatSaverXMLInstance::save(const String &p_path, const Ref<Resou
 }
 
 Error ResourceFormatSaverXMLInstance::save_to_file(const Ref<FileAccess> &p_f, const String &p_path, const Ref<Resource> &p_resource, uint32_t p_flags) {
-
 	f = p_f;
 	Error err = set_save_settings(p_resource, p_flags);
 	ERR_FAIL_COND_V(err, err);
@@ -2950,7 +2825,6 @@ Error ResourceFormatSaverXMLInstance::save_to_file(const Ref<FileAccess> &p_f, c
 	write_string("\n", false);
 
 	for (auto &E : external_resources) {
-
 		write_tabs();
 		String p = E.key->get_path();
 
@@ -2962,10 +2836,8 @@ Error ResourceFormatSaverXMLInstance::save_to_file(const Ref<FileAccess> &p_f, c
 	HashSet<String> used_indices;
 
 	for (List<Ref<Resource>>::Element *E = saved_resources.front(); E; E = E->next()) {
-
 		Ref<Resource> res = E->get();
 		if (E->next() && (res->get_path() == "" || res->get_path().find("::") != -1)) {
-
 			if (res->get_scene_unique_id() != "0") {
 				if (used_indices.has(res->get_scene_unique_id())) {
 					res->set_scene_unique_id("0"); //repeated
@@ -2977,7 +2849,6 @@ Error ResourceFormatSaverXMLInstance::save_to_file(const Ref<FileAccess> &p_f, c
 	}
 
 	for (List<Ref<Resource>>::Element *E = saved_resources.front(); E; E = E->next()) {
-
 		Ref<Resource> res = E->get();
 		ERR_CONTINUE(!resource_set.has(res));
 		bool main = (E->next() == NULL);
@@ -2989,7 +2860,6 @@ Error ResourceFormatSaverXMLInstance::save_to_file(const Ref<FileAccess> &p_f, c
 		else if (res->get_path().length() && res->get_path().find("::") == -1)
 			enter_tag("resource", "type=\"" + res->get_save_class() + "\" path=\"" + res->get_path() + "\""); //bundled
 		else {
-
 			if (res->get_scene_unique_id() == "0") {
 				int new_subindex = 1;
 				if (used_indices.size()) {
@@ -3012,7 +2882,6 @@ Error ResourceFormatSaverXMLInstance::save_to_file(const Ref<FileAccess> &p_f, c
 		res->get_property_list(&property_list);
 		//		property_list.sort();
 		for (List<PropertyInfo>::Element *PE = property_list.front(); PE; PE = PE->next()) {
-
 			if (skip_editor && PE->get().name.begins_with("__editor"))
 				continue;
 
@@ -3066,22 +2935,18 @@ Error ResourceFormatSaverXMLInstance::save_to_file(const Ref<FileAccess> &p_f, c
 }
 
 Error ResourceFormatSaverXML::save(const Ref<Resource> &p_resource, const String &p_path, uint32_t p_flags) {
-
 	ResourceFormatSaverXMLInstance saver;
 	return saver.save(p_path, p_resource, p_flags);
 }
 
 bool ResourceFormatSaverXML::recognize(const Ref<Resource> &p_resource) const {
-
 	return true; // all recognized!
 }
 void ResourceFormatSaverXML::get_recognized_extensions(const Ref<Resource> &p_resource, List<String> *p_extensions) const {
-
 	//here comes the sun, lalalala
 	String base = p_resource->get_base_extension().to_lower();
 	p_extensions->push_back("xml");
 	if (base != "res") {
-
 		p_extensions->push_back("x" + base);
 	}
 }

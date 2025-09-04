@@ -31,10 +31,10 @@
 #ifndef RESOURCE_FORMAT_XML_H
 #define RESOURCE_FORMAT_XML_H
 
+#include "compat/resource_loader_compat.h"
+#include "core/io/file_access.h"
 #include "core/io/resource_loader.h"
 #include "core/io/resource_saver.h"
-#include "core/io/file_access.h"
-#include "compat/resource_loader_compat.h"
 
 // There's no need to load XML scenes during project recovery for v2 games, and I really don't want to try and test it.
 #define GDRE_DISABLE_XML_LOADER 1
@@ -42,7 +42,6 @@
 #if !GDRE_DISABLE_XML_LOADER
 
 struct ExportData {
-
 	struct Dependency {
 		String path;
 		String type;
@@ -56,7 +55,6 @@ struct ExportData {
 	};
 
 	struct ResourceData {
-
 		String type;
 		int index;
 		List<PropertyData> properties;
@@ -65,7 +63,6 @@ struct ExportData {
 	Vector<ResourceData> resources;
 
 	struct NodeData {
-
 		bool text_data;
 		bool instanced;
 		String name;
@@ -95,7 +92,6 @@ struct ExportData {
 	Vector<NodeData> nodes;
 
 	struct Connection {
-
 		bool text_data;
 
 		int from_int;
@@ -118,8 +114,7 @@ struct ExportData {
 	Variant base_scene;
 };
 
-class ResourceInteractiveLoaderXML: public RefCounted {
-
+class ResourceInteractiveLoaderXML : public RefCounted {
 	String local_path;
 	String res_path;
 
@@ -131,7 +126,6 @@ class ResourceInteractiveLoaderXML: public RefCounted {
 	ResourceFormatLoader::CacheMode cache_mode = ResourceFormatLoader::CACHE_MODE_REUSE;
 
 	struct Tag {
-
 		String name;
 		HashMap<String, String> args;
 	};
@@ -183,12 +177,12 @@ public:
 	virtual int get_stage() const;
 	virtual int get_stage_count() const;
 
-	void open(Ref<FileAccess>p_f);
-	String recognize(Ref<FileAccess>p_f);
-	void get_dependencies(Ref<FileAccess>p_f, List<String> *p_dependencies, bool p_add_types);
-	Error rename_dependencies(Ref<FileAccess>p_f, const String &p_path, const HashMap<String, String> &p_map);
+	void open(Ref<FileAccess> p_f);
+	String recognize(Ref<FileAccess> p_f);
+	void get_dependencies(Ref<FileAccess> p_f, List<String> *p_dependencies, bool p_add_types);
+	Error rename_dependencies(Ref<FileAccess> p_f, const String &p_path, const HashMap<String, String> &p_map);
 
-	Error get_export_data(Ref<FileAccess>p_f, ExportData &r_export_data);
+	Error get_export_data(Ref<FileAccess> p_f, ExportData &r_export_data);
 
 	~ResourceInteractiveLoaderXML();
 };
@@ -210,14 +204,12 @@ public:
 	virtual Ref<ResourceInfo> get_resource_info(const String &p_path, Error *r_error) const override;
 	virtual bool handles_fake_load() const override;
 
-
 	ResourceFormatLoaderXML() { singleton = this; }
 };
 #endif // if 0
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 class ResourceFormatSaverXMLInstance {
-
 	String local_path;
 
 	int ver_major = 0;

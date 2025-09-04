@@ -1,7 +1,6 @@
 #include "video_stream_compat.h"
 #include "utility/gdre_settings.h"
 
-
 #include "modules/theora/video_stream_theora.h"
 
 Ref<Resource> ResourceFormatLoaderCompatVideo::load(const String &p_path, const String &p_original_path, Error *r_error, bool p_use_sub_threads, float *r_progress, CacheMode p_cache_mode) {
