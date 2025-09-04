@@ -462,7 +462,7 @@ String ResourceCompatLoader::resource_to_string(const String &p_path, bool p_ski
 	f->resize(length * 3);
 
 	ResourceFormatSaverCompatTextInstance saver;
-	String save_path = path.get_basename() + (ext == "scn" ? ".tscn" : ".tres");
+	String save_path = path.get_basename() + (res->get_save_class() == "PackedScene" ? ".tscn" : ".tres");
 	err = saver.save_to_file(f, save_path, res, 0);
 	ERR_FAIL_COND_V_MSG(err != OK, "", "Failed to save resource '" + path + "'.");
 	return f->whole_file_as_utf8_string(p_skip_cr);
