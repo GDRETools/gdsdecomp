@@ -795,7 +795,7 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 				ensure_space_func();
 				line += "%";
 				// if the previous token was a constant or an identifier, this is a modulo operation, add a space
-				if (prev_token == G_TK_CONSTANT || prev_token == G_TK_IDENTIFIER) {
+				if (prev_token == G_TK_CONSTANT || prev_token == G_TK_IDENTIFIER || prev_token == G_TK_PARENTHESIS_CLOSE) {
 					ensure_ending_space_func(i);
 				}
 			} break;
