@@ -300,6 +300,7 @@ namespace GodotMonoDecomp
 			decompiler.AstTransforms.Add(new RemoveCLSCompliantAttribute());
 			decompiler.AstTransforms.Add(new RemoveGodotScriptPathAttribute());
 			decompiler.AstTransforms.Add(new RemoveAutoAccessor());
+			decompiler.AstTransforms.Add(new GodotMonoDecomp.RemoveEmbeddedAttributes());
 			return decompiler;
 		}
 
