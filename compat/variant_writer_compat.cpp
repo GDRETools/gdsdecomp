@@ -1542,7 +1542,7 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_3>::write_compa
 				if (ver_major == 2 && res->is_class("Image")) {
 					res_text = ImageParserV2::image_v2_to_string(res, is_pcfg);
 				} else if (ver_major == 2 && res->is_class("InputEvent")) {
-					res_text = InputEventParserV2::v4_input_event_to_v2_string(res, is_pcfg);
+					res_text = InputEventParserV2::v4_input_event_to_v2_res_text(res, is_pcfg);
 				} else if (p_encode_res_func) {
 					// try external function
 					res_text = p_encode_res_func(p_encode_res_ud, res);

@@ -175,7 +175,7 @@ public:
 	}
 
 	static bool resource_is_resource(Ref<Resource> p_res, int ver_major) {
-		return p_res.is_valid() && !(ver_major <= 2 && (p_res->get_class() == "Image" || p_res->get_class() == "InputEvent"));
+		return p_res.is_valid() && !(ver_major <= 2 && (p_res->get_save_class() == "Image" || p_res->get_save_class() == "InputEvent"));
 	}
 
 	// virtual Ref<Resource> load(const String &p_path, const String &p_original_path = "", Error *r_error = nullptr, bool p_use_sub_threads = false, float *r_progress = nullptr, CacheMode p_cache_mode = CACHE_MODE_IGNORE);

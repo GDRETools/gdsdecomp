@@ -392,7 +392,8 @@ enum V2JoyButton {
 
 class InputEventParserV2 {
 public:
-	static String v4_input_event_to_v2_string(const Variant &r_v, bool is_pcfg);
+	static String v4_input_event_to_v2_res_text(const Variant &r_v, bool is_pcfg);
+	static String v4_input_event_to_v2_string(const Ref<InputEvent> &p_v4_event);
 
 	static Error decode_input_event(Variant &r_variant, const uint8_t *p_buffer, int p_len, int *r_len);
 	static Error parse_input_event_construct_v2(VariantParser::Stream *f, Variant &r_v, int &line, String &p_err_str, String id = "");

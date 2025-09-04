@@ -365,7 +365,139 @@ String keycode_get_v2_string(uint32_t p_code) {
 	return codestr;
 }
 
-String InputEventParserV2::v4_input_event_to_v2_string(const Variant &r_v, bool is_pcfg) {
+String InputEventParserV2::v4_input_event_to_v2_string(const Ref<InputEvent> &p_v4_event) {
+	// TODO: ID?? ID was an incrementing counter in v2 but that no longer exists in v4
+	String str = "Device " + itos(p_v4_event->get_device()) + " ID " + itos(0) + " ";
+
+	InputEventType type = p_v4_event->get_type();
+
+	auto add_mod_str = [&](const Ref<InputEventWithModifiers> &p_v4_event) {
+		if (p_v4_event->is_shift_pressed()) {
+			str += "S";
+		}
+		if (p_v4_event->is_ctrl_pressed()) {
+			str += "C";
+		}
+		if (p_v4_event->is_alt_pressed()) {
+			str += "A";
+		}
+		if (p_v4_event->is_meta_pressed()) {
+			str += "M";
+		}
+	};
+
+	switch (type) {
+		case InputEventType::MAX: {
+			return "Event: None";
+		} break;
+		case InputEventType::KEY: {
+			str += "Event: Key ";
+			Ref<InputEventKey> iek = p_v4_event;
+			auto scancode = convert_v4_key_to_v2_key(iek->get_keycode());
+			auto unicode = iek->get_unicode();
+			auto echo = iek->is_echo();
+			auto pressed = iek->is_pressed();
+
+			str = str + "Unicode: " + String::chr(unicode) + " Scan: " + itos((int64_t)scancode) + " Echo: " + String(echo ? "True" : "False") + " Pressed: " + String(pressed ? "True" : "False") + " Mod: ";
+			add_mod_str(iek);
+
+			return str;
+		} break;
+		case InputEventType::MOUSE_MOTION: {
+			str += "Event: Motion ";
+			Ref<InputEventMouseMotion> iem = p_v4_event;
+			auto pos = iem->get_position();
+			auto rel = iem->get_relative();
+			auto button_mask = iem->get_button_mask();
+
+			str = str + " Pos: " + itos(pos.x) + "," + itos(pos.y) + " Rel: " + itos(rel.x) + "," + itos(rel.y) + " Mask: ";
+			for (int i = 0; i < 8; i++) {
+				if (button_mask.has_flag(MouseButtonMask(1 << i)))
+					str += itos(i + 1);
+			}
+			str += " Mod: ";
+			add_mod_str(iem);
+
+			return str;
+		} break;
+		case InputEventType::MOUSE_BUTTON: {
+			str += "Event: Button ";
+			Ref<InputEventMouseButton> iem = p_v4_event;
+			auto pressed = iem->is_pressed();
+			auto pos = iem->get_position();
+			auto button_index = iem->get_button_index();
+			auto button_mask = iem->get_button_mask();
+
+			str = str + "Pressed: " + itos(pressed) + " Pos: " + itos(pos.x) + "," + itos(pos.y) + " Button: " + itos((int64_t)button_index) + " Mask: ";
+			for (int i = 0; i < 8; i++) {
+				if (button_mask.has_flag(MouseButtonMask(1 << i)))
+					str += itos(i + 1);
+			}
+			str += " Mod: ";
+			add_mod_str(iem);
+
+			str += String(" DoubleClick: ") + (iem->is_double_click() ? "Yes" : "No");
+
+			return str;
+
+		} break;
+		case InputEventType::JOY_MOTION: {
+			str += "Event: JoystickMotion ";
+			Ref<InputEventJoypadMotion> iem = p_v4_event;
+			auto axis = iem->get_axis();
+			auto axis_value = iem->get_axis_value();
+
+			str = str + "Axis: " + itos((int64_t)axis) + " Value: " + rtos(axis_value);
+			return str;
+
+		} break;
+		case InputEventType::JOY_BUTTON: {
+			str += "Event: JoystickButton ";
+			Ref<InputEventJoypadButton> iem = p_v4_event;
+			auto pressed = iem->is_pressed();
+			auto button_index = iem->get_button_index();
+			auto pressure = iem->get_pressure();
+
+			str = str + "Pressed: " + itos(pressed) + " Index: " + itos((int64_t)button_index) + " pressure " + rtos(pressure);
+			return str;
+
+		} break;
+		case InputEventType::SCREEN_TOUCH: {
+			str += "Event: ScreenTouch ";
+			Ref<InputEventScreenTouch> iem = p_v4_event;
+			auto pressed = iem->is_pressed();
+			auto index = iem->get_index();
+			auto pos = iem->get_position();
+
+			str = str + "Pressed: " + itos(pressed) + " Index: " + itos(index) + " pos " + rtos(pos.x) + "," + rtos(pos.y);
+			return str;
+
+		} break;
+		case InputEventType::SCREEN_DRAG: {
+			str += "Event: ScreenDrag ";
+			Ref<InputEventScreenDrag> iem = p_v4_event;
+			auto index = iem->get_index();
+			auto pos = iem->get_position();
+
+			str = str + " Index: " + itos(index) + " pos " + rtos(pos.x) + "," + rtos(pos.y);
+			return str;
+
+		} break;
+		case InputEventType::ACTION: {
+			Ref<InputEventAction> iem = p_v4_event;
+			auto action = iem->get_action();
+			auto pressed = iem->is_pressed();
+
+			str += "Event: Action: " + action + " Pressed: " + itos(pressed);
+			return str;
+
+		} break;
+	}
+
+	return "";
+}
+
+String InputEventParserV2::v4_input_event_to_v2_res_text(const Variant &r_v, bool is_pcfg) {
 	Ref<InputEvent> ev = r_v;
 	String prefix = is_pcfg ? "" : "InputEvent( ";
 

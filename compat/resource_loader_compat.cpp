@@ -1,6 +1,7 @@
 #include "resource_loader_compat.h"
 #include "compat/resource_compat_binary.h"
 #include "compat/resource_compat_text.h"
+#include "compat/resource_format_xml.h"
 #include "core/error/error_list.h"
 #include "core/error/error_macros.h"
 #include "core/io/file_access_memory.h"
@@ -417,9 +418,14 @@ Error ResourceCompatLoader::to_text(const String &p_path, const String &p_dst, u
 	Error err = OK;
 	auto res = _load_for_text_conversion(p_path, original_path, &err);
 	ERR_FAIL_COND_V_MSG(err != OK || res.is_null(), err, "Failed to load " + p_path);
-	ResourceFormatSaverCompatTextInstance saver;
 	err = gdre::ensure_dir(p_dst.get_base_dir());
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to create directory for " + p_dst);
+	String ext = p_dst.get_extension().to_lower();
+	if (ext == "xml" || ext == "x" + p_path.get_extension().to_lower()) {
+		ResourceFormatSaverXML saver;
+		return saver.save(res, p_dst, p_flags);
+	}
+	ResourceFormatSaverCompatTextInstance saver;
 	return saver.save(p_dst, res, p_flags);
 }
 
@@ -461,9 +467,17 @@ String ResourceCompatLoader::resource_to_string(const String &p_path, bool p_ski
 	f->open_new();
 	f->resize(length * 3);
 
-	ResourceFormatSaverCompatTextInstance saver;
-	String save_path = path.get_basename() + (res->get_save_class() == "PackedScene" ? ".tscn" : ".tres");
-	err = saver.save_to_file(f, save_path, res, 0);
+	String save_path;
+	String base_ext = path.get_basename().get_basename().get_extension();
+	if (path.contains(".converted.") && (base_ext == "xml" || base_ext == "x" + path.get_extension().to_lower())) {
+		ResourceFormatSaverXMLInstance saver;
+		save_path = path.get_basename() + ".xml";
+		err = saver.save_to_file(f, save_path, res, 0);
+	} else {
+		ResourceFormatSaverCompatTextInstance saver;
+		save_path = path.get_basename() + (res->get_save_class() == "PackedScene" ? ".tscn" : ".tres");
+		err = saver.save_to_file(f, save_path, res, 0);
+	}
 	ERR_FAIL_COND_V_MSG(err != OK, "", "Failed to save resource '" + path + "'.");
 	return f->whole_file_as_utf8_string(p_skip_cr);
 }

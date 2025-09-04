@@ -13,11 +13,6 @@ Ref<ExportReport> AutoConvertedExporter::export_resource(const String &output_di
 	String src_path = import_infos->get_path();
 	String dst_path = output_dir.path_join(import_infos->get_export_dest().replace("res://", ""));
 	Ref<ExportReport> report = memnew(ExportReport(import_infos, get_name()));
-	if (import_infos->get_export_dest().get_extension().to_lower() == "xml") {
-		report->set_error(ERR_UNAVAILABLE);
-		report->set_unsupported_format_type("2.0 XML format");
-		return report;
-	}
 	Error err = ResourceCompatLoader::to_text(src_path, dst_path, 0, import_infos->get_source_file());
 	report->set_error(err);
 	report->set_saved_path(dst_path);
