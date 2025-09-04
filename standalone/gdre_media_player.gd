@@ -228,11 +228,11 @@ func sample_format_to_string(format: int) -> String:
 
 func is_supported_video_format(path) -> bool:
 	var ext = path.get_extension().to_lower()
-	return ext == "ogv"
+	return ext == "ogv" || ext == "ogm"
 
 func is_video(path) -> bool:
 	var ext = path.get_extension().to_lower()
-	return ext == "ogv" or ext == "mp4" or ext == "webm"
+	return ext == "ogv" or ext == "mp4" or ext == "webm" or ext == "ogm"
 
 func is_audio(path) -> bool:
 	return !is_video(path)

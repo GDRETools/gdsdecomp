@@ -30,6 +30,7 @@
 #include "compat/sample_loader_compat.h"
 #include "compat/script_loader.h"
 #include "compat/texture_loader_compat.h"
+#include "compat/video_stream_compat.h"
 #include "exporters/autoconverted_exporter.h"
 #include "exporters/csharp_exporter.h"
 #include "exporters/export_report.h"
@@ -86,6 +87,7 @@ static Ref<ResourceFormatLoaderCompatTexture3D> texture3d_loader = nullptr;
 static Ref<ResourceFormatLoaderCompatTextureLayered> texture_layered_loader = nullptr;
 static Ref<ResourceFormatGDScriptLoader> script_loader = nullptr;
 static Ref<ResourceFormatLoaderCompatImage> image_loader = nullptr;
+static Ref<ResourceFormatLoaderCompatVideo> video_loader = nullptr;
 
 //converters
 static Ref<SampleConverterCompat> sample_converter = nullptr;
@@ -139,6 +141,7 @@ void init_loaders() {
 	texture_layered_loader = memnew(ResourceFormatLoaderCompatTextureLayered);
 	script_loader = memnew(ResourceFormatGDScriptLoader);
 	image_loader = memnew(ResourceFormatLoaderCompatImage);
+	video_loader = memnew(ResourceFormatLoaderCompatVideo);
 	sample_converter = memnew(SampleConverterCompat);
 	texture_converter = memnew(ResourceConverterTexture2D);
 	image_converter = memnew(ImageConverterCompat);
@@ -155,6 +158,7 @@ void init_loaders() {
 	ResourceCompatLoader::add_resource_format_loader(texture_layered_loader, true);
 	ResourceCompatLoader::add_resource_format_loader(script_loader, true);
 	ResourceCompatLoader::add_resource_format_loader(image_loader, true);
+	ResourceCompatLoader::add_resource_format_loader(video_loader, true);
 	ResourceCompatLoader::add_resource_object_converter(sample_converter, true);
 	ResourceCompatLoader::add_resource_object_converter(texture_converter, true);
 	ResourceCompatLoader::add_resource_object_converter(image_converter, true);
@@ -293,6 +297,9 @@ void deinit_loaders() {
 	if (image_loader.is_valid()) {
 		ResourceCompatLoader::remove_resource_format_loader(image_loader);
 	}
+	if (video_loader.is_valid()) {
+		ResourceCompatLoader::remove_resource_format_loader(video_loader);
+	}
 	if (sample_converter.is_valid()) {
 		ResourceCompatLoader::remove_resource_object_converter(sample_converter);
 	}
@@ -327,6 +334,7 @@ void deinit_loaders() {
 	texture_layered_loader = nullptr;
 	script_loader = nullptr;
 	image_loader = nullptr;
+	video_loader = nullptr;
 	sample_converter = nullptr;
 	texture_converter = nullptr;
 	image_converter = nullptr;
@@ -394,6 +402,7 @@ void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
 	ClassDB::register_class<ResourceFormatLoaderCompatTextureLayered>();
 	ClassDB::register_class<ResourceFormatGDScriptLoader>();
 	ClassDB::register_class<ResourceFormatLoaderCompatImage>();
+	ClassDB::register_class<ResourceFormatLoaderCompatVideo>();
 	ClassDB::register_class<LargeTextureConverterCompat>();
 	// TODO: make ResourceCompatConverter non-abstract
 	ClassDB::register_abstract_class<ResourceCompatConverter>();

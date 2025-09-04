@@ -313,7 +313,7 @@ func is_sample(ext, p_type = ""):
 	return false
 
 func is_video(ext, p_type = ""):
-	if (ext == "webm" || ext == "ogv" || ext == "mp4" || ext == "avi" || ext == "mov" || ext == "flv" || ext == "mkv" || ext == "wmv" || ext == "mpg" || ext == "mpeg"):
+	if (ext == "webm" || ext == "ogv" || ext == "ogm" || ext == "mp4" || ext == "avi" || ext == "mov" || ext == "flv" || ext == "mkv" || ext == "wmv" || ext == "mpg" || ext == "mpeg"):
 		return true
 	return false
 
