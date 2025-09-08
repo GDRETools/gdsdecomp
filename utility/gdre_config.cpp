@@ -108,6 +108,45 @@ public:
 	}
 };
 
+class GDREConfigSetting_CSharpForceLanguageVersion : public GDREConfigSetting {
+	GDSOFTCLASS(GDREConfigSetting_CSharpForceLanguageVersion, GDREConfigSetting);
+
+public:
+	GDREConfigSetting_CSharpForceLanguageVersion() :
+			GDREConfigSetting(
+					"CSharp/force_language_version",
+					"Force C# Language Level",
+					"By default, the C# language level is selected based on the default language level of the target framework of the module.\nThis setting forces the C# language level to be the specified value.",
+					0,
+					false,
+					false) {}
+
+	virtual bool has_special_value() const override { return true; }
+	virtual Dictionary get_list_of_possible_values() const override {
+		static const Dictionary versions = {
+			{ 0, "Auto-detect" },
+			{ 1, "C# 1.0" },
+			{ 2, "C# 2.0" },
+			{ 3, "C# 3.0" },
+			{ 4, "C# 4.0" },
+			{ 5, "C# 5.0" },
+			{ 6, "C# 6.0" },
+			{ 7, "C# 7.0" },
+			{ 701, "C# 7.1" },
+			{ 702, "C# 7.2" },
+			{ 703, "C# 7.3" },
+			{ 800, "C# 8.0" },
+			{ 900, "C# 9.0" },
+			{ 1000, "C# 10.0" },
+			{ 1100, "C# 11.0" },
+			{ 1200, "C# 12.0" },
+			// { 1300, "Preview" },
+			{ 0x7FFFFFFF, "Latest" },
+		};
+		return versions.duplicate();
+	}
+};
+
 class GDREConfigSetting_TranslationExporter_LoadKeyHintFile : public GDREConfigSetting {
 	GDSOFTCLASS(GDREConfigSetting_TranslationExporter_LoadKeyHintFile, GDREConfigSetting);
 
@@ -195,6 +234,7 @@ Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 				"Create additional projects for project references",
 				"If a project reference is detected, create an additional project and add it to the solution.",
 				true)),
+		memnew(GDREConfigSetting_CSharpForceLanguageVersion()),
 		memnew(GDREConfigSetting(
 				"Exporter/Scene/GLTF/force_lossless_images",
 				"Force lossless images",

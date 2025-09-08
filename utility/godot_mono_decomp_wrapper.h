@@ -19,6 +19,7 @@ public:
 		bool VerifyNuGetPackageIsFromNugetOrg = false;
 		bool CopyOutOfTreeReferences = true;
 		bool CreateAdditionalProjectsForProjectReferences = true;
+		int OverrideLanguageVersion = 0;
 		String GodotVersionOverride;
 		static GodotMonoDecompSettings get_default_settings();
 	};

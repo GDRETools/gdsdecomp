@@ -1,7 +1,9 @@
 #include "godot_mono_decomp_wrapper.h"
 #include "core/io/json.h"
 #include "core/templates/vector.h"
+
 #include "godot_mono_decomp.h"
+#include "utility/gdre_settings.h"
 
 GodotMonoDecompWrapper::GodotMonoDecompWrapper() {
 	decompilerHandle = nullptr;
@@ -50,7 +52,8 @@ Error GodotMonoDecompWrapper::_load(const String &p_assembly_path, const Vector<
 			p_settings.WriteNuGetPackageReferences,
 			p_settings.VerifyNuGetPackageIsFromNugetOrg,
 			p_settings.CopyOutOfTreeReferences,
-			p_settings.CreateAdditionalProjectsForProjectReferences);
+			p_settings.CreateAdditionalProjectsForProjectReferences,
+			(LanguageVersion)p_settings.OverrideLanguageVersion);
 	delete[] originalProjectFiles_c_array;
 	if (new_decompiler_handle == nullptr) {
 		return ERR_CANT_CREATE;
@@ -166,6 +169,7 @@ Error GodotMonoDecompWrapper::decompile_module(const String &outputCSProjectPath
 
 GodotMonoDecompWrapper::GodotMonoDecompSettings GodotMonoDecompWrapper::GodotMonoDecompSettings::get_default_settings() {
 	auto settings = GodotMonoDecompSettings();
+	settings.GodotVersionOverride = GDRESettings::get_singleton() ? GDRESettings::get_singleton()->get_version_string() : "";
 	if (!GDREConfig::get_singleton()) {
 		return settings;
 	}
@@ -173,6 +177,7 @@ GodotMonoDecompWrapper::GodotMonoDecompSettings GodotMonoDecompWrapper::GodotMon
 	settings.VerifyNuGetPackageIsFromNugetOrg = GDREConfig::get_singleton()->get_setting("CSharp/verify_nuget_package_is_from_nuget_org", false);
 	settings.CopyOutOfTreeReferences = GDREConfig::get_singleton()->get_setting("CSharp/copy_out_of_tree_references", true);
 	settings.CreateAdditionalProjectsForProjectReferences = GDREConfig::get_singleton()->get_setting("CSharp/create_additional_projects_for_project_references", true);
+	settings.OverrideLanguageVersion = GDREConfig::get_singleton()->get_setting("CSharp/force_language_version", 0);
 	return settings;
 }
 
@@ -238,7 +243,8 @@ Error GodotMonoDecompWrapper::set_settings(const GodotMonoDecompSettings &p_sett
 			p_settings.VerifyNuGetPackageIsFromNugetOrg != settings.VerifyNuGetPackageIsFromNugetOrg ||
 			p_settings.CopyOutOfTreeReferences != settings.CopyOutOfTreeReferences ||
 			p_settings.CreateAdditionalProjectsForProjectReferences != settings.CreateAdditionalProjectsForProjectReferences ||
-			p_settings.GodotVersionOverride != settings.GodotVersionOverride) {
+			p_settings.GodotVersionOverride != settings.GodotVersionOverride ||
+			p_settings.OverrideLanguageVersion != settings.OverrideLanguageVersion) {
 		Error err = _load(assembly_path, originalProjectFiles, assemblyReferenceDirs, p_settings);
 		ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to reload assembly " + assembly_path + " (Not a valid .NET assembly?)");
 	}

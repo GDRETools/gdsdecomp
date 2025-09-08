@@ -30,13 +30,25 @@ public class GodotModule
 
 
 
-	public GodotModule(PEFile module, DotNetCoreDepInfo? depInfo, string? subdir = null)
+	public GodotModule(PEFile module, DotNetCoreDepInfo? depInfo, string? subdir = null, GodotMonoDecompSettings? p_settings = null)
 	{
 		SubDirectory = subdir;
 		Module = module ?? throw new ArgumentNullException(nameof(module));
 		this.depInfo = depInfo;
 		debugInfoProvider = DebugInfoUtils.LoadSymbols(module);
-		languageVersion = Common.GetDefaultCSharpLanguageLevel(module);
+		if (p_settings?.OverrideLanguageVersion != null)
+		{
+			languageVersion = p_settings.OverrideLanguageVersion.Value;
+		}
+		else
+		{
+			languageVersion = Common.GetDefaultCSharpLanguageLevel(module);
+			// default to C# 9.0 if the language version is less than that; Mono compiler supports up to C# 9.0
+			if (languageVersion < LanguageVersion.CSharp9_0)
+			{
+				languageVersion = LanguageVersion.CSharp9_0;
+			}
+		}
 	}
 
 	public MetadataReader Metadata => Module.Metadata;
@@ -94,7 +106,7 @@ public class GodotModuleDecompiler
 					subdir = "_" + subdir;
 				}
 
-				AdditionalModules.Add(new GodotModule(module, dep, subdir));
+				AdditionalModules.Add(new GodotModule(module, dep, subdir, Settings));
 			}
 
 			AddSubProjects(assemblyPath, dep, names, canonicalSubDirs);
@@ -115,14 +127,14 @@ public class GodotModuleDecompiler
 			.OrderBy(file => file, StringComparer.OrdinalIgnoreCase)];
 		var mod = new PEFile(assemblyPath);
 		var _mainDepInfo = DotNetCoreDepInfo.LoadDepInfoFromFile(DotNetCoreDepInfo.GetDepPath(assemblyPath), mod.Name);
-		MainModule = new GodotModule(mod, _mainDepInfo);
+		Settings = settings ?? new GodotMonoDecompSettings();
+		MainModule = new GodotModule(mod, _mainDepInfo, null, Settings);
 		AssemblyResolver = new UniversalAssemblyResolver(assemblyPath, false, MainModule.Metadata.DetectTargetFrameworkId());
 		foreach (var path in (ReferencePaths ?? System.Array.Empty<string>()))
 		{
 			AssemblyResolver.AddSearchDirectory(path);
 		}
 
-		Settings = settings ?? new GodotMonoDecompSettings();
 
 		godotVersion = Settings.GodotVersionOverride ?? GodotStuff.GetGodotVersion(MainModule.Module) ?? new Version(0, 0, 0, 0);
 		if (godotVersion.Major <= 3)

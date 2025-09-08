@@ -5,6 +5,28 @@
 extern "C" {
 #endif
 
+typedef enum {
+AUTO_LANGUAGE_VERSION = 0,
+LANG_VER_CSharp1 = 1,
+LANG_VER_CSharp2 = 2,
+LANG_VER_CSharp3 = 3,
+LANG_VER_CSharp4 = 4,
+LANG_VER_CSharp5 = 5,
+LANG_VER_CSharp6 = 6,
+LANG_VER_CSharp7 = 7,
+LANG_VER_CSharp7_1 = 701,
+LANG_VER_CSharp7_2 = 702,
+LANG_VER_CSharp7_3 = 703,
+LANG_VER_CSharp8_0 = 800,
+LANG_VER_CSharp9_0 = 900,
+LANG_VER_CSharp10_0 = 1000,
+LANG_VER_CSharp11_0 = 1100,
+LANG_VER_Preview = 1100,
+LANG_VER_CSharp12_0 = 1200,
+LANG_VER_Latest = 0x7FFFFFFF
+} LanguageVersion;
+
+
 // Function declaration for the NativeAOT decompile function
 // This matches the UnmanagedCallersOnly function in EntryPoint.cs
 int GodotMonoDecomp_DecompileProject(
@@ -25,7 +47,8 @@ void* GodotMonoDecomp_CreateGodotModuleDecompiler(
 	bool writeNuGetPackageReferences,
 	bool verifyNuGetPackageIsFromNugetOrg,
 	bool copyOutOfTreeReferences,
-	bool createAdditionalProjectsForProjectReferences
+	bool createAdditionalProjectsForProjectReferences,
+	LanguageVersion OverrideLanguageVersion
 );
 
 int GodotMonoDecomp_DecompileModule(

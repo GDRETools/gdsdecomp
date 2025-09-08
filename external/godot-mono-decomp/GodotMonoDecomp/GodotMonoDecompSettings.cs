@@ -30,6 +30,11 @@ public class GodotMonoDecompSettings : DecompilerSettings
 	public bool CreateAdditionalProjectsForProjectReferences { get; set; } = true;
 
 	/// <summary>
+	/// Override the language version for the decompilation.
+	/// </summary>
+	public LanguageVersion? OverrideLanguageVersion { get; set; } = null;
+
+	/// <summary>
 	/// Godot version override for writing the SDK string in the project file.
 	/// </summary>
 	public Version? GodotVersionOverride { get; set; } = null;
@@ -52,6 +57,7 @@ public class GodotMonoDecompSettings : DecompilerSettings
 		settings.VerifyNuGetPackageIsFromNugetOrg = VerifyNuGetPackageIsFromNugetOrg;
 		settings.CopyOutOfTreeReferences = CopyOutOfTreeReferences;
 		settings.CreateAdditionalProjectsForProjectReferences = CreateAdditionalProjectsForProjectReferences;
+		settings.OverrideLanguageVersion = OverrideLanguageVersion;
 		settings.GodotVersionOverride = GodotVersionOverride;
 		return settings;
 	}

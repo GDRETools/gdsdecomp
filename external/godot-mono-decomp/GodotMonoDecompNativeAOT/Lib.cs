@@ -1,6 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text;
 using ICSharpCode.Decompiler;
+using ICSharpCode.Decompiler.CSharp;
 
 namespace GodotMonoDecomp.NativeLibrary;
 
@@ -56,7 +57,8 @@ static public class Lib
 		bool writeNuGetPackageReferences,
 		bool verifyNuGetPackageIsFromNugetOrg,
 		bool copyOutOfTreeReferences,
-		bool createAdditionalProjectsForProjectReferences
+		bool createAdditionalProjectsForProjectReferences,
+		int OverrideLanguageVersion
 	)
 	{
 		string assemblyFileNameStr = Marshal.PtrToStringAnsi(assemblyPath) ?? string.Empty;
@@ -69,6 +71,7 @@ static public class Lib
 			VerifyNuGetPackageIsFromNugetOrg = verifyNuGetPackageIsFromNugetOrg,
 			CopyOutOfTreeReferences = copyOutOfTreeReferences,
 			CreateAdditionalProjectsForProjectReferences = createAdditionalProjectsForProjectReferences,
+			OverrideLanguageVersion = OverrideLanguageVersion == 0 ? null : (LanguageVersion)OverrideLanguageVersion,
 			GodotVersionOverride = godotVersionOverrideStr == null ? null : GodotStuff.ParseGodotVersionFromString(godotVersionOverrideStr)
 		};
 		try {
