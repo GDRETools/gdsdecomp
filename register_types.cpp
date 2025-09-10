@@ -8,6 +8,7 @@
 #include "modules/regex/regex.h"
 #include "utility/file_access_gdre.h"
 #include "utility/gdre_audio_stream_preview.h"
+#include "utility/gdre_progress.h"
 #include "utility/gdre_standalone.h"
 #include "utility/image_saver.h"
 #include "utility/text_diff.h"
@@ -72,6 +73,7 @@ void gdsdecomp_init_callback() {
 	EditorNode *editor = EditorNode::get_singleton();
 	editor->add_child(memnew(GodotREEditor(editor)));
 	editor->add_child(memnew(GDREAudioStreamPreviewGeneratorNode));
+	editor->add_child(memnew(GDREProgressDialog));
 }
 #endif
 
