@@ -756,16 +756,13 @@ struct KeyWorker {
 			try_num_suffix(E.get_data(), res_s.get_data());
 		}
 		if (try_prefix_suffix) {
-			auto most_popular_punct = get_most_popular_punctuation();
-			String most_popular_punct_str = String::chr(most_popular_punct);
-			CharString punct_cs = most_popular_punct_str.utf8();
 			for (const auto &E : common_prefixes_t) {
 				for (const auto &E2 : common_suffixes_t) {
 					try_key_prefix_suffix(E.get_data(), res_s.get_data(), E2.get_data());
 					std::string f = E.get_data();
 					// check if f ends with most_popular_punct_str
 					if (f.back() != most_popular_punct) {
-						f += punct_cs.get_data();
+						f += most_popular_punct_str_cs.get_data();
 					}
 					f += res_s.get_data();
 					try_num_suffix(f.c_str(), E2.get_data());
@@ -979,15 +976,15 @@ struct KeyWorker {
 	}
 
 	char32_t get_most_popular_punctuation() {
-		char32_t most_popular_punct = 0;
+		char32_t punct = 0;
 		int64_t max_count = 0;
 		for (auto kv : punctuation_counts) {
 			if (kv.value > max_count) {
 				max_count = kv.value;
-				most_popular_punct = kv.key;
+				punct = kv.key;
 			}
 		}
-		return most_popular_punct;
+		return punct;
 	}
 
 	void extract_middles(const Vector<String> &frs, HashSet<String> &middles) {
@@ -1002,8 +999,7 @@ struct KeyWorker {
 			middles.insert(s);
 			return true;
 		};
-		char32_t most_popular_punct = get_most_popular_punctuation();
-		String most_popular_punct_str = String::chr(most_popular_punct);
+		set_most_popular_punctuation();
 		bool has_punct = most_popular_punct != 0;
 		for (auto &res_s_f : frs) {
 			String res_s = trim_punctuation(strip_numeric_suffix(res_s_f));
@@ -1103,6 +1099,12 @@ struct KeyWorker {
 		return vformat("%d / %s", (int64_t)i, working_set_size_str);
 	}
 
+	void set_most_popular_punctuation() {
+		most_popular_punct = get_most_popular_punctuation();
+		most_popular_punct_str = String::chr(most_popular_punct);
+		most_popular_punct_str_cs = most_popular_punct_str.utf8();
+	}
+
 	template <typename M, class VE>
 	Error run_stage(M p_multi_method, Vector<VE> p_userdata, const String &stage_name, bool multi = true, bool dont_end_stage = false) {
 		// assert that M is a method belonging to this class
@@ -1120,9 +1122,7 @@ struct KeyWorker {
 		}
 		working_set_size = p_userdata.size();
 		working_set_size_str = String::num_uint64(working_set_size);
-		most_popular_punct = get_most_popular_punctuation();
-		most_popular_punct_str = String::chr(most_popular_punct);
-		most_popular_punct_str_cs = most_popular_punct_str.utf8();
+		set_most_popular_punctuation();
 		String label = "Key search: " + stage_name;
 
 		Error err = TaskManager::get_singleton()->run_multithreaded_group_task(
