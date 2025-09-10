@@ -196,6 +196,12 @@ Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 				"If a project reference is detected, create an additional project and add it to the solution.",
 				true)),
 		memnew(GDREConfigSetting(
+				"CSharp/compile_after_decompile",
+				"Compile after decompile",
+				"Compile the C# project after decompiling.\nThis is done to prevent editor errors when first opening the project in the editor.\nThis requires that you have the dotnet sdk installed.",
+				false,
+				false)),
+		memnew(GDREConfigSetting(
 				"Exporter/Scene/GLTF/force_lossless_images",
 				"Force lossless images",
 				"Forces images to be saved as lossless PNGs when exporting to GLTF, regardless of the original image format",

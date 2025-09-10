@@ -465,15 +465,15 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 				report->failed_scripts.append_array(cs_files);
 			} else {
 				// compile the project to prevent editor errors
-				if (get_ver_major() >= 4) {
-					if (OS::get_singleton()->execute("dotnet", { "version" }) == OK) {
+				if (GDREConfig::get_singleton()->get_setting("CSharp/compile_after_decompile", false)) {
+					if (get_ver_major() >= 4 && OS::get_singleton()->execute("dotnet", { "version" }) == OK) {
 						String output;
 						int error_code;
 						String solution_path = csproj_path.get_basename() + ".sln";
 						if (OS::get_singleton()->execute("dotnet", { "build", solution_path, "--property", "WarningLevel=0" }, &output, &error_code, true) != OK || error_code != 0) {
-							ERR_PRINT("Failed to compile decompiled C# scripts: \n" + output);
+							ERR_PRINT("Failed to compile C# project: \n" + output);
 						} else {
-							print_line("Successfully compiled C# project");
+							print_line("Successfully compiled C# project.");
 						}
 					} else {
 						print_line("Unable to compile C# project; ensure that the project is built in the editor before making any changes.");
