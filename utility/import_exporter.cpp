@@ -855,7 +855,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		// the following are successful exports, but we failed to rewrite metadata or write md5 files
 		if (metadata_status == ExportReport::REWRITTEN) {
 			report->rewrote_metadata.push_back(ret);
-		} else if (metadata_status == ExportReport::NOT_IMPORTABLE || metadata_status == ExportReport::FAILED) {
+		} else if ((metadata_status == ExportReport::NOT_IMPORTABLE && iinfo->is_import()) || metadata_status == ExportReport::FAILED) {
 			// necessary to rewrite import metadata but failed to do so
 			report->failed_rewrite_md.push_back(ret);
 		} else if (metadata_status == ExportReport::MD5_FAILED) {
@@ -869,15 +869,8 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 				report->failed_gdnative_copy.push_back(ret->get_message());
 				continue;
 			} else if (!ret->get_saved_path().is_empty() && ret->get_download_task_id() != -1) {
-				Ref<ImportInfoGDExt> iinfo_gdext = iinfo;
 				Error dl_err = TaskManager::get_singleton()->wait_for_download_task_completion(ret->get_download_task_id());
 				if (dl_err != OK) {
-					report->failed_gdnative_copy.push_back(ret->get_saved_path());
-					continue;
-				}
-				if (!iinfo_gdext.is_valid()) {
-					// wtf?
-					ERR_PRINT("Invalid ImportInfoGDExt");
 					report->failed_gdnative_copy.push_back(ret->get_saved_path());
 					continue;
 				}
