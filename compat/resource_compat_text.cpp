@@ -2533,7 +2533,6 @@ Error ResourceLoaderCompatText::set_uid(Ref<FileAccess> p_f, ResourceUID::ID p_u
 	return OK;
 }
 
-/* this is really only appropriate for saving fake-loaded resources right now; don't use it to save anything else*/
 Error ResourceFormatSaverCompatText::save(const Ref<Resource> &p_resource, const String &p_path, uint32_t p_flags) {
 	ResourceFormatSaverCompatTextInstance saver;
 	return saver.save(p_path, p_resource, p_flags);

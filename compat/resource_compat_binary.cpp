@@ -2816,7 +2816,6 @@ Error ResourceFormatSaverCompatBinaryInstance::set_uid(const String &p_path, Res
 	return OK;
 }
 
-/* this is really only appropriate for saving fake-loaded resources right now; don't use it to save anything else*/
 Error ResourceFormatSaverCompatBinary::save(const Ref<Resource> &p_resource, const String &p_path, uint32_t p_flags) {
 	String path = GDRESettings::get_singleton()->globalize_path(p_path);
 	ResourceFormatSaverCompatBinaryInstance saver;
