@@ -3,6 +3,9 @@
 
 class FontFileExporter : public ResourceExporter {
 	GDCLASS(FontFileExporter, ResourceExporter);
+	Error _export_font_data_dynamic(const String &p_dest_path, const String &p_src_path);
+	Error _export_image(const String &p_dest_path, const String &p_src_path, Ref<Image> &r_image);
+	void _set_image_import_info(Ref<ImportInfo> import_infos, Ref<Image> image);
 
 public:
 	static constexpr const char *const EXPORTER_NAME = "FontFile";
