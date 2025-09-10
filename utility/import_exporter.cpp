@@ -464,8 +464,12 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 				ERR_PRINT("Failed to decompile C# scripts!");
 				report->failed_scripts.append_array(cs_files);
 			} else {
-				if (!OS::get_singleton()->execute("dotnet", { "build", csproj_path })) {
-					ERR_PRINT("Failed to compile decompiled C# scripts!");
+				if (!OS::get_singleton()->execute("dotnet", { "version" })) {
+					if (!OS::get_singleton()->execute("dotnet", { "build", csproj_path })) {
+						ERR_PRINT("Failed to compile decompiled C# scripts!");
+					}
+				} else {
+					ERR_PRINT("Install the dotnet sdk to use mono and redecompile to fix potential issues.");
 				}
 				auto failed = decompiler->get_files_not_present_in_file_map();
 				for (int i = 0; i < cs_files.size(); i++) {
