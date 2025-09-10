@@ -464,14 +464,20 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 				ERR_PRINT("Failed to decompile C# scripts!");
 				report->failed_scripts.append_array(cs_files);
 			} else {
-				if (OS::get_singleton()->execute("dotnet", { "version" }) == OK) {
-					String output;
-					int error_code;
-					if (OS::get_singleton()->execute("dotnet", { "build", csproj_path }, &output, &error_code, true) != OK) {
-						ERR_PRINT("Failed to compile decompiled C# scripts: \n" + output);
+				// compile the project to prevent editor errors
+				if (get_ver_major() >= 4) {
+					if (OS::get_singleton()->execute("dotnet", { "version" }) == OK) {
+						String output;
+						int error_code;
+						String solution_path = csproj_path.get_basename() + ".sln";
+						if (OS::get_singleton()->execute("dotnet", { "build", solution_path, "--property", "WarningLevel=0" }, &output, &error_code, true) != OK || error_code != 0) {
+							ERR_PRINT("Failed to compile decompiled C# scripts: \n" + output);
+						} else {
+							print_line("Successfully compiled C# project");
+						}
+					} else {
+						print_line("Unable to compile C# project; ensure that the project is built in the editor before making any changes.");
 					}
-				} else {
-					ERR_PRINT("Install the dotnet sdk to use mono and redecompile to fix potential issues.");
 				}
 				auto failed = decompiler->get_files_not_present_in_file_map();
 				for (int i = 0; i < cs_files.size(); i++) {
