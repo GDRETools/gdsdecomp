@@ -34,6 +34,7 @@ Vector<String> get_files_at(const String &p_dir, const Vector<String> &wildcards
 
 String num_scientific(double p_num);
 String num_scientific(float p_num);
+bool is_fs_path(const String &p_path);
 
 template <class T, class Itr>
 void hashset_insert_iterable(HashSet<T> &hs, const Itr &iterable) {
@@ -305,6 +306,9 @@ Error copy_dir(const String &src, const String &dst);
 Ref<FileAccess> open_encrypted_v3(const String &p_path, int p_mode, const Vector<uint8_t> &p_key);
 Vector<String> filter_error_backtraces(const Vector<String> &p_error_messages);
 Vector<String> get_files_for_paths(const Vector<String> &p_paths);
+String get_java_path();
+int get_java_version();
+bool is_macho_binary(const String &p_path);
 } // namespace gdre
 
 class GDRECommon : public Object {

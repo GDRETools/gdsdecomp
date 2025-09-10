@@ -78,49 +78,6 @@ String GDRESettings::_get_cwd() {
 }
 
 GDRESettings *GDRESettings::singleton = nullptr;
-String get_java_path() {
-	if (!OS::get_singleton()->has_environment("JAVA_HOME")) {
-		return "";
-	}
-	String exe_ext = "";
-	if (OS::get_singleton()->get_name() == "Windows") {
-		exe_ext = ".exe";
-	}
-	return OS::get_singleton()->get_environment("JAVA_HOME").simplify_path().path_join("bin").path_join("java") + exe_ext;
-}
-
-int get_java_version() {
-	List<String> args;
-	// when using "-version", java will ALWAYS output on stderr in the format:
-	// <java/openjdk/etc> version "x.x.x" <optional_builddate>
-	args.push_back("-version");
-	String output;
-	int retval = 0;
-	String java_path = get_java_path();
-	if (java_path.is_empty()) {
-		return -1;
-	}
-	Error err = OS::get_singleton()->execute(java_path, args, &output, &retval, true);
-	if (err || retval) {
-		return -1;
-	}
-	Vector<String> components = output.split("\n")[0].split(" ");
-	if (components.size() < 3) {
-		return 0;
-	}
-	String version_string = components[2].replace("\"", "");
-	components = version_string.split(".", false);
-	if (components.size() < 3) {
-		return 0;
-	}
-	int version_major = components[0].to_int();
-	int version_minor = components[1].to_int();
-	// "1.8", and the like
-	if (version_major == 1) {
-		return version_minor;
-	}
-	return version_major;
-}
 
 bool GDRESettings::check_if_dir_is_v4() {
 	// these are files that will only show up in version 4
@@ -441,31 +398,6 @@ bool is_executable(const String &p_path) {
 	return GDREPackedSource::is_executable(p_path);
 }
 } //namespace
-
-bool GDRESettings::is_macho(const String &p_path) {
-	Ref<FileAccess> fa = FileAccess::open(p_path, FileAccess::READ);
-	if (fa.is_null()) {
-		return false;
-	}
-	uint8_t header[4];
-	fa->get_buffer(header, 4);
-	fa->close();
-	if ((header[0] == 0xcf || header[0] == 0xce) && header[1] == 0xfa && header[2] == 0xed && header[3] == 0xfe) {
-		return true;
-	}
-
-	// handle fat binaries
-	// always stored in big-endian format
-	if (header[0] == 0xca && header[1] == 0xfe && header[2] == 0xba && header[3] == 0xbe) {
-		return true;
-	}
-	// handle big-endian mach-o binaries
-	if (header[0] == 0xfe && header[1] == 0xed && header[2] == 0xfa && (header[3] == 0xce || header[3] == 0xcf)) {
-		return true;
-	}
-
-	return false;
-}
 
 Error GDRESettings::load_pck(const String &p_path) {
 	// Check if the path is already loaded
@@ -1438,25 +1370,6 @@ String GDRESettings::globalize_path(const String &p_path, const String &resource
 	}
 
 	return p_path;
-}
-
-bool GDRESettings::is_fs_path(const String &p_path) const {
-	if (!p_path.is_absolute_path()) {
-		return true;
-	}
-	if (p_path.find("://") == -1 || p_path.begins_with("file://")) {
-		return true;
-	}
-	//windows
-	auto reg = RegEx("^[A-Za-z]:\\/");
-	if (reg.search(p_path).is_valid()) {
-		return true;
-	}
-	// unix
-	if (p_path.begins_with("/")) {
-		return true;
-	}
-	return false;
 }
 
 bool GDRESettings::has_any_remaps() const {
@@ -2794,7 +2707,6 @@ void GDRESettings::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_project_path"), &GDRESettings::get_project_path);
 	ClassDB::bind_method(D_METHOD("open_log_file", "output_dir"), &GDRESettings::open_log_file);
 	ClassDB::bind_method(D_METHOD("get_log_file_path"), &GDRESettings::get_log_file_path);
-	ClassDB::bind_method(D_METHOD("is_fs_path", "p_path"), &GDRESettings::is_fs_path);
 	ClassDB::bind_method(D_METHOD("close_log_file"), &GDRESettings::close_log_file);
 	ClassDB::bind_method(D_METHOD("get_remaps", "include_imports"), &GDRESettings::get_remaps, DEFVAL(true));
 	ClassDB::bind_method(D_METHOD("has_any_remaps"), &GDRESettings::has_any_remaps);

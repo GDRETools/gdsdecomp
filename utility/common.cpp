@@ -9,6 +9,7 @@
 #include "core/io/dir_access.h"
 #include "core/io/file_access.h"
 #include "core/io/http_client.h"
+#include "modules/regex/regex.h"
 #include "modules/zip/zip_reader.h"
 
 Vector<String> gdre::get_recursive_dir_list(const String &p_dir, const Vector<String> &wildcards, const bool absolute, const String &rel) {
@@ -931,6 +932,94 @@ Vector<String> gdre::get_files_for_paths(const Vector<String> &p_paths) {
 	return ret;
 }
 
+String gdre::get_java_path() {
+	if (!OS::get_singleton()->has_environment("JAVA_HOME")) {
+		return "";
+	}
+	String exe_ext = "";
+	if (OS::get_singleton()->get_name() == "Windows") {
+		exe_ext = ".exe";
+	}
+	return OS::get_singleton()->get_environment("JAVA_HOME").simplify_path().path_join("bin").path_join("java") + exe_ext;
+}
+
+int gdre::get_java_version() {
+	List<String> args;
+	// when using "-version", java will ALWAYS output on stderr in the format:
+	// <java/openjdk/etc> version "x.x.x" <optional_builddate>
+	args.push_back("-version");
+	String output;
+	int retval = 0;
+	String java_path = get_java_path();
+	if (java_path.is_empty()) {
+		return -1;
+	}
+	Error err = OS::get_singleton()->execute(java_path, args, &output, &retval, true);
+	if (err || retval) {
+		return -1;
+	}
+	Vector<String> components = output.split("\n")[0].split(" ");
+	if (components.size() < 3) {
+		return 0;
+	}
+	String version_string = components[2].replace("\"", "");
+	components = version_string.split(".", false);
+	if (components.size() < 3) {
+		return 0;
+	}
+	int version_major = components[0].to_int();
+	int version_minor = components[1].to_int();
+	// "1.8", and the like
+	if (version_major == 1) {
+		return version_minor;
+	}
+	return version_major;
+}
+
+bool gdre::is_macho_binary(const String &p_path) {
+	Ref<FileAccess> fa = FileAccess::open(p_path, FileAccess::READ);
+	if (fa.is_null()) {
+		return false;
+	}
+	uint8_t header[4];
+	fa->get_buffer(header, 4);
+	fa->close();
+	if ((header[0] == 0xcf || header[0] == 0xce) && header[1] == 0xfa && header[2] == 0xed && header[3] == 0xfe) {
+		return true;
+	}
+
+	// handle fat binaries
+	// always stored in big-endian format
+	if (header[0] == 0xca && header[1] == 0xfe && header[2] == 0xba && header[3] == 0xbe) {
+		return true;
+	}
+	// handle big-endian mach-o binaries
+	if (header[0] == 0xfe && header[1] == 0xed && header[2] == 0xfa && (header[3] == 0xce || header[3] == 0xcf)) {
+		return true;
+	}
+
+	return false;
+}
+
+bool gdre::is_fs_path(const String &p_path) {
+	if (!p_path.is_absolute_path()) {
+		return true;
+	}
+	if (p_path.find("://") == -1 || p_path.begins_with("file://")) {
+		return true;
+	}
+	//windows
+	auto reg = RegEx("^[A-Za-z]:\\/");
+	if (reg.search(p_path).is_valid()) {
+		return true;
+	}
+	// unix
+	if (p_path.begins_with("/")) {
+		return true;
+	}
+	return false;
+}
+
 void GDRECommon::_bind_methods() {
 	//	ClassDB::bind_static_method("GLTFCamera", D_METHOD("from_node", "camera_node"), &GLTFCamera::from_node);
 
@@ -951,4 +1040,6 @@ void GDRECommon::_bind_methods() {
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("filter_error_backtraces", "error_messages"), &gdre::filter_error_backtraces);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_files_for_paths", "paths"), &gdre::get_files_for_paths);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("rimraf", "path"), &gdre::rimraf);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("is_fs_path", "path"), &gdre::is_fs_path);
 }
+

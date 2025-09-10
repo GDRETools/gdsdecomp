@@ -257,8 +257,6 @@ private:
 
 	// Initializes the bytecode revision from the ephemeral settings if `force_bytecode_revision` is set
 	bool _init_bytecode_from_ephemeral_settings();
-	// Checks if the given file is a Mach-O binary
-	static bool is_macho(const String &p_path);
 
 protected:
 	static void _bind_methods();
@@ -347,7 +345,6 @@ public:
 	Error open_log_file(const String &output_dir);
 	// Returns the path to the currently open log file
 	String get_log_file_path();
-	bool is_fs_path(const String &p_path) const;
 	Error close_log_file();
 	Dictionary get_remaps(bool include_imports = true) const;
 	// Checks if the project has any remaps
