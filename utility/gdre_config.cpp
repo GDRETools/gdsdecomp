@@ -199,7 +199,7 @@ Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 				"CSharp/compile_after_decompile",
 				"Compile after decompile",
 				"Compile the C# project after decompiling.\nThis is done to prevent editor errors when first opening the project in the editor.\nThis requires that you have the dotnet sdk installed.",
-				false,
+				true,
 				false)),
 		memnew(GDREConfigSetting(
 				"Exporter/Scene/GLTF/force_lossless_images",
