@@ -11,6 +11,7 @@ struct TaskRunnerStruct {
 	virtual String get_current_task_step_description() = 0;
 	virtual void cancel() = 0;
 	virtual void run(void *p_userdata) = 0;
+	virtual bool auto_close_progress_bar() { return false; }
 };
 
 class TaskManager : public Object {
@@ -46,6 +47,7 @@ public:
 		virtual int get_current_task_step_value() = 0;
 		virtual String get_current_task_step_description() = 0;
 		virtual void run_on_current_thread() = 0;
+		virtual bool auto_close_progress_bar() { return false; }
 
 		void start();
 		bool is_started() const;
@@ -269,7 +271,14 @@ public:
 			}
 			if (progress_enabled && progress.is_null()) {
 				progress = EditorProgressGDDC::create(nullptr, description + itos(task_id), description, progress_step_count, can_cancel);
+				if (progress_step_count == -1) {
+					progress->set_progress_length(true);
+				}
 			}
+		}
+
+		virtual bool auto_close_progress_bar() override {
+			return cb_struct->auto_close_progress_bar();
 		}
 	};
 

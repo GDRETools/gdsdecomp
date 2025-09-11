@@ -69,9 +69,14 @@ String TaskManager::BaseTemplateTaskData::_get_task_description() {
 
 // returns true if the task was cancelled before completion
 bool TaskManager::BaseTemplateTaskData::update_progress(bool p_force_refresh) {
-	if (progress_enabled && progress.is_valid() && progress->step(_get_task_description(), get_current_task_step_value(), p_force_refresh)) {
-		if (!is_canceled()) {
-			cancel();
+	if (progress_enabled && progress.is_valid()) {
+		if (progress->step(_get_task_description(), get_current_task_step_value(), p_force_refresh)) {
+			if (!is_canceled()) {
+				cancel();
+			}
+		}
+		if (is_done() && auto_close_progress_bar()) {
+			finish_progress();
 		}
 	}
 
