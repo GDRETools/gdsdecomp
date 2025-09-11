@@ -401,6 +401,95 @@ void ImportExporter::recreate_uid_file(const String &src_path, bool is_import, c
 	}
 }
 
+struct ProcessRunnerStruct : public TaskRunnerStruct {
+	String command;
+	Vector<String> arguments;
+	int error_code = -1;
+	OS::ProcessID process_id = -1;
+	String description;
+	bool is_cancelled = false;
+	Ref<FileAccess> fa_stdout;
+	Ref<FileAccess> fa_stderr;
+	String output;
+
+	ProcessRunnerStruct() {
+	}
+
+	ProcessRunnerStruct(const String &p_command, const Vector<String> &p_arguments) :
+			command(p_command), arguments(p_arguments) {
+		description = "Running " + command + " " + String(" ").join(arguments);
+	}
+
+	void set_command(const String &p_command, const Vector<String> &p_arguments) {
+		command = p_command;
+		arguments = p_arguments;
+		description = "Running " + command + " " + String(" ").join(arguments);
+	}
+
+	virtual int get_current_task_step_value() override {
+		return 0;
+	}
+
+	virtual String get_current_task_step_description() override {
+		return description;
+	}
+
+	virtual void cancel() override {
+		if (process_id != -1) {
+			OS::get_singleton()->kill(process_id);
+		}
+		is_cancelled = true;
+	}
+
+	// We have to start the process on the main thread because of inscrutable WINPROC stuff.
+	bool pre_run() {
+		List<String> args;
+		for (const String &arg : arguments) {
+			args.push_back(arg);
+		}
+		Dictionary pipe_info = OS::get_singleton()->execute_with_pipe(command, args, false);
+		if (pipe_info.is_empty()) {
+			error_code = -2;
+			after_run();
+			return false;
+		}
+		fa_stdout = pipe_info["stdio"];
+		fa_stderr = pipe_info["stderr"];
+		process_id = pipe_info["pid"];
+		return true;
+	}
+
+	virtual void run(void *p_userdata) override {
+		if (process_id == -1) {
+			return;
+		}
+
+		while (OS::get_singleton()->is_process_running(process_id) && !is_cancelled) {
+			// we have to do continually read from the pipes or the process will hang
+			output += fa_stdout->get_as_text(true) + fa_stderr->get_as_text(true);
+			OS::get_singleton()->delay_usec(10000);
+		}
+		error_code = OS::get_singleton()->get_process_exit_code(process_id);
+		after_run();
+	}
+
+	virtual bool auto_close_progress_bar() override {
+		return true;
+	}
+
+	void after_run() {
+		if (error_code != 0) {
+			if (error_code == -2) {
+				ERR_PRINT("Failed to run process " + command + " (error code: " + String::num_int64(error_code) + "):\n" + "execute_with_pipe failed");
+			} else {
+				ERR_PRINT("Failed to run process " + command + " (error code: " + String::num_int64(error_code) + "):\n" + output);
+			}
+		} else {
+			print_line(vformat("Successfully ran %s %s", command, String(" ").join(arguments)));
+		}
+	}
+};
+
 // export all the imported resources
 Error ImportExporter::export_imports(const String &p_out_dir, const Vector<String> &_files_to_export) {
 	reset_log();
@@ -439,6 +528,18 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 			}
 		}
 	}
+	std::shared_ptr<ProcessRunnerStruct> process_runner;
+	TaskManager::TaskManagerID process_runner_task_id = -1;
+	auto check_process_done = [&](bool p_force_wait = false) {
+		if (process_runner_task_id != -1 && (p_force_wait || TaskManager::get_singleton()->is_current_task_completed(process_runner_task_id))) {
+			Error err = TaskManager::get_singleton()->wait_for_task_completion(process_runner_task_id);
+			process_runner_task_id = -1;
+			process_runner = nullptr;
+			// err != OK means cancelled or timed out
+			return err != OK;
+		}
+		return false;
+	};
 
 	// check if the pack has .cs files
 	auto cs_files = GDRESettings::get_singleton()->get_file_list({ "*.cs" });
@@ -467,13 +568,13 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 				// compile the project to prevent editor errors
 				if (GDREConfig::get_singleton()->get_setting("CSharp/compile_after_decompile", false)) {
 					if (get_ver_major() >= 4 && OS::get_singleton()->execute("dotnet", { "version" }) == OK) {
-						String output;
-						int error_code;
 						String solution_path = csproj_path.get_basename() + ".sln";
-						if (OS::get_singleton()->execute("dotnet", { "build", solution_path, "--property", "WarningLevel=0" }, &output, &error_code, true) != OK || error_code != 0) {
-							ERR_PRINT("Failed to compile C# project: \n" + output);
+						process_runner = std::make_shared<ProcessRunnerStruct>("dotnet", Vector<String>({ "build", solution_path, "--property", "WarningLevel=0" }));
+						if (process_runner->pre_run()) {
+							process_runner_task_id = TaskManager::get_singleton()->add_task(process_runner, nullptr, "Compiling C# project...", -1, true, true);
 						} else {
-							print_line("Successfully compiled C# project.");
+							// process failed to start
+							process_runner = nullptr;
 						}
 					} else {
 						print_line("Unable to compile C# project; ensure that the project is built in the editor before making any changes.");
@@ -951,14 +1052,6 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 			}
 		}
 	}
-	pr = nullptr;
-	report->print_report();
-	ResourceCompatLoader::set_default_gltf_load(false);
-	ResourceCompatLoader::unmake_globally_available();
-	// check if the .tmp directory is empty
-	if (gdre::dir_is_empty(output_dir.path_join(".tmp"))) {
-		dir->remove(output_dir.path_join(".tmp"));
-	}
 	// 4.1 and higher have a filesystem cache
 	if (get_ver_major() >= 4 && !(get_ver_minor() < 1 && get_ver_major() == 4)) {
 		Vector<Ref<ExportReport>> reports;
@@ -970,6 +1063,16 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		reports.sort_custom<ReportComparator>();
 		save_filesystem_cache(reports, output_dir, partial_export);
 	}
+
+	pr = nullptr;
+	ResourceCompatLoader::set_default_gltf_load(false);
+	ResourceCompatLoader::unmake_globally_available();
+	// check if the .tmp directory is empty
+	if (gdre::dir_is_empty(output_dir.path_join(".tmp"))) {
+		dir->remove(output_dir.path_join(".tmp"));
+	}
+	check_process_done(true);
+	report->print_report();
 	return OK;
 }
 
