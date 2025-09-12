@@ -1042,4 +1042,3 @@ void GDRECommon::_bind_methods() {
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("rimraf", "path"), &gdre::rimraf);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("is_fs_path", "path"), &gdre::is_fs_path);
 }
-
