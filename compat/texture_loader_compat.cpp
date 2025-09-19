@@ -416,8 +416,9 @@ Error TextureLoaderCompat::load_image_from_fileV3(Ref<FileAccess> f, int tw, int
 				if (bytes < expected) {
 					// this is a compatibility workaround for older format, which saved less mipmaps2. It is still recommended the image is reimported.
 					memset(wr + bytes, 0, (expected - bytes));
+				} else if (bytes != expected) {
+					ERR_FAIL_V_MSG(ERR_FILE_CORRUPT, "Bytes > expected??!?!?");
 				}
-				ERR_FAIL_COND_V(bytes != expected, ERR_FILE_CORRUPT);
 			}
 			image->initialize_data(sw, sh, true, format, img_data);
 		}
