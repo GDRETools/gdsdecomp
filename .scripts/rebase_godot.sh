@@ -20,7 +20,7 @@ git reset --hard $HEAD
 
 BRANCHES_TO_MERGE=(
 	gltf-use-orm-texture
-	#convert-3.x-escn
+	convert-3.x-escn
 )
 
 for branch in "${BRANCHES_TO_MERGE[@]}"; do
