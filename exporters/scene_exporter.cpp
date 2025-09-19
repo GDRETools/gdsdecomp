@@ -2999,7 +2999,8 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 
 	auto last_print_time = OS::get_singleton()->get_ticks_usec();
 	auto last_warn_time = OS::get_singleton()->get_ticks_usec();
-	auto _get_vram_usage = [&current_vram_usage, &deltas, &peak_vram_usage, &last_print_time, &last_warn_time]() {
+	auto _get_vram_usage = [&]() {
+#if 0 // RS::get_singleton()->texture_debug_usage() is causing segfaults if we have the export thread pool running, so disabling for now
 		auto start_tick = OS::get_singleton()->get_ticks_usec();
 		current_vram_usage = SceneExporter::get_vram_usage();
 		peak_vram_usage = MAX(peak_vram_usage, current_vram_usage);
@@ -3020,7 +3021,7 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 			deltas.resize(100);
 			deltas.fill(avg);
 		}
-
+#endif
 		return current_vram_usage;
 	};
 
