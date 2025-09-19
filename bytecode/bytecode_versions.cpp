@@ -144,7 +144,7 @@ GDScriptDecomp *create_decomp_for_commit(int p_commit_hash) {
 }
 
 Vector<GDScriptDecompVersion> GDScriptDecompVersion::decomp_versions = {
-	{ 0xebc36a7, "4.5-beta.2 (ebc36a7 / 2025-06-27 / Bytecode version: 101) - Removed `ABSTRACT` token.", 101, false, "4.5-beta.2", "", 0x2e216b5 },
+	{ 0xebc36a7, "4.5.0-stable (ebc36a7 / 2025-06-27 / Bytecode version: 101) - Removed `ABSTRACT` token.", 101, false, "4.5.0-stable", "", 0x2e216b5 },
 	{ 0x2e216b5, "	4.5-dev.6 (2e216b5 / 2025-06-10 / Bytecode version: 101) - content header size changed", 101, true, "4.5-dev.6", "", 0xee121ef },
 	{ 0xee121ef, "	4.5-dev.5 (ee121ef / 2025-06-09 / Bytecode version: 100) - Added `PERIOD_PERIOD_PERIOD` token.", 100, true, "4.5-dev.5", "", 0xb59d6be },
 	{ 0xb59d6be, "	4.5-dev.4 (b59d6be / 2025-05-18 / Bytecode version: 100) - Added `ABSTRACT` token.", 100, true, "4.5-dev.4", "", 0x77af6ca },

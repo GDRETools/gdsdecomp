@@ -16,7 +16,7 @@ protected:
 	static constexpr int engine_ver_major = 4;
 	static constexpr int variant_ver_major = 4;
 	static constexpr const char *bytecode_rev_str = "ebc36a7";
-	static constexpr const char *engine_version = "4.5-beta.2";
+	static constexpr const char *engine_version = "4.5.0-stable";
 	static constexpr const char *max_engine_version = "";
 	static constexpr const char *date = "2025-06-27";
 	static constexpr int parent = 0x2e216b5;
