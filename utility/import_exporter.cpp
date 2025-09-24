@@ -488,6 +488,15 @@ struct ProcessRunnerStruct : public TaskRunnerStruct {
 			print_line(vformat("Successfully ran %s %s", command, String(" ").join(arguments)));
 		}
 	}
+
+	virtual ~ProcessRunnerStruct() {
+		if (fa_stdout.is_valid()) {
+			fa_stdout->close();
+		}
+		if (fa_stderr.is_valid()) {
+			fa_stderr->close();
+		}
+	}
 };
 
 // export all the imported resources
