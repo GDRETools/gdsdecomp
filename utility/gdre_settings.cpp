@@ -482,28 +482,34 @@ Vector<String> GDRESettings::sort_and_validate_pck_files(const Vector<String> &p
 			// and if so, load the pck from inside the bundle
 			if (ext == "app") {
 				String resources_path = path.path_join("Contents").path_join("Resources");
-				if (DirAccess::exists(resources_path)) {
-					auto list = gdre::get_recursive_dir_list(resources_path, { "*.pck" }, true);
-					ERR_CONTINUE_MSG(list.is_empty(), "Can't find pck file in .app bundle!");
-					String gamename = path.get_file().get_basename();
-					Vector<String> new_list;
-					for (auto &pck : list) {
-						// ensure it comes first
-						if (gamename.filenocasecmp_to(pck.get_file().get_basename()) == 0) {
-							main_pck_path = pck;
-						} else {
-							new_list.push_back(pck);
-						}
-					}
-					if (main_pck_path.is_empty()) {
-						main_pck_path = new_list[0];
-						new_list.remove_at(0);
-						additional_main_pck_paths = new_list;
-					} else {
-						pck_files.append_array(new_list);
-					}
-					continue; // skip the rest of the loop
+				if (!DirAccess::exists(resources_path)) {
+					WARN_PRINT("Contents/Resources directory not found in .app bundle, searching for pck in root...");
+					resources_path = path;
 				}
+				auto list = gdre::get_recursive_dir_list(resources_path, { "*.pck" }, true);
+				if (list.is_empty() && resources_path != path) {
+					WARN_PRINT("Can't find pck file in Contents/Resources, searching for pck in root...");
+					list = gdre::get_recursive_dir_list(path, { "*.pck" }, true);
+				}
+				ERR_CONTINUE_MSG(list.is_empty(), "Can't find pck file in .app bundle!");
+				String gamename = path.get_file().get_basename();
+				Vector<String> new_list;
+				for (auto &pck : list) {
+					// ensure it comes first
+					if (gamename.filenocasecmp_to(pck.get_file().get_basename()) == 0) {
+						main_pck_path = pck;
+					} else {
+						new_list.push_back(pck);
+					}
+				}
+				if (main_pck_path.is_empty()) {
+					main_pck_path = new_list[0];
+					new_list.remove_at(0);
+					additional_main_pck_paths = new_list;
+				} else {
+					pck_files.append_array(new_list);
+				}
+				continue; // skip the rest of the loop
 			}
 			if (dir_count > 1) {
 				ERR_FAIL_V_MSG({}, "Cannot specify multiple directories!");
