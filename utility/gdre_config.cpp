@@ -191,6 +191,11 @@ Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 				"Automatically detect binary plugin versions and download them from the asset library",
 				false)),
 		memnew(GDREConfigSetting(
+				"load_embedded_zips",
+				"Load embedded zips",
+				"Load embedded zips within the project pack as part of project loading/recovery",
+				true)),
+		memnew(GDREConfigSetting(
 				"force_single_threaded",
 				"Force single-threaded mode",
 				"Forces all tasks to run on the main thread",

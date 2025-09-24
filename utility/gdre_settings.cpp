@@ -697,7 +697,7 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 
 	// Load any embedded zips within the pck
 	auto zip_files = get_file_list({ "*.zip" });
-	if (zip_files.size() > 0) {
+	if (zip_files.size() > 0 && GDREConfig::get_singleton()->get_setting("load_embedded_zips", true)) {
 		Vector<String> pck_zip_files;
 		for (auto path : pck_files) {
 			if (path.get_extension().to_lower() == "zip") {
@@ -707,10 +707,7 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 		for (auto zip_file : zip_files) {
 			if (is_zip_file_pack(zip_file) && !pck_zip_files.has(zip_file.get_file().to_lower())) {
 				err = load_pck(zip_file);
-				if (err) {
-					unload_project();
-					ERR_FAIL_COND_V_MSG(err, err, "Can't load project!");
-				}
+				ERR_CONTINUE_MSG(err, "Can't load embedded zip file: " + zip_file);
 				load_pack_uid_cache();
 				load_pack_gdscript_cache();
 			}
