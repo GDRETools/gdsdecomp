@@ -2,6 +2,9 @@
 #include "compat/resource_compat_binary.h"
 #include "compat/resource_loader_compat.h"
 #include "core/error/error_list.h"
+#include "core/string/string_builder.h"
+
+#include "compat/variant_writer_compat.h"
 #include "gdre_settings.h"
 #include "utility/common.h"
 #include "utility/glob.h"
@@ -840,13 +843,38 @@ void ImportInfov2::set_params(Dictionary params) {
 	dirty = true;
 }
 
+String encode_cfg_to_text(const Ref<ConfigFile> &cf, int ver_major, int ver_minor) {
+	StringBuilder sb;
+	bool first = true;
+	static const String null_replacement = String("\"") + ImportInfo::NULL_REPLACEMENT + "\"";
+	for (const String &section : cf->get_sections()) {
+		if (first) {
+			first = false;
+		} else {
+			sb.append("\n");
+		}
+		if (!section.is_empty()) {
+			sb.append("[" + section + "]\n\n");
+		}
+
+		for (const String &key : cf->get_section_keys(section)) {
+			String vstr;
+			VariantWriterCompat::write_to_string(cf->get_value(section, key), vstr, ver_major, ver_minor);
+			if (vstr == null_replacement) {
+				vstr = "null";
+			}
+			sb.append(key.property_name_encode() + "=" + vstr + "\n");
+		}
+	}
+	return sb.as_string();
+}
+
 Error ImportInfoModern::save_to(const String &new_import_file) {
 	Error err = gdre::ensure_dir(new_import_file.get_base_dir());
 	ERR_FAIL_COND_V_MSG(err, err, "Failed to create directory for " + new_import_file);
 
-	String content = cf->encode_to_text();
+	String content = encode_cfg_to_text(cf, ver_major, ver_minor);
 	// ConfigFile interprets setting a key to null as erasing the key, so we have to use a special value that'll get replaced when saving.
-	content = content.replace(String("\"") + ImportInfo::NULL_REPLACEMENT + "\"", "null");
 	if (!cf->has_section("params")) {
 		content += "\n[params]\n\n";
 	}
