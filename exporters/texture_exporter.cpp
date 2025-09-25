@@ -1111,10 +1111,10 @@ Ref<ExportReport> TextureExporter::export_resource(const String &output_dir, Ref
 			// Don't rewrite the metadata for this
 			report->set_rewrote_metadata(ExportReport::NOT_IMPORTABLE);
 		} else {
-			err = _convert_atex(path, dest_path, lossy, img_format);
+			err = _convert_atex(path, dest_path, lossy, img_format, report);
 		}
 	} else if (importer == "bitmap") {
-		err = _convert_bitmap(path, dest_path, lossy);
+		err = _convert_bitmap(path, dest_path, lossy, report);
 	} else if (importer == "texture_large" || importer == "2d_array_texture" || importer == "cubemap_array_texture" || importer == "cubemap_texture" || importer == "texture_array") {
 		err = _convert_layered_2d(path, dest_path, lossy, img_format, report);
 	} else if (importer == "3d_texture" || importer == "texture_3d") {
