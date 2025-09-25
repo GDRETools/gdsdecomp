@@ -43,7 +43,7 @@ Ref<ExportReport> Mp3StrExporter::export_resource(const String &output_dir, Ref<
 	report->set_error(err);
 	if (err == OK) {
 		report->set_saved_path(dst_path);
-		if (import_infos->get_ver_major() == 4) {
+		if (import_infos->get_ver_major() >= 4) {
 			import_infos->set_param("loop", sample->has_loop());
 			import_infos->set_param("loop_offset", sample->get_loop_offset());
 			import_infos->set_param("bpm", sample->get_bpm());

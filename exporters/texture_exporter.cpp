@@ -84,6 +84,13 @@ Error TextureExporter::_convert_bitmap(const String &p_path, const String &dest_
 	}
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to save image " + dest_path + " from texture " + p_path);
 
+	if (report.is_valid() && report->get_import_info().is_valid() && report->get_import_info()->get_ver_major() >= 4) {
+		Dictionary params;
+		params["create_from"] = 1; // Alpha
+		params["threshold"] = 0.5;
+		report->get_import_info()->set_params(params);
+	}
+
 	print_verbose("Converted " + p_path + " to " + dest_path);
 	return OK;
 }
@@ -418,6 +425,7 @@ Error TextureExporter::_convert_atex(const String &p_path, const String &dest_pa
 		return _convert_tex(p_path, dest_path, lossy, image_format, report);
 	}
 	Ref<Texture2D> tex = atex->get_atlas();
+	String tex_path = tex->get_path();
 	ERR_FAIL_COND_V_MSG(tex.is_null(), ERR_PARSE_ERROR, "Failed to load atlas texture " + p_path);
 	Ref<Image> img = tex->get_image();
 
@@ -447,6 +455,16 @@ Error TextureExporter::_convert_atex(const String &p_path, const String &dest_pa
 	}
 	ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to save image " + dest_path + " from texture " + p_path);
 
+	// set the params
+	if (report.is_valid() && report->get_import_info().is_valid() && report->get_import_info()->get_ver_major() >= 4) {
+		Dictionary params;
+		params["atlas_file"] = tex_path;
+		params["import_mode"] = 0;
+		// TODO: These are very rarely changed from the defaults, but we should probably try to detect what they are.
+		params["crop_to_region"] = false;
+		params["trim_alpha_border_from_region"] = true;
+		report->get_import_info()->set_params(params);
+	}
 	print_verbose("Converted " + p_path + " to " + dest_path);
 	return OK;
 }
