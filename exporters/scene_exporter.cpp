@@ -976,7 +976,6 @@ void GLBExporterInstance::_set_stuff_from_instanced_scene(Node *root) {
 			List<PropertyInfo> properties;
 			if (si) {
 				si->get_property_list(&properties);
-				MeshInstance3D *mesh_instance = nullptr;
 				HashSet<Variant> other_values;
 				Vector<MeshInstance3D *> mesh_instances;
 				HashSet<Ref<Skin>> skins;
@@ -2997,8 +2996,8 @@ Vector<Ref<ExportReport>> SceneExporter::batch_export_files(const String &output
 
 	Vector<uint64_t> deltas;
 
-	auto last_print_time = OS::get_singleton()->get_ticks_usec();
-	auto last_warn_time = OS::get_singleton()->get_ticks_usec();
+	// auto last_print_time = OS::get_singleton()->get_ticks_usec();
+	// auto last_warn_time = OS::get_singleton()->get_ticks_usec();
 	auto _get_vram_usage = [&]() {
 #if 0 // RS::get_singleton()->texture_debug_usage() is causing segfaults if we have the export thread pool running, so disabling for now
 		auto start_tick = OS::get_singleton()->get_ticks_usec();

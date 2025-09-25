@@ -7,7 +7,6 @@
 static const HashSet<String> dynamic_font_supported_extensions = { "otf", "ttf", "woff", "woff2", "ttc", "otc", "pfb", "pfm" };
 
 Error FontFileExporter::export_file(const String &p_dest_path, const String &p_src_path) {
-	Error err;
 	String ext = p_dest_path.get_extension().to_lower();
 
 	if (dynamic_font_supported_extensions.has(ext)) {
