@@ -44,6 +44,82 @@ Ref<ExportReport> FontFileExporter::export_resource(const String &output_dir, Re
 		Error err = _export_font_data_dynamic(dst_path, src_path);
 		report->set_error(err);
 		report->set_saved_path(dst_path);
+		if (err == OK && import_infos->get_ver_major() >= 4) {
+			Ref<FontFile> fontfile = ResourceCompatLoader::gltf_load(src_path, "", &err);
+			if (!(err || fontfile.is_null())) {
+				auto res_info = ResourceInfo::get_info_from_resource(fontfile);
+				Dictionary params;
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::NIL, "Rendering", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_GROUP), Variant()));
+
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "antialiasing", PROPERTY_HINT_ENUM, "None,Grayscale,LCD Subpixel"), 1));
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "generate_mipmaps"), false));
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "disable_embedded_bitmaps"), true));
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "multichannel_signed_distance_field", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_UPDATE_ALL_IF_MODIFIED), (msdf) ? true : false));
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "msdf_pixel_range", PROPERTY_HINT_RANGE, "1,100,1"), 8));
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "msdf_size", PROPERTY_HINT_RANGE, "1,250,1"), 48));
+
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "allow_system_fallback"), true));
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "force_autohinter"), false));
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "modulate_color_glyphs"), false));
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "hinting", PROPERTY_HINT_ENUM, "None,Light,Normal"), 1));
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "subpixel_positioning", PROPERTY_HINT_ENUM, "Disabled,Auto,One Half of a Pixel,One Quarter of a Pixel,Auto (Except Pixel Fonts)"), 4));
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "keep_rounding_remainders"), true));
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::FLOAT, "oversampling", PROPERTY_HINT_RANGE, "0,10,0.1"), 0.0));
+
+				// ConfigFile interprets setting a key to null as erasing the key, so we have to use a special value that'll get replaced when saving.
+				params["Rendering"] = ImportInfo::NULL_REPLACEMENT;
+				params["antialiasing"] = fontfile->get_antialiasing();
+				params["generate_mipmaps"] = fontfile->get_generate_mipmaps();
+				if (import_infos->get_ver_minor() >= 3) {
+					params["disable_embedded_bitmaps"] = fontfile->get_disable_embedded_bitmaps();
+				}
+				params["multichannel_signed_distance_field"] = fontfile->is_multichannel_signed_distance_field();
+				params["msdf_pixel_range"] = fontfile->get_msdf_pixel_range();
+				params["msdf_size"] = fontfile->get_msdf_size();
+				params["allow_system_fallback"] = fontfile->is_allow_system_fallback();
+				params["force_autohinter"] = fontfile->is_force_autohinter();
+				if (import_infos->get_ver_minor() >= 5) {
+					params["modulate_color_glyphs"] = fontfile->is_modulate_color_glyphs();
+				}
+				params["hinting"] = fontfile->get_hinting();
+				if (import_infos->get_ver_minor() >= 4) {
+					params["subpixel_positioning"] = fontfile->get_subpixel_positioning();
+					params["keep_rounding_remainders"] = fontfile->get_keep_rounding_remainders();
+				}
+				params["oversampling"] = fontfile->get_oversampling();
+
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::NIL, "Fallbacks", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_GROUP), Variant()));
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::ARRAY, "fallbacks", PROPERTY_HINT_ARRAY_TYPE, MAKE_RESOURCE_TYPE_HINT("Font")), Array()));
+				params["Fallbacks"] = ImportInfo::NULL_REPLACEMENT;
+				params["fallbacks"] = gdre::array_from_typed_array(fontfile->get_fallbacks());
+
+				// options_general.push_back(ResourceImporter::ImportOption(PropertyInfo(Variant::NIL, "Compress", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_GROUP), Variant()));
+				// options_general.push_back(ResourceImporter::ImportOption(PropertyInfo(Variant::BOOL, "compress", PROPERTY_HINT_NONE, ""), false));
+				params["Compress"] = ImportInfo::NULL_REPLACEMENT;
+				params["compress"] = res_info.is_valid() ? res_info->is_compressed : true;
+
+				// // Hide from the main UI, only for advanced import dialog.
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::ARRAY, "preload", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_STORAGE), Array()));
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::DICTIONARY, "language_support", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_STORAGE), Dictionary()));
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::DICTIONARY, "script_support", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_STORAGE), Dictionary()));
+				// r_options->push_back(ImportOption(PropertyInfo(Variant::DICTIONARY, "opentype_features", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_STORAGE), Dictionary()));
+
+				// TODO? FontFile doesn't seem to store anything that would indicate that there were preload configurations set
+				params["preload"] = Array();
+				Dictionary language_support;
+				for (auto &language : fontfile->get_language_support_overrides()) {
+					language_support[language] = fontfile->get_language_support_override(language);
+				}
+				params["language_support"] = language_support;
+				Dictionary script_support;
+				for (auto &script : fontfile->get_script_support_overrides()) {
+					script_support[script] = fontfile->get_script_support_override(script);
+				}
+				params["script_support"] = script_support;
+				params["opentype_features"] = fontfile->get_opentype_features();
+				import_infos->set_params(params);
+			}
+		}
 	} else if (import_infos->get_importer() == "font_data_image") {
 		Ref<Image> r_image;
 		Error err = _export_image(dst_path, src_path, r_image);

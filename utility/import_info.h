@@ -71,6 +71,7 @@ class ImportInfo : public RefCounted {
 
 public:
 	constexpr static const char *NO_IMPORTER = "<NONE>";
+	constexpr static const char *NULL_REPLACEMENT = "<!%NULL%!>";
 
 	enum IInfoType {
 		BASE,

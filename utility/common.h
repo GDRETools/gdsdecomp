@@ -282,6 +282,16 @@ T get_most_popular_value(const Vector<T> &p_values) {
 	return most_popular_value;
 }
 
+// Non-typed array from typed array (used for serializing)
+template <class T>
+Array array_from_typed_array(const TypedArray<T> &p_typed_array) {
+	Array ret;
+	for (int i = 0; i < p_typed_array.size(); i++) {
+		ret.push_back(p_typed_array[i]);
+	}
+	return ret;
+}
+
 bool string_is_ascii(const String &s);
 bool string_has_whitespace(const String &s);
 void get_chars_in_set(const String &s, const HashSet<char32_t> &chars, HashSet<char32_t> &ret);

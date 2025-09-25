@@ -845,6 +845,8 @@ Error ImportInfoModern::save_to(const String &new_import_file) {
 	ERR_FAIL_COND_V_MSG(err, err, "Failed to create directory for " + new_import_file);
 
 	String content = cf->encode_to_text();
+	// ConfigFile interprets setting a key to null as erasing the key, so we have to use a special value that'll get replaced when saving.
+	content = content.replace(String("\"") + ImportInfo::NULL_REPLACEMENT + "\"", "null");
 	if (!cf->has_section("params")) {
 		content += "\n[params]\n\n";
 	}
