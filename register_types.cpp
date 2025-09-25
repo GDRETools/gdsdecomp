@@ -47,6 +47,7 @@
 #include "exporters/texture_exporter.h"
 #include "exporters/translation_exporter.h"
 #include "utility/asset_library_source.h"
+#include "utility/codeberg_source.h"
 #include "utility/common.h"
 #include "utility/find_replace_bar.h"
 #include "utility/gdre_config.h"
@@ -117,6 +118,7 @@ static Ref<TranslationExporter> translation_exporter = nullptr;
 static Ref<ObjExporter> obj_exporter = nullptr;
 
 //plugin manager sources
+static Ref<CodebergSource> codeberg_source = nullptr;
 static Ref<GitHubSource> github_source = nullptr;
 static Ref<AssetLibrarySource> asset_library_source = nullptr;
 static Ref<GitLabSource> gitlab_source = nullptr;
@@ -201,16 +203,21 @@ void init_exporters() {
 }
 
 void init_plugin_manager_sources() {
+	codeberg_source = memnew(CodebergSource);
 	github_source = memnew(GitHubSource);
 	gitlab_source = memnew(GitLabSource);
 	asset_library_source = memnew(AssetLibrarySource);
 
+	PluginManager::register_source(codeberg_source, false);
 	PluginManager::register_source(github_source, false);
 	PluginManager::register_source(gitlab_source, false);
 	PluginManager::register_source(asset_library_source, false);
 }
 
 void deinit_plugin_manager_sources() {
+	if (codeberg_source.is_valid()) {
+		PluginManager::unregister_source(codeberg_source);
+	}
 	if (github_source.is_valid()) {
 		PluginManager::unregister_source(github_source);
 	}
@@ -221,6 +228,7 @@ void deinit_plugin_manager_sources() {
 		PluginManager::unregister_source(asset_library_source);
 	}
 
+	codeberg_source = nullptr;
 	github_source = nullptr;
 	gitlab_source = nullptr;
 	asset_library_source = nullptr;

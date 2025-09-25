@@ -21,6 +21,7 @@ HashMap<String, String> AssetLibrarySource::GODOT_VERSION_RELEASE_DATES = {
 	{ "4.2", "2023-11-30" },
 	{ "4.3", "2024-08-15" },
 	{ "4.4", "2025-01-22" },
+	{ "4.5", "2025-09-15" },
 };
 
 Vector<Dictionary> AssetLibrarySource::search_for_assets(const String &plugin_name, int ver_major) {

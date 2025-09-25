@@ -534,4 +534,12 @@ void PluginManager::_bind_methods() {
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("prepop_cache", "plugin_names", "multithread"), &PluginManager::prepop_cache, DEFVAL(true));
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("register_source", "name", "source"), &PluginManager::register_source);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("unregister_source", "name"), &PluginManager::unregister_source);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("print_plugin_cache"), &PluginManager::print_plugin_cache);
+}
+
+void PluginManager::print_plugin_cache() {
+	MutexLock lock(plugin_version_cache_mutex);
+	for (auto &E : plugin_version_cache) {
+		print_line(E.value.plugin_name + "," + E.value.release_info.version + "," + E.value.release_info.download_url);
+	}
 }

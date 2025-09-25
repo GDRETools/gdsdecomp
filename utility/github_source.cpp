@@ -11,12 +11,8 @@
 #include "utility/task_manager.h"
 
 const String GitHubSource::github_release_api_url = _github_release_api_url;
-
 namespace {
-static const HashMap<String, Vector<String>> tag_masks = {
-	{ "godotsteam", { "*gdn*", "*gde*" } },
-	{ "godotsteam_server", { "*gdn*", "*gde*" } },
-};
+static const HashMap<String, Vector<String>> tag_masks = {};
 
 static const HashMap<String, Vector<String>> release_file_masks = {
 	{ "limboai", { "*gdextension*" } },
@@ -47,8 +43,6 @@ static const HashMap<String, String> plugin_map = {
 	{ "discord-rpc-gd", "https://github.com/vaporvee/discord-rpc-godot" },
 	{ "godot-steam-audio", "https://github.com/stechyo/godot-steam-audio" },
 	{ "m_terrain", "https://github.com/mohsenph69/Godot-MTerrain-plugin" },
-	{ "godotsteam", "https://github.com/GodotSteam/GodotSteam" },
-	{ "godotsteam_server", "https://github.com/GodotSteam/GodotSteam-Server" },
 	{ "godot-jolt", "https://github.com/godot-jolt/godot-jolt" },
 	{ "orchestrator", "https://github.com/CraterCrash/godot-orchestrator" },
 	{ "limboai", "https://github.com/limbonaut/limboai" },
@@ -78,6 +72,14 @@ const HashMap<String, Vector<String>> &GitHubSource::get_plugin_release_file_mas
 
 const HashMap<String, Vector<String>> &GitHubSource::get_plugin_release_file_exclude_masks() {
 	return release_file_exclude_masks;
+}
+
+const String &GitHubSource::get_release_api_url() {
+	return github_release_api_url;
+}
+
+int GitHubSource::get_release_page_limit() {
+	return 100;
 }
 
 bool GitHubSource::should_skip_tag(const String &plugin_name, const String &tag) {
@@ -137,7 +139,7 @@ bool GitHubSource::recache_release_list(const String &plugin_name) {
 	}
 
 	String repo_url = get_repo_url(plugin_name);
-	if (repo_url.is_empty() || !repo_url.contains("github.com")) {
+	if (repo_url.is_empty()) {
 		return false;
 	}
 
@@ -152,7 +154,7 @@ bool GitHubSource::recache_release_list(const String &plugin_name) {
 	Vector<Dictionary> releases;
 	int pages = 1000;
 	for (int page = 1; page < pages; page++) {
-		String request_url = github_release_api_url.replace("{0}", org).replace("{1}", repo).replace("{2}", itos(page));
+		String request_url = get_release_api_url().replace("{0}", org).replace("{1}", repo).replace("{2}", itos(page));
 
 		Vector<uint8_t> response;
 		Error err = gdre::wget_sync(request_url, response, 20);
@@ -188,7 +190,7 @@ bool GitHubSource::recache_release_list(const String &plugin_name) {
 			Dictionary release = response_obj[i];
 			releases.push_back(release);
 		}
-		if (response_obj.size() < 100) {
+		if (response_obj.size() < get_release_page_limit()) {
 			break;
 		}
 	}
@@ -206,7 +208,9 @@ bool GitHubSource::recache_release_list(const String &plugin_name) {
 		for (int j = 0; j < assets_arr.size(); j++) {
 			Dictionary asset = assets_arr[j];
 			// same as author
-			asset["uploader"] = Dictionary();
+			if (asset.has("uploader")) {
+				asset["uploader"] = Dictionary();
+			}
 			uint64_t asset_id = uint64_t(asset.get("id", 0));
 			asset_map[asset_id] = asset;
 		}

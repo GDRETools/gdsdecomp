@@ -1359,6 +1359,9 @@ func list_files(pck_files: PackedStringArray):
 
 	return 0
 
+func print_plugin_cache():
+	PluginManager.print_plugin_cache()
+
 func split_map_arg(arg: String) -> PackedStringArray:
 	var parsed_arg = get_arg_value(arg)
 	var patch_files = parsed_arg.split("=", false, 2)
@@ -1497,6 +1500,9 @@ func handle_cli(args: PackedStringArray) -> bool:
 			pck_engine_version = (get_arg_value(arg))
 		elif arg.begins_with("--embed"):
 			embed_pck = get_cli_abs_path(get_arg_value(arg))
+		elif arg.begins_with("--print-plugin-cache"):
+			print_plugin_cache()
+			return true
 		elif arg.begins_with("--plcache"):
 			main_cmds["plcache"] = true
 			prepop.append(get_arg_value(arg))

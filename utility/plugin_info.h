@@ -2,7 +2,7 @@
 #include "core/variant/variant.h"
 #include "utility/godotver.h"
 
-static constexpr int CACHE_VERSION = 1;
+static constexpr int CACHE_VERSION = 2;
 
 struct PluginBin {
 	String name;

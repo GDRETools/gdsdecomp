@@ -2,7 +2,6 @@
 #include "core/io/json.h"
 #include "core/os/os.h"
 #include "utility/common.h"
-#include "utility/plugin_manager.h"
 
 const String GitLabSource::gitlab_release_api_url = _gitlab_release_api_url;
 namespace {
@@ -37,6 +36,15 @@ const HashMap<String, Vector<String>> &GitLabSource::get_plugin_release_file_mas
 
 const HashMap<String, Vector<String>> &GitLabSource::get_plugin_release_file_exclude_masks() {
 	return release_file_exclude_masks;
+}
+
+const String &GitLabSource::get_release_api_url() {
+	return gitlab_release_api_url;
+}
+
+// effectively infinite
+int GitLabSource::get_release_page_limit() {
+	return INT_MAX;
 }
 
 bool GitLabSource::recache_release_list(const String &plugin_name) {

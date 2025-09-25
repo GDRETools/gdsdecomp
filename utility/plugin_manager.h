@@ -53,6 +53,7 @@ public:
 	// Source management
 	static void register_source(Ref<PluginSource> source, bool at_front = false);
 	static void unregister_source(Ref<PluginSource> source);
+	static void print_plugin_cache();
 };
 
 #endif // PLUGIN_MANAGER_H

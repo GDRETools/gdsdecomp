@@ -23,6 +23,8 @@ private:
 	virtual const HashMap<String, Vector<String>> &get_plugin_tag_masks();
 	virtual const HashMap<String, Vector<String>> &get_plugin_release_file_masks();
 	virtual const HashMap<String, Vector<String>> &get_plugin_release_file_exclude_masks();
+	virtual const String &get_release_api_url();
+	virtual int get_release_page_limit();
 
 protected:
 	struct GHReleaseCache {
