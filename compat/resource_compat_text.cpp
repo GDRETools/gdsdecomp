@@ -1369,6 +1369,7 @@ void ResourceLoaderCompatText::open(Ref<FileAccess> p_f, bool p_skip_first_tag) 
 		}
 	}
 
+	rp.func = _parse_resources;
 	rp.ext_func = _parse_ext_resources;
 	rp.sub_func = _parse_sub_resources;
 	rp.userdata = this;
@@ -2778,6 +2779,11 @@ Ref<ResourceInfo> ResourceFormatLoaderCompatText::get_resource_info(const String
 	_SET_R_ERR(loader.error, r_error);
 	ERR_FAIL_COND_V_MSG(loader.error, Ref<ResourceInfo>(), "Cannot load file '" + p_path + "'.");
 	return loader.get_resource_info();
+}
+
+// "Resource(...)" parsing
+Error ResourceLoaderCompatText::_parse_resource(VariantParser::Stream *p_stream, Ref<Resource> &r_res, int &line, String &r_err_str) {
+	return VariantParserCompat::_default_parse_resource(p_stream, r_res, line, r_err_str, load_type, use_sub_threads, cache_mode);
 }
 
 Error ResourceFormatSaverCompatTextInstance::set_save_settings(const Ref<Resource> &p_resource, uint32_t p_flags) {

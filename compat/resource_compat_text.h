@@ -31,7 +31,6 @@
 #ifndef RESOURCE_COMPAT_TEXT_H
 #define RESOURCE_COMPAT_TEXT_H
 
-#include "compat/resource_import_metadatav2.h"
 #include "compat/resource_loader_compat.h"
 #include "utility/resource_info.h"
 
@@ -104,9 +103,11 @@ private:
 
 	HashMap<String, String> remaps;
 
+	static Error _parse_resources(void *p_self, VariantParser::Stream *p_stream, Ref<Resource> &r_res, int &line, String &r_err_str) { return reinterpret_cast<ResourceLoaderCompatText *>(p_self)->_parse_resource(p_stream, r_res, line, r_err_str); }
 	static Error _parse_sub_resources(void *p_self, VariantParser::Stream *p_stream, Ref<Resource> &r_res, int &line, String &r_err_str) { return reinterpret_cast<ResourceLoaderCompatText *>(p_self)->_parse_sub_resource(p_stream, r_res, line, r_err_str); }
 	static Error _parse_ext_resources(void *p_self, VariantParser::Stream *p_stream, Ref<Resource> &r_res, int &line, String &r_err_str) { return reinterpret_cast<ResourceLoaderCompatText *>(p_self)->_parse_ext_resource(p_stream, r_res, line, r_err_str); }
 
+	Error _parse_resource(VariantParser::Stream *p_stream, Ref<Resource> &r_res, int &line, String &r_err_str);
 	Error _parse_sub_resource(VariantParser::Stream *p_stream, Ref<Resource> &r_res, int &line, String &r_err_str);
 	Error _parse_ext_resource(VariantParser::Stream *p_stream, Ref<Resource> &r_res, int &line, String &r_err_str);
 

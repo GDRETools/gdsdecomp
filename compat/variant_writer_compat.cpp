@@ -6,7 +6,75 @@
 
 #include "image_parser_v2.h"
 #include "input_event_parser_v2.h"
-#include "utility/common.h"
+
+Error VariantParserCompat::_default_parse_resource(VariantParser::Stream *p_stream, Ref<Resource> &r_res, int &line, String &r_err_str, ResourceInfo::LoadType load_type, bool use_sub_threads, ResourceFormatLoader::CacheMode cache_mode) {
+	VariantParser::Token token;
+
+	Error err = OK;
+	VariantParser::get_token(p_stream, token, line, r_err_str);
+	if (token.type == VariantParser::TK_STRING) {
+		String path = token.value;
+		String uid_string;
+
+		VariantParser::get_token(p_stream, token, line, r_err_str);
+
+		if (path.begins_with("uid://")) {
+			uid_string = path;
+			path = "";
+		}
+		if (token.type == VariantParser::TK_COMMA) {
+			VariantParser::get_token(p_stream, token, line, r_err_str);
+			if (token.type != VariantParser::TK_STRING) {
+				r_err_str = "Expected string in Resource reference";
+				return ERR_PARSE_ERROR;
+			}
+			String extra_path = token.value;
+			if (extra_path.begins_with("uid://")) {
+				if (!uid_string.is_empty()) {
+					r_err_str = "Two uid:// paths in one Resource reference";
+					return ERR_PARSE_ERROR;
+				}
+				uid_string = extra_path;
+			} else {
+				if (!path.is_empty()) {
+					r_err_str = "Two non-uid paths in one Resource reference";
+					return ERR_PARSE_ERROR;
+				}
+				path = extra_path;
+			}
+			VariantParser::get_token(p_stream, token, line, r_err_str);
+		}
+
+		Ref<Resource> res;
+		if (!uid_string.is_empty()) {
+			ResourceUID::ID uid = ResourceUID::get_singleton()->text_to_id(uid_string);
+			if (uid != ResourceUID::INVALID_ID && ResourceUID::get_singleton()->has_id(uid)) {
+				const String id_path = ResourceUID::get_singleton()->get_id_path(uid);
+				if (!id_path.is_empty()) {
+					res = ResourceCompatLoader::custom_load(id_path, "", load_type, &err, use_sub_threads, cache_mode);
+				}
+			}
+		}
+		if (res.is_null() && !path.is_empty()) {
+			res = ResourceCompatLoader::custom_load(path, "", load_type, &err, use_sub_threads, cache_mode);
+		}
+		if (res.is_null()) {
+			r_err_str = "Can't load resource at path: " + path + " with uid: " + uid_string;
+			return ERR_PARSE_ERROR;
+		}
+
+		if (token.type != VariantParser::TK_PARENTHESIS_CLOSE) {
+			r_err_str = "Expected ')'";
+			return ERR_PARSE_ERROR;
+		}
+
+		r_res = res;
+	} else {
+		r_err_str = "Expected string as argument for Resource().";
+		return ERR_PARSE_ERROR;
+	}
+	return OK;
+}
 
 Error VariantParserCompat::_parse_array(Array &array, Stream *p_stream, int &line, String &r_err_str, ResourceParser *p_res_parser) {
 	Token token;
@@ -282,28 +350,13 @@ Error VariantParserCompat::parse_value(VariantParser::Token &token, Variant &r_v
 
 				r_value = res;
 			} else {
-				get_token(p_stream, token, line, r_err_str);
-				if (token.type == TK_STRING) {
-					String path = token.value;
-					// If this is an old-style resource, it's probably going to fail to load anyway,
-					// so just do a fake load.
-					Ref<Resource> res = ResourceCompatLoader::fake_load(path);
-					if (res.is_null()) {
-						r_err_str = "Can't load resource at path: '" + path + "'.";
-						return ERR_PARSE_ERROR;
-					}
-
-					get_token(p_stream, token, line, r_err_str);
-					if (token.type != TK_PARENTHESIS_CLOSE) {
-						r_err_str = "Expected ')'";
-						return ERR_PARSE_ERROR;
-					}
-
-					r_value = res;
-				} else {
-					r_err_str = "Expected string as argument for Resource().";
-					return ERR_PARSE_ERROR;
+				Ref<Resource> res;
+				Error err = _default_parse_resource(p_stream, res, line, r_err_str, ResourceCompatLoader::get_default_load_type());
+				if (err) {
+					return err;
 				}
+
+				r_value = res;
 			}
 		} else if (id == "Dictionary") {
 			Error err = OK;
