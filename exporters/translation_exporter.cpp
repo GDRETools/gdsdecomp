@@ -431,8 +431,6 @@ struct KeyWorker {
 				punctuation_counts[p] = 0;
 			}
 			punctuation_counts[p]++;
-		}
-		for (char32_t p : punctuation_set) {
 			punctuation.insert(p);
 			punctuation_str.insert(String::chr(p).utf8());
 		}
@@ -930,19 +928,7 @@ struct KeyWorker {
 		auto msg_str = _san_string_no_spaces(msg);
 		if (msg_str.contains(" ")) {
 			// choose the most popular one
-			char32_t ch = 0;
-			int64_t max_count = 0;
-			if (punctuation_counts.size() == 1) {
-				ch = punctuation_counts.begin()->key;
-			} else {
-				for (auto kv : punctuation_counts) {
-					if (kv.value > max_count) {
-						max_count = kv.value;
-						ch = kv.key;
-					}
-				}
-			}
-			return msg_str.replace(" ", String::chr(ch));
+			return msg_str.replace(" ", get_most_popular_punctuation_str());
 		}
 		return msg_str;
 	}
@@ -985,6 +971,11 @@ struct KeyWorker {
 			}
 		}
 		return punct;
+	}
+
+	String get_most_popular_punctuation_str() {
+		auto ch = get_most_popular_punctuation();
+		return ch != 0 ? String::chr(ch) : "";
 	}
 
 	void extract_middles(const Vector<String> &frs, HashSet<String> &middles) {
@@ -1101,7 +1092,7 @@ struct KeyWorker {
 
 	void set_most_popular_punctuation() {
 		most_popular_punct = get_most_popular_punctuation();
-		most_popular_punct_str = String::chr(most_popular_punct);
+		most_popular_punct_str = get_most_popular_punctuation_str();
 		most_popular_punct_str_cs = most_popular_punct_str.utf8();
 	}
 
@@ -1675,9 +1666,9 @@ struct KeyWorker {
 		if (keys_have_whitespace && (double)keys_that_have_whitespace / (double)key_to_message.size() < (1.0 - threshold)) {
 			keys_have_whitespace = false;
 			changed = true;
-			for (const auto &p : gdre::hashset_to_vector(punctuation)) {
+			for (const auto p : gdre::hashset_to_vector(punctuation)) {
 				if (is_whitespace(p)) {
-					punctuation_counts[p]--;
+					punctuation_counts.erase(p);
 					punctuation.erase(p);
 					punctuation_str.erase(String::chr(p).utf8());
 					changed = true;
@@ -1686,12 +1677,14 @@ struct KeyWorker {
 		}
 
 		if (punctuation_counts.size() > 1) {
-			for (const auto [p, count] : punctuation_counts) {
+			for (const auto p : gdre::hashset_to_vector(punctuation)) {
+				auto count = punctuation_counts.has(p) ? punctuation_counts[p] : 0;
 				// if it's used in less than 1% of the keys, we can safely assume that it's not a punctuation mark we have to worry about
 				if ((double)count / (double)key_to_message.size() < 0.01) {
-					changed = true;
+					punctuation_counts.erase(p);
 					punctuation.erase(p);
 					punctuation_str.erase(String::chr(p).utf8());
+					changed = true;
 				}
 			}
 		}
