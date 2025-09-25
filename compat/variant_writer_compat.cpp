@@ -914,19 +914,30 @@ struct VarWriter {
 	}
 
 	static String _write_string_variant(const String &p_string) {
-		if (is_script) {
+		if constexpr (is_script) {
 			return "\"" + p_string.c_escape() + "\"";
 		} else {
 			return "\"" + p_string.c_escape_multiline() + "\"";
 		}
 	}
 
+	static String encode_resource_reference(const String &path) {
+		if constexpr (after_4_4) {
+			ResourceUID::ID uid = ResourceLoader::get_resource_uid(path);
+			if (uid != ResourceUID::INVALID_ID) {
+				return "Resource(\"" + ResourceUID::get_singleton()->id_to_text(uid) +
+						"\", \"" + path.c_escape_multiline() + "\")";
+			}
+		}
+		return "Resource(\"" + path.c_escape_multiline() + "\")";
+	}
+
 	static Error write_compat_v2_v3(const Variant &p_variant, VariantWriterCompat::StoreStringFunc p_store_string_func, void *p_store_string_ud, VariantWriterCompat::EncodeResourceFunc p_encode_res_func, void *p_encode_res_ud);
 	static Error write_compat_v4(const Variant &p_variant, VariantWriterCompat::StoreStringFunc p_store_string_func, void *p_store_string_ud, VariantWriterCompat::EncodeResourceFunc p_encode_res_func, void *p_encode_res_ud, int p_recursion_count);
 }; // struct VariantWriterCompatInstance
 
-template <int ver_major, bool is_pcfg, bool is_script, bool p_compat, bool after_4_3>
-Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_3>::write_compat_v4(const Variant &p_variant, VariantWriterCompat::StoreStringFunc p_store_string_func, void *p_store_string_ud, VariantWriterCompat::EncodeResourceFunc p_encode_res_func, void *p_encode_res_ud, int p_recursion_count) {
+template <int ver_major, bool is_pcfg, bool is_script, bool p_compat, bool after_4_4>
+Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_4>::write_compat_v4(const Variant &p_variant, VariantWriterCompat::StoreStringFunc p_store_string_func, void *p_store_string_ud, VariantWriterCompat::EncodeResourceFunc p_encode_res_func, void *p_encode_res_ud, int p_recursion_count) {
 	switch (p_variant.get_type()) {
 		case Variant::NIL: {
 			p_store_string_func(p_store_string_ud, "null");
@@ -1123,7 +1134,7 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_3>::write_compa
 				if (res_text.is_empty() && res->get_path().is_resource_file()) {
 					//external resource
 					String path = res->get_path();
-					res_text = "Resource(\"" + path + "\")";
+					res_text = encode_resource_reference(path);
 				}
 
 				//could come up with some sort of text
@@ -1174,7 +1185,7 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_3>::write_compa
 						resource_text = p_encode_res_func(p_encode_res_ud, key_script);
 					}
 					if (resource_text.is_empty() && key_script->get_path().is_resource_file()) {
-						resource_text = "Resource(\"" + key_script->get_path() + "\")";
+						resource_text = encode_resource_reference(key_script->get_path());
 					}
 
 					if (!resource_text.is_empty()) {
@@ -1203,7 +1214,7 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_3>::write_compa
 						resource_text = p_encode_res_func(p_encode_res_ud, value_script);
 					}
 					if (resource_text.is_empty() && value_script->get_path().is_resource_file()) {
-						resource_text = "Resource(\"" + value_script->get_path() + "\")";
+						resource_text = encode_resource_reference(value_script->get_path());
 					}
 
 					if (!resource_text.is_empty()) {
@@ -1275,7 +1286,7 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_3>::write_compa
 						resource_text = p_encode_res_func(p_encode_res_ud, script);
 					}
 					if (resource_text.is_empty() && script->get_path().is_resource_file()) {
-						resource_text = "Resource(\"" + script->get_path() + "\")";
+						resource_text = encode_resource_reference(script->get_path());
 					}
 
 					if (!resource_text.is_empty()) {
@@ -1404,8 +1415,8 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_3>::write_compa
 	return OK;
 } // VarWriter::write_compat_v4
 
-template <int ver_major, bool is_pcfg, bool is_script, bool p_compat, bool after_4_3>
-Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_3>::write_compat_v2_v3(const Variant &p_variant, VariantWriterCompat::StoreStringFunc p_store_string_func, void *p_store_string_ud, VariantWriterCompat::EncodeResourceFunc p_encode_res_func, void *p_encode_res_ud) {
+template <int ver_major, bool is_pcfg, bool is_script, bool p_compat, bool after_4_4>
+Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_4>::write_compat_v2_v3(const Variant &p_variant, VariantWriterCompat::StoreStringFunc p_store_string_func, void *p_store_string_ud, VariantWriterCompat::EncodeResourceFunc p_encode_res_func, void *p_encode_res_ud) {
 	// for v2 and v3...
 	switch ((Variant::Type)p_variant.get_type()) {
 		case Variant::Type::NIL: {
@@ -1533,7 +1544,6 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_3>::write_compa
 				p_store_string_func(p_store_string_ud, "null");
 				break; // don't save it
 			}
-			bool v3_input_key_hacks = false;
 			Ref<Resource> res = p_variant;
 			if (res.is_valid()) {
 				// is resource
