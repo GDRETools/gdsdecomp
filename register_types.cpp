@@ -44,6 +44,7 @@
 #include "exporters/resource_exporter.h"
 #include "exporters/sample_exporter.h"
 #include "exporters/scene_exporter.h"
+#include "exporters/spine_exporter.h"
 #include "exporters/texture_exporter.h"
 #include "exporters/translation_exporter.h"
 #include "utility/asset_library_source.h"
@@ -113,6 +114,8 @@ static Ref<Mp3StrExporter> mp3str_exporter = nullptr;
 static Ref<OggStrExporter> oggstr_exporter = nullptr;
 static Ref<SampleExporter> sample_exporter = nullptr;
 static Ref<SceneExporter> scene_exporter = nullptr;
+static Ref<SpineAtlasExporter> spine_atlas_exporter = nullptr;
+static Ref<SpineSkeletonExporter> spine_skeleton_exporter = nullptr;
 static Ref<TextureExporter> texture_exporter = nullptr;
 static Ref<TranslationExporter> translation_exporter = nullptr;
 static Ref<ObjExporter> obj_exporter = nullptr;
@@ -187,6 +190,8 @@ void init_exporters() {
 	gdscript_exporter = memnew(GDScriptExporter);
 	csharp_exporter = memnew(CSharpExporter);
 	gdextension_exporter = memnew(GDExtensionExporter);
+	spine_atlas_exporter = memnew(SpineAtlasExporter);
+	spine_skeleton_exporter = memnew(SpineSkeletonExporter);
 	Exporter::add_exporter(auto_converted_exporter);
 	Exporter::add_exporter(fontfile_exporter);
 	Exporter::add_exporter(mp3str_exporter);
@@ -200,6 +205,8 @@ void init_exporters() {
 	Exporter::add_exporter(gdscript_exporter);
 	Exporter::add_exporter(csharp_exporter);
 	Exporter::add_exporter(gdextension_exporter);
+	Exporter::add_exporter(spine_atlas_exporter);
+	Exporter::add_exporter(spine_skeleton_exporter);
 }
 
 void init_plugin_manager_sources() {
@@ -271,6 +278,12 @@ void deinit_exporters() {
 	if (csharp_exporter.is_valid()) {
 		Exporter::remove_exporter(csharp_exporter);
 	}
+	if (spine_atlas_exporter.is_valid()) {
+		Exporter::remove_exporter(spine_atlas_exporter);
+	}
+	if (spine_skeleton_exporter.is_valid()) {
+		Exporter::remove_exporter(spine_skeleton_exporter);
+	}
 	auto_converted_exporter = nullptr;
 	fontfile_exporter = nullptr;
 	gdextension_exporter = nullptr;
@@ -283,6 +296,8 @@ void deinit_exporters() {
 	gdscript_exporter = nullptr;
 	obj_exporter = nullptr;
 	csharp_exporter = nullptr;
+	spine_atlas_exporter = nullptr;
+	spine_skeleton_exporter = nullptr;
 }
 
 void deinit_loaders() {

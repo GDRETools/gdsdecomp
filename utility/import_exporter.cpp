@@ -229,9 +229,13 @@ void ImportExporter::rewrite_metadata(ExportToken &token) {
 		String resource_script_class;
 		List<String> deps;
 		auto path = iinfo->get_path();
-		auto res_info = ResourceCompatLoader::get_resource_info(path);
-		token_report->actual_type = res_info.is_valid() ? res_info->type : iinfo->get_type();
-		token_report->script_class = res_info.is_valid() ? res_info->script_class : "";
+		if (ResourceCompatLoader::handles_resource(path)) {
+			auto res_info = ResourceCompatLoader::get_resource_info(path);
+			token_report->actual_type = res_info.is_valid() ? res_info->type : iinfo->get_type();
+			token_report->script_class = res_info.is_valid() ? res_info->script_class : "";
+		} else {
+			token_report->actual_type = iinfo->get_type();
+		}
 		ResourceCompatLoader::get_dependencies(path, &deps, false);
 		for (auto &dep : deps) {
 			token_report->dependencies.push_back(dep);

@@ -504,7 +504,7 @@ Ref<ResourceInfo> ResourceCompatLoader::get_resource_info(const String &p_path, 
 	auto loader = get_loader_for_path(p_path, p_type_hint);
 	if (loader.is_null()) {
 		if (r_error) {
-			*r_error = ERR_FILE_NOT_FOUND;
+			*r_error = ERR_UNAVAILABLE;
 		}
 		ERR_PRINT("Failed to load resource '" + p_path + "'. ResourceFormatLoader::load was not implemented for this resource type.");
 		return Ref<ResourceInfo>();
