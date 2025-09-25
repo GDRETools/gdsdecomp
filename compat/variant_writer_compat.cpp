@@ -968,7 +968,17 @@ struct VarWriter {
 
 	static String _write_string_variant(const String &p_string) {
 		if constexpr (is_script) {
-			return "\"" + p_string.c_escape() + "\"";
+			String escaped = p_string.replace("\\", "\\\\");
+			escaped = escaped.replace("\a", "\\a");
+			escaped = escaped.replace("\b", "\\b");
+			escaped = escaped.replace("\f", "\\f");
+			escaped = escaped.replace("\n", "\\n");
+			escaped = escaped.replace("\r", "\\r");
+			escaped = escaped.replace("\t", "\\t");
+			escaped = escaped.replace("\v", "\\v");
+			// escaped = escaped.replace("\'", "\\'");
+			escaped = escaped.replace("\"", "\\\"");
+			return "\"" + escaped + "\"";
 		} else {
 			return "\"" + p_string.c_escape_multiline() + "\"";
 		}
