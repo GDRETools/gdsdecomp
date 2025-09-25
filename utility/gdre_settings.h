@@ -260,6 +260,11 @@ private:
 
 protected:
 	static void _bind_methods();
+	Error _add_pack(const String &p_path);
+
+	Error _load_embedded_zips();
+
+	Error _project_post_load(bool initial_load = false, const String &csharp_assembly_override = "");
 
 public:
 	// Loads the project from the given paths
@@ -275,7 +280,7 @@ public:
 	bool needs_post_load_patch_translation() const;
 
 	// Unloads the project
-	Error unload_project();
+	Error unload_project(bool p_no_reset_ephemeral = false);
 	// Get the path to the GDRE resource directory (dev-only, only used if running in editor)
 	String get_gdre_resource_path() const;
 	// Get the path to the GDRE user directory (where we store temp files, plugin cache, logs, etc.)
@@ -320,6 +325,8 @@ public:
 	Vector<Ref<PackedFileInfo>> get_file_info_list(const Vector<String> &filters = Vector<String>());
 	// Returns the list of currently loaded packs
 	TypedArray<PackInfo> get_pack_info_list() const;
+	// Returns the list of paths to the currently loaded packs
+	Vector<String> get_pack_paths() const;
 	// Get the type of the current project's main pack
 	PackInfo::PackType get_pack_type() const;
 	// Get the path to the current project's main pack

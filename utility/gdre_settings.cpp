@@ -633,6 +633,45 @@ Vector<String> GDRESettings::sort_and_validate_pck_files(const Vector<String> &p
 	return pck_files;
 }
 
+Error GDRESettings::_add_pack(const String &path) {
+	Error err = OK;
+	auto san_path = sanitize_home_in_path(path);
+	if (DirAccess::exists(path)) {
+		print_line("Opening directory: " + san_path);
+		err = load_dir(path);
+		ERR_FAIL_COND_V_MSG(err == ERR_ALREADY_IN_USE, ERR_ALREADY_IN_USE, "Can't load project directory, already loaded from " + path);
+		if (err || !is_pack_loaded()) {
+			ERR_FAIL_COND_V_MSG(err, err, "Can't load project directory!!");
+		}
+		load_pack_uid_cache();
+		load_pack_gdscript_cache();
+		return OK;
+	}
+
+	print_line("Opening file: " + san_path);
+	err = load_pck(path);
+	// Don't unload the pck if the error is just that the pck is already loaded
+	ERR_FAIL_COND_V_MSG(err == ERR_ALREADY_IN_USE, ERR_ALREADY_IN_USE, "Can't load PCK, already loaded from " + path);
+	if (err || !is_pack_loaded()) {
+		ERR_FAIL_COND_V_MSG(err, err, "Can't load project!");
+	}
+	auto last_type = packs[packs.size() - 1]->type;
+	// If the last pack was an APK and has a sparse bundle, we need to load it
+	if ((last_type == PackInfo::APK || last_type == PackInfo::ZIP) && has_path_loaded("res://assets.sparsepck")) {
+		err = load_pck("res://assets.sparsepck");
+		if (err && err != ERR_ALREADY_IN_USE) {
+			if (error_encryption) {
+				ERR_FAIL_COND_V_MSG(err, err, "Failed to load sparse pack! (Did you set the correct key?)");
+			}
+			ERR_FAIL_COND_V_MSG(err, err, "Failed to load sparse pack!!");
+		}
+		err = OK;
+	}
+	load_pack_uid_cache();
+	load_pack_gdscript_cache();
+	return OK;
+}
+
 Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_extract, const String &csharp_assembly_override) {
 	GDRELogger::clear_error_queues();
 	if (is_pack_loaded()) {
@@ -656,41 +695,16 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 		ERR_FAIL_V_MSG(ERR_INVALID_PARAMETER, "No valid paths provided!");
 	}
 
-	// load the directory first
 	for (int i = 0; i < pck_files.size(); i++) {
-		String path = pck_files[i];
-		auto san_path = sanitize_home_in_path(path);
-		if (DirAccess::exists(path)) {
-			print_line("Opening directory: " + san_path);
-			err = load_dir(path);
-			ERR_FAIL_COND_V_MSG(err, err, "FATAL ERROR: Can't load project directory!");
-			load_pack_uid_cache();
-			load_pack_gdscript_cache();
-			continue;
-		}
-
-		print_line("Opening file: " + san_path);
-		err = load_pck(path);
-		ERR_CONTINUE_MSG(err == ERR_ALREADY_IN_USE, "Can't load PCK, already loaded from " + path);
-		if (err || !is_pack_loaded()) {
-			unload_project();
+		err = _add_pack(pck_files[i]);
+		if (err) {
+			// just skip if already loaded
+			if (err == ERR_ALREADY_IN_USE) {
+				continue;
+			}
+			unload_project(true);
 			ERR_FAIL_COND_V_MSG(err, err, "Can't load project!");
 		}
-		auto last_type = packs[packs.size() - 1]->type;
-		// If the last pack was an APK and has a sparse bundle, we need to load it
-		if ((last_type == PackInfo::APK || last_type == PackInfo::ZIP) && has_path_loaded("res://assets.sparsepck")) {
-			err = load_pck("res://assets.sparsepck");
-			if (err && err != ERR_ALREADY_IN_USE) {
-				unload_project();
-				if (error_encryption) {
-					ERR_FAIL_COND_V_MSG(err, err, "Failed to load sparse pack! (Did you set the correct key?)");
-				}
-				ERR_FAIL_COND_V_MSG(err, err, "Failed to load sparse pack!!");
-			}
-			err = OK;
-		}
-		load_pack_uid_cache();
-		load_pack_gdscript_cache();
 	}
 
 	ERR_FAIL_COND_V_MSG(!is_pack_loaded(), ERR_FILE_CANT_READ, "FATAL ERROR: loaded project pack, but didn't load files from it!");
@@ -699,25 +713,18 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 		return OK;
 	}
 
-	// PCK is loaded, do post-load steps
+	// In case the user has set a bytecode revision override
+	_init_bytecode_from_ephemeral_settings();
 
+	// PCK is loaded, do post-load steps
+	return _project_post_load(true, csharp_assembly_override);
+}
+
+Error GDRESettings::_project_post_load(bool initial_load, const String &csharp_assembly_override) {
+	Error err = OK;
 	// Load any embedded zips within the pck
-	auto zip_files = get_file_list({ "*.zip" });
-	if (zip_files.size() > 0 && GDREConfig::get_singleton()->get_setting("load_embedded_zips", true)) {
-		Vector<String> pck_zip_files;
-		for (auto path : pck_files) {
-			if (path.get_extension().to_lower() == "zip") {
-				pck_zip_files.push_back(path.get_file().to_lower());
-			}
-		}
-		for (auto zip_file : zip_files) {
-			if (is_zip_file_pack(zip_file) && !pck_zip_files.has(zip_file.get_file().to_lower())) {
-				err = load_pck(zip_file);
-				ERR_CONTINUE_MSG(err, "Can't load embedded zip file: " + zip_file);
-				load_pack_uid_cache();
-				load_pack_gdscript_cache();
-			}
-		}
+	if (GDREConfig::get_singleton()->get_setting("load_embedded_zips", true)) {
+		err = _load_embedded_zips();
 	}
 
 	// If we don't have a valid version, we need to detect it from the binary resources.
@@ -727,14 +734,12 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 		err = get_version_from_bin_resources();
 		if (err) {
 			// Without a valid version, we can't do resource export or decompilation; unload the pack
-			unload_project();
+			unload_project(true);
 			ERR_FAIL_V_MSG(err, "FATAL ERROR: Can't determine engine version of project pack!");
 		}
 		current_project->suspect_version = false;
 	}
 
-	// In case the user has set a bytecode revision override
-	_init_bytecode_from_ephemeral_settings();
 	// Detect the bytecode revision
 	err = detect_bytecode_revision(invalid_ver);
 	if (err) {
@@ -748,8 +753,14 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 	if (!pack_has_project_config()) {
 		WARN_PRINT("Could not find project configuration in directory, may be a seperate resource pack...");
 	} else {
+		if (is_project_config_loaded()) {
+			print_line("Reloading project config...");
+			current_project->pcfg = Ref<ProjectConfigLoader>(memnew(ProjectConfigLoader));
+		}
 		err = load_project_config();
-		ERR_FAIL_COND_V_MSG(err, err, "FATAL ERROR: Can't open project config!");
+		if (err != ERR_ALREADY_IN_USE) {
+			ERR_FAIL_COND_V_MSG(err, err, "FATAL ERROR: Can't open project config!");
+		}
 	}
 
 	// Load the import files
@@ -762,7 +773,7 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 	if (project_requires_dotnet_assembly()) {
 		if (!csharp_assembly_override.is_empty()) {
 			err = reload_dotnet_assembly(csharp_assembly_override);
-		} else {
+		} else if (!has_loaded_dotnet_assembly()) {
 			err = load_project_dotnet_assembly();
 		}
 		if (err) {
@@ -783,6 +794,28 @@ Error GDRESettings::load_project(const Vector<String> &p_paths, bool _cmd_line_e
 		}
 	}
 
+	return OK;
+}
+
+Error GDRESettings::_load_embedded_zips() {
+	// Load any embedded zips within the pck
+	auto zip_files = get_file_list({ "*.zip" });
+	if (zip_files.size() > 0) {
+		Vector<String> pck_zip_files;
+		for (auto path : get_pack_paths()) {
+			if (path.get_extension().to_lower() == "zip") {
+				pck_zip_files.push_back(path.get_file().to_lower());
+			}
+		}
+		for (auto zip_file : zip_files) {
+			if (is_zip_file_pack(zip_file) && !pck_zip_files.has(zip_file.get_file().to_lower())) {
+				Error err = load_pck(zip_file);
+				ERR_CONTINUE_MSG(err, "Can't load embedded zip file: " + zip_file);
+				load_pack_uid_cache();
+				load_pack_gdscript_cache();
+			}
+		}
+	}
 	return OK;
 }
 
@@ -1079,11 +1112,11 @@ Error GDRESettings::save_project_config_binary(const String &p_out_dir = "") {
 	return current_project->pcfg->save_cfb_binary(output_dir, get_ver_major(), get_ver_minor());
 }
 
-Error GDRESettings::unload_project() {
+Error GDRESettings::unload_project(bool p_no_reset_ephemeral) {
+	logger->stop_prebuffering();
 	if (!is_pack_loaded()) {
 		return ERR_DOES_NOT_EXIST;
 	}
-	logger->stop_prebuffering();
 	_clear_shader_globals();
 	error_encryption = false;
 	if (get_pack_type() == PackInfo::DIR) {
@@ -1094,7 +1127,7 @@ Error GDRESettings::unload_project() {
 	GDREPackedData::get_singleton()->clear();
 	reset_uid_cache();
 	reset_gdscript_cache();
-	if (GDREConfig::get_singleton()) {
+	if (!p_no_reset_ephemeral && GDREConfig::get_singleton()) {
 		GDREConfig::get_singleton()->reset_ephemeral_settings();
 	}
 	return OK;
@@ -1275,6 +1308,14 @@ TypedArray<GDRESettings::PackInfo> GDRESettings::get_pack_info_list() const {
 	TypedArray<PackInfo> ret;
 	for (const auto &pack : packs) {
 		ret.push_back(pack);
+	}
+	return ret;
+}
+
+Vector<String> GDRESettings::get_pack_paths() const {
+	Vector<String> ret;
+	for (const auto &pack : packs) {
+		ret.push_back(pack->pack_file);
 	}
 	return ret;
 }
@@ -2668,7 +2709,11 @@ void GDRESettings::update_from_ephemeral_settings() {
 		if (current_project->decompiler->set_settings(new_settings) != OK) {
 			ERR_PRINT("Failed to update decompiler settings, decompiler will be reset");
 			current_project->decompiler = Ref<GodotMonoDecompWrapper>();
+			reload_dotnet_assembly(current_project->assembly_path);
 		}
+	}
+	if (GDREConfig::get_singleton()->get_setting("load_embedded_zips", true)) {
+		_load_embedded_zips();
 	}
 }
 
@@ -2681,7 +2726,7 @@ String GDRESettings::get_recent_error_string(bool p_filter_backtraces) {
 
 void GDRESettings::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("load_project", "p_paths", "cmd_line_extract", "csharp_assembly_override"), &GDRESettings::load_project, DEFVAL(false), DEFVAL(""));
-	ClassDB::bind_method(D_METHOD("unload_project"), &GDRESettings::unload_project);
+	ClassDB::bind_method(D_METHOD("unload_project", "no_reset_ephemeral"), &GDRESettings::unload_project, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("post_load_patch_translation"), &GDRESettings::post_load_patch_translation);
 	ClassDB::bind_method(D_METHOD("needs_post_load_patch_translation"), &GDRESettings::needs_post_load_patch_translation);
 	ClassDB::bind_method(D_METHOD("get_gdre_resource_path"), &GDRESettings::get_gdre_resource_path);
@@ -2835,6 +2880,7 @@ void GDRESettings::_set_shader_globals() {
 				ProjectSettings::get_singleton()->set_setting(key, E.value);
 			}
 
+			// We need to make the ResourceCompatLoader globally available to load any texture parameters
 			bool previous = ResourceCompatLoader::is_globally_available();
 			if (!previous) {
 				ResourceCompatLoader::make_globally_available();

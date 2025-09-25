@@ -642,3 +642,32 @@ func _on_export_settings_button_pressed() -> void:
 
 func _on_gdre_config_dialog_config_changed(changed_settings: Dictionary[String, Variant]) -> void:
 	GDRESettings.update_from_ephemeral_settings()
+
+
+func _on_add_pcks_dialog_files_selected(paths: PackedStringArray) -> void:
+	self.call_on_next_process(self.call_on_next_process.bind(self._reload_with.bind(paths)))
+
+func _reload_with(paths: PackedStringArray):
+	var curr_pcks = GDRESettings.get_pack_info_list()
+	var new_paths: PackedStringArray = []
+	for pck in curr_pcks:
+		new_paths.append(pck.get_pack_file())
+	var added_path = false
+	for path in paths:
+		if not new_paths.has(path):
+			added_path = true
+			new_paths.append(path)
+	if not added_path:
+		popup_error_box("Error: selected PCK(s) are already loaded")
+		return
+	GDRESettings.unload_project(true)
+	var err = add_project(new_paths)
+	if (err != OK):
+		popup_error_box("Error: failed to open " + str(paths), "Error", self.close)
+		return
+
+
+func _on_add_pcks_button_pressed() -> void:
+	var curr_pck = GDRESettings.get_pack_path()
+	%AddPcksDialog.current_dir = curr_pck.get_base_dir()
+	%AddPcksDialog.popup_centered()
