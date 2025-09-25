@@ -399,7 +399,7 @@ void ImportInfoModern::set_metadata_prop(Dictionary r_dict) {
 }
 
 Variant ImportInfoModern::get_param(const String &p_key) const {
-	if (!cf->has_section("params") || !cf->has_section_key("params", p_key)) {
+	if (!cf->has_section_key("params", p_key)) {
 		return Variant();
 	}
 	return cf->get_value("params", p_key);
@@ -407,9 +407,6 @@ Variant ImportInfoModern::get_param(const String &p_key) const {
 
 void ImportInfoModern::set_param(const String &p_key, const Variant &p_val) {
 	// erase the dummy value if it exists, it's no longer needed
-	if (cf->has_section("params") && cf->has_section_key("params", "dummy_value_ignore_me")) {
-		cf->erase_section_key("params", "dummy_value_ignore_me");
-	}
 	cf->set_value("params", p_key, p_val);
 	dirty = true;
 }
@@ -440,9 +437,6 @@ Dictionary ImportInfoModern::get_params() const {
 }
 
 void ImportInfoModern::set_params(Dictionary params) {
-	if (params.size() > 0 && cf->has_section_key("params", "dummy_value_ignore_me")) {
-		cf->erase_section_key("params", "dummy_value_ignore_me");
-	}
 	auto param_keys = params.get_key_list();
 	for (int64_t i = 0; i < param_keys.size(); i++) {
 		const Variant &key = param_keys[i];
@@ -499,8 +493,7 @@ Error ImportInfoModern::_load(const String &p_path) {
 	}
 
 	if (!cf->has_section("params")) {
-		dirty = true;
-		cf->set_value("params", "dummy_value_ignore_me", 0);
+		dirty = true; // will be taken care of in save_to()
 	}
 
 	// "remap.path" does not exist if there are two or more destination files
@@ -850,8 +843,15 @@ void ImportInfov2::set_params(Dictionary params) {
 Error ImportInfoModern::save_to(const String &new_import_file) {
 	Error err = gdre::ensure_dir(new_import_file.get_base_dir());
 	ERR_FAIL_COND_V_MSG(err, err, "Failed to create directory for " + new_import_file);
-	err = cf->save(new_import_file);
-	ERR_FAIL_COND_V_MSG(err, err, "Failed to rename file " + import_md_path + ".tmp");
+
+	String content = cf->encode_to_text();
+	if (!cf->has_section("params")) {
+		content += "\n[params]\n\n";
+	}
+	auto fa = FileAccess::open(new_import_file, FileAccess::WRITE);
+	ERR_FAIL_COND_V_MSG(fa.is_null(), ERR_FILE_CANT_OPEN, "Failed to open file " + new_import_file);
+	fa->store_string(content);
+	fa->flush();
 	return OK;
 }
 
