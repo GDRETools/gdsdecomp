@@ -87,7 +87,7 @@ func path_to_uri(path:String):
 
 func get_url_for_tag(tag: String, is_steam_release: bool = false):
 	if is_steam_release: # don't bother with the tag here
-		return "https://github.com/CoaguCo-Industries/GodotSteam/releases"
+		return "https://codeberg.org/godotsteam/godotsteam/releases"
 	else:
 		return "https://github.com/godotengine/godot-builds/releases/tag/" + tag
 
