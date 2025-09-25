@@ -22,6 +22,9 @@ public:
 		int OverrideLanguageVersion = 0;
 		String GodotVersionOverride;
 		static GodotMonoDecompSettings get_default_settings();
+		// override operator ==
+		bool operator==(const GodotMonoDecompSettings &p_other) const;
+		bool operator!=(const GodotMonoDecompSettings &p_other) const;
 	};
 
 	Error decompile_module(const String &outputCSProjectPath, const Vector<String> &excludeFiles);

@@ -181,6 +181,19 @@ GodotMonoDecompWrapper::GodotMonoDecompSettings GodotMonoDecompWrapper::GodotMon
 	return settings;
 }
 
+bool GodotMonoDecompWrapper::GodotMonoDecompSettings::operator==(const GodotMonoDecompSettings &p_other) const {
+	return WriteNuGetPackageReferences == p_other.WriteNuGetPackageReferences &&
+			VerifyNuGetPackageIsFromNugetOrg == p_other.VerifyNuGetPackageIsFromNugetOrg &&
+			CopyOutOfTreeReferences == p_other.CopyOutOfTreeReferences &&
+			CreateAdditionalProjectsForProjectReferences == p_other.CreateAdditionalProjectsForProjectReferences &&
+			OverrideLanguageVersion == p_other.OverrideLanguageVersion &&
+			GodotVersionOverride == p_other.GodotVersionOverride;
+}
+
+bool GodotMonoDecompWrapper::GodotMonoDecompSettings::operator!=(const GodotMonoDecompSettings &p_other) const {
+	return !(*this == p_other);
+}
+
 String GodotMonoDecompWrapper::decompile_individual_file(const String &file) {
 	ERR_FAIL_COND_V_MSG(decompilerHandle == nullptr, "", "Decompiler handle is null");
 	CharString file_chrstr = file.utf8();
@@ -239,12 +252,7 @@ GodotMonoDecompWrapper::GodotMonoDecompSettings GodotMonoDecompWrapper::get_sett
 }
 
 Error GodotMonoDecompWrapper::set_settings(const GodotMonoDecompSettings &p_settings) {
-	if (p_settings.WriteNuGetPackageReferences != settings.WriteNuGetPackageReferences ||
-			p_settings.VerifyNuGetPackageIsFromNugetOrg != settings.VerifyNuGetPackageIsFromNugetOrg ||
-			p_settings.CopyOutOfTreeReferences != settings.CopyOutOfTreeReferences ||
-			p_settings.CreateAdditionalProjectsForProjectReferences != settings.CreateAdditionalProjectsForProjectReferences ||
-			p_settings.GodotVersionOverride != settings.GodotVersionOverride ||
-			p_settings.OverrideLanguageVersion != settings.OverrideLanguageVersion) {
+	if (p_settings != settings) {
 		Error err = _load(assembly_path, originalProjectFiles, assemblyReferenceDirs, p_settings);
 		ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to reload assembly " + assembly_path + " (Not a valid .NET assembly?)");
 	}
