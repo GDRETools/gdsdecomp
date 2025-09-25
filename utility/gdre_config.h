@@ -86,3 +86,5 @@ public:
 protected:
 	static void _bind_methods();
 };
+
+#define CONFIG_GET(p_setting, p_default_value) GDREConfig::get_singleton()->get_setting(p_setting, p_default_value)

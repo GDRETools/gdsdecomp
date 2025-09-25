@@ -71,6 +71,9 @@ Error ImportExporter::handle_auto_converted_file(const String &autoconverted_fil
 	if (!prefix.begins_with(".")) {
 		String old_path = output_dir.path_join(prefix);
 		if (FileAccess::exists(old_path)) {
+			if (CONFIG_GET("delete_auto_converted_files", false)) {
+				return gdre::rimraf(old_path);
+			}
 			String new_path = output_dir.path_join(".autoconverted").path_join(prefix);
 			Error err = gdre::ensure_dir(new_path.get_base_dir());
 			ERR_FAIL_COND_V_MSG(err != OK, err, "Failed to create directory for remap " + new_path);
