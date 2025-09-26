@@ -8,6 +8,7 @@
 #include "core/string/ustring.h"
 #include "core/variant/variant.h"
 #include "external/tga/tga.h"
+#include "modules/tinyexr/image_saver_tinyexr.h"
 #include "utility/common.h"
 #include "vtracer/gifski.h"
 #include "vtracer/vtracer.h"
@@ -24,6 +25,26 @@ Vector<String> ImageSaver::get_supported_extensions() {
 
 bool ImageSaver::is_supported_extension(const String &p_ext) {
 	return supported_extensions.has(p_ext.to_lower());
+}
+
+bool is_supported_format_for_exr(Image::Format p_format) {
+	switch (p_format) {
+		case Image::FORMAT_RF:
+		case Image::FORMAT_RGF:
+		case Image::FORMAT_RGBF:
+		case Image::FORMAT_RGBAF:
+		case Image::FORMAT_RH:
+		case Image::FORMAT_RGH:
+		case Image::FORMAT_RGBH:
+		case Image::FORMAT_RGBAH:
+		case Image::FORMAT_R8:
+		case Image::FORMAT_RG8:
+		case Image::FORMAT_RGB8:
+		case Image::FORMAT_RGBA8:
+			return true;
+		default:
+			return false;
+	}
 }
 
 Error ImageSaver::save_image(const String &dest_path, const Ref<Image> &img, bool lossy, float quality) {
@@ -48,6 +69,16 @@ Error ImageSaver::save_image(const String &dest_path, const Ref<Image> &img, boo
 	} else if (dest_ext == "dds") {
 		err = img->save_dds(dest_path);
 	} else if (dest_ext == "exr") {
+		if (!is_supported_format_for_exr(img->get_format())) {
+			if (img->get_format() == Image::FORMAT_RGBE9995) {
+				img->convert(Image::FORMAT_RGBAF);
+			} else {
+				img->convert(Image::FORMAT_RGBA8);
+			}
+		}
+		if (!is_supported_format_for_exr(img->get_format())) {
+			return ERR_UNAVAILABLE;
+		}
 		err = img->save_exr(dest_path);
 	} else if (dest_ext == "bmp") {
 		err = ImageSaver::save_image_as_bmp(dest_path, img);
