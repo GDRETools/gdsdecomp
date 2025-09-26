@@ -482,6 +482,30 @@ Error ImportInfoModern::_load(const String &p_path) {
 					if (dest_files.size() == 0) {
 						dest_files = Glob::glob(prefix + ".*.translation");
 					}
+					// The reason for doing this is because the editor expects the files in the [deps]
+					// section to be in the same order as the project settings, otherwise it will force a re-import
+					PackedStringArray translation_files = GDRESettings::get_singleton()->get_project_setting("internationalization/locale/translations", PackedStringArray());
+					Vector<String> translation_files_set;
+					for (auto &file : translation_files) {
+						if (dest_files.has(file)) {
+							translation_files_set.push_back(file);
+						}
+					}
+					if (dest_files.size() == translation_files_set.size()) {
+						dest_files = translation_files_set;
+					} else {
+						// otherwise, just move the fallback locale to the front.
+						String fallback_locale = GDRESettings::get_singleton()->get_project_setting("internationalization/locale/fallback", "en");
+						String suffix = fallback_locale.to_lower() + ".translation";
+						for (int i = 0; i < dest_files.size(); i++) {
+							if (dest_files[i].ends_with(suffix)) {
+								String first_file = dest_files[i];
+								dest_files.remove_at(i);
+								dest_files.insert(0, first_file);
+								break;
+							}
+						}
+					}
 				}
 			}
 			if (dest_files.size() > 1) { // only write this if there are multiple files
