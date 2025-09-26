@@ -44,7 +44,7 @@ Ref<ExportReport> FontFileExporter::export_resource(const String &output_dir, Re
 		report->set_error(err);
 		report->set_saved_path(dst_path);
 		if (err == OK && import_infos->get_ver_major() >= 4) {
-			Ref<FontFile> fontfile = ResourceCompatLoader::gltf_load(src_path, "", &err);
+			Ref<FontFile> fontfile = ResourceCompatLoader::custom_load(src_path, "", ResourceInfo::LoadType::GLTF_LOAD, &err, false, ResourceFormatLoader::CACHE_MODE_IGNORE_DEEP);
 			if (!(err || fontfile.is_null())) {
 				auto res_info = ResourceInfo::get_info_from_resource(fontfile);
 				Dictionary params;
