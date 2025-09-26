@@ -860,10 +860,15 @@ String encode_cfg_to_text(const Ref<ConfigFile> &cf, int ver_major, int ver_mino
 		for (const String &key : cf->get_section_keys(section)) {
 			String vstr;
 			VariantWriterCompat::write_to_string(cf->get_value(section, key), vstr, ver_major, ver_minor);
+			// ConfigFile interprets setting a key to null as erasing the key, so we have to use a special value that'll get replaced when saving.
 			if (vstr == null_replacement) {
 				vstr = "null";
 			}
 			sb.append(key.property_name_encode() + "=" + vstr + "\n");
+			if (section == "deps" && key == "files") {
+				// extra newline for some reason
+				sb.append("\n");
+			}
 		}
 	}
 	return sb.as_string();
@@ -874,7 +879,6 @@ Error ImportInfoModern::save_to(const String &new_import_file) {
 	ERR_FAIL_COND_V_MSG(err, err, "Failed to create directory for " + new_import_file);
 
 	String content = encode_cfg_to_text(cf, ver_major, ver_minor);
-	// ConfigFile interprets setting a key to null as erasing the key, so we have to use a special value that'll get replaced when saving.
 	if (!cf->has_section("params")) {
 		content += "\n[params]\n\n";
 	}
@@ -894,21 +898,7 @@ Error ImportInfov2::save_to(const String &new_import_file) {
 }
 
 String ImportInfoModern::get_md5_file_path() const {
-	Vector<String> dest_files = get_dest_files();
-	if (dest_files.size() == 0) {
-		return "";
-	}
-	String part;
-	Vector<String> parts = dest_files[0].rsplit("-", true, 1);
-	if (!dest_files[0].begins_with("res://.godot") && !dest_files[0].begins_with("res://.import")) {
-		part = ver_major <= 3 ? "res://.import" : "res://.godot/imported";
-		part = part.path_join(parts[0].get_file());
-	} else {
-		part = parts[0];
-	}
-
-	String md5_file_path = part + "-" + get_source_file().md5_text() + ".md5";
-	return md5_file_path;
+	return (ver_major <= 3 ? "res://.import/" : "res://.godot/imported/") + get_source_file().get_file() + "-" + get_source_file().md5_text() + ".md5";
 }
 
 Error ImportInfoModern::save_md5_file(const String &output_dir) {
