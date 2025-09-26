@@ -506,14 +506,10 @@ Error FakeGDScript::parse_script() {
 					// only methods at the top level
 					if (indent == 0) {
 						StringName method_name;
-						if (decomp->check_next_token(i, tokens, GT::G_TK_IDENTIFIER)) {
-							uint32_t identifier = tokens[i + 1] >> GDScriptDecomp::TOKEN_BITS;
-							FAKEGDSCRIPT_PARSE_FAIL_COND_V_MSG(identifier >= (uint32_t)identifiers.size(), "After method: Invalid identifier index");
-							method_name = identifiers[identifier];
-						} else if (script_state.bytecode_version < GDScriptDecomp::GDSCRIPT_2_0_VERSION) { // method names can be nearly any token in GDScript 1.x
+						if (i + 1 < tokens.size() && (script_state.bytecode_version < GDScriptDecomp::GDSCRIPT_2_0_VERSION || (GDScriptDecomp::token_is_valid_v2_func_id(decomp->get_global_token(tokens[i + 1]))))) {
 							String method = decomp->get_token_text(script_state, i + 1);
 							if (method.is_empty() || method.begins_with("ERROR:")) {
-								WARN_PRINT(vformat("Line %d: Failed to parse method", prev_line));
+								WARN_PRINT(vformat("Line %d: Failed to parse method:%s", prev_line, method.trim_prefix("ERROR:")));
 								continue;
 							}
 							method_name = method;

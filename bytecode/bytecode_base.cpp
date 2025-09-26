@@ -1325,7 +1325,7 @@ GDScriptDecomp::BytecodeTestResult GDScriptDecomp::_test_bytecode(Vector<uint8_t
 				GlobalToken next_token = get_global_token(tokens[i + 1]);
 				GlobalToken nextnext_token = get_global_token(tokens[i + 2]);
 				// GDScript Version 2.0+ requires the next token to be a parenthesis open (lambdas) or an identifier
-				if (bytecode_version >= GDSCRIPT_2_0_VERSION && next_token != G_TK_PARENTHESIS_OPEN && next_token != G_TK_IDENTIFIER) {
+				if (bytecode_version >= GDSCRIPT_2_0_VERSION && next_token != G_TK_PARENTHESIS_OPEN && !token_is_valid_v2_func_id(next_token)) {
 					ERR_TEST_FAILED(vformat("Function declaration error: %s %s (expected %s [%s or %s])", g_token_str[curr_token], g_token_str[next_token], g_token_str[G_TK_PR_FUNCTION], g_token_str[G_TK_PARENTHESIS_OPEN], g_token_str[G_TK_IDENTIFIER]));
 				}
 				if (nextnext_token != G_TK_PARENTHESIS_OPEN && (bytecode_version < GDSCRIPT_2_0_VERSION || next_token != G_TK_PARENTHESIS_OPEN)) {
@@ -2164,6 +2164,17 @@ bool GDScriptDecomp::token_is_keyword(GlobalToken p_token) {
 		case G_TK_CONST_TAU:
 		case G_TK_CONST_INF:
 		case G_TK_CONST_NAN:
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool GDScriptDecomp::token_is_valid_v2_func_id(GlobalToken p_token) {
+	switch (p_token) {
+		case G_TK_IDENTIFIER:
+		case G_TK_CF_MATCH: // For some godforsaken reason, the 4.x parser allows "match" and "when" as function identifiers
+		case G_TK_CF_WHEN:
 			return true;
 		default:
 			return false;

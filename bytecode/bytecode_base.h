@@ -267,6 +267,7 @@ public:
 	static bool token_is_control_flow_keyword(GlobalToken p_token);
 	static bool token_is_constant(GlobalToken p_token);
 	static bool token_is_operator_keyword(GlobalToken p_token);
+	static bool token_is_valid_v2_func_id(GlobalToken p_token);
 	static String get_global_token_name(GlobalToken p_token);
 	static String get_token_name(GlobalToken p_token);
 
