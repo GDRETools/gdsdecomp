@@ -60,7 +60,19 @@ namespace {
 static FileNoCaseComparator file_no_case_comparator;
 struct ReportComparator {
 	bool operator()(const Ref<ExportReport> &a, const Ref<ExportReport> &b) const {
-		return file_no_case_comparator(a->get_import_info()->get_source_file(), b->get_import_info()->get_source_file());
+		String a_src_file = a->get_import_info()->get_source_file();
+		String b_src_file = b->get_import_info()->get_source_file();
+		String a_base_dir = a_src_file.get_base_dir();
+		String b_base_dir = b_src_file.get_base_dir();
+		if (a_base_dir != b_base_dir) {
+			// subdirectories come last
+			if (a_base_dir.begins_with(b_base_dir)) {
+				return false;
+			} else if (b_base_dir.begins_with(a_base_dir)) {
+				return true;
+			}
+		}
+		return file_no_case_comparator(a_src_file, b_src_file);
 	}
 };
 } //namespace
