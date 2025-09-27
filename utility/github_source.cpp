@@ -29,7 +29,8 @@ static const HashMap<String, Vector<String>> release_file_exclude_masks = {
 	{ "discord-rpc-gd", { "*Demo*" } },
 	{ "discord-sdk-gd", { "*Demo*" } },
 	{ "epic-online-services-godot", { "*-android-*", "*-ios-*", "*-macos-*", "*-windows-*", "*-linux-*", "*-web*" } },
-	{ "fmod", { "*android.zip" } }
+	{ "fmod", { "*android.zip" } },
+	{ "godotgif", { "*_convert_binary_*" } }
 };
 
 static const HashMap<String, String> plugin_map = {
@@ -49,6 +50,8 @@ static const HashMap<String, String> plugin_map = {
 	{ "terrain_3d", "https://github.com/TokisanGames/Terrain3D" },
 	{ "FMOD", "https://github.com/GDRETools/fmod-for-godot" }, // All caps FMOD
 	{ "fmod", "https://github.com/utopia-rise/fmod-gdextension" }, // lowercase fmod
+	{ "spine_godot_extension", "https://github.com/GDRETools/spine-runtimes" },
+	{ "spine-godot-extension", "https://github.com/GDRETools/spine-runtimes" }, // this isn't distributed as an addon, so there are multiple potential names for the plugin
 };
 } // namespace
 GitHubSource::GitHubSource() {

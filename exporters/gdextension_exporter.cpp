@@ -95,6 +95,9 @@ Error copy_libs(const String &output_dir, const HashMap<String, SharedObject> &l
 String get_plugin_name(const Ref<ImportInfo> import_infos) {
 	String rel_path = import_infos->get_import_md_path().simplify_path().replace("res://", "");
 	String plugin_name;
+	// If it begins with addons/, get the name of the immediate parent directory; otherwise, use the file name.
+	// e.g. "addons/FMOD/fmod_gdextension.gdextension" -> "FMOD"
+	// e.g. "bin/spine_godot_extension.gdextension" -> "spine_godot_extension"
 	if (rel_path.begins_with("addons/")) {
 		plugin_name = rel_path.replace("addons/", "").split("/")[0];
 	} else {

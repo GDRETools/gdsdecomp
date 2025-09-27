@@ -31,6 +31,7 @@ PLUGINS_TO_PREPOP = [
     "sg-physics-2d",
     "epic-online-services-godot",
     "godotsteam_server",
+    "spine_godot_extension",
 ]
 
 
