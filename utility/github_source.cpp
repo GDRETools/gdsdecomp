@@ -47,7 +47,8 @@ static const HashMap<String, String> plugin_map = {
 	{ "orchestrator", "https://github.com/CraterCrash/godot-orchestrator" },
 	{ "limboai", "https://github.com/limbonaut/limboai" },
 	{ "terrain_3d", "https://github.com/TokisanGames/Terrain3D" },
-	{ "fmod", "https://github.com/utopia-rise/fmod-gdextension" },
+	{ "FMOD", "https://github.com/GDRETools/fmod-for-godot" }, // All caps FMOD
+	{ "fmod", "https://github.com/utopia-rise/fmod-gdextension" }, // lowercase fmod
 };
 } // namespace
 GitHubSource::GitHubSource() {

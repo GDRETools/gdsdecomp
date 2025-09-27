@@ -22,6 +22,7 @@ PLUGINS_TO_PREPOP = [
     "orchestrator",
     "limboai",
     "fmod",
+    "FMOD",
     "godot-sqlite",
     "godotsteam",
     "godot-jolt",
