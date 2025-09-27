@@ -44,6 +44,8 @@ class FakeCSharpScript : public FakeScript {
 	HashMap<StringName, Pair<int, int>> subclasses;
 	Vector<StringName> export_vars;
 
+	String icon_path;
+
 protected:
 	static void _bind_methods();
 
@@ -114,6 +116,7 @@ public:
 
 	virtual String get_script_path() const override;
 	virtual Error load_source_code(const String &p_path) override;
+	virtual String get_icon_path() const override;
 	virtual bool is_loaded() const override;
 
 	void set_autoload(bool p_autoload);

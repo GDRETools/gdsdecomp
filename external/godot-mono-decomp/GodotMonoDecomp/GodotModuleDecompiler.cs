@@ -525,6 +525,15 @@ public class GodotModuleDecompiler
 			p => string.IsNullOrEmpty(p) ? "" : "res://" + p
 		).ToArray();
 
+		string iconPath = "";
+		if (typeDef.GetAttributes().Any(a => a.AttributeType.Name == "IconAttribute"))
+		{
+			var attr = typeDef.GetAttributes().First(a => a.AttributeType.Name == "IconAttribute");
+			if (attr.FixedArguments.Length > 0) {
+				iconPath = attr.FixedArguments[0].Value as string ?? "";
+			}
+		}
+
 
 
 		var scriptInfo = new GodotScriptInfo(
@@ -537,7 +546,8 @@ public class GodotModuleDecompiler
 			signalsInfo.ToArray(),
 			methodsInfo.ToArray(),
 			isTool,
-			typeDef.IsAbstract
+			typeDef.IsAbstract,
+			iconPath
 		);
 		return scriptInfo;
 	}
