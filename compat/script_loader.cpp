@@ -40,7 +40,7 @@ String ResourceFormatGDScriptLoader::_get_resource_type(const String &p_path) {
 	if (extension == "cs") {
 		return "CSharpScript";
 	}
-	return "Script";
+	return "";
 }
 
 Ref<Resource> ResourceFormatGDScriptLoader::custom_load(const String &p_path, const String &p_original_path, ResourceInfo::LoadType p_type, Error *r_error, bool use_threads, ResourceFormatLoader::CacheMode p_cache_mode) {

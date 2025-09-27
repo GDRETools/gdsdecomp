@@ -267,7 +267,7 @@ String TextureLoaderCompat::get_type_name_from_textype(TextureVersionType type) 
 		case FORMAT_V4_COMPRESSED_TEXTURELAYERED:
 			return "CompressedTextureLayered";
 		default:
-			return "Unknown";
+			return "";
 	}
 }
 

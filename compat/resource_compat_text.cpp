@@ -1712,9 +1712,8 @@ String ResourceFormatLoaderCompatText::get_resource_type(const String &p_path) c
 	}
 
 	ResourceLoaderCompatText loader;
-	// TODO: revisit this
-	loader.local_path = GDRESettings::get_singleton()->localize_path(p_path);
-	loader.res_path = loader.local_path;
+	// loader.local_path = GDRESettings::get_singleton()->localize_path(p_path);
+	// loader.res_path = loader.local_path;
 	String r = loader.recognize(f);
 	return ClassDB::get_compatibility_remapped_class(r);
 }
