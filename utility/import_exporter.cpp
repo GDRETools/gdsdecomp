@@ -455,7 +455,7 @@ void ImportExporter::recreate_uid_file(const String &src_path, bool is_import, c
 		if ((is_import || files_to_export_set.has(src_path)) && FileAccess::exists(output_file)) {
 			Ref<FileAccess> f = FileAccess::open(uid_path, FileAccess::WRITE);
 			if (f.is_valid()) {
-				f->store_string(ResourceUID::get_singleton()->id_to_text(uid));
+				f->store_string(ResourceUID::get_singleton()->id_to_text(uid) + "\n");
 			}
 		}
 	}
@@ -1096,8 +1096,31 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	// Need to recreate the uid files for the exported resources
 	// check if we're at version 4.4 or higher
 	if ((get_ver_major() == 4 && get_ver_minor() >= 4) || get_ver_major() > 4) {
-		auto non_custom_uid_files = get_settings()->get_file_list({ "*.gd", "*.gdshader", "*.shader", "*.cs" });
+		static const Vector<String> non_custom_uid_filters = {
+			"*.image",
+			"*.gdextension",
+			"*.gd",
+			// "*.gdc", -- these show up outside of res://.godot, so we don't want to recreate them
+			"*.ctex",
+			"*.ctexarray",
+			"*.ccube",
+			"*.ccubearray",
+			"*.ctex3d",
+			"*.shader",
+			"*.gdshader",
+			"*.gdshaderinc",
+			"*.dds",
+			"*.ktx",
+			"*.ktx2",
+			"*.ogv",
+			"*.cs"
+		};
+		auto non_custom_uid_files = get_settings()->get_file_list(non_custom_uid_filters);
 		for (int i = 0; i < non_custom_uid_files.size(); i++) {
+			// any hidden directory
+			if (non_custom_uid_files[i].begins_with("res://.")) {
+				continue;
+			}
 			recreate_uid_file(non_custom_uid_files[i], false, files_to_export_set);
 		}
 	}
