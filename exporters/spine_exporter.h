@@ -3,6 +3,7 @@
 
 class SpineAtlasExporter : public ResourceExporter {
 	GDCLASS(SpineAtlasExporter, ResourceExporter);
+
 public:
 	static constexpr const char *const EXPORTER_NAME = "SpineAtlas";
 

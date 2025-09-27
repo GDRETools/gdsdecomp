@@ -1,8 +1,8 @@
 #include "spine_exporter.h"
 #include "core/io/dir_access.h"
-#include "utility/common.h"
 #include "core/io/file_access.h"
 #include "core/io/json.h"
+#include "utility/common.h"
 
 Error _load_dict(const String &res_path, Dictionary &dict) {
 	String content = FileAccess::get_file_as_string(res_path);
@@ -11,7 +11,6 @@ Error _load_dict(const String &res_path, Dictionary &dict) {
 	ERR_FAIL_COND_V_MSG(dict.is_empty(), ERR_FILE_CANT_OPEN, "Failed to parse file: " + res_path);
 	return OK;
 }
-
 
 Error _export_file(const String &out_path, const String &res_path, Dictionary &dict) {
 	// We load it as json
@@ -31,7 +30,6 @@ Error _export_file(const String &out_path, const String &res_path, Dictionary &d
 	return OK;
 }
 
-
 Error SpineAtlasExporter::export_file(const String &out_path, const String &res_path) {
 	// We load it as json
 	Dictionary dict;
@@ -45,7 +43,7 @@ Ref<ExportReport> SpineAtlasExporter::export_resource(const String &output_dir, 
 	report->set_error(_export_file(dest, import_infos->get_path(), dict));
 	if (report->get_error() == OK) {
 		report->set_saved_path(dest);
-		if (import_infos->get_ver_major() >= 4){
+		if (import_infos->get_ver_major() >= 4) {
 			Dictionary params;
 			params["normal_map_prefix"] = dict["normal_texture_prefix"];
 			params["specular_map_prefix"] = dict["specular_texture_prefix"];

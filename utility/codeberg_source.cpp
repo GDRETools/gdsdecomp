@@ -6,22 +6,20 @@
 
 const String CodebergSource::codeberg_release_api_url = _codeberg_release_api_url;
 namespace {
-	static const HashMap<String, Vector<String>> tag_masks = {
-		{ "godotsteam", { "*gdn*", "*gde*" } },
-		{ "godotsteam_server", { "*gdn*", "*gde*" } },
-	};
+static const HashMap<String, Vector<String>> tag_masks = {
+	{ "godotsteam", { "*gdn*", "*gde*" } },
+	{ "godotsteam_server", { "*gdn*", "*gde*" } },
+};
 
-	static const HashMap<String, Vector<String>> release_file_masks = {
-	};
+static const HashMap<String, Vector<String>> release_file_masks = {};
 
-	static const HashMap<String, Vector<String>> release_file_exclude_masks = {
-	};
+static const HashMap<String, Vector<String>> release_file_exclude_masks = {};
 
-	static const HashMap<String, String> plugin_map = {
-		{ "godotsteam", "https://codeberg.org/GodotSteam/GodotSteam" },
-		{ "godotsteam_server", "https://codeberg.org/GodotSteam/GodotSteam-Server" },
-	};
-	} // namespace
+static const HashMap<String, String> plugin_map = {
+	{ "godotsteam", "https://codeberg.org/GodotSteam/GodotSteam" },
+	{ "godotsteam_server", "https://codeberg.org/GodotSteam/GodotSteam-Server" },
+};
+} // namespace
 
 CodebergSource::CodebergSource() {
 	// Initialize any necessary resources
@@ -46,7 +44,6 @@ const HashMap<String, Vector<String>> &CodebergSource::get_plugin_release_file_m
 const HashMap<String, Vector<String>> &CodebergSource::get_plugin_release_file_exclude_masks() {
 	return release_file_exclude_masks;
 }
-
 
 String CodebergSource::get_plugin_name() {
 	return "codeberg";

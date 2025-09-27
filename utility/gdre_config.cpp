@@ -196,10 +196,10 @@ Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 				"Load embedded zips within the project pack as part of project loading/recovery",
 				true)),
 		memnew(GDREConfigSetting(
-			"delete_auto_converted_files",
-			"Delete auto-converted files",
-			"Delete auto-converted files (*.gdc, etc.) after exporting. If disabled, the files will be moved to the `.autoconverted` folder.",
-			false)),
+				"delete_auto_converted_files",
+				"Delete auto-converted files",
+				"Delete auto-converted files (*.gdc, etc.) after exporting. If disabled, the files will be moved to the `.autoconverted` folder.",
+				false)),
 		memnew(GDREConfigSetting(
 				"force_single_threaded",
 				"Force single-threaded mode",
