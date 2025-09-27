@@ -458,9 +458,21 @@ Error FakeGDScript::parse_script() {
 
 				const StringName &annotation = identifiers[a_id];
 				const String annostr = annotation.get_data();
+				bool nothing_used = !func_used && !class_used && !var_used && !const_used && !extends_used && !class_name_used;
 
-				if (!func_used && !class_used && !var_used && !const_used && !extends_used && !class_name_used && annostr == "@tool") {
+				if (nothing_used && annostr == "@tool") {
 					tool = true;
+				} else if (nothing_used && annostr == "@icon") {
+					// @icon("res://path/to/icon.svg")
+					if (decomp->check_next_token(i, tokens, GT::G_TK_PARENTHESIS_OPEN) &&
+							decomp->check_next_token(i + 1, tokens, GT::G_TK_CONSTANT)) {
+						uint32_t string_id = tokens[i + 2] >> GDScriptDecomp::TOKEN_BITS;
+						FAKEGDSCRIPT_PARSE_FAIL_COND_V_MSG(string_id >= (uint32_t)identifiers.size(), "Invalid string index");
+						icon_path = identifiers[string_id];
+						if (icon_path.is_relative_path()) {
+							icon_path = script_path.get_base_dir().path_join(icon_path);
+						}
+					}
 				} else if (annostr.contains("@export") && !annostr.ends_with("group") && !annostr.ends_with("category")) {
 					Error err = get_export_var(i);
 					if (err) {
@@ -679,6 +691,10 @@ Error FakeGDScript::load_source_code(const String &p_path) {
 		return _reload_from_file();
 	}
 	return OK;
+}
+
+String FakeGDScript::get_icon_path() const {
+	return icon_path;
 }
 
 Error FakeGDScript::load_binary_tokens(const Vector<uint8_t> &p_binary_tokens) {

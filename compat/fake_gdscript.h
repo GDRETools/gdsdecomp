@@ -47,6 +47,8 @@ class FakeGDScript : public FakeScript {
 	Vector<uint8_t> binary_buffer;
 	Vector<StringName> export_vars;
 
+	String icon_path;
+
 	Error parse_script();
 	void ensure_base_and_global_name();
 
@@ -123,6 +125,7 @@ public:
 	// FakeScript overrides
 	virtual String get_script_path() const override;
 	virtual Error load_source_code(const String &p_path) override;
+	virtual String get_icon_path() const override;
 
 	virtual bool is_loaded() const override;
 

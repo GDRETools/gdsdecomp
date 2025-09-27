@@ -101,6 +101,7 @@ public:
 
 	virtual String get_error_message() const;
 	virtual bool is_loaded() const;
+	virtual String get_icon_path() const { return {}; }
 
 	// FakeScript extra methods
 	void set_original_class(const String &p_class);

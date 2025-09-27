@@ -1981,8 +1981,10 @@ struct ScriptCacheTask {
 			// 	}
 
 			Ref<FakeScript> fake_script = script;
+			String icon_path;
 			if (fake_script.is_valid()) {
 				tokens[i].d.set("base", fake_script->get_direct_base_type());
+				icon_path = fake_script->get_icon_path();
 			} else {
 				auto base_script = script->get_base_script();
 				if (base_script.is_valid()) {
@@ -1992,7 +1994,7 @@ struct ScriptCacheTask {
 				}
 			}
 			tokens[i].d.set("class", script->get_global_name());
-			tokens[i].d.set("icon", "");
+			tokens[i].d.set("icon", icon_path);
 			tokens[i].d.set("is_abstract", script->is_abstract());
 			tokens[i].d.set("is_tool", script->is_tool());
 			tokens[i].d.set("language", tokens[i].is_gdscript ? SNAME("GDScript") : SNAME("CSharpScript"));
