@@ -350,6 +350,7 @@ Error FakeCSharpScript::reload(bool p_keep_state) {
 	base_classes = script_info.get("base_classes", Vector<String>());
 	base_type_paths = script_info.get("base_type_paths", Vector<String>());
 	icon_path = script_info.get("icon_path", "");
+	globally_available = script_info.get("is_global_class", false);
 	base_type = base_classes.size() > 0 ? base_classes[0] : "RefCounted";
 	TypedArray<Dictionary> script_properties = script_info.get("properties", TypedArray<Dictionary>());
 	TypedArray<Dictionary> signals = script_info.get("signals", TypedArray<Dictionary>());
@@ -583,6 +584,10 @@ Error FakeCSharpScript::load_source_code(const String &p_path) {
 	script_path = p_path;
 	path_valid = true;
 	return _reload_from_file();
+}
+
+bool FakeCSharpScript::is_global_class() const {
+	return globally_available;
 }
 
 String FakeCSharpScript::get_icon_path() const {

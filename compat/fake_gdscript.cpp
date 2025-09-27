@@ -628,6 +628,7 @@ Error FakeGDScript::parse_script() {
 					FAKEGDSCRIPT_PARSE_FAIL_COND_V_MSG(identifier >= (uint32_t)identifiers.size(), "After class_name: Invalid identifier index");
 					global_name = identifiers[identifier];
 					local_name = global_name;
+					globally_available = true;
 				}
 				class_name_used = true;
 			} break;
@@ -725,6 +726,10 @@ bool FakeGDScript::is_autoload() const {
 
 bool FakeGDScript::is_loaded() const {
 	return loaded;
+}
+
+bool FakeGDScript::is_global_class() const {
+	return globally_available;
 }
 
 FakeGDScript::FakeGDScript() {

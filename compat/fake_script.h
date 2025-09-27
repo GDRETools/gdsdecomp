@@ -101,6 +101,7 @@ public:
 
 	virtual String get_error_message() const;
 	virtual bool is_loaded() const;
+	virtual bool is_global_class() const { return false; }
 	virtual String get_icon_path() const { return {}; }
 
 	// FakeScript extra methods

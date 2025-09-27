@@ -547,6 +547,7 @@ public class GodotModuleDecompiler
 			methodsInfo.ToArray(),
 			isTool,
 			typeDef.IsAbstract,
+			typeDef.GetAttributes().Any(a => a.AttributeType.Name == "GlobalClassAttribute"),
 			iconPath
 		);
 		return scriptInfo;

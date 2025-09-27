@@ -37,6 +37,7 @@ class FakeGDScript : public FakeScript {
 	bool path_valid = false; // False if using default path.
 	StringName local_name; // Inner class identifier or `class_name`.
 	StringName global_name; // `class_name`.
+	bool globally_available = false;
 
 	//	HashMap<StringName, Variant> constants;
 	// String fully_qualified_name;
@@ -125,6 +126,7 @@ public:
 	// FakeScript overrides
 	virtual String get_script_path() const override;
 	virtual Error load_source_code(const String &p_path) override;
+	virtual bool is_global_class() const override;
 	virtual String get_icon_path() const override;
 
 	virtual bool is_loaded() const override;
