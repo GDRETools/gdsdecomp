@@ -346,12 +346,16 @@ Error PluginManager::populate_plugin_version_hashes(PluginVersion &plugin_versio
 
 	// get all the gdexts
 	HashMap<String, GDExtInfo> gdexts;
+	String backup_plugin_name = "";
 	for (int i = 0; i < files.size(); i++) {
 		auto ipath = files[i];
+		auto idx = ipath.to_lower().find("addons");
+		if (backup_plugin_name.is_empty() && idx != -1 && !ipath.ends_with("/") && ipath.get_file() != "addons") {
+			backup_plugin_name = ipath.substr(idx).simplify_path().get_slice("/", 1);
+		}
 		auto ext = files[i].get_extension().to_lower();
 		if (ext == "gdextension" || ext == "gdnlib") {
 			// get the path relative to the "addons" folder
-			auto idx = ipath.to_lower().find("addons");
 			if (idx == -1) {
 				// just get one path up from the file
 				idx = ipath.get_base_dir().rfind("/") + 1;
@@ -375,6 +379,19 @@ Error PluginManager::populate_plugin_version_hashes(PluginVersion &plugin_versio
 
 	if (gdexts.size() == 0) {
 		print_line("No gdexts found in plugin, skipping: " + url);
+		if (plugin_version.plugin_name.is_empty()) {
+			if (backup_plugin_name.is_empty()) {
+				String zip_name = url.ends_with(".zip") ? url.get_file() : "plugin.zip";
+				if (zip_name != "plugin.zip") {
+					plugin_version.plugin_name = zip_name.get_basename();
+				} else {
+					// github.com/godotsteam/godotsteam/releases/download/thing.zip -> godotsteam
+					plugin_version.plugin_name = url.trim_prefix("https://").trim_prefix("http://").get_slice("/", 2);
+				}
+			} else {
+				plugin_version.plugin_name = backup_plugin_name;
+			}
+		}
 		close_and_remove_zip();
 		return OK;
 	}
