@@ -316,6 +316,8 @@ public:
 	StringName get_cached_script_base(const String &p_path);
 	// Returns the path to the script for the given class from the script cache
 	String get_path_for_script_class(const StringName &p_class);
+	// Returns the whole script cache entry for the given path
+	Dictionary get_cached_script_entry(const String &p_path);
 
 	// Returns the list of files in the project, filtered by the given filters
 	Vector<String> get_file_list(const Vector<String> &filters = Vector<String>());

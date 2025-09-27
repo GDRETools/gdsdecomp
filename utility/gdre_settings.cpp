@@ -1201,6 +1201,13 @@ String GDRESettings::get_path_for_script_class(const StringName &p_class) {
 	return "";
 }
 
+Dictionary GDRESettings::get_cached_script_entry(const String &p_path) {
+	if (!is_pack_loaded() || p_path.is_empty() || !script_cache.has(p_path)) {
+		return Dictionary();
+	}
+	return script_cache[p_path];
+}
+
 bool GDRESettings::had_encryption_error() const {
 	return error_encryption;
 }
