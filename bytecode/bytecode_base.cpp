@@ -1925,7 +1925,7 @@ static int64_t continuity_tester(const HashMap<K, V> &p_vector, const HashMap<K,
 	return -1;
 }
 
-Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, const Vector<uint8_t> &p_buffer2) {
+Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, const Vector<uint8_t> &p_buffer2, bool ignore_lines_cols, bool is_printing_verbose) {
 	int64_t discontinuity = -1;
 	if (p_buffer1 == p_buffer2) {
 		return OK;
@@ -1941,13 +1941,11 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 	err = ERR_BUG;             \
 	error_message += x + "\n"; \
 	// WARN_PRINT(x)
-	bool is_printing_verbose;
+
 #ifdef DEBUG_ENABLED
 #define bl_print(...) print_line(__VA_ARGS__)
-	is_printing_verbose = true;
 #else
 #define bl_print(...) print_verbose(__VA_ARGS__)
-	is_printing_verbose = is_print_verbose_enabled();
 #endif
 
 	if (state1.bytecode_version != state2.bytecode_version) {
@@ -1972,7 +1970,7 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 		return OK;
 	}
 
-	Ref<GDScriptDecomp> decomp = create_decomp_for_commit(get_bytecode_rev());
+	// Ref<GDScriptDecomp> decomp = create_decomp_for_commit(get_bytecode_rev());
 	error_message = "";
 	discontinuity = continuity_tester(state1.identifiers, state2.identifiers, "Identifiers");
 	if (discontinuity != -1) {
@@ -1995,14 +1993,27 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 	auto old_tokens_size = state1.tokens.size();
 	auto new_tokens_size = state2.tokens.size();
 	discontinuity = continuity_tester(state1.tokens, state2.tokens, "Tokens");
+	if (discontinuity == -1 && ignore_lines_cols && err == OK) {
+		return OK;
+	}
 
-	auto get_token_name_plus_value = [&](int token) {
+	auto get_token_name_plus_value = [&](const ScriptState &p_state, int token) {
 		auto g_token = get_global_token(token);
 		String name = GDScriptTokenizerTextCompat::get_token_name(g_token);
 		if (g_token == G_TK_IDENTIFIER || g_token == G_TK_ANNOTATION) {
-			name = "Identifier " + itos(token >> TOKEN_BITS) + " (" + state1.identifiers[token >> TOKEN_BITS] + ")";
+			auto identifier_idx = token >> TOKEN_BITS;
+			if (identifier_idx < p_state.identifiers.size()) {
+				name = "Identifier " + itos(identifier_idx) + " (" + p_state.identifiers[identifier_idx] + ")";
+			} else {
+				name = "Identifier " + itos(identifier_idx) + " (OUT OF RANGE)";
+			}
 		} else if (g_token == G_TK_CONSTANT) {
-			name = "Constant " + itos(token >> TOKEN_BITS) + " (" + state1.constants[token >> TOKEN_BITS].operator String() + ")";
+			auto constant_idx = token >> TOKEN_BITS;
+			if (constant_idx < p_state.constants.size()) {
+				name = "Constant " + itos(constant_idx) + " (" + p_state.constants[constant_idx].operator String() + ")";
+			} else {
+				name = "Constant " + itos(constant_idx) + " (OUT OF RANGE)";
+			}
 		}
 		return name;
 	};
@@ -2018,7 +2029,7 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 			auto old_token = state1.tokens[i];
 			auto new_token = state2.tokens[i];
 			if (get_global_token(old_token) != get_global_token(new_token)) {
-				bl_print(String("Different Tokens: ") + get_token_name_plus_value(old_token) + String(" != ") + get_token_name_plus_value(new_token));
+				bl_print(String("Different Tokens: ") + get_token_name_plus_value(state1, old_token) + String(" != ") + get_token_name_plus_value(state2, new_token));
 			} else {
 				String old_token_name = GDScriptTokenizerTextCompat::get_token_name(get_global_token(old_token));
 				int old_token_val = old_token >> TOKEN_BITS;
@@ -2026,7 +2037,7 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 				if (old_token_val != new_token_val) {
 					bl_print(String("Different Token Val for ") + GDScriptTokenizerTextCompat::get_token_name(get_global_token(old_token)) + ":" + itos(old_token_val) + String(" != ") + itos(new_token_val));
 				} else {
-					bl_print(String("Same Token Val for ") + get_token_name_plus_value(old_token));
+					bl_print(String("Same Token Val for ") + get_token_name_plus_value(state1, old_token));
 				}
 			}
 		}
@@ -2041,7 +2052,7 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 			String old_token_name = GDScriptTokenizerTextCompat::get_token_name(get_global_token(old_token));
 			String new_token_name = GDScriptTokenizerTextCompat::get_token_name(get_global_token(new_token));
 			if (old_token_name != new_token_name) {
-				REPORT_DIFF(String("Different Tokens: ") + get_token_name_plus_value(old_token) + String(" != ") + get_token_name_plus_value(new_token));
+				REPORT_DIFF(String("Different Tokens: ") + get_token_name_plus_value(state1, old_token) + String(" != ") + get_token_name_plus_value(state2, new_token));
 			} else {
 				int old_token_val = old_token >> TOKEN_BITS;
 				int new_token_val = new_token >> TOKEN_BITS;

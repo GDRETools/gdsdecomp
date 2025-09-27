@@ -332,10 +332,51 @@ Error ImportExporter::unzip_and_copy_addon(const Ref<ImportInfoGDExt> &iinfo, co
 		ERR_FAIL_COND_V_MSG(addons.size() == 0, ERR_FILE_NOT_FOUND, "Failed to find our addon file in " + zip_path);
 	}
 	auto da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
-	Error err = da->copy_dir(tmp_dir, output);
-	ERR_FAIL_COND_V_MSG(err != OK, ERR_FILE_CANT_WRITE, "Failed to copy GodotSteam files to " + output_dir);
+	auto plugin_files = gdre::get_recursive_dir_list(tmp_dir, {}, false);
+	auto existing_files = gdre::vector_to_hashset(gdre::get_recursive_dir_list(output, {}, false));
+	auto decomp = GDScriptDecomp::create_decomp_for_commit(GDRESettings::get_singleton()->get_bytecode_revision());
+	uint64_t start_time = OS::get_singleton()->get_ticks_msec();
+	int64_t files_copied = 0;
+	for (auto &file : plugin_files) {
+		String plugin_path = tmp_dir.path_join(file);
+		String existing_path = output.path_join(file);
+		if (existing_files.has(file)) {
+			String ext = file.get_extension().to_lower();
+			if (ext == "cs" || ext == "uid") {
+				// not overwriting code or uid files because the project may have changed them in an incompatible way
+				continue;
+			} else if (ext == "gd") {
+				// get the text minus whitespace at beginning and end
+				String plugin_text = FileAccess::get_file_as_string(plugin_path).strip_edges();
+				String existing_text = FileAccess::get_file_as_string(existing_path).strip_edges();
+				if (plugin_text.is_empty()) {
+					continue;
+				} else if (existing_text.is_empty() || decomp.is_null()) {
+					// do nothing, we'll copy it below
+				} else if (plugin_text != existing_text) {
+					// compile the code string to check if they're the same (ignoring whitespace and comments)
+					// If not, don't overwrite the existing file
+					Vector<uint8_t> plugin_bytes = decomp->compile_code_string(plugin_text);
+					Vector<uint8_t> existing_bytes = decomp->compile_code_string(existing_text);
+					if (decomp->test_bytecode_match(plugin_bytes, existing_bytes, true, false) != OK) {
+#if DEBUG_ENABLED
+						print_line(vformat("\n\n***** Different code for %s *****\n", file));
+						// print_line(decomp->get_error_message());
+#endif
+						continue;
+					}
+				}
+			}
+		}
+		gdre::ensure_dir(existing_path.get_base_dir());
+		ERR_CONTINUE(DirAccess::copy_absolute(tmp_dir.path_join(file), output.path_join(file)) != OK);
+		files_copied++;
+	}
 	gdre::rimraf(parent_tmp_dir);
 	da->remove(zip_path);
+#if DEBUG_ENABLED
+	print_line(vformat("Time taken to copy %d plugin files for %s: %dms", files_copied, iinfo->get_path(), OS::get_singleton()->get_ticks_msec() - start_time));
+#endif
 	return OK;
 }
 
