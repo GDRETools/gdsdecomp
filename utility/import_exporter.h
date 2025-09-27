@@ -89,9 +89,12 @@ protected:
 	static void _bind_methods();
 };
 
+struct FileInfoComparator;
 class ImportExporter : public RefCounted {
 	GDCLASS(ImportExporter, RefCounted)
 	String output_dir;
+
+	friend FileInfoComparator;
 
 	struct ExportToken {
 		Ref<ImportInfo> iinfo;
@@ -100,6 +103,42 @@ class ImportExporter : public RefCounted {
 	};
 
 	Ref<ImportExporterReport> report;
+	HashMap<String, Ref<ExportReport>> src_to_report;
+	HashSet<String> textfile_extensions;
+	HashSet<String> other_file_extensions;
+	HashSet<String> valid_extensions;
+
+	// for the cache file
+	struct FileInfo {
+		String file;
+		String type;
+		String resource_script_class; // If any resource has script with a global class name, its found here.
+		ResourceUID::ID uid = ResourceUID::INVALID_ID;
+		uint64_t modified_time = 0;
+		uint64_t import_modified_time = 0;
+		String import_md5;
+		Vector<String> import_dest_paths;
+		bool import_valid = false;
+		String import_group_file;
+		Vector<String> deps;
+		bool verified = false; //used for checking changes
+		// This is for script resources only.
+		struct ScriptClassInfo {
+			String name;
+			String extends;
+			String icon_path;
+			bool is_abstract = false;
+			bool is_tool = false;
+		};
+		ScriptClassInfo class_info;
+	};
+
+	void update_exts();
+
+	void save_filesystem_cache(const Vector<FileInfo> &reports, String output_dir);
+
+	void _do_file_info(uint32_t i, FileInfo *file_info);
+	String get_file_info_description(uint32_t i, FileInfo *file_info);
 	void _do_export(uint32_t i, ExportToken *tokens);
 	String get_export_token_description(uint32_t i, ExportToken *tokens);
 	Error handle_auto_converted_file(const String &autoconverted_file);

@@ -53,17 +53,13 @@ Ref<ImportExporterReport> ImportExporter::get_report() {
 	return report;
 }
 
-/**
-Sort the scenes so that they are exported last
- */
 namespace {
 static FileNoCaseComparator file_no_case_comparator;
-struct ReportComparator {
-	bool operator()(const Ref<ExportReport> &a, const Ref<ExportReport> &b) const {
-		String a_src_file = a->get_import_info()->get_source_file();
-		String b_src_file = b->get_import_info()->get_source_file();
-		String a_base_dir = a_src_file.get_base_dir();
-		String b_base_dir = b_src_file.get_base_dir();
+}
+struct FileInfoComparator {
+	bool operator()(const ImportExporter::FileInfo &a, const ImportExporter::FileInfo &b) const {
+		String a_base_dir = a.file.get_base_dir();
+		String b_base_dir = b.file.get_base_dir();
 		if (a_base_dir != b_base_dir) {
 			// subdirectories come last
 			if (a_base_dir.begins_with(b_base_dir)) {
@@ -72,10 +68,9 @@ struct ReportComparator {
 				return true;
 			}
 		}
-		return file_no_case_comparator(a_src_file, b_src_file);
+		return file_no_case_comparator(a.file, b.file);
 	}
 };
-} //namespace
 
 // Error remove_remap(const String &src, const String &dst, const String &output_dir);
 Error ImportExporter::handle_auto_converted_file(const String &autoconverted_file) {
@@ -105,7 +100,17 @@ Error ImportExporter::remove_remap_and_autoconverted(const String &source_file, 
 	return handle_auto_converted_file(autoconverted_file);
 }
 
-void _save_filesystem_cache(const Vector<Ref<ExportReport>> &reports, Ref<FileAccess> p_file, const String &output_dir) {
+void ImportExporter::save_filesystem_cache(const Vector<FileInfo> &reports, String output_dir) {
+	if (get_ver_major() <= 3) {
+		return;
+	}
+	String cache_path = get_ver_minor() < 4 ? "filesystem_cache8" : "filesystem_cache10";
+	String editor_dir = output_dir.path_join(".godot").path_join("editor");
+	gdre::ensure_dir(editor_dir);
+	String cache_file = editor_dir.path_join(cache_path);
+	Ref<FileAccess> p_file = FileAccess::open(cache_file, FileAccess::WRITE);
+	//write an md5 hash of all 0s
+	p_file->store_line(String("00000000000000000000000000000000"));
 	String current_dir = "";
 	const int64_t curr_time = OS::get_singleton()->get_unix_time();
 	auto get_dir_modified_time = [&](const String &dir) {
@@ -116,9 +121,11 @@ void _save_filesystem_cache(const Vector<Ref<ExportReport>> &reports, Ref<FileAc
 		return time;
 	};
 	const bool is_v4_4_or_newer = get_ver_major() > 4 || (get_ver_major() == 4 && get_ver_minor() >= 4);
-	for (auto &report : reports) {
-		const auto iinfo = report->get_import_info();
-		const String source_file = report->get_import_info()->get_source_file();
+	for (auto &file_info : reports) {
+		if (!file_info.verified) {
+			continue;
+		}
+		const String &source_file = file_info.file;
 		String base_dir = source_file.get_base_dir();
 		if (base_dir != "res://") {
 			base_dir += "/";
@@ -145,75 +152,152 @@ void _save_filesystem_cache(const Vector<Ref<ExportReport>> &reports, Ref<FileAc
 			current_dir = base_dir;
 		}
 
-		String type = report->actual_type;
-		if (!report->script_class.is_empty()) {
-			type += "/" + String(report->script_class);
-		}
-		String script_class_name = "";
-		String script_class_extends = "";
-		String script_class_icon_path = "";
-		bool is_abstract = false;
-		bool is_tool = false;
-		ResourceUID::ID uid = ResourceUID::INVALID_ID;
-
-		if (source_file.get_extension() == "gd") {
-			auto script_entry = GDRESettings::get_singleton()->get_cached_script_entry(source_file);
-			script_class_name = script_entry.get("class", "");
-			if (script_class_name.is_resource_file()) {
-				// If it has no script class name, don't write it
-				script_class_name.clear();
-			}
-			script_class_extends = script_entry.get("base", "");
-			script_class_icon_path = script_entry.get("icon", "");
-			is_abstract = script_entry.get("is_abstract", false);
-			is_tool = script_entry.get("is_tool", false);
-		}
-
-		if (iinfo->is_import()) {
-			uid = ResourceUID::get_singleton()->text_to_id(iinfo->get_uid());
-		} else {
-			uid = GDRESettings::get_singleton()->get_uid_for_path(source_file);
+		String type = file_info.type;
+		if (!file_info.resource_script_class.is_empty()) {
+			type += "/" + String(file_info.resource_script_class);
 		}
 
 		PackedStringArray cache_string;
 		cache_string.append(source_file.get_file());
 		cache_string.append(type);
-		cache_string.append(itos(uid));
-		cache_string.append(itos(report->modified_time));
-		cache_string.append(itos(report->import_modified_time));
+		cache_string.append(itos(file_info.uid));
+		cache_string.append(itos(file_info.modified_time));
+		cache_string.append(itos(file_info.import_modified_time));
 		cache_string.append(itos(1)); // TODO?
 		cache_string.append("");
 		Vector<String> parts = {
-			script_class_name,
-			script_class_extends,
-			script_class_icon_path,
+			file_info.class_info.name,
+			file_info.class_info.extends,
+			file_info.class_info.icon_path,
 		};
 		if (is_v4_4_or_newer) {
-			auto dest_files = iinfo->is_import() ? iinfo->get_dest_files() : Vector<String>();
-			parts.append_array({ itos(is_abstract), itos(is_tool), report->import_md5, String("<*>").join(dest_files) });
+			parts.append_array({ itos(file_info.class_info.is_abstract), itos(file_info.class_info.is_tool), file_info.import_md5, String("<*>").join(file_info.import_dest_paths) });
 		}
 		cache_string.append(String("<>").join(parts));
-		cache_string.append(String("<>").join(report->dependencies));
+		cache_string.append(String("<>").join(file_info.deps));
 
 		p_file->store_line(String("::").join(cache_string));
 	}
 }
 
-void save_filesystem_cache(const Vector<Ref<ExportReport>> &reports, String output_dir, bool is_partial_export) {
-	if (get_ver_major() <= 3) {
+void ImportExporter::_do_file_info(uint32_t i, FileInfo *file_infos) {
+	auto &file_info = file_infos[i];
+	String ext = file_info.file.get_extension().to_lower();
+	auto report = src_to_report.has(file_info.file) ? src_to_report.get(file_info.file) : Ref<ExportReport>();
+	if (report.is_valid() && report->modified_time > 0) {
+		auto iinfo = report->get_import_info();
+		bool is_import = iinfo.is_valid() ? iinfo->is_import() : false;
+		file_info.type = report->actual_type;
+		file_info.resource_script_class = report->script_class;
+		file_info.uid = is_import ? ResourceUID::get_singleton()->text_to_id(iinfo->get_uid()) : GDRESettings::get_singleton()->get_uid_for_path(file_info.file);
+		file_info.modified_time = report->modified_time;
+		file_info.import_modified_time = report->import_modified_time;
+		file_info.import_md5 = report->import_md5;
+		file_info.import_dest_paths = is_import ? iinfo->get_dest_files() : Vector<String>();
+		file_info.import_valid = true;
+		auto group_val = is_import ? iinfo->get_iinfo_val("remap", "group_file") : Variant();
+		if (group_val.get_type() == Variant::STRING) {
+			file_info.import_group_file = group_val;
+		}
+		file_info.deps = report->dependencies;
+		file_info.verified = true;
+	} else if (valid_extensions.has(ext)) {
+		String path = output_dir.path_join(file_info.file.trim_prefix("res://"));
+		file_info.modified_time = FileAccess::get_modified_time(path);
+		if (FileAccess::exists(path + ".import")) {
+			file_info.import_modified_time = FileAccess::get_modified_time(path + ".import");
+			file_info.import_md5 = FileAccess::get_md5(path + ".import");
+			Ref<ConfigFile> cf = Ref<ConfigFile>(memnew(ConfigFile));
+			Error err = cf->load(path + ".import");
+			if (err == OK) {
+				if (cf->has_section_key("remap", "dest_files")) {
+					file_info.import_dest_paths = cf->get_value("remap", "dest_files", Vector<String>());
+				}
+				if (cf->has_section_key("remap", "group_file")) {
+					file_info.import_group_file = cf->get_value("remap", "group_file", "");
+				}
+				if (cf->has_section_key("remap", "uid")) {
+					file_info.uid = ResourceUID::get_singleton()->text_to_id(cf->get_value("remap", "uid", ""));
+				}
+			}
+		}
+		if (file_info.uid == ResourceUID::INVALID_ID) {
+			file_info.uid = GDRESettings::get_singleton()->get_uid_for_path(file_info.file);
+		}
+		file_info.type = ResourceCompatLoader::get_resource_type(path);
+		file_info.resource_script_class = ResourceCompatLoader::get_resource_script_class(path);
+		if (ext == "md") {
+			bool foo = false;
+		}
+		if (file_info.type == "" && textfile_extensions.has(ext)) {
+			file_info.type = "TextFile";
+		}
+		if (file_info.type == "" && other_file_extensions.has(ext)) {
+			file_info.type = "OtherFile";
+		}
+		file_info.import_valid = true;
+		file_info.verified = true;
+	} else {
+		file_info.verified = false;
 		return;
 	}
-	String cache_path = get_ver_minor() < 4 ? "filesystem_cache8" : "filesystem_cache10";
-	String editor_dir = output_dir.path_join(".godot").path_join("editor");
-	gdre::ensure_dir(editor_dir);
-	String cache_file = editor_dir.path_join(cache_path);
-	if (is_partial_export && FileAccess::exists(cache_file)) {
-		return;
+	if (ext == "gd") {
+		auto script_entry = GDRESettings::get_singleton()->get_cached_script_entry(file_info.file);
+		file_info.class_info.name = script_entry.get("class", "");
+		if (file_info.class_info.name.is_resource_file()) {
+			file_info.class_info.name.clear();
+		}
+		file_info.class_info.extends = script_entry.get("base", "");
+		file_info.class_info.icon_path = script_entry.get("icon", "");
+		file_info.class_info.is_abstract = script_entry.get("is_abstract", false);
+		file_info.class_info.is_tool = script_entry.get("is_tool", false);
+	} else if (ext == "cs" && GDRESettings::get_singleton()->has_loaded_dotnet_assembly()) {
+		GDRELogger::set_thread_local_silent_errors(true);
+		Ref<FakeScript> script = ResourceCompatLoader::custom_load(file_info.file, "", ResourceInfo::LoadType::NON_GLOBAL_LOAD, nullptr, false, ResourceFormatLoader::CACHE_MODE_IGNORE);
+		GDRELogger::set_thread_local_silent_errors(false);
+		if (script.is_valid()) {
+			file_info.class_info.name = script->is_global_class() ? (String)script->get_global_name() : "";
+			file_info.class_info.extends = script->get_direct_base_type();
+			file_info.class_info.icon_path = script->get_icon_path();
+			file_info.class_info.is_abstract = script->is_abstract();
+			file_info.class_info.is_tool = script->is_tool();
+		}
 	}
-	Ref<FileAccess> f = FileAccess::open(cache_file, FileAccess::WRITE);
-	//write an md5 hash of all 0s
-	f->store_line(String("00000000000000000000000000000000"));
-	_save_filesystem_cache(reports, f, output_dir);
+}
+
+String ImportExporter::get_file_info_description(uint32_t i, FileInfo *file_info) {
+	return file_info[i].file;
+}
+
+void ImportExporter::update_exts() {
+	valid_extensions.clear();
+	textfile_extensions.clear();
+	other_file_extensions.clear();
+
+	valid_extensions.insert("cs");
+
+	List<String> extensionsl;
+	ResourceLoader::get_recognized_extensions_for_type("", &extensionsl);
+	for (const String &E : extensionsl) {
+		valid_extensions.insert(E);
+	}
+
+	const Vector<String> textfile_ext = (get_settings()->get_project_setting("docks/filesystem/textfile_extensions", "txt,md,cfg,ini,log,json,yml,yaml,toml,xml").operator String().split(",", false));
+	for (const String &E : textfile_ext) {
+		if (valid_extensions.has(E)) {
+			continue;
+		}
+		valid_extensions.insert(E);
+		textfile_extensions.insert(E);
+	}
+	const Vector<String> other_file_ext = (get_settings()->get_project_setting("docks/filesystem/other_file_extensions", "ico,icns").operator String().split(",", false));
+	for (const String &E : other_file_ext) {
+		if (valid_extensions.has(E)) {
+			continue;
+		}
+		valid_extensions.insert(E);
+		other_file_extensions.insert(E);
+	}
 }
 
 void ImportExporter::rewrite_metadata(ExportToken &token) {
@@ -643,7 +727,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		WARN_PRINT("No import files found!");
 		return OK;
 	}
-	bool partial_export = (_files_to_export.size() > 0 && _files_to_export.size() != get_settings()->get_file_count());
+	bool partial_export = (_files_to_export.size() > 0 && _files_to_export.size() != get_settings()->get_file_info_list({}).size());
 	size_t export_files_count = partial_export ? _files_to_export.size() : _files.size();
 	const Vector<String> files_to_export = partial_export ? _files_to_export : get_settings()->get_file_list();
 	HashSet<String> files_to_export_set = vector_to_hashset(files_to_export);
@@ -997,7 +1081,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		// intentionally not checking for cancellation here; scene export can sometimes hang on certain scenes, and we don't want to cancel the entire export
 		auto reports = SceneExporter::get_singleton()->batch_export_files(output_dir, scene_tokens);
 		for (int i = 0; i < reports.size(); i++) {
-			ExportToken token = { scene_tokens[i], reports[i], false };
+			ExportToken token = { reports[i]->get_import_info(), reports[i], false };
 			rewrite_metadata(token);
 			non_multithreaded_tokens.push_back(token);
 		}
@@ -1020,6 +1104,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	// add to report
 	bool has_remaps = GDRESettings::get_singleton()->has_any_remaps();
 	HashSet<String> success_paths;
+	bool doing_cache = get_ver_major() >= 4 && !(get_ver_minor() < 1 && get_ver_major() == 4);
 	for (int i = 0; i < tokens.size(); i++) {
 		const ExportToken &token = tokens[i];
 		Ref<ImportInfo> iinfo = token.iinfo;
@@ -1028,6 +1113,9 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		if (ret.is_null()) {
 			ERR_PRINT("Exporter returned null report for " + iinfo->get_path());
 			continue;
+		}
+		if (doing_cache) {
+			src_to_report[iinfo->get_source_file()] = ret;
 		}
 		String exporter = ret->get_exporter();
 		err = ret->get_error();
@@ -1204,25 +1292,48 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 			}
 		}
 	}
+	// check if the .tmp directory is empty
+	if (gdre::dir_is_empty(output_dir.path_join(".tmp"))) {
+		dir->remove(output_dir.path_join(".tmp"));
+	}
+
 	// 4.1 and higher have a filesystem cache
-	if (get_ver_major() >= 4 && !(get_ver_minor() < 1 && get_ver_major() == 4)) {
-		Vector<Ref<ExportReport>> reports;
-		for (auto &token : tokens) {
-			if (token.report->modified_time > 0) {
-				reports.push_back(token.report);
+	if (doing_cache) {
+		String cache_path = get_ver_minor() < 4 ? "filesystem_cache8" : "filesystem_cache10";
+		String editor_dir = output_dir.path_join(".godot").path_join("editor");
+		gdre::ensure_dir(editor_dir);
+		String cache_file = editor_dir.path_join(cache_path);
+		if (!partial_export || !FileAccess::exists(cache_file)) {
+			update_exts();
+			Vector<FileInfo> file_infos;
+			auto all_files_in_output_dir = gdre::get_recursive_dir_list(output_dir, {}, false, false);
+
+			Vector<Ref<ExportReport>> reports;
+			for (auto &file : all_files_in_output_dir) {
+				String ext = file.get_extension().to_lower();
+				if (ext == "uid" || ext == "import" || file.begins_with(".") || file.get_file().begins_with(".")) {
+					continue;
+				}
+				file_infos.push_back(FileInfo{ "res://" + file });
 			}
+
+			err = TaskManager::get_singleton()->run_multithreaded_group_task(
+					this,
+					&ImportExporter::_do_file_info,
+					file_infos.ptrw(),
+					file_infos.size(),
+					&ImportExporter::get_file_info_description,
+					"ImportExporter::export_imports::filesystem_cache",
+					"Generating filesystem cache...",
+					true, -1, true);
+			file_infos.sort_custom<FileInfoComparator>();
+			save_filesystem_cache(file_infos, output_dir);
 		}
-		reports.sort_custom<ReportComparator>();
-		save_filesystem_cache(reports, output_dir, partial_export);
 	}
 
 	pr = nullptr;
 	ResourceCompatLoader::set_default_gltf_load(false);
 	ResourceCompatLoader::unmake_globally_available();
-	// check if the .tmp directory is empty
-	if (gdre::dir_is_empty(output_dir.path_join(".tmp"))) {
-		dir->remove(output_dir.path_join(".tmp"));
-	}
 	check_process_done(true);
 	report->print_report();
 	return OK;
@@ -1414,6 +1525,10 @@ void ImportExporter::reset_log() {
 
 void ImportExporter::reset() {
 	output_dir.clear();
+	src_to_report.clear();
+	textfile_extensions.clear();
+	other_file_extensions.clear();
+	valid_extensions.clear();
 	reset_log();
 }
 

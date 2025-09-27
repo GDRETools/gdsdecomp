@@ -12,7 +12,7 @@
 class Image;
 class FileAccess;
 namespace gdre {
-Vector<String> get_recursive_dir_list(const String &dir, const Vector<String> &wildcards = {}, const bool absolute = true, const String &rel = "");
+Vector<String> get_recursive_dir_list(const String &dir, const Vector<String> &wildcards = {}, bool absolute = true, bool include_hidden = true, const String &rel = "");
 bool dir_has_any_matching_wildcards(const String &dir, const Vector<String> &wildcards = {});
 
 bool check_header(const Vector<uint8_t> &p_buffer, const char *p_expected_header, int p_expected_len);

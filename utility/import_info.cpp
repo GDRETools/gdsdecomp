@@ -419,6 +419,9 @@ bool ImportInfoModern::has_param(const String &p_key) const {
 }
 
 Variant ImportInfoModern::get_iinfo_val(const String &p_section, const String &p_prop) const {
+	if (!cf->has_section_key(p_section, p_prop)) {
+		return Variant();
+	}
 	return cf->get_value(p_section, p_prop);
 }
 

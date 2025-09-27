@@ -12,7 +12,7 @@
 #include "modules/regex/regex.h"
 #include "modules/zip/zip_reader.h"
 
-Vector<String> gdre::get_recursive_dir_list(const String &p_dir, const Vector<String> &wildcards, const bool absolute, const String &rel) {
+Vector<String> gdre::get_recursive_dir_list(const String &p_dir, const Vector<String> &wildcards, bool absolute, bool include_hidden, const String &rel) {
 	Vector<String> ret;
 	Error err;
 	Ref<DirAccess> da = DirAccess::open(p_dir.path_join(rel), &err);
@@ -25,6 +25,7 @@ Vector<String> gdre::get_recursive_dir_list(const String &p_dir, const Vector<St
 	Vector<String> files;
 
 	String base = absolute ? p_dir : "";
+	da->set_include_hidden(include_hidden);
 	da->list_dir_begin();
 	String f = da->get_next();
 	while (!f.is_empty()) {
@@ -43,7 +44,7 @@ Vector<String> gdre::get_recursive_dir_list(const String &p_dir, const Vector<St
 	dirs.sort_custom<FileNoCaseComparator>();
 	files.sort_custom<FileNoCaseComparator>();
 	for (auto &d : dirs) {
-		ret.append_array(get_recursive_dir_list(p_dir, wildcards, absolute, rel.path_join(d)));
+		ret.append_array(get_recursive_dir_list(p_dir, wildcards, absolute, include_hidden, rel.path_join(d)));
 	}
 	for (auto &file : files) {
 		if (wildcards.size() > 0) {
@@ -1023,7 +1024,7 @@ bool gdre::is_fs_path(const String &p_path) {
 void GDRECommon::_bind_methods() {
 	//	ClassDB::bind_static_method("GLTFCamera", D_METHOD("from_node", "camera_node"), &GLTFCamera::from_node);
 
-	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_recursive_dir_list", "dir", "wildcards", "absolute", "rel"), &gdre::get_recursive_dir_list, DEFVAL(PackedStringArray()), DEFVAL(true), DEFVAL(""));
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_recursive_dir_list", "dir", "wildcards", "absolute", "include_hidden", "rel"), &gdre::get_recursive_dir_list, DEFVAL(PackedStringArray()), DEFVAL(true), DEFVAL(true), DEFVAL(""));
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("dir_has_any_matching_wildcards", "dir", "wildcards"), &gdre::dir_has_any_matching_wildcards);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("ensure_dir", "dir"), &gdre::ensure_dir);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_md5", "dir", "ignore_code_signature"), &gdre::get_md5);
