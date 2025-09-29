@@ -28,7 +28,7 @@ class EditorNode;
 #include "gdre_enc_key.h"
 #include "gdre_npck_dlg.h"
 #include "gdre_pck_dlg.h"
-#include "utility/gdre_progress.h"
+#include "gui/gdre_progress.h"
 #ifdef TOOLS_ENABLED
 class ResultDialog : public AcceptDialog {
 	GDCLASS(ResultDialog, AcceptDialog)

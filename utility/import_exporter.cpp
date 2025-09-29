@@ -31,7 +31,6 @@
 #include "utility/import_info.h"
 
 #include <compat/script_loader.h>
-#include <utility/gdre_standalone.h>
 
 using namespace gdre;
 

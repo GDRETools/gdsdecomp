@@ -1,7 +1,7 @@
 #include "find_replace_bar.h"
 #include "core/variant/array.h"
 #include "editor/gdre_icons.gen.h"
-#include "gdre_settings.h"
+#include "utility/gdre_settings.h"
 #ifdef MODULE_SVG_ENABLED
 #include "modules/svg/image_loader_svg.h"
 #endif

@@ -1,5 +1,5 @@
 #include "gdre_window.h"
-#include "utility/gdre_progress.h"
+#include "gui/gdre_progress.h"
 
 namespace internal {
 

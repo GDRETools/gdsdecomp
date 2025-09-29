@@ -7,7 +7,7 @@
 #include "utility/common.h"
 #include "utility/packed_file_info.h"
 
-#include <utility/gdre_standalone.h>
+#include <gui/gdre_standalone.h>
 #include <utility/task_manager.h>
 
 const static Vector<uint8_t> empty_md5 = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };

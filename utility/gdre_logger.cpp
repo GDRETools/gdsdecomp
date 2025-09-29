@@ -1,7 +1,7 @@
 #include "gdre_logger.h"
 #include "core/os/mutex.h"
 #include "gdre_settings.h"
-#include "utility/gdre_standalone.h"
+#include "gui/gdre_standalone.h"
 
 #include "core/io/dir_access.h"
 

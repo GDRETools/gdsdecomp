@@ -1,12 +1,12 @@
 #include "gdre_standalone.h"
 #include "core/object/callable_method_pointer.h"
-#include "gdre_version.gen.h"
+#include "gdre_audio_stream_preview.h"
+#include "gui/gdre_window.h"
 #include "scene/gui/dialogs.h"
 #include "scene/gui/rich_text_label.h"
 #include "scene/main/node.h"
-#include "utility/gdre_audio_stream_preview.h"
 #include "utility/gdre_logger.h"
-#include "utility/gdre_window.h"
+#include "utility/gdre_version.gen.h"
 #include "utility/task_manager.h"
 
 GodotREEditorStandalone *GodotREEditorStandalone::singleton = nullptr;

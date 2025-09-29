@@ -1,10 +1,10 @@
 #pragma once
 #include "core/error/error_macros.h"
 #include "core/object/worker_thread_pool.h"
+#include "gui/gdre_progress.h"
 #include "utility/gd_parallel_hashmap.h"
 #include "utility/gd_parallel_queue.h"
 #include "utility/gdre_config.h"
-#include "utility/gdre_progress.h"
 
 struct TaskRunnerStruct {
 	virtual int get_current_task_step_value() = 0;
