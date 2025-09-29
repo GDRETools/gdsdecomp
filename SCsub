@@ -35,7 +35,7 @@ libtheorathirdparty_dir = "#thirdparty/libtheora/"
 libvorbisthirdparty_dir = "#thirdparty/libvorbis/"
 webpthirdparty_dir = "#thirdparty/libwebp/"
 vtracer_dir_include_dir = "#modules/gdsdecomp/external/vtracer/include"
-godot_mono_decomp_include_dir = "#modules/gdsdecomp/external/godot-mono-decomp/GodotMonoDecompNativeAOT/include"
+godot_mono_decomp_include_dir = "#modules/gdsdecomp/godot-mono-decomp/GodotMonoDecompNativeAOT/include"
 
 # hack to force the minimum macOS version to 10.15; it is currently hard-coded to 10.13 in the macos/detect.py script
 # TODO: remove this hack once the minimum macOS version is updated to 10.15
@@ -345,8 +345,8 @@ VTRACER_BUILD_DIR = os.path.join(VTRACER_DIR, "target")
 VTRACER_LIBS = ["vtracer"]
 
 # Godot Mono Decomp configuration
-GODOT_MONO_DECOMP_PARENT = "external/godot-mono-decomp"
-GODOT_MONO_DECOMP_PREFIX = "external/godot-mono-decomp/GodotMonoDecompNativeAOT"
+GODOT_MONO_DECOMP_PARENT = "godot-mono-decomp"
+GODOT_MONO_DECOMP_PREFIX = "godot-mono-decomp/GodotMonoDecompNativeAOT"
 GODOT_MONO_DECOMP_DIR = os.path.join(MODULE_DIR, GODOT_MONO_DECOMP_PREFIX)
 GODOT_MONO_DECOMP_LIBS = ["GodotMonoDecompNativeAOT"]
 
