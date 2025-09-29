@@ -62,7 +62,7 @@ ScriptCompDialog::ScriptCompDialog() {
 
 	//Script version
 	scrver = memnew(OptionButton);
-	Vector<GDScriptDecompVersion> decomp_versions = get_decomp_versions();
+	Vector<GDScriptDecompVersion> decomp_versions = GDScriptDecompVersion::get_decomp_versions();
 	decomp_versions.insert(0, { 0xfffffff, "--- Please select bytecode version ---", 0, false });
 
 	for (int i = 0; i < decomp_versions.size(); i++) {

@@ -379,7 +379,7 @@ Error GDScriptDecomp::get_ids_consts_tokens(const Vector<uint8_t> &p_buffer, Vec
 }
 
 Ref<GDScriptDecomp> GDScriptDecomp::create_decomp_for_commit(uint64_t p_commit_hash) {
-	return Ref<GDScriptDecomp>(::create_decomp_for_commit(p_commit_hash));
+	return Ref<GDScriptDecomp>(GDScriptDecompVersion::create_decomp_for_commit(p_commit_hash));
 }
 
 int GDScriptDecomp::read_bytecode_version(const String &p_path) {
@@ -1779,7 +1779,7 @@ Vector<uint8_t> GDScriptDecomp::compile_code_string(const String &p_code) {
 }
 
 Vector<String> GDScriptDecomp::get_bytecode_versions() {
-	auto vers = get_decomp_versions();
+	auto vers = GDScriptDecompVersion::get_decomp_versions();
 	Vector<String> ret;
 	for (auto &v : vers) {
 		ret.push_back(v.name);
@@ -1795,7 +1795,7 @@ Ref<GDScriptDecomp> GDScriptDecomp::create_decomp_for_version(String str_ver, bo
 	if (ver->get_prerelease().contains("dev")) {
 		include_dev = true;
 	}
-	auto versions = get_decomp_versions(include_dev, ver->get_major());
+	auto versions = GDScriptDecompVersion::get_decomp_versions(include_dev, ver->get_major());
 	versions.reverse();
 	// Exact match for dev versions
 	if (include_dev) {
@@ -2735,7 +2735,7 @@ Dictionary GDScriptDecomp::to_json() const {
 
 TypedArray<Dictionary> GDScriptDecomp::get_all_decomp_versions_json() {
 	TypedArray<Dictionary> ret;
-	auto versions = get_decomp_versions(true, 0);
+	auto versions = GDScriptDecompVersion::get_decomp_versions(true, 0);
 	for (int i = 0; i < versions.size(); i++) {
 		Ref<GDScriptDecomp> decomp = versions[i].create_decomp();
 		if (decomp.is_null()) {

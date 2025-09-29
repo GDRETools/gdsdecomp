@@ -575,7 +575,7 @@ void GodotREEditor::_decompile_process() {
 	print_warning("GDScriptDecomp{" + itos(script_dialog_d->get_bytecode_version()) + "}", RTR("Decompile"));
 
 	String failed_files;
-	GDScriptDecomp *dce = create_decomp_for_commit(script_dialog_d->get_bytecode_version());
+	GDScriptDecomp *dce = GDScriptDecompVersion::create_decomp_for_commit(script_dialog_d->get_bytecode_version());
 
 	if (!dce) {
 		show_warning(failed_files, RTR("Decompile"), RTR("Invalid bytecode version!"));

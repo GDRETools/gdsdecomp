@@ -488,7 +488,7 @@ Vector<Ref<GDScriptDecomp>> BytecodeTester::get_possible_decomps(Vector<String> 
 	int bytecode_version = get_bytecode_version(bytecode_files);
 	ERR_FAIL_COND_V_MSG(bytecode_version == -1, {}, "Inconsistent bytecode versions across files!!!");
 	ERR_FAIL_COND_V_MSG(bytecode_version <= 0, {}, "Could not read bytecode version from files.");
-	auto decomps = get_decomps_for_bytecode_ver(bytecode_version, include_dev);
+	auto decomps = GDScriptDecompVersion::get_decomps_for_bytecode_ver(bytecode_version, include_dev);
 	return get_possibles_from_set(bytecode_files, decomps, print_verbosely);
 }
 

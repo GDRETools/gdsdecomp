@@ -130,7 +130,7 @@ void register_decomp_versions() {
 	ClassDB::register_class<GDScriptDecomp_custom>();
 }
 
-GDScriptDecomp *create_decomp_for_commit(int p_commit_hash) {
+GDScriptDecomp *GDScriptDecompVersion::create_decomp_for_commit(int p_commit_hash) {
 	switch (p_commit_hash) {
 		case 0xebc36a7: return memnew(GDScriptDecomp_ebc36a7);
 		case 0x2e216b5: return memnew(GDScriptDecomp_2e216b5);
@@ -268,7 +268,7 @@ Vector<GDScriptDecompVersion> GDScriptDecompVersion::decomp_versions = {
 
 int GDScriptDecompVersion::number_of_custom_versions = 0;
 
-Vector<Ref<GDScriptDecomp>> get_decomps_for_bytecode_ver(int bytecode_version, bool include_dev) {
+Vector<Ref<GDScriptDecomp>> GDScriptDecompVersion::get_decomps_for_bytecode_ver(int bytecode_version, bool include_dev) {
 	Vector<Ref<GDScriptDecomp>> decomps;
 	for (int i = 0; i < GDScriptDecompVersion::decomp_versions.size(); i++) {
 		if (GDScriptDecompVersion::decomp_versions[i].bytecode_version == bytecode_version && (include_dev || !GDScriptDecompVersion::decomp_versions[i].is_dev)) {
@@ -278,7 +278,7 @@ Vector<Ref<GDScriptDecomp>> get_decomps_for_bytecode_ver(int bytecode_version, b
 	return decomps;
 }
 
-Vector<GDScriptDecompVersion> get_decomp_versions(bool include_dev, int ver_major) {
+Vector<GDScriptDecompVersion> GDScriptDecompVersion::get_decomp_versions(bool include_dev, int ver_major) {
 	Vector<GDScriptDecompVersion> versions;
 	String ver_major_str = itos(ver_major);
 	for (int i = 0; i < GDScriptDecompVersion::decomp_versions.size(); i++) {

@@ -93,7 +93,7 @@ public:
 			ver_major = GDRESettings::get_singleton()->get_ver_major();
 		}
 		int current_setting = get_value();
-		auto versions = get_decomp_versions(true, 0);
+		auto versions = GDScriptDecompVersion::get_decomp_versions(true, 0);
 		ret[0] = "Auto-detect";
 		for (const auto &version : versions) {
 			if ((ver_major > 0 && version.get_major_version() != ver_major)) {

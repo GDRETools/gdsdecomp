@@ -313,7 +313,7 @@ void simple_pass_fail_test(const String &script_name, const String &helper_scrip
 TEST_CASE("[GDSDecomp][Bytecode] Test reserved words as global function names") {
 	// get all the decomp versions for 2.x and 3.x (GDScript 1.0)
 
-	Vector<GDScriptDecompVersion> versions = get_decomp_versions(true, 0);
+	Vector<GDScriptDecompVersion> versions = GDScriptDecompVersion::get_decomp_versions(true, 0);
 
 	static constexpr const char *test_global_function_name = R"(
 extends Object
@@ -367,7 +367,7 @@ func _ready():
 	test.%s()
 )";
 
-	auto versions = get_decomp_versions(true, 0);
+	auto versions = GDScriptDecompVersion::get_decomp_versions(true, 0);
 	Vector<Pair<bool, String>> keywords_to_test = {
 		// { true, "func" },
 		{ true, "enum" },
@@ -395,7 +395,7 @@ func _ready():
 }
 
 TEST_CASE("[GDSDecomp][Bytecode] Test reserved words as accessor names") {
-	auto versions = get_decomp_versions(true, 0);
+	auto versions = GDScriptDecompVersion::get_decomp_versions(true, 0);
 	for (const GDScriptDecompVersion &version : versions) {
 		int revision = version.commit;
 		simple_pass_fail_test("all", test_reserved_word_as_accessor_name, revision, false);
@@ -424,7 +424,7 @@ TEST_CASE("[GDSDecomp][Bytecode][Create] Test creating custom decomp") {
 	CHECK(!ver.name.is_empty());
 	int revision = GDScriptDecompVersion::register_decomp_version_custom(ver.custom);
 	CHECK(revision != 0);
-	Ref<GDScriptDecomp> decomp = create_decomp_for_commit(revision);
+	Ref<GDScriptDecomp> decomp = GDScriptDecompVersion::create_decomp_for_commit(revision);
 	CHECK(decomp.is_valid());
 
 	for (int64_t i = 0; i < gdscript_test_scripts.size(); i++) {
