@@ -4,7 +4,7 @@
 #include "core/string/ustring.h"
 #include "core/templates/hash_map.h"
 #include "core/templates/vector.h"
-#include "utility/github_source.h"
+#include "plugin_manager/github_source.h"
 
 class GitLabSource : public GitHubSource {
 	GDCLASS(GitLabSource, GitHubSource)

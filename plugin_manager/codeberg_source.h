@@ -5,7 +5,7 @@
 #include "core/string/ustring.h"
 #include "core/templates/hash_map.h"
 #include "core/templates/vector.h"
-#include "utility/github_source.h"
+#include "github_source.h"
 
 class CodebergSource : public GitHubSource {
 	GDCLASS(CodebergSource, GitHubSource)

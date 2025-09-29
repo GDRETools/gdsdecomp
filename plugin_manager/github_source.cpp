@@ -1,14 +1,9 @@
 #include "github_source.h"
-#include "core/io/dir_access.h"
 #include "core/io/json.h"
 #include "core/os/os.h"
 #include "core/string/ustring.h"
-#include "modules/zip/zip_reader.h"
+#include "plugin_manager.h"
 #include "utility/common.h"
-#include "utility/gdre_settings.h"
-#include "utility/glob.h"
-#include "utility/plugin_manager.h"
-#include "utility/task_manager.h"
 
 const String GitHubSource::github_release_api_url = _github_release_api_url;
 namespace {

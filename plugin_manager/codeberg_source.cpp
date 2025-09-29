@@ -1,8 +1,4 @@
-#include "codeberg_source.h"
-#include "core/io/json.h"
-#include "core/os/os.h"
-#include "utility/common.h"
-#include "utility/plugin_manager.h"
+#include "plugin_manager/codeberg_source.h"
 
 const String CodebergSource::codeberg_release_api_url = _codeberg_release_api_url;
 namespace {

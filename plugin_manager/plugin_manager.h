@@ -4,11 +4,9 @@
 #include "core/object/object.h"
 #include "core/object/ref_counted.h"
 #include "core/os/mutex.h"
-#include "utility/asset_library_source.h"
-#include "utility/github_source.h"
-#include "utility/gitlab_source.h"
-#include "utility/plugin_info.h"
-#include "utility/plugin_source.h"
+
+#include "plugin_info.h"
+#include "plugin_source.h"
 
 class PluginManager : public Object {
 	GDCLASS(PluginManager, Object)

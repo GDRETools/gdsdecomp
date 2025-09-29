@@ -1,4 +1,4 @@
-#include "gitlab_source.h"
+#include "plugin_manager/gitlab_source.h"
 #include "core/io/json.h"
 #include "core/os/os.h"
 #include "utility/common.h"

@@ -596,6 +596,7 @@ env_gdsdecomp.add_source_files(module_obj, "compat/*.cpp")
 if env["target"] == "editor":
     env_gdsdecomp.add_source_files(module_obj, "editor/*.cpp")
 env_gdsdecomp.add_source_files(module_obj, "exporters/*.cpp")
+env_gdsdecomp.add_source_files(module_obj, "plugin_manager/*.cpp")
 env_gdsdecomp.add_source_files(module_obj, "utility/*.cpp")
 
 env_gdsdecomp.add_source_files(module_obj, "external/tga/*.cpp")

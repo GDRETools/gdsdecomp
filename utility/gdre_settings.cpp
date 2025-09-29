@@ -13,6 +13,7 @@
 #include "core/string/print_string.h"
 #include "exporters/translation_exporter.h"
 #include "modules/zip/zip_reader.h"
+#include "plugin_manager/plugin_manager.h"
 #include "utility/common.h"
 #include "utility/file_access_gdre.h"
 #include "utility/gdre_logger.h"
@@ -22,7 +23,6 @@
 #include "utility/godot_mono_decomp_wrapper.h"
 #include "utility/import_info.h"
 #include "utility/pcfg_loader.h"
-#include "utility/plugin_manager.h"
 #include "utility/task_manager.h"
 
 #include "core/config/project_settings.h"

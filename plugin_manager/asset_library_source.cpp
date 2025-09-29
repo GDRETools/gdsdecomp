@@ -1,11 +1,9 @@
 #include "asset_library_source.h"
 #include "core/io/json.h"
 #include "core/os/os.h"
+#include "plugin_manager.h"
 #include "utility/common.h"
-#include "utility/gdre_settings.h"
-#include "utility/glob.h"
-#include "utility/plugin_manager.h"
-#include "utility/task_manager.h"
+
 HashMap<String, String> AssetLibrarySource::GODOT_VERSION_RELEASE_DATES = {
 	{ "2.0", "2016-02-23" },
 	{ "2.1", "2016-09-08" },

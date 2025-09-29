@@ -2,12 +2,12 @@
 #include "core/os/os.h"
 #include "core/os/shared_object.h"
 #include "exporters/export_report.h"
+#include "plugin_manager/plugin_manager.h"
 #include "utility/common.h"
 #include "utility/gdre_config.h"
 #include "utility/gdre_settings.h"
 #include "utility/glob.h"
 #include "utility/import_info.h"
-#include "utility/plugin_manager.h"
 #include "utility/task_manager.h"
 
 Error GDExtensionExporter::export_file(const String &p_dest_path, const String &p_src_path) {

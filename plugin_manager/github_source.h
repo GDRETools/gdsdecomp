@@ -2,10 +2,6 @@
 #define GITHUB_SOURCE_H
 
 #include "core/object/object.h"
-#include "core/object/ref_counted.h"
-#include "core/os/mutex.h"
-#include "core/os/os.h"
-#include "core/string/string_name.h"
 #include "core/string/ustring.h"
 #include "core/templates/hash_map.h"
 #include "core/templates/vector.h"

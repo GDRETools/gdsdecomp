@@ -3,10 +3,10 @@
 #include "core/io/json.h"
 #include "core/os/os.h"
 #include "modules/zip/zip_reader.h"
+#include "plugin_source.h"
 #include "utility/common.h"
 #include "utility/gdre_settings.h"
 #include "utility/glob.h"
-#include "utility/plugin_source.h"
 #include "utility/task_manager.h"
 
 Ref<PluginSource> PluginManager::sources[MAX_SOURCES];

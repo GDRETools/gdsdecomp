@@ -1,16 +1,7 @@
 #include "plugin_source.h"
-#include "common.h"
-#include "core/crypto/crypto_core.h"
-#include "core/error/error_list.h"
 #include "core/error/error_macros.h"
-#include "core/io/json.h"
-#include "core/io/marshalls.h"
-#include "modules/zip/zip_reader.h"
 #include "plugin_info.h"
-#include "utility/gdre_settings.h"
-#include "utility/glob.h"
-#include "utility/plugin_manager.h"
-#include "utility/task_manager.h"
+#include "utility/common.h"
 
 PluginBin PluginSource::get_plugin_bin(const String &path, const SharedObject &obj) {
 	PluginBin bin;

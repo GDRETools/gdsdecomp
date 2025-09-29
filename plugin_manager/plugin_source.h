@@ -6,7 +6,7 @@
 #include "core/os/mutex.h"
 #include "core/os/os.h"
 #include "core/os/shared_object.h"
-#include "utility/plugin_info.h"
+#include "plugin_info.h"
 
 class PluginSource : public RefCounted {
 	GDCLASS(PluginSource, RefCounted)
