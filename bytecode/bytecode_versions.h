@@ -18,37 +18,12 @@ struct GDScriptDecompVersion {
 	int parent;
 	Dictionary custom;
 
-	bool is_custom() const {
-		return custom.size() > 0;
-	}
+	bool is_custom() const;
 
-	Ref<GodotVer> get_min_version() const {
-		return GodotVer::parse(min_version);
-	}
-	Ref<GodotVer> get_max_version() const {
-		return GodotVer::parse(max_version);
-	}
+	Ref<GodotVer> get_min_version() const;
+	Ref<GodotVer> get_max_version() const;
 
-	int get_major_version() const {
-		if (min_version.is_empty()) {
-			return 0;
-		}
-		switch (min_version[0]) {
-			case '0':
-			case '1':
-			case '2':
-			case '3':
-			case '4':
-			case '5':
-			case '6':
-			case '7':
-			case '8':
-			case '9':
-				return min_version[0] - '0';
-			default:
-				return 0;
-		}
-	}
+	int get_major_version() const;
 
 	static GDScriptDecomp *create_decomp_for_commit(int p_commit_hash);
 	static Vector<Ref<GDScriptDecomp>> get_decomps_for_bytecode_ver(int bytecode_version, bool include_dev = false);
