@@ -401,48 +401,6 @@ def generate_class_cpp(dir: Path, bytecode_class: BytecodeClass) -> None:
         # f.write("\n")
 
 
-# The class header files will look like this:
-# ```cpp
-# class <class_name> : public GDScriptDecomp {
-# 	GDCLASS(<class_name>, GDScriptDecomp);
-# protected:
-# 	static void _bind_methods(){};
-# 	static constexpr int bytecode_version = <bytecode_version>;
-# 	static constexpr int bytecode_rev = <bytecode_rev_num>;
-# 	static constexpr int engine_ver_major = <engine_ver_major>;
-# 	static constexpr int variant_ver_major = <variant_ver_major>;
-# 	static constexpr const char *bytecode_rev_str = "<bytecode_rev_str>";
-#   static constexpr const char *engine_version = "<engine_version>";
-#   static constexpr const char *max_engine_version = "<max_engine_version>";
-#   static constexpr int parent = <parent>;
-#
-# 	virtual Vector<GlobalToken> get_added_tokens() const { return {<added_tokens>}; }
-# 	virtual Vector<GlobalToken> get_removed_tokens() const { return {<removed_tokens>}; }
-# 	virtual Vector<String> get_added_functions() const { return {<added_functions>}; }
-# 	virtual Vector<String> get_removed_functions() const { return {<removed_functions>}; }
-# 	virtual Vector<String> get_function_arg_count_changed() const { return {<arg_count_changed>}; }
-#
-# public:
-# 	virtual String get_function_name(int p_func) const override;
-#   virtual int get_token_max() const override;
-# 	virtual int get_function_count() const override;
-# 	virtual Pair<int, int> get_function_arg_count(int p_func) const override;
-#   virtual int get_function_index(const String &p_func) const override;
-# 	virtual GDScriptDecomp::GlobalToken get_global_token(int p_token) const override;
-# 	virtual int get_local_token_val(GDScriptDecomp::GlobalToken p_token) const override;
-# 	virtual BYTECODE_TEST_RESULT test_bytecode(Vector<uint8_t> buffer) override;
-# 	virtual int get_bytecode_version() const override { return bytecode_version; }
-# 	virtual int get_bytecode_rev() const override { return bytecode_rev; }
-# 	virtual int get_engine_ver_major() const override { return engine_ver_major; }
-# 	virtual int get_variant_ver_major() const override { return variant_ver_major; }
-#   virtual int get_parent() const override { return parent; }
-# 	virtual String get_engine_version() const override { return engine_version; }
-# 	virtual String get_max_engine_version() const override { return max_engine_version; }
-
-
-# 	<class_name>() {}
-# };
-# ```
 def generate_class_header(dir: Path, bytecode_class: BytecodeClass) -> None:
     file_stem = bytecode_class.file_stem
     class_name = bytecode_class.class_name
@@ -458,95 +416,112 @@ def generate_class_header(dir: Path, bytecode_class: BytecodeClass) -> None:
     if not new_dir.exists():
         new_dir.mkdir()
     new_file_h = new_dir / (file_stem + ".h")
+
+    # Read the template file
+    template_path = Path(__file__).parent / "misc" / "bytecode_template.h.inc"
+    with open(template_path, "r") as template_file:
+        template_content = template_file.read()
+
+    ADDED_TOKEN_PREFIX = "\tvirtual Vector<GlobalToken> get_added_tokens() const override { return {"
+    REMOVED_TOKEN_PREFIX = "\tvirtual Vector<GlobalToken> get_removed_tokens() const override { return {"
+    ADDED_FUNCTION_PREFIX = "\tvirtual Vector<String> get_added_functions() const override { return {"
+    REMOVED_FUNCTION_PREFIX = "\tvirtual Vector<String> get_removed_functions() const override { return {"
+    ARG_COUNT_CHANGED_PREFIX = "\tvirtual Vector<String> get_function_arg_count_changed() const override { return {"
+    TOKENS_RENAMED_PREFIX = "\tvirtual Dictionary get_tokens_renamed() const override { return {"
+    FUNCTIONS_RENAMED_PREFIX = "\tvirtual Dictionary get_renamed_functions() const override { return {"
+
+    # Prepare replacement values
     new_added_tokens = ["GlobalToken::G_" + tk_name for tk_name in bytecode_class.added_tokens]
     new_removed_tokens = ["GlobalToken::G_" + tk_name for tk_name in bytecode_class.removed_tokens]
+
+    added_functions = ['"' + func_name + '"' for func_name in bytecode_class.added_functions]
+    removed_functions = ['"' + func_name + '"' for func_name in bytecode_class.removed_functions]
+    arg_count_changed = ['"' + func_name + '"' for func_name in bytecode_class.arg_count_changed]
+
+    # Handle parent commit
+    parent_value = "0x" + str(bytecode_class.parent) if bytecode_class.parent is not None else "0"
+    added_tokens_str = ""
+    removed_tokens_str = ""
+    added_functions_str = ""
+    removed_functions_str = ""
+    arg_count_changed_str = ""
+    tokens_renamed_str = ""
+    renamed_functions_str = ""
+
+    # ARR_PREFIX = "\n\t\t"
+    # ARR_SUFFIX = "\n\t}; }\n"
+    # ARR_JOIN_STR = ",\n\t\t"
+
+    ARR_PREFIX = ""
+    ARR_SUFFIX = "}; }\n"
+    ARR_JOIN_STR = ", "
+    ARR_STR_JOIN_STR = '", "'
+    ARR_STRING_FORMAT = ""
+    # Prepare token and function lists
+    if len(new_added_tokens) > 0:
+        added_tokens_str = ADDED_TOKEN_PREFIX + ARR_PREFIX + ARR_JOIN_STR.join(new_added_tokens) + ARR_SUFFIX
+    if len(new_removed_tokens) > 0:
+        removed_tokens_str = REMOVED_TOKEN_PREFIX + ARR_PREFIX + ARR_JOIN_STR.join(new_removed_tokens) + ARR_SUFFIX
+    if len(bytecode_class.added_functions) > 0:
+        added_functions_str = ADDED_FUNCTION_PREFIX + ARR_PREFIX + ARR_JOIN_STR.join(added_functions) + ARR_SUFFIX
+    if len(bytecode_class.removed_functions) > 0:
+        removed_functions_str = REMOVED_FUNCTION_PREFIX + ARR_PREFIX + ARR_JOIN_STR.join(removed_functions) + ARR_SUFFIX
+    if len(bytecode_class.arg_count_changed) > 0:
+        arg_count_changed_str = (
+            ARG_COUNT_CHANGED_PREFIX + ARR_PREFIX + ARR_JOIN_STR.join(arg_count_changed) + ARR_SUFFIX
+        )
+
+    DICT_PREFIX = "\n\t\t\t"
+    DICT_SUFFIX = "\n\t\t};\n\t}\n"
+    DICT_JOIN_STR = "\n\t\t\t"
+    # Prepare renamed tokens dictionary
+    tokens_renamed_str = ""
+    if len(bytecode_class.tokens_renamed) > 0:
+        tokens_renamed_lines = []
+        for src, dst in bytecode_class.tokens_renamed.items():
+            tokens_renamed_lines.append(f'{{ "{src}", "{dst}" }},')
+        tokens_renamed_str = (
+            TOKENS_RENAMED_PREFIX + DICT_PREFIX + DICT_JOIN_STR.join(tokens_renamed_lines) + DICT_SUFFIX
+        )
+
+    # Prepare renamed functions dictionary
+    renamed_functions_str = ""
+    if len(bytecode_class.renamed_functions) > 0:
+        renamed_functions_lines = []
+        for src, dst in bytecode_class.renamed_functions.items():
+            renamed_functions_lines.append(f'{{ "{src}", "{dst}" }},')
+        renamed_functions_str = (
+            FUNCTIONS_RENAMED_PREFIX + DICT_PREFIX + DICT_JOIN_STR.join(renamed_functions_lines) + DICT_SUFFIX
+        )
+
+    # Replace placeholders in template
+    replacements = {
+        "//_PRELUDE_": PRELUDE,
+        "__CLASS_NAME__": class_name,
+        "/*<BYTECODE_VERSION>*/": str(bytecode_version),
+        "/*<BYTECODE_REV>*/": "0x" + bytecode_rev,
+        "/*<BYTECODE_REV_STR>*/": '"' + bytecode_rev + '"',
+        "/*<ENGINE_VER_MAJOR>*/": str(engine_ver_major),
+        "/*<VARIANT_VER_MAJOR>*/": str(variant_ver_major),
+        "/*<ENGINE_VERSION>*/": '"' + bytecode_class.engine_version + '"',
+        "/*<MAX_ENGINE_VERSION>*/": '"' + bytecode_class.max_engine_version + '"',
+        "/*<DATE>*/": '"' + bytecode_class.date + '"',
+        "/*<PARENT_COMMIT>*/": parent_value,
+        "/*<ADDED_TOKENS>*/\n": added_tokens_str,
+        "/*<REMOVED_TOKENS>*/\n": removed_tokens_str,
+        "/*<ADDED_FUNCTIONS>*/\n": added_functions_str,
+        "/*<REMOVED_FUNCTIONS>*/\n": removed_functions_str,
+        "/*<ARG_COUNT_CHANGED>*/\n": arg_count_changed_str,
+        "/*<TOKENS_RENAMED>*/\n": tokens_renamed_str,
+        "/*<RENAMED_FUNCTIONS>*/\n": renamed_functions_str,
+    }
+
+    # Apply replacements
+    for placeholder, value in replacements.items():
+        template_content = template_content.replace(placeholder, value)
+    # Write the generated header file
     with open(new_file_h, "w") as f:
-        f.write(PRELUDE)
-        f.write(CLANG_FORMAT_OFF)
-        f.write("#pragma once\n")
-        f.write("\n")
-        f.write('#include "bytecode_base.h"\n')
-        f.write("\n")
-        f.write("class " + class_name + " : public GDScriptDecomp {\n")
-        f.write("\tGDCLASS(" + class_name + ", GDScriptDecomp);\n")
-        f.write("protected:\n")
-        f.write("\tstatic void _bind_methods(){};\n")
-        f.write("\tstatic constexpr int bytecode_version = " + str(bytecode_version) + ";\n")
-        f.write("\tstatic constexpr int bytecode_rev = 0x" + bytecode_rev + ";\n")
-        f.write("\tstatic constexpr int engine_ver_major = " + str(engine_ver_major) + ";\n")
-        f.write("\tstatic constexpr int variant_ver_major = " + str(variant_ver_major) + ";\n")
-        f.write('\tstatic constexpr const char *bytecode_rev_str = "' + bytecode_rev + '";\n')
-        f.write('\tstatic constexpr const char *engine_version = "' + bytecode_class.engine_version + '";\n')
-        f.write('\tstatic constexpr const char *max_engine_version = "' + bytecode_class.max_engine_version + '";\n')
-        f.write('\tstatic constexpr const char *date = "' + bytecode_class.date + '";\n')
-        if bytecode_class.parent != None:
-            f.write("\tstatic constexpr int parent = 0x" + str(bytecode_class.parent) + ";\n")
-        else:
-            f.write("\tstatic constexpr int parent = 0;\n")
-        f.write("\n")
-        if len(new_added_tokens) > 0:
-            f.write(
-                "\tvirtual Vector<GlobalToken> get_added_tokens() const override { return {"
-                + ", ".join(new_added_tokens)
-                + "}; }\n"
-            )
-        if len(new_removed_tokens) > 0:
-            f.write(
-                "\tvirtual Vector<GlobalToken> get_removed_tokens() const override { return {"
-                + ", ".join(new_removed_tokens)
-                + "}; }\n"
-            )
-        if len(bytecode_class.added_functions) > 0:
-            f.write(
-                '\tvirtual Vector<String> get_added_functions() const override { return {"'
-                + '", "'.join(bytecode_class.added_functions)
-                + '"}; }\n'
-            )
-        if len(bytecode_class.removed_functions) > 0:
-            f.write(
-                '\tvirtual Vector<String> get_removed_functions() const override { return {"'
-                + '", "'.join(bytecode_class.removed_functions)
-                + '"}; }\n'
-            )
-        if len(bytecode_class.arg_count_changed) > 0:
-            f.write(
-                '\tvirtual Vector<String> get_function_arg_count_changed() const override { return {"'
-                + '", "'.join(bytecode_class.arg_count_changed)
-                + '"}; }\n'
-            )
-
-        if len(bytecode_class.tokens_renamed) > 0:
-            f.write("\tvirtual Dictionary get_tokens_renamed() const override { return {\n")
-            for src, dst in bytecode_class.tokens_renamed.items():
-                f.write(f'\t\t\t{{ "{src}", "{dst}" }},\n')
-            f.write("\t\t};\n")
-            f.write("\t}\n")
-        if len(bytecode_class.renamed_functions) > 0:
-            f.write("\tvirtual Dictionary get_renamed_functions() const override { return {\n")
-            for src, dst in bytecode_class.renamed_functions.items():
-                f.write(f'\t\t\t{{ "{src}", "{dst}" }},\n')
-            f.write("\t\t};\n")
-            f.write("\t}\n")
-        f.write("public:\n")
-        f.write("\tvirtual String get_function_name(int p_func) const override;\n")
-        f.write("\tvirtual int get_function_count() const override;\n")
-        f.write("\tvirtual Pair<int, int> get_function_arg_count(int p_func) const override;\n")
-        f.write("\tvirtual int get_token_max() const override;\n")
-        f.write("\tvirtual int get_function_index(const String &p_func) const override;\n")
-        f.write("\tvirtual GDScriptDecomp::GlobalToken get_global_token(int p_token) const override;\n")
-        f.write("\tvirtual int get_local_token_val(GDScriptDecomp::GlobalToken p_token) const override;\n")
-        f.write("\tvirtual int get_bytecode_version() const override { return bytecode_version; }\n")
-        f.write("\tvirtual int get_bytecode_rev() const override { return bytecode_rev; }\n")
-        f.write("\tvirtual int get_engine_ver_major() const override { return engine_ver_major; }\n")
-        f.write("\tvirtual int get_variant_ver_major() const override { return variant_ver_major; }\n")
-        f.write("\tvirtual int get_parent() const override { return parent; }\n")
-        f.write("\tvirtual String get_engine_version() const override { return engine_version; }\n")
-        f.write("\tvirtual String get_max_engine_version() const override { return max_engine_version; }\n")
-        f.write("\tvirtual String get_date() const override { return date; }\n")
-
-        f.write("\t" + class_name + "() {}\n")
-        f.write("};\n")
-        f.write("\n")
+        f.write(template_content)
 
 
 def write_bytecode_json(dir: Path, bytecode_classes: list[BytecodeClass]) -> None:
