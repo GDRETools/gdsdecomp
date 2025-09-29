@@ -162,7 +162,7 @@ inline void test_script_binary(const String &script_name, const Vector<uint8_t> 
 	}
 #endif
 
-	if (revision == LATEST_GDSCRIPT_COMMIT) {
+	if (revision == GDScriptDecompVersion::LATEST_GDSCRIPT_COMMIT) {
 		// test with the latest GDScriptTokenizer
 		auto reference_result = GDScriptTokenizerBuffer::parse_code_string(helper_script_text, GDScriptTokenizerBuffer::CompressMode::COMPRESS_ZSTD);
 		CHECK(reference_result.size() > 0);
@@ -259,14 +259,14 @@ TEST_CASE("[GDSDecomp][Bytecode][GDScript2.0] Compiling GDScript Tests") {
 		auto sub_case_name = vformat("Testing compiling script %s", script_path);
 		SUBCASE(sub_case_name.utf8().get_data()) {
 			test_script(script_path, 0x77af6ca, false, true);
-			test_script(script_path, LATEST_GDSCRIPT_COMMIT, false, true);
+			test_script(script_path, GDScriptDecompVersion::LATEST_GDSCRIPT_COMMIT, false, true);
 		}
 	}
 }
 
 TEST_CASE("[GDSDecomp][Bytecode][GDScript2.0] Test unique_id modulo operator") {
 	test_script_text("test_unique_id_modulo", test_unique_id_modulo, 0x77af6ca, false, false, true);
-	test_script_text("test_unique_id_modulo", test_unique_id_modulo, LATEST_GDSCRIPT_COMMIT, false, false, true);
+	test_script_text("test_unique_id_modulo", test_unique_id_modulo, GDScriptDecompVersion::LATEST_GDSCRIPT_COMMIT, false, false, true);
 }
 
 TEST_CASE("[GDSDecomp][Bytecode] Test sample GDScript bytecode") {
@@ -420,7 +420,7 @@ TEST_CASE("[GDSDecomp][Bytecode][Create] Test creating custom decomp") {
 		}
 	}
 
-	GDScriptDecompVersion ver = GDScriptDecompVersion::create_derived_version_from_custom_def(LATEST_GDSCRIPT_COMMIT, Dictionary());
+	GDScriptDecompVersion ver = GDScriptDecompVersion::create_derived_version_from_custom_def(GDScriptDecompVersion::LATEST_GDSCRIPT_COMMIT, Dictionary());
 	CHECK(!ver.name.is_empty());
 	int revision = GDScriptDecompVersion::register_decomp_version_custom(ver.custom);
 	CHECK(revision != 0);

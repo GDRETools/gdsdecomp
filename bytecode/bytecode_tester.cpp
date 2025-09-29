@@ -1,6 +1,13 @@
 #include "bytecode/bytecode_tester.h"
+#include "bytecode/bytecode_1a36141.h"
+#include "bytecode/bytecode_1ca61a3.h"
+#include "bytecode/bytecode_514a3fb.h"
+#include "bytecode/bytecode_7124599.h"
+#include "bytecode/bytecode_85585c7.h"
 #include "bytecode/bytecode_base.h"
+#include "bytecode/bytecode_ed80f45.h"
 #include "bytecode/bytecode_versions.h"
+
 #include "core/io/file_access.h"
 #include "utility/gdre_settings.h"
 #include "utility/godotver.h"

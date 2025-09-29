@@ -1,3 +1,5 @@
+# This script is used to generate the static plugin cache (i.e. standalone/gdre_static_plugin_cache.json)
+
 import base64
 import shutil
 import sys

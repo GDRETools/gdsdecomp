@@ -1,3 +1,6 @@
+# This script generates the bytecode classes and headers for all bytecode versions defined in `misc/bytecode_versions.json`.
+# This is to avoid the need to manually generate the bytecode classes and headers for each bytecode version.
+
 import os
 from pathlib import Path
 import json
@@ -711,24 +714,19 @@ BYTECODE_LATEST_VERSION = "/*_BYTECODE_DECOMP_LATEST_VERSION_*/"
 PRELUDE_REPLACE = "//_PRELUDE_"
 
 
-def generate_bytecode_version_header(dir: Path, bytecode_classes: list[BytecodeClass]) -> None:
-    new_dir = dir
-    # get misc/bytecode_versions.h.inc
-    code = ""
-    with open(our_dir / "misc" / "bytecode_versions.h.inc", "r") as f:
+def update_bytecode_version_header(dir: Path, bytecode_classes: list[BytecodeClass]) -> None:
+    file_path = dir / "bytecode_versions.h"
+    with open(file_path, "r") as f:
         code = f.read()
-    # ensure the directory exists
-    if not new_dir.exists():
-        new_dir.mkdir()
-    new_file_h = new_dir / ("bytecode_versions.h")
-    code = code.replace(PRELUDE_REPLACE, PRELUDE)
-    header_str = ""
-    for bytecode_class in bytecode_classes:
-        header_str += f'#include "bytecode/{bytecode_class.file_stem}.h"\n'
 
-    code = code.replace(BYTECODE_HEADERS, header_str)
-    code = code.replace(BYTECODE_LATEST_VERSION, "0x" + str(bytecode_classes[0].bytecode_rev))
-    with open(new_file_h, "w") as f:
+    # split into lines, find `static constexpr int LATEST_GDSCRIPT_COMMIT`, replace the line with `static constexpr int LATEST_GDSCRIPT_COMMIT = 0x` + the bytecode_rev of the first bytecode_class
+    lines = code.split("\n")
+    for i, line in enumerate(lines):
+        if "static constexpr int LATEST_GDSCRIPT_COMMIT" in line:
+            lines[i] = line.split("=")[0] + "= 0x" + str(bytecode_classes[0].bytecode_rev) + ";"
+            break
+    code = "\n".join(lines)
+    with open(file_path, "w") as f:
         f.write(code)
 
 
@@ -744,6 +742,13 @@ def generate_bytecode_versions_cpp(dir: Path, bytecode_classes: list[BytecodeCla
         new_dir.mkdir()
     new_file_cpp = new_dir / ("bytecode_versions.cpp")
     code = code.replace(PRELUDE_REPLACE, PRELUDE)
+
+    header_str = ""
+    for bytecode_class in bytecode_classes:
+        header_str += f'#include "bytecode/{bytecode_class.file_stem}.h"\n'
+
+    code = code.replace(BYTECODE_HEADERS, header_str)
+
     bytecode_classdb_register = ""
     for bytecode_class in bytecode_classes:
         bytecode_classdb_register += "\tClassDB::register_class<" + bytecode_class.class_name + ">();\n"
@@ -804,5 +809,5 @@ for bytecode_class in bytecode_classes:
     generate_class_cpp(bytecode_dir, bytecode_class)
     generate_class_header(bytecode_dir, bytecode_class)
 
-generate_bytecode_version_header(bytecode_dir, bytecode_classes)
+update_bytecode_version_header(bytecode_dir, bytecode_classes)
 generate_bytecode_versions_cpp(bytecode_dir, bytecode_classes)

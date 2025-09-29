@@ -3,6 +3,9 @@
 
 #include "bytecode/bytecode_versions.h"
 
+#include "bytecode/bytecode_custom.h"
+//_BYTECODE_HEADERS_
+
 void register_decomp_versions() {
 //_BYTECODE_CLASSDB_REGISTER_
 	ClassDB::register_class<GDScriptDecomp_custom>();
