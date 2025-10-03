@@ -121,6 +121,8 @@ void GodotMonoDecomp_FreeArray(void* array, int length);
 
 void GodotMonoDecomp_FreeString(void* str);
 
+int* GodotMonoDecomp_GetLanguageVersions(int* r_num_versions);
+
 
 #ifdef __cplusplus
 }

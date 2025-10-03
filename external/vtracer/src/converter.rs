@@ -114,24 +114,31 @@ fn should_key_image(img: &ColorImage, config: &ConverterConfig) -> bool {
 }
 
 
-fn remove_pixels_from_lower_layers(clusters: &Clusters) -> Vec<Cluster>{
-    let view = clusters.view();
+fn remove_pixels_from_lower_layers(p_clusters: &Clusters) -> Vec<Cluster>{
+    let view = p_clusters.view();
     let mut pixel_alpha_map = HashMap::new();
     let mut clusters = Vec::new();
     let clusters_output = view.clusters_output.to_vec();
+    let image = ColorImage {
+        pixels: view.pixels.to_vec(),
+        width: view.width as usize,
+        height: view.height as usize,
+    };
     for &i in clusters_output.iter() {
         let mut cluster = view.get_cluster(i).clone();
         let indices = cluster.indices.clone();
         let indices_size = indices.len();
-        if cluster.residue_sum.average().a == 254 {
-            cluster.residue_sum.a = 255 * cluster.residue_sum.counter;
-        }
-        let color = cluster.residue_color();
+        let mut actual_colors = Vec::new();
         for (i, index) in indices.iter().rev().enumerate() {
             let pix_idx = *index;
             let real_i = indices_size - i - 1;
             if !pixel_alpha_map.contains_key(&pix_idx) {
-                pixel_alpha_map.insert(pix_idx, color.a);
+				// the color of the pixel in the original raster image, not the color of the cluster
+                let pixel = image.get_pixel_at(pix_idx as usize);
+                if !actual_colors.contains(&pixel) {
+                    actual_colors.push(pixel);
+                }
+                pixel_alpha_map.insert(pix_idx, pixel.a);
             } else {
                 // Unless the pixel above this one is completely opaque, remove it
                 // (This check prevents tiny cracks in the svg between pixels)
@@ -139,6 +146,32 @@ fn remove_pixels_from_lower_layers(clusters: &Clusters) -> Vec<Cluster>{
                     cluster.indices.remove(real_i);
                 }
             }
+        }
+        // ensure correct colors
+        if actual_colors.len() == 1 && (actual_colors[0] != cluster.residue_sum.average()) {
+            let actual_color = actual_colors[0];
+            cluster.residue_sum.r = actual_color.r as u32 * cluster.residue_sum.counter;
+            cluster.residue_sum.g = actual_color.g as u32 * cluster.residue_sum.counter;
+            cluster.residue_sum.b = actual_color.b as u32 * cluster.residue_sum.counter;
+            cluster.residue_sum.a = actual_color.a as u32 * cluster.residue_sum.counter;
+        } else if actual_colors.len() > 1 {
+            // cluster somehow merged together sections with different colors, we need to split them up
+            for color in actual_colors {
+                // create a new cluster with the actual color
+                let mut new_cluster = cluster.clone();
+                for (i, index) in cluster.indices.clone().into_iter().enumerate().rev() {
+                    if pixel_alpha_map.contains_key(&index) && image.get_pixel_at(index as usize) != color {
+                        new_cluster.indices.remove(i);
+                    }
+                }
+                new_cluster.residue_sum.r = color.r as u32 * new_cluster.indices.len() as u32;
+                new_cluster.residue_sum.g = color.g as u32 * new_cluster.indices.len() as u32;
+                new_cluster.residue_sum.b = color.b as u32 * new_cluster.indices.len() as u32;
+                new_cluster.residue_sum.a = color.a as u32 * new_cluster.indices.len() as u32;
+                new_cluster.residue_sum.counter = new_cluster.indices.len() as u32;
+                clusters.push(new_cluster);
+            }
+            continue;
         }
         clusters.push(cluster);
     }

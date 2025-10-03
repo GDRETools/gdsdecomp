@@ -322,4 +322,17 @@ static public class Lib
 	{
 		Marshal.FreeHGlobal(v);
 	}
+
+	[UnmanagedCallersOnly(EntryPoint = "GodotMonoDecomp_GetLanguageVersions")]
+	public static IntPtr AOTGetLanguageVersions(IntPtr r_num_versions)
+	{
+		var values = Enum.GetValues<LanguageVersion>();
+		Marshal.WriteInt32(r_num_versions, values.Length);
+		var arrayPtr = Marshal.AllocHGlobal(values.Length * IntPtr.Size);
+		for (int i = 0; i < values.Length; i++)
+		{
+			Marshal.WriteInt32(arrayPtr + i * sizeof(int), (int)values[i]);
+		}
+		return arrayPtr;
+	}
 }

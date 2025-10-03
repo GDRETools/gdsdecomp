@@ -1021,6 +1021,11 @@ bool gdre::is_fs_path(const String &p_path) {
 	return false;
 }
 
+String gdre::path_to_uri(const String &p_path) {
+	String s = p_path.simplify_path();
+	return (!s.begins_with("/") ? "file:///" : "file://") + s;
+}
+
 void GDRECommon::_bind_methods() {
 	//	ClassDB::bind_static_method("GLTFCamera", D_METHOD("from_node", "camera_node"), &GLTFCamera::from_node);
 
@@ -1042,4 +1047,5 @@ void GDRECommon::_bind_methods() {
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_files_for_paths", "paths"), &gdre::get_files_for_paths);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("rimraf", "path"), &gdre::rimraf);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("is_fs_path", "path"), &gdre::is_fs_path);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("path_to_uri", "path"), &gdre::path_to_uri);
 }

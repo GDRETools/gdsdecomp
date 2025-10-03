@@ -331,7 +331,7 @@ Error ImageSaver::save_image_as_svg(const String &p_path, const Ref<Image> &p_im
 	config.filter_speckle = 0;
 	config.color_precision = 8;
 	config.layer_difference = 0;
-	config.corner_threshold = 60;
+	config.corner_threshold = 180;
 	config.length_threshold = 4.0;
 	config.splice_threshold = 45;
 	config.max_iterations = 10;

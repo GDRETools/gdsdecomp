@@ -225,9 +225,6 @@ void ImportExporter::_do_file_info(uint32_t i, FileInfo *file_infos) {
 		}
 		file_info.type = ResourceCompatLoader::get_resource_type(path);
 		file_info.resource_script_class = ResourceCompatLoader::get_resource_script_class(path);
-		if (ext == "md") {
-			bool foo = false;
-		}
 		if (file_info.type == "" && textfile_extensions.has(ext)) {
 			file_info.type = "TextFile";
 		}

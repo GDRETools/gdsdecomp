@@ -132,6 +132,44 @@ Vector<T> get_vector_intersection(const Vector<T> &a, const Vector<T> &b) {
 	return ret;
 }
 
+template <class T, class Iterable>
+HashSet<T> hashset_without(const HashSet<T> &h, const Iterable &to_erase) {
+	HashSet<T> ret;
+	for (const auto &E : h) {
+		if (!to_erase.has(E)) {
+			ret.insert(E);
+		}
+	}
+	return ret;
+}
+
+template <class T, class Iterable>
+bool has_all(const HashSet<T> &h, const Iterable &to_find) {
+	for (const auto &E : to_find) {
+		if (!h.has(E)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+template <class T, class Iterable>
+bool has_all(const Vector<T> &h, const Iterable &to_find) {
+	for (const auto &E : to_find) {
+		if (!h.has(E)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+template <class T, class Iterable>
+void add_all(HashSet<T> &h, const Iterable &to_add) {
+	for (const auto &E : to_add) {
+		h.insert(E);
+	}
+}
+
 template <class T>
 void shuffle_vector(Vector<T> &vec) {
 	const int n = vec.size();
@@ -319,6 +357,7 @@ Vector<String> get_files_for_paths(const Vector<String> &p_paths);
 String get_java_path();
 int get_java_version();
 bool is_macho_binary(const String &p_path);
+String path_to_uri(const String &p_path);
 } // namespace gdre
 
 class GDRECommon : public Object {

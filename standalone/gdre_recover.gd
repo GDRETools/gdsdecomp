@@ -257,11 +257,11 @@ func _on_export_resources_confirmed(output_dir: String):
 	self.call_on_next_process(self.call_on_next_process.bind(self._do_export.bind(output_dir)))
 
 
-func _show_error_or_success(errs: PackedStringArray, success_message: String):
+func _show_error_or_success(errs: PackedStringArray, success_message: String, output_dir: String):
 	if errs.size() > 0:
 		popup_error_box("\n".join(errs), "Error")
 	else:
-		popup_error_box(success_message, "Success")
+		popup_confirm_box(success_message, "Success", func(): OS.shell_open(GDRECommon.path_to_uri(output_dir)), func(): pass, "Open Folder", "OK")
 
 func _do_export(output_dir: String):
 	var files: PackedStringArray = []
@@ -277,7 +277,7 @@ func _do_export(output_dir: String):
 
 	errs = _export_files(files, output_dir, dir_structure, rel_base, export_glb)
 
-	self.call_on_next_process(self.call_on_next_process.bind(self._show_error_or_success.bind(errs, "Successfully exported resources")))
+	self.call_on_next_process(self.call_on_next_process.bind(self._show_error_or_success.bind(errs, "Successfully exported resources", output_dir)))
 
 
 
@@ -303,7 +303,7 @@ func _do_extract(path: String):
 		var err = extract_file(file, path, dir_structure, rel_base)
 		if not err.is_empty():
 			errs.append(err)
-	self.call_on_next_process(self.call_on_next_process.bind(self._show_error_or_success.bind(errs, "Successfully extracted resources")))
+	self.call_on_next_process(self.call_on_next_process.bind(self._show_error_or_success.bind(errs, "Successfully extracted resources", path)))
 
 func _determine_rel_base_dir(selected_items: Array) -> String:
 	var base_dirs: Dictionary = {}
@@ -667,7 +667,11 @@ func _reload_with(paths: PackedStringArray):
 		return
 
 
+
 func _on_add_pcks_button_pressed() -> void:
 	var curr_pck = GDRESettings.get_pack_path()
 	%AddPcksDialog.current_dir = curr_pck.get_base_dir()
 	%AddPcksDialog.popup_centered()
+
+func _on_extract_success_dialog_confirmed() -> void:
+	pass # Replace with function body.

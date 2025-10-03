@@ -383,9 +383,17 @@ public:
 
 	Vector<SharedObject> get_libaries(bool fix_rel_paths = true) const;
 	Vector<SharedObject> get_dependencies(bool fix_rel_paths = true) const;
+	HashMap<String, Vector<SharedObject>> get_grouped_dependencies(bool fix_rel_paths = true) const;
+
+	Dictionary get_dependency_dict() const;
+	void set_dependency_dict(const Dictionary &p_dict);
+
+	static Vector<String> normalize_tags(const Vector<String> &tags);
 
 	String get_compatibility_minimum() const;
 	String get_compatibility_maximum() const;
+
+	virtual Error save_to(const String &p_path) override;
 
 	ImportInfoGDExt();
 };

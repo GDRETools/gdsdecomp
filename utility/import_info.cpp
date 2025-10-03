@@ -128,7 +128,7 @@ Ref<ConfigFile> copy_config_file(Ref<ConfigFile> p_cf) {
 	Ref<ConfigFile> r_cf;
 	r_cf.instantiate();
 	Vector<String> sections = p_cf->get_sections();
-	for (int64_t i = sections.size() - 1; i >= 0; i--) {
+	for (int64_t i = 0; i < sections.size(); i++) {
 		String section = sections[i];
 		Vector<String> section_keys = p_cf->get_section_keys(section);
 		for (int j = 0; j < section_keys.size(); j++) {
@@ -870,7 +870,7 @@ void ImportInfov2::set_params(Dictionary params) {
 	dirty = true;
 }
 
-String encode_cfg_to_text(const Ref<ConfigFile> &cf, int ver_major, int ver_minor) {
+String encode_cfg_to_text(const Ref<ConfigFile> &cf, int ver_major, int ver_minor, bool gdext = false) {
 	StringBuilder sb;
 	bool first = true;
 	static const String null_replacement = String("\"") + ImportInfo::NULL_REPLACEMENT + "\"";
@@ -881,17 +881,42 @@ String encode_cfg_to_text(const Ref<ConfigFile> &cf, int ver_major, int ver_mino
 			sb.append("\n");
 		}
 		if (!section.is_empty()) {
-			sb.append("[" + section + "]\n\n");
+			sb.append("[" + section + "]\n");
+			if (!gdext) {
+				sb.append("\n");
+			}
 		}
 
 		for (const String &key : cf->get_section_keys(section)) {
 			String vstr;
-			VariantWriterCompat::write_to_string(cf->get_value(section, key), vstr, ver_major, ver_minor);
+			Variant value = cf->get_value(section, key);
+			if (gdext && value.get_type() == Variant::DICTIONARY) {
+				Dictionary dict = value;
+				LocalVector<Variant> keys = dict.get_key_list();
+				vstr = "{";
+				String temp_vstr;
+				for (size_t i = 0; i < keys.size(); i++) {
+					const Variant &E = keys[i];
+					temp_vstr.clear();
+					VariantWriterCompat::write_to_string(E, temp_vstr, ver_major, ver_minor);
+					vstr += temp_vstr;
+					vstr += ": ";
+					temp_vstr.clear();
+					VariantWriterCompat::write_to_string(dict[E], temp_vstr, ver_major, ver_minor);
+					vstr += temp_vstr;
+					if (i < keys.size() - 1) {
+						vstr += ", ";
+					}
+				}
+				vstr += "}";
+			} else {
+				VariantWriterCompat::write_to_string(value, vstr, ver_major, ver_minor);
+			}
 			// ConfigFile interprets setting a key to null as erasing the key, so we have to use a special value that'll get replaced when saving.
 			if (vstr == null_replacement) {
 				vstr = "null";
 			}
-			sb.append(key.property_name_encode() + "=" + vstr + "\n");
+			sb.append(key.property_name_encode() + (gdext ? " = " : "=") + vstr + "\n");
 			if (section == "deps" && key == "files") {
 				// extra newline for some reason
 				sb.append("\n");
@@ -1127,8 +1152,6 @@ Error ImportInfoGDExt::_load_after_cf(const String &p_path) {
 	return OK;
 }
 
-// virtual Variant get_iinfo_val(const String &p_section, const String &p_prop) const override;
-// virtual void set_iinfo_val(const String &p_section, const String &p_prop, const Variant &p_val) override;
 String ImportInfoGDExt::correct_path(const String &p_path) const {
 	if (p_path.is_relative_path()) {
 		return import_md_path.get_base_dir().path_join(p_path);
@@ -1136,7 +1159,7 @@ String ImportInfoGDExt::correct_path(const String &p_path) const {
 	return p_path;
 }
 
-Vector<String> normalize_tags(const Vector<String> &tags) {
+Vector<String> ImportInfoGDExt::normalize_tags(const Vector<String> &tags) {
 	Vector<String> new_tags;
 	for (int64_t i = 0; i < tags.size(); i++) {
 		String tag = tags[i];
@@ -1157,9 +1180,19 @@ Vector<String> normalize_tags(const Vector<String> &tags) {
 	}
 	return new_tags;
 }
+
 // virtual Dictionary get_libaries_section() const;
 Vector<SharedObject> ImportInfoGDExt::get_dependencies(bool fix_rel_paths) const {
 	Vector<SharedObject> deps;
+	auto ret = get_grouped_dependencies(fix_rel_paths);
+	for (auto &KV : ret) {
+		deps.append_array(KV.value);
+	}
+	return deps;
+}
+
+HashMap<String, Vector<SharedObject>> ImportInfoGDExt::get_grouped_dependencies(bool fix_rel_paths) const {
+	HashMap<String, Vector<SharedObject>> deps;
 	if (cf->has_section("dependencies")) {
 		Vector<String> dep_keys = cf->get_section_keys("dependencies");
 		for (int64_t i = 0; i < dep_keys.size(); i++) {
@@ -1178,13 +1211,17 @@ Vector<SharedObject> ImportInfoGDExt::get_dependencies(bool fix_rel_paths) const
 					}
 				}
 			}
+			Vector<String> tags = normalize_tags(key.split("."));
 			for (int64_t k = 0; k < deps_list.size(); k++) {
 				SharedObject so;
 				so.path = correct_path(deps_list[k]);
 				so.path = fix_rel_paths ? correct_path(deps_list[k]) : deps_list[k];
-				so.tags = normalize_tags(key.split("."));
+				so.tags = tags;
 				so.target = k < target_list.size() ? target_list[k] : "";
-				deps.push_back(so);
+				if (!deps.has(key)) {
+					deps.insert(key, Vector<SharedObject>());
+				}
+				deps[key].push_back(so);
 			}
 		}
 	}
@@ -1301,4 +1338,32 @@ Variant ImportInfoGDExt::get_iinfo_val(const String &p_section, const String &p_
 
 void ImportInfoGDExt::set_iinfo_val(const String &p_section, const String &p_prop, const Variant &p_val) {
 	cf->set_value(p_section, p_prop, p_val);
+}
+
+Dictionary ImportInfoGDExt::get_dependency_dict() const {
+	Dictionary dict;
+	if (cf->has_section("dependencies")) {
+		Vector<String> dep_keys = cf->get_section_keys("dependencies");
+		for (int64_t i = 0; i < dep_keys.size(); i++) {
+			dict[dep_keys[i]] = cf->get_value("dependencies", dep_keys[i], Dictionary());
+		}
+	}
+	return dict;
+}
+
+void ImportInfoGDExt::set_dependency_dict(const Dictionary &p_dict) {
+	for (auto &KV : p_dict) {
+		cf->set_value("dependencies", KV.key, KV.value);
+	}
+}
+
+Error ImportInfoGDExt::save_to(const String &p_path) {
+	Error err = gdre::ensure_dir(p_path.get_base_dir());
+	ERR_FAIL_COND_V_MSG(err, err, "Failed to create directory for " + p_path);
+	String content = encode_cfg_to_text(cf, ver_major, ver_minor, true);
+	auto fa = FileAccess::open(p_path, FileAccess::WRITE);
+	ERR_FAIL_COND_V_MSG(fa.is_null(), ERR_FILE_CANT_OPEN, "Failed to open file " + p_path);
+	fa->store_string(content);
+	fa->flush();
+	return OK;
 }

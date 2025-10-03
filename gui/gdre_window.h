@@ -17,10 +17,10 @@ protected:
 	static void _bind_methods();
 
 public:
-	static void popup_box(Node *p_parent, Window *p_box, const String &p_message, const String &p_title, const Callable &p_confirm_callback = {}, const Callable &p_cancel_callback = {});
+	static void popup_box(Node *p_parent, Window *p_box, const String &p_message, const String &p_title, const Callable &p_confirm_callback = {}, const Callable &p_cancel_callback = {}, const String &p_ok_button_text = "OK", const String &p_cancel_button_text = "Cancel");
 	void call_on_next_process(const Callable &p_callable);
 
-	void popup_confirm_box(const String &p_message, const String &p_title, const Callable &p_confirm_callback = Callable(), const Callable &p_cancel_callback = Callable());
+	void popup_confirm_box(const String &p_message, const String &p_title, const Callable &p_confirm_callback = Callable(), const Callable &p_cancel_callback = Callable(), const String &p_ok_button_text = "OK", const String &p_cancel_button_text = "Cancel");
 	void popup_error_box(const String &p_message, const String &p_title = "Error", const Callable &p_callback = Callable());
 
 	GDREWindow();
@@ -41,7 +41,7 @@ protected:
 public:
 	void call_on_next_process(const Callable &p_callable);
 
-	void popup_confirm_box(const String &p_message, const String &p_title, const Callable &p_confirm_callback = Callable(), const Callable &p_cancel_callback = Callable());
+	void popup_confirm_box(const String &p_message, const String &p_title, const Callable &p_confirm_callback = Callable(), const Callable &p_cancel_callback = Callable(), const String &p_ok_button_text = "OK", const String &p_cancel_button_text = "Cancel");
 	void popup_error_box(const String &p_message, const String &p_title = "Error", const Callable &p_callback = Callable());
 
 	GDREAcceptDialogBase();

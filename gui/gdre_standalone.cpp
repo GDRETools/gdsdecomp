@@ -137,8 +137,8 @@ void GodotREEditorStandalone::popup_error_box(const String &p_message, const Str
 	GDREWindow::popup_box(get_parent_window(), error_dialog, p_message, p_title, p_callback, p_callback);
 }
 
-void GodotREEditorStandalone::popup_confirm_box(const String &p_message, const String &p_title, const Callable &p_confirm_callback, const Callable &p_cancel_callback) {
-	GDREWindow::popup_box(get_parent_window(), confirmation_dialog, p_message, p_title, p_confirm_callback, p_cancel_callback);
+void GodotREEditorStandalone::popup_confirm_box(const String &p_message, const String &p_title, const Callable &p_confirm_callback, const Callable &p_cancel_callback, const String &p_ok_button_text, const String &p_cancel_button_text) {
+	GDREWindow::popup_box(get_parent_window(), confirmation_dialog, p_message, p_title, p_confirm_callback, p_cancel_callback, p_ok_button_text, p_cancel_button_text);
 }
 void GodotREEditorStandalone::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("write_log_message", "message"), &GodotREEditorStandalone::write_log_message);
@@ -146,7 +146,7 @@ void GodotREEditorStandalone::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_version"), &GodotREEditorStandalone::get_version);
 	ClassDB::bind_method(D_METHOD("show_about_dialog"), &GodotREEditorStandalone::show_about_dialog);
 	ClassDB::bind_method(D_METHOD("popup_error_box", "message", "title", "callback"), &GodotREEditorStandalone::popup_error_box, DEFVAL("Error"), DEFVAL(Callable()));
-	ClassDB::bind_method(D_METHOD("popup_confirm_box", "message", "title", "confirm_callback", "cancel_callback"), &GodotREEditorStandalone::popup_confirm_box, DEFVAL(Callable()), DEFVAL(Callable()));
+	ClassDB::bind_method(D_METHOD("popup_confirm_box", "message", "title", "confirm_callback", "cancel_callback", "ok_button_text", "cancel_button_text"), &GodotREEditorStandalone::popup_confirm_box, DEFVAL(Callable()), DEFVAL(Callable()), DEFVAL("OK"), DEFVAL("Cancel"));
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("progress_add_task", "task", "label", "steps", "can_cancel"), &GodotREEditorStandalone::progress_add_task);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("progress_task_step", "task", "state", "step", "force_refresh"), &GodotREEditorStandalone::progress_task_step);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("progress_end_task", "task"), &GodotREEditorStandalone::progress_end_task);

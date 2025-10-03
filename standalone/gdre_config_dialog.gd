@@ -210,7 +210,6 @@ func create_setting_button(setting: GDREConfigSetting) -> Control:
 
 		var label: Label = make_button_label(setting.get_brief_description())
 		label.tooltip_text = setting.get_description()
-		button.tooltip_text = setting.get_description()
 		control = make_button_hbox(setting, button, label)
 		button.item_selected.connect(
 			func(idx):
@@ -223,7 +222,6 @@ func create_setting_button(setting: GDREConfigSetting) -> Control:
 
 		button.text = setting.get_brief_description()
 		button.toggled.connect(func(val): setting_callback(setting, val, button))
-		button.tooltip_text = setting.get_description()
 		add_reset_button_to_toggle_button(setting, button)
 		control = button
 	elif setting.get_type() == TYPE_INT:
@@ -250,6 +248,9 @@ func create_setting_button(setting: GDREConfigSetting) -> Control:
 		label.tooltip_text = setting.get_description()
 		control = make_button_hbox(setting, button, label)
 		button.text_changed.connect(func(val): setting_callback(setting, val, control))
+
+	button.tooltip_text = setting.get_description()
+	control.tooltip_text = setting.get_description()
 
 	setting_button_map[setting] = button
 	return control

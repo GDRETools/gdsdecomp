@@ -31,7 +31,7 @@ public:
 	static void progress_end_task(const String &p_task);
 	static void tree_set_edit_checkbox_cell_only_when_checkbox_is_pressed(Tree *p_tree, bool enabled);
 	void popup_error_box(const String &p_message, const String &p_title = "Error", const Callable &p_callback = Callable());
-	void popup_confirm_box(const String &p_message, const String &p_title, const Callable &p_confirm_callback = Callable(), const Callable &p_cancel_callback = Callable());
+	void popup_confirm_box(const String &p_message, const String &p_title, const Callable &p_confirm_callback = Callable(), const Callable &p_cancel_callback = Callable(), const String &p_ok_button_text = "OK", const String &p_cancel_button_text = "Cancel");
 
 	void pck_select_request(const Vector<String> &p_path);
 	void write_log_message(const String &p_message);

@@ -78,13 +78,6 @@ func ver_to_tag(ver:GodotVer):
 		tag_str += "-stable"
 	return tag_str
 
-func path_to_uri(path:String):
-	var uri = "file://"
-	if (!path.simplify_path().begins_with("/")):
-		uri += "/"
-	uri += path.simplify_path()
-	return uri
-
 func get_url_for_tag(tag: String, is_steam_release: bool = false):
 	if is_steam_release: # don't bother with the tag here
 		return "https://codeberg.org/godotsteam/godotsteam/releases"
@@ -108,7 +101,7 @@ func add_ver_string(ver_string: String):
 
 func add_log_file(log_path: String):
 	recovery_folder = log_path.get_base_dir()
-	var uri = path_to_uri(log_path)
+	var uri = GDRECommon.path_to_uri(log_path)
 	LOG_FILE_LABEL.text = LOG_FILE_LABEL.text.replace("<LOG_FILE_URI>", "[url=" + uri + "]" + log_path + "[/url]")
 
 # called before _ready
@@ -204,7 +197,7 @@ func add_report_sections(report_sections: Dictionary, report_labels: Dictionary)
 			else:
 				var txt = DEFAULT_ASSETS_NOTE_TEXT
 				# replace ".assets" with a url to the assets directory
-				txt = txt.replace(".assets", "[url=" + path_to_uri(recovery_folder + "/.assets") + "].assets[/url]")
+				txt = txt.replace(".assets", "[url=" + GDRECommon.path_to_uri(recovery_folder + "/.assets") + "].assets[/url]")
 				%AssetsNote.text = txt
 				%AssetsNote.visible = true
 				continue
@@ -268,7 +261,7 @@ func cancel_extract():
 	close()
 
 func _open_folder():
-	OS.shell_open(path_to_uri(recovery_folder))
+	OS.shell_open(GDRECommon.path_to_uri(recovery_folder))
 
 func confirmed():
 	close()
