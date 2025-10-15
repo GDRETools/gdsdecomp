@@ -230,8 +230,8 @@ struct KeyWorker {
 		non_blank_keys = 0;
 		for (int64_t i = 0; i < default_messages.size(); i++) {
 			if (default_messages[i].is_empty()) {
-				for (int64_t j = 0; j < translation_messages.size(); j++) {
-					if (!translation_messages[j][i].is_empty()) {
+				for (const Vector<String> &messages : translation_messages) {
+					if (i < messages.size() && !messages[i].is_empty()) {
 						non_blank_keys++;
 						break;
 					}
