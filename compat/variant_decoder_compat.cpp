@@ -2,6 +2,8 @@
 #include "core/error/error_list.h"
 #include "input_event_parser_v2.h"
 
+#include "compat/image_enum_compat.h"
+#include "compat/image_parser_v2.h"
 #include "core/io/image.h"
 #include "core/io/marshalls.h"
 
@@ -1372,47 +1374,49 @@ Error VariantDecoderCompat::decode_variant_2(Variant &r_variant, const uint8_t *
 
 		} break;
 
-		case V2Type::IMAGE: {
+		case V2Type::IMAGE: { // not in code, but is in pcfgs
 			ERR_FAIL_COND_V(len < 5 * 4, ERR_INVALID_DATA);
-			Image::Format fmt = (Image::Format)decode_uint32(&buf[0]);
-			ERR_FAIL_INDEX_V(fmt, Image::FORMAT_MAX, ERR_INVALID_DATA);
+			V2Image::Format v2_fmt = (V2Image::Format)decode_uint32(&buf[0]);
+			Image::Format fmt = ImageEnumCompat::convert_image_format_enum_v2_to_v4(v2_fmt);
+			ERR_FAIL_INDEX_V(v2_fmt, V2Image::IMAGE_FORMAT_V2_MAX, ERR_INVALID_DATA);
+
+			uint32_t mipmaps = decode_uint32(&buf[4]);
+			uint32_t w = decode_uint32(&buf[8]);
+			uint32_t h = decode_uint32(&buf[12]);
+
 			int32_t datalen = decode_uint32(&buf[16]);
 
-			// Skip decoding, should not be part of script source OR engine.cfb.
-			// TODO: double check to see if this is true
-			if (r_len) {
-				if (datalen % 4) {
-					(*r_len) += 4 - datalen % 4;
+			Ref<Image> img;
+			if (datalen > 0) {
+				len -= 5 * 4;
+				ERR_FAIL_COND_V(len < datalen, ERR_INVALID_DATA);
+				Vector<uint8_t> data;
+				data.resize(datalen);
+				memcpy(data.ptrw(), &buf[20], datalen);
+				if (v2_fmt == 5 || v2_fmt == 6 || v2_fmt == 1) {
+					Error err;
+					img = ImageParserV2::convert_indexed_image(data, w, h, mipmaps, v2_fmt, &err);
+					ERR_FAIL_COND_V_MSG(err || img.is_null(), ERR_PARSE_ERROR,
+							"Can't convert deprecated image format " + ImageEnumCompat::get_v2_format_name(v2_fmt) + " to new image formats!");
+				} else if (fmt != Image::FORMAT_MAX) {
+					img = Image::create_from_data(w, h, mipmaps, fmt, data);
 				}
+			} else {
+				if (w == 0 && h == 0) {
+					img.instantiate();
+				} else {
+					img = Image::create_empty(w, h, mipmaps, fmt);
+				}
+			}
+			r_variant = img;
+			if (r_len) {
+				if (datalen % 4)
+					(*r_len) += 4 - datalen % 4;
 
 				(*r_len) += 4 * 5 + datalen;
 			}
-
-			// uint32_t mipmaps = decode_uint32(&buf[4]);
-			// uint32_t w = decode_uint32(&buf[8]);
-			// uint32_t h = decode_uint32(&buf[12]);
-
-			// int32_t datalen = decode_uint32(&buf[16]);
-
-			// Ref<Image> img;
-			// if (datalen > 0) {
-			// 	len -= 5 * 4;
-			// 	ERR_FAIL_COND_V(len < datalen, ERR_INVALID_DATA);
-			// 	Vector<uint8_t> data;
-			// 	data.resize(datalen);
-			// 	// Vector<uint8_t>::Write wr = data.write();
-			// 	memcpy(data.ptrw(), &buf[20], datalen);
-
-			// 	img = Ref<Image>(memnew(Image(w, h, mipmaps, fmt, data)));
-			// }
-
-			// r_variant = img;
-			// if (r_len) {
-			// 	if (datalen % 4)
-			// 		(*r_len) += 4 - datalen % 4;
-
-			// 	(*r_len) += 4 * 5 + datalen;
-			// }
+			// wait until after we've skipped all the data to do this
+			ERR_FAIL_COND_V_MSG(fmt == Image::FORMAT_MAX, ERR_UNAVAILABLE, "Can't convert deprecated image format " + ImageEnumCompat::get_v2_format_name((V2Image::Format)v2_fmt) + " to new image formats!");
 		} break;
 
 		case V2Type::NODE_PATH: {
@@ -2498,6 +2502,52 @@ Error VariantDecoderCompat::encode_variant_3(const Variant &p_variant, uint8_t *
 Error VariantDecoderCompat::encode_variant_2(const Variant &p_variant, uint8_t *r_buffer, int &r_len) {
 	uint8_t *buf = r_buffer;
 	r_len = 0;
+	if (p_variant.get_type() == Variant::OBJECT) {
+		Ref<InputEvent> ie = p_variant;
+		Ref<Image> image = p_variant;
+
+		// V2 InputEvent variants
+		if (ie.is_valid()) {
+			if (buf) {
+				encode_uint32(V2Type::INPUT_EVENT, buf);
+				buf += 4;
+			}
+			r_len += 4;
+			int llen = InputEventParserV2::encode_input_event(ie, buf);
+
+			if (buf) {
+				buf += llen;
+			}
+			r_len += llen;
+			return OK;
+		} else if (image.is_valid()) { // V2 Image variants
+			if (buf) {
+				encode_uint32(V2Type::IMAGE, buf);
+				buf += 4;
+			}
+			r_len += 4;
+
+			Vector<uint8_t> data = image->get_data();
+
+			if (buf) {
+				encode_uint32(ImageEnumCompat::convert_image_format_enum_v4_to_v2(image->get_format()), &buf[0]);
+				encode_uint32(image->get_mipmap_count(), &buf[4]);
+				encode_uint32(image->get_width(), &buf[8]);
+				encode_uint32(image->get_height(), &buf[12]);
+				int ds = data.size();
+				encode_uint32(ds, &buf[16]);
+				memcpy(&buf[20], data.ptr(), ds);
+			}
+
+			int pad = 0;
+			if (data.size() % 4)
+				pad = 4 - data.size() % 4;
+
+			r_len += data.size() + 5 * 4 + pad;
+			return OK;
+		}
+		// else fall through
+	}
 
 	if (buf) {
 		encode_uint32(convert_variant_type_to_old(p_variant.get_type(), 2), buf);
@@ -2710,29 +2760,6 @@ Error VariantDecoderCompat::encode_variant_2(const Variant &p_variant, uint8_t *
 			r_len += 4 * 4;
 
 		} break;
-		// TODO: See if this matters?
-		// case Variant::IMAGE: {
-		// 	Image image = p_variant;
-		// 	Vector<uint8_t> data = image.get_data();
-
-		// 	if (buf) {
-		// 		encode_uint32(image.get_format(), &buf[0]);
-		// 		encode_uint32(image.get_mipmaps(), &buf[4]);
-		// 		encode_uint32(image.get_width(), &buf[8]);
-		// 		encode_uint32(image.get_height(), &buf[12]);
-		// 		int ds = data.size();
-		// 		encode_uint32(ds, &buf[16]);
-		// 		Vector<uint8_t>::Read r = data.read();
-		// 		memcpy(&buf[20], &r[0], ds);
-		// 	}
-
-		// 	int pad = 0;
-		// 	if (data.size() % 4)
-		// 		pad = 4 - data.size() % 4;
-
-		// 	r_len += data.size() + 5 * 4 + pad;
-
-		// } break;
 		/*case Variant::RESOURCE: {
 
 			ERR_EXPLAIN("Can't marshallize resources");
@@ -2740,72 +2767,8 @@ Error VariantDecoderCompat::encode_variant_2(const Variant &p_variant, uint8_t *
 		} break;*/
 		case Variant::RID:
 		case Variant::OBJECT: {
-			// TODO: DO INPUT_EVENTS
+			// nothing to do
 		} break;
-		// case Variant::INPUT_EVENT: {
-		// 	InputEvent ie = p_variant;
-
-		// 	if (buf) {
-		// 		encode_uint32(ie.type, &buf[0]);
-		// 		encode_uint32(ie.device, &buf[4]);
-		// 		encode_uint32(0, &buf[8]);
-		// 	}
-
-		// 	int llen = 12;
-
-		// 	switch (ie.type) {
-		// 		case InputEvent::KEY: {
-		// 			if (buf) {
-		// 				uint32_t mods = 0;
-		// 				if (ie.key.mod.shift)
-		// 					mods |= KEY_MASK_SHIFT;
-		// 				if (ie.key.mod.control)
-		// 					mods |= KEY_MASK_CTRL;
-		// 				if (ie.key.mod.alt)
-		// 					mods |= KEY_MASK_ALT;
-		// 				if (ie.key.mod.meta)
-		// 					mods |= KEY_MASK_META;
-
-		// 				encode_uint32(mods, &buf[llen]);
-		// 				encode_uint32(ie.key.scancode, &buf[llen + 4]);
-		// 			}
-		// 			llen += 8;
-
-		// 		} break;
-		// 		case InputEvent::MOUSE_BUTTON: {
-		// 			if (buf) {
-		// 				encode_uint32(ie.mouse_button.button_index, &buf[llen]);
-		// 			}
-		// 			llen += 4;
-		// 		} break;
-		// 		case InputEvent::JOYSTICK_BUTTON: {
-		// 			if (buf) {
-		// 				encode_uint32(ie.joy_button.button_index, &buf[llen]);
-		// 			}
-		// 			llen += 4;
-		// 		} break;
-		// 		case InputEvent::SCREEN_TOUCH: {
-		// 			if (buf) {
-		// 				encode_uint32(ie.screen_touch.index, &buf[llen]);
-		// 			}
-		// 			llen += 4;
-		// 		} break;
-		// 		case InputEvent::JOYSTICK_MOTION: {
-		// 			if (buf) {
-		// 				int axis = ie.joy_motion.axis;
-		// 				encode_uint32(axis, &buf[llen]);
-		// 				encode_float(ie.joy_motion.axis_value, &buf[llen + 4]);
-		// 			}
-		// 			llen += 8;
-		// 		} break;
-		// 	}
-
-		// 	if (buf)
-		// 		encode_uint32(llen, &buf[8]);
-		// 	r_len += llen;
-
-		// 	// not supported
-		// } break;
 		case Variant::DICTIONARY: {
 			Dictionary d = p_variant;
 

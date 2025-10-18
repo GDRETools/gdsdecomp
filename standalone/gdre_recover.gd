@@ -164,25 +164,9 @@ func convert_pcfg_to_text(path: String, output_dir: String) -> Array:
 	var err = OK
 	if path.get_file() == "engine.cfb":
 		text_file = "engine.cfg"
-	if (ver_major > 0):
-		err = loader.load_cfb(path, ver_major, ver_minor)
-		if err != OK:
-			return [err, text_file]
-	else:
-		if (path.get_file() == "engine.cfb"):
-			ver_major = 2
-			err = loader.load_cfb(path, ver_major, ver_minor)
-			if err != OK:
-				return [err, text_file]
-		else:
-			err = loader.load_cfb(path, 4, 3)
-			if (err == OK):
-				ver_major = 4
-			else:
-				err = loader.load_cfb(path, 3, 3)
-				if err != OK:
-					return [err, text_file]
-				ver_major = 3
+	err = loader.load_cfb(path, ver_major, ver_minor)
+	if err != OK:
+		return [err, text_file]
 	return [loader.save_cfb(output_dir, ver_major, ver_minor), text_file]
 
 func _export_files(files: PackedStringArray, output_dir: String, dir_structure: DirStructure, rel_base: String, export_glb: ExportSceneType) -> PackedStringArray:

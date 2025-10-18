@@ -9,9 +9,159 @@
 #include <core/config/project_settings.h>
 #include <core/templates/rb_set.h>
 
-static_assert(ProjectSettings::CONFIG_VERSION == ProjectConfigLoader::CURRENT_CONFIG_VERSION, "ProjectSettings::CONFIG_VERSION changed");
+static const HashMap<String, String> project_godot_renames_v3_to_v4{
+	// Should be kept in sync with project_settings_renames.
+	{ "channel_disable_threshold_db", "buses/channel_disable_threshold_db" },
+	{ "channel_disable_time", "buses/channel_disable_time" },
+	{ "default_bus_layout", "buses/default_bus_layout" },
+	// { "driver", "driver/driver" }, -- Risk of conflicts.
+	{ "enable_audio_input", "driver/enable_input" },
+	// { "mix_rate", "driver/mix_rate" }, -- Risk of conflicts.
+	{ "output_latency", "driver/output_latency" },
+	{ "output_latency.web", "driver/output_latency.web" },
+	{ "video_delay_compensation_ms", "video/video_delay_compensation_ms" },
+	{ "window/size/width", "window/size/viewport_width" },
+	{ "window/size/height", "window/size/viewport_height" },
+	{ "window/size/test_width", "window/size/window_width_override" },
+	{ "window/size/test_height", "window/size/window_height_override" },
+	{ "window/vsync/use_vsync", "window/vsync/vsync_mode" },
+	{ "main_run_args", "run/main_run_args" },
+	{ "common/swap_ok_cancel", "common/swap_cancel_ok" },
+	{ "limits/debugger_stdout/max_chars_per_second", "limits/debugger/max_chars_per_second" },
+	{ "limits/debugger_stdout/max_errors_per_second", "limits/debugger/max_errors_per_second" },
+	{ "limits/debugger_stdout/max_messages_per_frame", "limits/debugger/max_queued_messages" },
+	{ "limits/debugger_stdout/max_warnings_per_second", "limits/debugger/max_warnings_per_second" },
+	{ "ssl/certificates", "tls/certificate_bundle_override" },
+	{ "2d/thread_model", "2d/run_on_thread" }, // TODO: Not sure.
+	{ "environment/default_clear_color", "environment/defaults/default_clear_color" },
+	{ "environment/default_environment", "environment/defaults/default_environment" },
+	{ "quality/depth_prepass/disable_for_vendors", "driver/depth_prepass/disable_for_vendors" },
+	{ "quality/depth_prepass/enable", "driver/depth_prepass/enable" },
+	{ "quality/shading/force_blinn_over_ggx", "shading/overrides/force_blinn_over_ggx" },
+	{ "quality/shading/force_blinn_over_ggx.mobile", "shading/overrides/force_blinn_over_ggx.mobile" },
+	{ "quality/shading/force_lambert_over_burley", "shading/overrides/force_lambert_over_burley" },
+	{ "quality/shading/force_lambert_over_burley.mobile", "shading/overrides/force_lambert_over_burley.mobile" },
+	{ "quality/shading/force_vertex_shading", "shading/overrides/force_vertex_shading" },
+	{ "quality/shadow_atlas/quadrant_0_subdiv", "lights_and_shadows/shadow_atlas/quadrant_0_subdiv" },
+	{ "quality/shadow_atlas/quadrant_1_subdiv", "lights_and_shadows/shadow_atlas/quadrant_1_subdiv" },
+	{ "quality/shadow_atlas/quadrant_2_subdiv", "lights_and_shadows/shadow_atlas/quadrant_2_subdiv" },
+	{ "quality/shadow_atlas/quadrant_3_subdiv", "lights_and_shadows/shadow_atlas/quadrant_3_subdiv" },
+	{ "quality/shadow_atlas/size", "lights_and_shadows/shadow_atlas/size" },
+	{ "quality/shadow_atlas/size.mobile", "lights_and_shadows/shadow_atlas/size.mobile" },
+	{ "vram_compression/import_etc2", "textures/vram_compression/import_etc2_astc" },
+	{ "vram_compression/import_s3tc", "textures/vram_compression/import_s3tc_bptc" },
+};
 
-Error ProjectConfigLoader::load_cfb(const String path, const uint32_t ver_major, const uint32_t ver_minor) {
+bool ProjectConfigLoader::_check_property_type(const String &property, Variant::Type type, Variant::Type element_type) const {
+	const VariantContainer &prop = props[property];
+	if (prop.variant.get_type() != type) {
+		return false;
+	}
+	if (element_type != Variant::Type::VARIANT_MAX && type == Variant::Type::ARRAY) {
+		for (const Variant &elem : prop.variant.operator Array()) {
+			if (elem.get_type() != element_type) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+int ProjectConfigLoader::_detect_ver_major_v3_or_v4(int loaded_as_ver_major) const {
+	// What we're testing here is for the Variant::Type enum shift which occurs after Vector2
+	auto _check_prop = [&](String property, Variant::Type type, Variant::Type element_type = Variant::Type::VARIANT_MAX) {
+		if (_check_property_type(property, type, element_type)) {
+			return loaded_as_ver_major;
+		}
+		return loaded_as_ver_major == 4 ? 3 : 4;
+	};
+	auto _check_has_prop = [&](String property) {
+		if (!props.has(property)) {
+			return false;
+		}
+		const auto &prop = props[property];
+		if (prop.variant.get_type() == Variant::Type::NIL || prop.variant.is_null()) {
+			return false;
+		}
+		return true;
+	};
+#define CHECK_PROP_WITH_ELEMENT_TYPE(property, type, element_type) \
+	if (_check_has_prop(property)) {                               \
+		return _check_prop(property, type, element_type);          \
+	}
+#define CHECK_PROP(property, type) CHECK_PROP_WITH_ELEMENT_TYPE(property, type, Variant::Type::VARIANT_MAX);
+
+	// these are all internal properties, so they're unlikely to be modifed with by the user directly
+	CHECK_PROP("application/config/tags", Variant::Type::PACKED_STRING_ARRAY);
+	CHECK_PROP("application/config/features", Variant::Type::PACKED_STRING_ARRAY);
+	CHECK_PROP("internationalization/locale/translation_remaps", Variant::Type::PACKED_STRING_ARRAY);
+	CHECK_PROP("internationalization/locale/translations", Variant::Type::PACKED_STRING_ARRAY);
+	CHECK_PROP("internationalization/locale/translations_pot_files", Variant::Type::PACKED_STRING_ARRAY);
+	CHECK_PROP_WITH_ELEMENT_TYPE("_global_script_classes", Variant::Type::ARRAY, Variant::Type::DICTIONARY);
+	// checking for existence of renamed props
+	// we check this first because it's written by default in v3 and v4 and it's the most common case
+	bool has_v3_environment = props.has("environment/default_environment");
+	bool has_v4_environment = props.has("environment/defaults/default_environment");
+
+	if (has_v3_environment && !has_v4_environment) {
+		return 3;
+	}
+
+	if (has_v4_environment && !has_v3_environment) {
+		return 4;
+	}
+
+	for (const auto &E : project_godot_renames_v3_to_v4) {
+		bool has_v3 = props.has(E.key);
+		bool has_v4 = props.has(E.value);
+		if (has_v3 && !has_v4) {
+			return 3;
+		}
+		if (has_v4 && !has_v3) {
+			return 4;
+		}
+	}
+
+	// last resort; this is written by default in v4, and if the project doesn't have it, it's definitely v3
+	if (props.has("application/config/features")) {
+		return 4;
+	}
+
+	return 3;
+#undef CHECK_PROP_WITH_ELEMENT_TYPE
+#undef CHECK_PROP
+}
+
+Error ProjectConfigLoader::_try_load_binary_v3_or_v4(const String &path, uint32_t &r_ver_major) {
+	Error err = OK;
+	Ref<FileAccess> f = FileAccess::open(path, FileAccess::READ, &err);
+	ERR_FAIL_COND_V_MSG(f.is_null(), err, "Could not open " + path);
+	r_ver_major = 4;
+	err = _load_settings_binary(f, path, r_ver_major, true);
+	f->seek(0);
+	if (err == OK) {
+		int detected_ver_major = _detect_ver_major_v3_or_v4(r_ver_major);
+		if (detected_ver_major == 0) {
+			return ERR_PRINTER_ON_FIRE;
+		}
+		if (detected_ver_major != r_ver_major) {
+			r_ver_major = detected_ver_major;
+			err = ERR_PRINTER_ON_FIRE;
+		}
+	} else {
+		r_ver_major = 3;
+	}
+	if (err != OK) {
+		err = _load_settings_binary(f, path, r_ver_major, true);
+		f->seek(0);
+	}
+	if (err != OK) {
+		r_ver_major = 0;
+	}
+	return err;
+}
+
+Error ProjectConfigLoader::load_cfb(const String path, uint32_t ver_major, uint32_t ver_minor) {
 	cfb_path = path;
 	String ext = path.get_extension().to_lower();
 	Error err = OK;
@@ -19,8 +169,23 @@ Error ProjectConfigLoader::load_cfb(const String path, const uint32_t ver_major,
 	ERR_FAIL_COND_V_MSG(f.is_null(), err, "Could not open " + path);
 	if (ext == "cfg" || ext == "godot") {
 		err = _load_settings_text(f, path, ver_major);
+		if (err == OK && ver_major == 0) {
+			auto ret = get_ver_major_and_minor_for_config_version(config_version);
+			ver_major = ret.first;
+			ver_minor = ret.second;
+		}
 	} else {
-		err = _load_settings_binary(f, path, ver_major);
+		if (ver_major == 0 && ext == "cfb") {
+			ver_major = 2;
+		}
+		if (ver_major == 0) {
+			err = _try_load_binary_v3_or_v4(path, ver_major);
+		} else {
+			err = _load_settings_binary(f, path, ver_major, false);
+		}
+		if (err == OK) {
+			config_version = get_config_version_for_version(ver_major, ver_minor);
+		}
 	}
 	ERR_FAIL_COND_V(err, err);
 	major = ver_major;
@@ -29,9 +194,13 @@ Error ProjectConfigLoader::load_cfb(const String path, const uint32_t ver_major,
 	return OK;
 }
 
-Error ProjectConfigLoader::save_cfb(const String dir, const uint32_t ver_major, const uint32_t ver_minor) {
+Error ProjectConfigLoader::save_cfb(const String dir, uint32_t ver_major, uint32_t ver_minor) {
 	ERR_FAIL_COND_V_MSG(!loaded, ERR_INVALID_DATA, "Attempted to save project config when not loaded!");
 	String file;
+	if (ver_major == 0) {
+		ver_major = major;
+		ver_minor = minor;
+	}
 	if (ver_major > 2) {
 		file = "project.godot";
 	} else {
@@ -41,9 +210,13 @@ Error ProjectConfigLoader::save_cfb(const String dir, const uint32_t ver_major, 
 	return save_custom(dir.path_join(file).replace("res://", ""), ver_major, ver_minor);
 }
 
-Error ProjectConfigLoader::save_cfb_binary(const String dir, const uint32_t ver_major, const uint32_t ver_minor) {
+Error ProjectConfigLoader::save_cfb_binary(const String dir, uint32_t ver_major, uint32_t ver_minor) {
 	ERR_FAIL_COND_V_MSG(!loaded, ERR_INVALID_DATA, "Attempted to save project config when not loaded!");
 	String file;
+	if (ver_major == 0) {
+		ver_major = major;
+		ver_minor = minor;
+	}
 	if (ver_major > 2) {
 		file = "project.binary";
 	} else {
@@ -96,7 +269,7 @@ Error ProjectConfigLoader::set_setting(String p_var, Variant value) {
 	return OK;
 }
 
-Error ProjectConfigLoader::_load_settings_binary(Ref<FileAccess> f, const String &p_path, uint32_t ver_major) {
+Error ProjectConfigLoader::_load_settings_binary(Ref<FileAccess> f, const String &p_path, uint32_t ver_major, bool fail_on_corrupt) {
 	Error err;
 	uint8_t hdr[4];
 	config_version = 0;
@@ -127,6 +300,9 @@ Error ProjectConfigLoader::_load_settings_binary(Ref<FileAccess> f, const String
 		f->get_buffer(d.ptrw(), vlen);
 		Variant value;
 		err = VariantDecoderCompat::decode_variant_compat(ver_major, value, d.ptr(), d.size(), NULL, true);
+		if (err != OK && fail_on_corrupt) {
+			return err;
+		}
 		ERR_CONTINUE_MSG(err != OK, "Error decoding property: " + key + ".");
 		props[key] = VariantContainer(value, last_builtin_order++, true);
 	}
@@ -233,11 +409,16 @@ RBMap<String, List<String>> ProjectConfigLoader::get_save_proops() const {
 	return proops;
 }
 
-Error ProjectConfigLoader::save_custom(const String &p_path, const uint32_t ver_major, const uint32_t ver_minor) {
+Error ProjectConfigLoader::save_custom(const String &p_path, uint32_t ver_major, uint32_t ver_minor) {
 	ERR_FAIL_COND_V_MSG(p_path == "", ERR_INVALID_PARAMETER, "Project settings save path cannot be empty.");
 
 	RBMap<String, List<String>> proops = get_save_proops();
 	String ext = p_path.get_extension().to_lower();
+
+	if (ver_major == 0) {
+		ver_major = major;
+		ver_minor = minor;
+	}
 
 	if (ext == "godot" || ext == "cfg") {
 		return _save_settings_text(p_path, proops, ver_major, ver_minor);
@@ -255,19 +436,8 @@ Error ProjectConfigLoader::_save_settings_text(const String &p_file, const RBMap
 	return _save_settings_text_file(file, proops, ver_major, ver_minor);
 }
 
-Error ProjectConfigLoader::_save_settings_text_file(const Ref<FileAccess> &file, const RBMap<String, List<String>> &proops, const uint32_t ver_major, const uint32_t ver_minor) {
-	uint32_t text_config_version = 2;
-	if (ver_major > 2) {
-		if (ver_major == 3 && ver_minor == 0) {
-			text_config_version = 3;
-		} else if (ver_major == 3) {
-			text_config_version = 4;
-		} else { // v4
-			text_config_version = 5;
-		}
-	} else {
-		text_config_version = 2;
-	}
+Error ProjectConfigLoader::_save_settings_text_file(const Ref<FileAccess> &file, const RBMap<String, List<String>> &proops, uint32_t ver_major, uint32_t ver_minor) {
+	int text_config_version = get_config_version_for_version(ver_major, ver_minor);
 
 	if (text_config_version > 2) {
 		file->store_line("; Engine configuration file.");
@@ -280,9 +450,8 @@ Error ProjectConfigLoader::_save_settings_text_file(const Ref<FileAccess> &file,
 		file->store_line("");
 
 		file->store_string("config_version=" + itos(text_config_version) + "\n");
+		file->store_string("\n");
 	}
-
-	file->store_string("\n");
 
 	for (RBMap<String, List<String>>::Element *E = proops.front(); E; E = E->next()) {
 		if (E != proops.front()) {
@@ -393,29 +562,8 @@ String ProjectConfigLoader::get_project_settings_as_string(const String &p_path)
 	int ver_minor = GDRESettings::get_singleton()->get_ver_minor();
 	Error err;
 	Ref<ProjectConfigLoader> loader = Ref<ProjectConfigLoader>(memnew(ProjectConfigLoader));
-	if (ver_major > 0) {
-		err = loader->load_cfb(p_path, ver_major, ver_minor);
-		ERR_FAIL_COND_V_MSG(err != OK, "", "Failed to load project.godot");
-	} else {
-		if (p_path.get_file() == "engine.cfb") {
-			ver_major = 2;
-			err = loader->load_cfb(p_path, ver_major, ver_minor);
-			if (err != OK) {
-				return "";
-			}
-		} else {
-			err = loader->load_cfb(p_path, 4, 3);
-			if (err == OK) {
-				ver_major = 4;
-			} else {
-				err = loader->load_cfb(p_path, 3, 3);
-				if (err != OK) {
-					return "";
-				}
-				ver_major = 3;
-			}
-		}
-	}
+	err = loader->load_cfb(p_path, ver_major, ver_minor);
+	ERR_FAIL_COND_V_MSG(err != OK, "", "Failed to load project.godot");
 	return loader->get_as_text();
 }
 
@@ -426,12 +574,13 @@ ProjectConfigLoader::~ProjectConfigLoader() {
 }
 
 void ProjectConfigLoader::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("load_cfb", "path", "ver_major", "ver_minor"), &ProjectConfigLoader::load_cfb);
-	ClassDB::bind_method(D_METHOD("save_cfb", "dir", "ver_major", "ver_minor"), &ProjectConfigLoader::save_cfb);
+	ClassDB::bind_method(D_METHOD("load_cfb", "path", "ver_major", "ver_minor"), &ProjectConfigLoader::load_cfb, DEFVAL(0), DEFVAL(0));
+	ClassDB::bind_method(D_METHOD("save_cfb", "dir", "ver_major", "ver_minor"), &ProjectConfigLoader::save_cfb, DEFVAL(0), DEFVAL(0));
+	ClassDB::bind_method(D_METHOD("save_cfb_binary", "dir", "ver_major", "ver_minor"), &ProjectConfigLoader::save_cfb_binary, DEFVAL(0), DEFVAL(0));
+	ClassDB::bind_method(D_METHOD("save_custom", "path", "ver_major", "ver_minor"), &ProjectConfigLoader::save_custom, DEFVAL(0), DEFVAL(0));
 	ClassDB::bind_method(D_METHOD("has_setting", "var"), &ProjectConfigLoader::has_setting);
 	ClassDB::bind_method(D_METHOD("get_setting", "var", "default_value"), &ProjectConfigLoader::get_setting);
 	ClassDB::bind_method(D_METHOD("remove_setting", "var"), &ProjectConfigLoader::remove_setting);
 	ClassDB::bind_method(D_METHOD("set_setting", "var", "value"), &ProjectConfigLoader::set_setting);
-	ClassDB::bind_method(D_METHOD("save_custom", "path", "ver_major", "ver_minor"), &ProjectConfigLoader::save_custom);
 	ClassDB::bind_method(D_METHOD("get_config_version"), &ProjectConfigLoader::get_config_version);
 }

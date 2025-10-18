@@ -397,6 +397,15 @@ public:
 
 	static Error decode_input_event(Variant &r_variant, const uint8_t *p_buffer, int p_len, int *r_len);
 	static Error parse_input_event_construct_v2(VariantParser::Stream *f, Variant &r_v, int &line, String &p_err_str, String id = "");
+
+	static int encode_input_event(const Ref<InputEvent> &ie, uint8_t *p_buffer);
+
+	static V2InputEvent::V2Type get_v2_type(const InputEventType &p_event);
+
+	static HashMap<Key, String> get_key_code_to_v2_string_map();
+
+	static V2InputEvent::V2KeyList get_v2_key_from_iek(Ref<InputEventKey> iek);
+	static V2InputEvent::V2KeyList convert_v4_key_to_v2_key(Key p_key);
 };
 
 class InputEventConverterCompat : public ResourceCompatConverter {

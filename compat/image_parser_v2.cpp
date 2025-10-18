@@ -72,34 +72,53 @@ Ref<Image> ImageParserV2::convert_indexed_image(const Vector<uint8_t> &p_imgdata
 
 String ImageParserV2::image_v2_to_string(const Variant &r_v, bool is_pcfg) {
 	Ref<Image> img = r_v;
-	String imgstr = is_pcfg ? "img(" : "Image(";
+	String imgstr = is_pcfg ? "img(" : "Image( ";
 	if (img.is_null() || img->is_empty()) {
-		return String(imgstr + ")");
+		return is_pcfg ? "img()" : "Image()";
 	}
 
-	imgstr += " ";
-	imgstr += itos(img->get_width());
-	imgstr += ", " + itos(img->get_height());
-	String subimgstr = ", " + itos(img->get_mipmap_count()) + ", ";
 	Image::Format fmt = img->get_format();
 	String fmt_id = is_pcfg ? ImageEnumCompat::get_v2_format_identifier_pcfg(ImageEnumCompat::convert_image_format_enum_v4_to_v2(fmt), img->get_data().size()) : ImageEnumCompat::get_v2_format_identifier(ImageEnumCompat::convert_image_format_enum_v4_to_v2(fmt));
 
-	imgstr += subimgstr + fmt_id;
+	if (!is_pcfg) {
+		imgstr += itos(img->get_width());
+		imgstr += ", " + itos(img->get_height());
+		imgstr += ", " + itos(img->get_mipmap_count());
+		imgstr += ", " + fmt_id;
+	} else {
+		// fmt_id, mipmaps, width, height
+		imgstr += fmt_id;
+		imgstr += ", " + itos(img->get_mipmap_count());
+		imgstr += ", " + itos(img->get_width());
+		imgstr += ", " + itos(img->get_height());
+	}
 
 	String s;
 
 	Vector<uint8_t> data = img->get_data();
-	int len = data.size();
-	for (int i = 0; i < len; i++) {
-		if (i > 0)
-			s += ", ";
-		s += itos(data[i]);
+	if (!is_pcfg) {
+		int len = data.size();
+		for (int i = 0; i < len; i++) {
+			if (i > 0)
+				s += ", ";
+			s += itos(data[i]);
+		}
+	} else {
+		int ds = data.size();
+		String data_str;
+		for (int i = 0; i < ds; i++) {
+			uint8_t byte = data[i];
+			const char hex[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+			char bstr[3] = { hex[byte >> 4], hex[byte & 0xF], 0 };
+			s += bstr;
+		}
 	}
 
-	imgstr += ", " + s + " )";
+	imgstr += ", " + s + (is_pcfg ? ")" : " )");
 	return imgstr;
 }
 
+// used in resource_format_binary
 Error ImageParserV2::write_image_v2_to_bin(Ref<FileAccess> f, const Variant &r_v, bool compress_lossless) {
 	Ref<Image> val = r_v;
 	if (val.is_null() || val->is_empty()) {
@@ -110,7 +129,7 @@ Error ImageParserV2::write_image_v2_to_bin(Ref<FileAccess> f, const Variant &r_v
 	int encoding = V2Image::IMAGE_ENCODING_RAW;
 	//float quality = 0.7;
 
-	if (val->get_format() <= Image::FORMAT_RGB565) {
+	if (!val->is_compressed()) {
 		// can only compress uncompressed stuff
 		if (compress_lossless && Image::png_packer) {
 			encoding = V2Image::IMAGE_ENCODING_LOSSLESS;
@@ -123,9 +142,12 @@ Error ImageParserV2::write_image_v2_to_bin(Ref<FileAccess> f, const Variant &r_v
 		f->store_32(val->get_width());
 		f->store_32(val->get_height());
 		int mipmaps = val->get_mipmap_count();
-		V2Image::Format fmt = ImageEnumCompat::convert_image_format_enum_v4_to_v2(val->get_format());
+		int fmt = ImageEnumCompat::convert_image_format_enum_v4_to_v2(val->get_format());
 		ERR_FAIL_COND_V_MSG(fmt == V2Image::IMAGE_FORMAT_V2_MAX, ERR_FILE_CORRUPT,
 				"Can't convert new image to v2 image variant!");
+		if (fmt >= V2Image::Format::FORMAT_YUV_422 + 2) {
+			fmt -= 2; // remove the 2 from the YUV422 and YUV444 formats
+		}
 		f->store_32(mipmaps);
 		f->store_32(fmt);
 		int dlen = val->get_data().size();
@@ -149,6 +171,7 @@ Error ImageParserV2::write_image_v2_to_bin(Ref<FileAccess> f, const Variant &r_v
 	return OK;
 }
 
+// used in resource_format_binary
 Error ImageParserV2::decode_image_v2(Ref<FileAccess> f, Variant &r_v, bool convert_indexed) {
 	uint32_t encoding = f->get_32();
 	Ref<Image> img;
@@ -162,6 +185,9 @@ Error ImageParserV2::decode_image_v2(Ref<FileAccess> f, Variant &r_v, bool conve
 		uint32_t height = f->get_32();
 		uint32_t mipmaps = f->get_32();
 		uint32_t old_format = f->get_32();
+		if (old_format >= V2Image::Format::FORMAT_YUV_422) {
+			old_format += 2; // the image format enum for resources doesn't have YUV422 and YUV444 formats, so it's off by 2 after
+		}
 		Image::Format fmt = ImageEnumCompat::convert_image_format_enum_v2_to_v4((V2Image::Format)old_format);
 
 		uint32_t datalen = f->get_32();
@@ -199,10 +225,7 @@ Error ImageParserV2::decode_image_v2(Ref<FileAccess> f, Variant &r_v, bool conve
 		// Godot 2.0 sometimes exported empty images as "IMAGE_ENCODING_LOSSY" rather than "IMAGE_ENCODING_EMPTY", so we need to check for that.
 		if (data.size() == 0) {
 			img.instantiate();
-			r_v = img;
-			return OK;
-		}
-		if (encoding == V2Image::IMAGE_ENCODING_LOSSY) {
+		} else if (encoding == V2Image::IMAGE_ENCODING_LOSSY) {
 			img = WebPCompat::webp_unpack_v2v3(data);
 		} else if (encoding == V2Image::IMAGE_ENCODING_LOSSLESS && Image::png_unpacker) {
 			img = img->png_unpacker(data);
@@ -223,7 +246,7 @@ Error ImageParserV2::decode_image_v2(Ref<FileAccess> f, Variant &r_v, bool conve
 	VariantParser::get_token(p_stream, token, line, r_err_str); \
 	ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_COMMA, "Expected comma in Image variant")
 
-Error ImageParserV2::parse_image_construct_v2(VariantParser::Stream *p_stream, Variant &r_v, bool convert_indexed, int &line, String &p_err_str) {
+Error ImageParserV2::parse_image_construct_v2(VariantParser::Stream *p_stream, Variant &r_v, bool convert_indexed, int &line, String &p_err_str, bool is_pcfg) {
 	String r_err_str;
 	VariantParser::Token token;
 	uint32_t width;
@@ -241,48 +264,107 @@ Error ImageParserV2::parse_image_construct_v2(VariantParser::Stream *p_stream, V
 	// w, h, mipmap count, format string, data...
 	// width
 	VariantParser::get_token(p_stream, token, line, r_err_str);
-	ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_NUMBER, "Expected width in Image variant");
-	width = token.value;
-	EXPECT_COMMA();
+	if (token.type == VariantParser::TK_PARENTHESIS_CLOSE) { // empty image
+		img.instantiate();
+		r_v = img;
+		return OK;
+	}
+	if (!is_pcfg) { // w, h, mipmap count, format string, data...
+		ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_NUMBER, "Expected width in Image variant");
+		width = token.value;
+		EXPECT_COMMA();
 
-	// height
-	VariantParser::get_token(p_stream, token, line, r_err_str);
-	ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_NUMBER, "Expected height in Image variant");
-	height = token.value;
-	EXPECT_COMMA();
+		// height
+		VariantParser::get_token(p_stream, token, line, r_err_str);
+		ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_NUMBER, "Expected height in Image variant");
+		height = token.value;
+		EXPECT_COMMA();
 
-	// mipmaps
-	VariantParser::get_token(p_stream, token, line, r_err_str);
-	ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_NUMBER, "Expected mipmap count in Image variant");
-	mipmaps = token.value;
-	EXPECT_COMMA();
+		// mipmaps
+		VariantParser::get_token(p_stream, token, line, r_err_str);
+		ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_NUMBER, "Expected mipmap count in Image variant");
+		mipmaps = token.value;
+		EXPECT_COMMA();
 
-	// format string
-	VariantParser::get_token(p_stream, token, line, r_err_str);
-	ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_STRING, "Expected format string in Image variant");
-	old_format = ImageEnumCompat::get_v2_format_from_string(token.value);
-	fmt = ImageEnumCompat::convert_image_format_enum_v2_to_v4(old_format);
+		// format string
+		VariantParser::get_token(p_stream, token, line, r_err_str);
+		ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_IDENTIFIER, "Expected format string in Image variant");
+		old_format = ImageEnumCompat::get_v2_format_from_string(token.value);
+		fmt = ImageEnumCompat::convert_image_format_enum_v2_to_v4(old_format);
+		EXPECT_COMMA();
+	} else { // pcfg format; fmt, mipmaps, width, height, data...
+		// format string
+		ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_IDENTIFIER, "Expected format string in Image variant");
+		old_format = ImageEnumCompat::get_v2_format_from_string(token.value);
+		fmt = ImageEnumCompat::convert_image_format_enum_v2_to_v4(old_format);
+		EXPECT_COMMA();
+		// mipmaps
+		VariantParser::get_token(p_stream, token, line, r_err_str);
+		ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_NUMBER, "Expected mipmap count in Image variant");
+		mipmaps = token.value;
+		EXPECT_COMMA();
+		// width
+		VariantParser::get_token(p_stream, token, line, r_err_str);
+		ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_NUMBER, "Expected width in Image variant");
+		width = token.value;
+		EXPECT_COMMA();
+		// height
+		VariantParser::get_token(p_stream, token, line, r_err_str);
+		ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_NUMBER, "Expected height in Image variant");
+		height = token.value;
+		EXPECT_COMMA();
+	}
 	bool first = true;
-	EXPECT_COMMA();
 
 	// data
-	while (true) {
-		if (!first) {
+	if (!is_pcfg) {
+		while (true) {
+			if (!first) {
+				VariantParser::get_token(p_stream, token, line, r_err_str);
+				if (token.type == VariantParser::TK_PARENTHESIS_CLOSE) {
+					break;
+				} else {
+					ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_COMMA, "Expected ',' or ')'");
+				}
+			}
 			VariantParser::get_token(p_stream, token, line, r_err_str);
-			if (token.type == VariantParser::TK_PARENTHESIS_CLOSE) {
+			if (first && token.type == VariantParser::TK_PARENTHESIS_CLOSE) {
 				break;
-			} else {
-				ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_COMMA, "Expected ',' or ')'");
+			}
+			ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_NUMBER, "Expected int in image data");
+
+			data.push_back(token.value);
+			first = false;
+		}
+	} else {
+		// this messes up the tokenizer, so we have to do it manually
+		String token_text;
+		char32_t cchar;
+		if (p_stream->saved) {
+			cchar = p_stream->saved;
+			p_stream->saved = 0;
+		} else {
+			cchar = p_stream->get_char();
+			if (p_stream->is_eof()) {
+				r_err_str = "Expected data in image variant";
+				return ERR_PARSE_ERROR;
 			}
 		}
-		VariantParser::get_token(p_stream, token, line, r_err_str);
-		if (first && token.type == VariantParser::TK_PARENTHESIS_CLOSE) {
-			break;
+		while (is_whitespace(cchar)) {
+			cchar = p_stream->get_char();
 		}
-		ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_NUMBER, "Expected int in image data");
-
-		data.push_back(token.value);
-		first = false;
+		while (is_hex_digit(cchar)) {
+			token_text += cchar;
+			cchar = p_stream->get_char();
+		}
+		if (token_text.length() % 2 != 0) {
+			r_err_str = "Expected even number of hex digits in image variant";
+			return ERR_PARSE_ERROR;
+		}
+		data = token_text.hex_decode();
+		p_stream->saved = cchar;
+		VariantParser::get_token(p_stream, token, line, r_err_str);
+		ERR_PARSE_V2IMAGE_FAIL(VariantParser::TK_PARENTHESIS_CLOSE, "Expected ')' in image variant");
 	}
 
 	if (convert_indexed && (old_format == 5 || old_format == 6 || old_format == 1)) {

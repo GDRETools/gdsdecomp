@@ -485,7 +485,7 @@ Error TextureLoaderCompat::_load_data_stex2d_v3(const String &p_path, int &tw, i
 	return OK;
 }
 
-Error TextureLoaderCompat::_load_data_ctex2d_v4(const String &p_path, int &tw, int &th, int &tw_custom, int &th_custom, Ref<Image> &image, int &r_data_format, int &r_texture_flags, int p_size_limit) {
+Error TextureLoaderCompat::_load_data_ctex2d_v4(const String &p_path, int &tw, int &th, Ref<Image> &image, int &r_data_format, int &r_texture_flags, int p_size_limit) {
 	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
 	uint8_t header[4];
 	// already checked header
@@ -496,8 +496,8 @@ Error TextureLoaderCompat::_load_data_ctex2d_v4(const String &p_path, int &tw, i
 	if (version > CompressedTexture2D::FORMAT_VERSION) {
 		ERR_FAIL_V_MSG(ERR_FILE_CORRUPT, "Compressed texture file is too new.");
 	}
-	tw_custom = f->get_32();
-	th_custom = f->get_32();
+	tw = f->get_32();
+	th = f->get_32();
 	r_texture_flags = f->get_32(); //texture flags
 
 	//skip reserved
@@ -518,12 +518,6 @@ Error TextureLoaderCompat::_load_data_ctex2d_v4(const String &p_path, int &tw, i
 
 	if (image.is_null() || image->is_empty()) {
 		return ERR_CANT_OPEN;
-	}
-	if (!tw_custom) {
-		tw = image->get_width();
-	}
-	if (!th_custom) {
-		th = image->get_height();
 	}
 	return OK;
 }
@@ -846,7 +840,7 @@ Ref<CompressedTexture2D> ResourceFormatLoaderCompatTexture2D::_set_tex(const Str
 		RID texture_rid = RS::get_singleton()->texture_2d_create(image);
 		fake->texture = texture_rid;
 		if (size_override) {
-			RS::get_singleton()->texture_set_size_override(texture_rid, fake->w, fake->h);
+			RS::get_singleton()->texture_set_size_override(texture_rid, tw_custom, th_custom);
 		}
 	}
 	return texture;
@@ -902,7 +896,17 @@ Ref<Resource> ResourceFormatLoaderCompatTexture2D::custom_load(const String &p_p
 	if (t == TextureLoaderCompat::FORMAT_V3_STREAM_TEXTURE2D) {
 		err = TextureLoaderCompat::_load_data_stex2d_v3(p_path, lw, lh, lwc, lhc, lflags, image);
 	} else if (t == TextureLoaderCompat::FORMAT_V4_COMPRESSED_TEXTURE2D) {
-		err = TextureLoaderCompat::_load_data_ctex2d_v4(p_path, lw, lh, lwc, lhc, image, data_format, texture_flags);
+		lw = 0;
+		lh = 0;
+		err = TextureLoaderCompat::_load_data_ctex2d_v4(p_path, lwc, lhc, image, data_format, texture_flags);
+		if (image.is_valid()) {
+			if (!lwc) {
+				lw = image->get_width();
+			}
+			if (!lhc) {
+				lh = image->get_height();
+			}
+		}
 	} else {
 		err = ERR_INVALID_PARAMETER;
 	}
@@ -1247,7 +1251,7 @@ Ref<ImageTexture> TextureLoaderCompat::create_image_texture(const String &p_path
 		RID texture_rid = RS::get_singleton()->texture_2d_create(image);
 		fake->texture = texture_rid;
 		if (size_override) {
-			RS::get_singleton()->texture_set_size_override(texture_rid, fake->w, fake->h);
+			RS::get_singleton()->texture_set_size_override(texture_rid, tw_custom, th_custom);
 		}
 	}
 	return texture;

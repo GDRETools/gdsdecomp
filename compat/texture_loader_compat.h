@@ -42,7 +42,7 @@ public:
 	static Ref<ResourceInfo> _get_resource_info(const String &original_path, TextureLoaderCompat::TextureVersionType t);
 	static Ref<ResourceInfo> get_resource_info(const String &p_path, Error *r_error);
 	static Error load_image_from_fileV3(Ref<FileAccess> f, int tw, int th, int tw_custom, int th_custom, int flags, int p_size_limit, uint32_t df, Ref<Image> &image);
-	static Error _load_data_ctex2d_v4(const String &p_path, int &tw, int &th, int &tw_custom, int &th_custom, Ref<Image> &image, int &r_data_format, int &r_texture_flags, int p_size_limit = 0);
+	static Error _load_data_ctex2d_v4(const String &p_path, int &tw, int &th, Ref<Image> &image, int &r_data_format, int &r_texture_flags, int p_size_limit = 0);
 	static Error _load_data_stex2d_v3(const String &p_path, int &tw, int &th, int &tw_custom, int &th_custom, int &flags, Ref<Image> &image, int p_size_limit = 0);
 
 	static Ref<ImageTexture> create_image_texture(const String &p_path, ResourceInfo::LoadType p_type, int tw, int th, int tw_custom, int th_custom, bool mipmaps, Ref<Image> image);

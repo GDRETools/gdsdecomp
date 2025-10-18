@@ -12,7 +12,7 @@ public:
 	static Ref<Image> convert_indexed_image(const Vector<uint8_t> &p_imgdata, int p_width, int p_height, int p_mipmaps, V2Image::Format p_format, Error *r_error);
 
 	static String image_v2_to_string(const Variant &r_v, bool is_pcfg = false);
-	static Error parse_image_construct_v2(VariantParser::Stream *f, Variant &r_v, bool convert_indexed, int &line, String &p_err_str);
+	static Error parse_image_construct_v2(VariantParser::Stream *f, Variant &r_v, bool convert_indexed, int &line, String &p_err_str, bool is_pcfg = false);
 
 	static Error decode_image_v2(Ref<FileAccess> f, Variant &r_v, bool convert_indexed = true);
 	static Error write_image_v2_to_bin(Ref<FileAccess> f, const Variant &r_v, bool compress_lossless = true);

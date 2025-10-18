@@ -1,3 +1,4 @@
+#pragma once
 #include "core/io/image.h"
 
 namespace V2Image {

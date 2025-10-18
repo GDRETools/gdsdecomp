@@ -842,7 +842,7 @@ Error ResourceLoaderCompatBinary::load() {
 			if (res.is_null()) {
 				//did not replace
 
-				Object *obj = ClassDB::instantiate(t);
+				Object *obj = ClassDB::class_exists(t) || !ClassDB::get_compatibility_class(t).is_empty() ? ClassDB::instantiate(t) : nullptr;
 				if (!obj) {
 					if (ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled()) {
 						//create a missing resource

@@ -659,6 +659,12 @@ Error VariantParserCompat::parse_value(VariantParser::Token &token, Variant &r_v
 			array.assign(values);
 
 			r_value = array;
+		} else if (id == "Image" || id == "img") { // Old V2 Image
+			return ImageParserV2::parse_image_construct_v2(p_stream, r_value, true, line, r_err_str, id == "img");
+		} else if (id == "InputEvent") { // Old V2 InputEvent
+			return InputEventParserV2::parse_input_event_construct_v2(p_stream, r_value, line, r_err_str);
+		} else if (id == "mbutton" || id == "key" || id == "jbutton" || id == "jaxis") { // Old V2 InputEvent in project.cfg
+			return InputEventParserV2::parse_input_event_construct_v2(p_stream, r_value, line, r_err_str, id);
 		} else {
 			return VariantParser::parse_value(token, r_value, p_stream, line, r_err_str, p_res_parser);
 		}
@@ -732,25 +738,7 @@ Error VariantParserCompat::parse_tag_assign_eof(VariantParser::Stream *p_stream,
 				r_assign = what;
 				Token token;
 				get_token(p_stream, token, line, r_err_str);
-				Error err;
-				// VariantParserCompat hacks for compatibility
-				if (token.type == TK_IDENTIFIER) {
-					String id = token.value;
-					// Old V2 Image
-					if (id == "Image") {
-						err = ImageParserV2::parse_image_construct_v2(p_stream, r_value, true, line, r_err_str);
-					} else if (id == "InputEvent") { // Old V2 InputEvent
-						err = InputEventParserV2::parse_input_event_construct_v2(p_stream, r_value, line, r_err_str);
-					} else if (id == "mbutton" || id == "key" || id == "jbutton" || id == "jaxis") { // Old V2 InputEvent in project.cfg
-						err = InputEventParserV2::parse_input_event_construct_v2(p_stream, r_value, line, r_err_str, id);
-					} else {
-						// Our own compat parse_value
-						err = parse_value(token, r_value, p_stream, line, r_err_str, p_res_parser);
-					}
-					return err;
-				}
-				// end hacks
-				err = parse_value(token, r_value, p_stream, line, r_err_str, p_res_parser);
+				Error err = parse_value(token, r_value, p_stream, line, r_err_str, p_res_parser);
 				return err;
 			}
 		} else if (c == '\n') {
@@ -823,6 +811,7 @@ static constexpr _ALWAYS_INLINE_ uint64_t max_integer_str_len() {
 template <int ver_major, bool is_pcfg, bool is_script, bool p_compat = false, bool after_4_4 = false>
 struct VarWriter {
 	static constexpr bool use_inf_neg = !(ver_major <= 2 || (ver_major >= 4 && !p_compat && after_4_4));
+	static constexpr bool is_v2_pcfg = ver_major == 2 && is_pcfg;
 
 	template <typename T>
 	static String _rtosfix(T p_value) {
@@ -967,7 +956,7 @@ struct VarWriter {
 	}
 
 	static String _write_string_variant(const String &p_string) {
-		if constexpr (is_script) {
+		if constexpr (is_script || is_v2_pcfg) { // v2 engine.cfg requires strings on a single line
 			String escaped = p_string.replace("\\", "\\\\");
 			escaped = escaped.replace("\a", "\\a");
 			escaped = escaped.replace("\b", "\\b");
@@ -1481,6 +1470,13 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_4>::write_compa
 template <int ver_major, bool is_pcfg, bool is_script, bool p_compat, bool after_4_4>
 Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_4>::write_compat_v2_v3(const Variant &p_variant, VariantWriterCompat::StoreStringFunc p_store_string_func, void *p_store_string_ud, VariantWriterCompat::EncodeResourceFunc p_encode_res_func, void *p_encode_res_ud) {
 	// for v2 and v3...
+
+	static constexpr const char *array_start = is_v2_pcfg ? "[" : "[ ";
+	static constexpr const char *array_end = is_v2_pcfg ? "]" : " ]";
+	static constexpr const char *vector2_start = is_v2_pcfg ? "Vector2(" : "Vector2( ";
+	static constexpr const char *vector2_end = is_v2_pcfg ? ")" : " )";
+	static constexpr const char *vector3_start = is_v2_pcfg ? "Vector3(" : "Vector3( ";
+	static constexpr const char *vector3_end = is_v2_pcfg ? ")" : " )";
 	switch ((Variant::Type)p_variant.get_type()) {
 		case Variant::Type::NIL: {
 			p_store_string_func(p_store_string_ud, "null");
@@ -1507,7 +1503,7 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_4>::write_compa
 		} break;
 		case Variant::VECTOR2: {
 			Vector2 v = p_variant;
-			p_store_string_func(p_store_string_ud, "Vector2( " + rtosfix(v.x) + ", " + rtosfix(v.y) + " )");
+			p_store_string_func(p_store_string_ud, vector2_start + rtosfix(v.x) + ", " + rtosfix(v.y) + vector2_end);
 		} break;
 		case Variant::RECT2: {
 			Rect2 aabb = p_variant;
@@ -1516,7 +1512,7 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_4>::write_compa
 		} break;
 		case Variant::VECTOR3: {
 			Vector3 v = p_variant;
-			p_store_string_func(p_store_string_ud, "Vector3( " + rtosfix(v.x) + ", " + rtosfix(v.y) + ", " + rtosfix(v.z) + " )");
+			p_store_string_func(p_store_string_ud, vector3_start + rtosfix(v.x) + ", " + rtosfix(v.y) + ", " + rtosfix(v.z) + vector3_end);
 		} break;
 		case Variant::TRANSFORM2D: { // v2 Matrix32
 			String s = ver_major == 2 ? "Matrix32( " : "Transform2D( ";
@@ -1682,7 +1678,7 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_4>::write_compa
 			keys.sort();
 
 			// no newlines in pcfg
-			p_store_string_func(p_store_string_ud, is_pcfg && ver_major == 2 ? "{" : "{\n");
+			p_store_string_func(p_store_string_ud, is_v2_pcfg ? "{" : "{\n");
 			for (size_t i = 0; i < keys.size(); i++) {
 				const Variant &E = keys[i];
 				/*
@@ -1693,14 +1689,14 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_4>::write_compa
 				p_store_string_func(p_store_string_ud, ": ");
 				write_compat_v2_v3(dict[E], p_store_string_func, p_store_string_ud, p_encode_res_func, p_encode_res_ud);
 				if (i < keys.size() - 1)
-					p_store_string_func(p_store_string_ud, is_pcfg && ver_major == 2 ? ", " : ",\n");
+					p_store_string_func(p_store_string_ud, is_v2_pcfg ? ", " : ",\n");
 			}
 
-			p_store_string_func(p_store_string_ud, is_pcfg && ver_major == 2 ? "}" : "\n}");
+			p_store_string_func(p_store_string_ud, is_v2_pcfg ? "}" : "\n}");
 
 		} break;
 		case Variant::ARRAY: {
-			p_store_string_func(p_store_string_ud, "[ ");
+			p_store_string_func(p_store_string_ud, array_start);
 			Array array = p_variant;
 			int len = array.size();
 			if (len > 0) {
@@ -1710,13 +1706,13 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_4>::write_compa
 				p_store_string_func(p_store_string_ud, ", ");
 				write_compat_v2_v3(array[i], p_store_string_func, p_store_string_ud, p_encode_res_func, p_encode_res_ud);
 			}
-			p_store_string_func(p_store_string_ud, " ]");
+			p_store_string_func(p_store_string_ud, array_end);
 
 		} break;
 
 		case Variant::PACKED_BYTE_ARRAY: { // v2 ByteArray, v3 POOL_BYTE_ARRAY
 			if (ver_major == 2 && is_pcfg) {
-				p_store_string_func(p_store_string_ud, "[ ");
+				p_store_string_func(p_store_string_ud, array_start);
 			} else {
 				p_store_string_func(p_store_string_ud, ver_major == 2 ? "ByteArray( " : "PoolByteArray( ");
 			}
@@ -1724,14 +1720,14 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_4>::write_compa
 			Vector<uint8_t> data = p_variant;
 			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 			if (ver_major == 2 && is_pcfg) {
-				p_store_string_func(p_store_string_ud, " ]");
+				p_store_string_func(p_store_string_ud, array_end);
 			} else {
 				p_store_string_func(p_store_string_ud, " )");
 			}
 		} break;
 		case Variant::PACKED_INT32_ARRAY: { // v2 IntArray, v3 POOL_INT_ARRAY
 			if (ver_major == 2 && is_pcfg) {
-				p_store_string_func(p_store_string_ud, "[ ");
+				p_store_string_func(p_store_string_ud, array_start);
 			} else {
 				p_store_string_func(p_store_string_ud, ver_major == 2 ? "IntArray( " : "PoolIntArray( ");
 			}
@@ -1739,7 +1735,7 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_4>::write_compa
 			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			if (ver_major == 2 && is_pcfg) {
-				p_store_string_func(p_store_string_ud, " ]");
+				p_store_string_func(p_store_string_ud, array_end);
 			} else {
 				p_store_string_func(p_store_string_ud, " )");
 			}
@@ -1748,7 +1744,7 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_4>::write_compa
 		//case Variant::PACKED_INT64_ARRAY: { // v2 and v3 did not have 64-bit ints
 		case Variant::PACKED_FLOAT32_ARRAY: { // v2 FloatArray, v3 POOL_REAL_ARRAY
 			if (ver_major == 2 && is_pcfg) {
-				p_store_string_func(p_store_string_ud, "[ ");
+				p_store_string_func(p_store_string_ud, array_start);
 			} else {
 				p_store_string_func(p_store_string_ud, ver_major == 2 ? "FloatArray( " : "PoolRealArray( ");
 			}
@@ -1757,7 +1753,7 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_4>::write_compa
 			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			if (ver_major == 2 && is_pcfg) {
-				p_store_string_func(p_store_string_ud, " ]");
+				p_store_string_func(p_store_string_ud, array_end);
 			} else {
 				p_store_string_func(p_store_string_ud, " )");
 			}
@@ -1766,7 +1762,7 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_4>::write_compa
 		//case Variant::PACKED_FLOAT64_ARRAY: { // v2 and v3 did not have 64-bit floats
 		case Variant::PACKED_STRING_ARRAY: { // v2 StringArray, v3 POOL_STRING_ARRAY
 			if (ver_major == 2 && is_pcfg) {
-				p_store_string_func(p_store_string_ud, "[ ");
+				p_store_string_func(p_store_string_ud, array_start);
 			} else {
 				p_store_string_func(p_store_string_ud, ver_major == 2 ? "StringArray( " : "PoolStringArray( ");
 			}
@@ -1774,7 +1770,7 @@ Error VarWriter<ver_major, is_pcfg, is_script, p_compat, after_4_4>::write_compa
 			write_packed_elements(data, p_store_string_func, p_store_string_ud);
 
 			if (ver_major == 2 && is_pcfg) {
-				p_store_string_func(p_store_string_ud, " ]");
+				p_store_string_func(p_store_string_ud, array_end);
 			} else {
 				p_store_string_func(p_store_string_ud, " )");
 			}

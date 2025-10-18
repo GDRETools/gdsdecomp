@@ -172,11 +172,12 @@ const char *v4_format_identifiers[Image::FORMAT_MAX] = {
 };
 
 V2Image::Format ImageEnumCompat::get_v2_format_from_string(const String &fmt_id) {
-	if (fmt_id == "CUSTOM") {
+	String id = fmt_id.to_upper();
+	if (id == "CUSTOM") {
 		return V2Image::IMAGE_FORMAT_CUSTOM;
 	}
 	for (int i = 0; i < V2Image::IMAGE_FORMAT_V2_MAX; i++) {
-		if (v2_format_names[i] == fmt_id) {
+		if (v2_format_identifiers[i] == id) {
 			return (V2Image::Format)i;
 		}
 	}
@@ -260,6 +261,9 @@ String ImageEnumCompat::get_v2_format_identifier_pcfg(V2Image::Format p_format, 
 			break;
 		case V2Image::IMAGE_FORMAT_BC5:
 			return "bc5";
+			break;
+		case V2Image::IMAGE_FORMAT_ETC:
+			return "etc";
 			break;
 		case V2Image::IMAGE_FORMAT_CUSTOM:
 			return "custom custom_size=" + itos(p_img_size) + "";

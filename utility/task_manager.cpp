@@ -168,7 +168,7 @@ bool TaskManager::BaseTemplateTaskData::wait_for_completion(uint64_t timeout_s_n
 		bool printed_warning = false;
 		[[maybe_unused]] uint64_t last_reported_mem_usage_ms = 0;
 		while (!is_done()) {
-#if DEBUG_ENABLED
+#if 0
 			if (OS::get_singleton()->get_ticks_msec() - last_reported_mem_usage_ms > 1000) {
 				print_line("Memory usage: " + String::humanize_size(OS::get_singleton()->get_static_memory_usage()));
 				last_reported_mem_usage_ms = OS::get_singleton()->get_ticks_msec();

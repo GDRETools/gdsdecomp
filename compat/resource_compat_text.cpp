@@ -617,7 +617,7 @@ Error ResourceLoaderCompatText::load() {
 			} else {
 				//create
 
-				Object *obj = ClassDB::instantiate(type);
+				Object *obj = ClassDB::class_exists(type) || !ClassDB::get_compatibility_class(type).is_empty() ? ClassDB::instantiate(type) : nullptr;
 				if (!obj) {
 					if (ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled()) {
 						missing_resource = memnew(MissingResource);
@@ -835,7 +835,7 @@ Error ResourceLoaderCompatText::load() {
 			}
 
 			if (!resource.is_valid()) {
-				Object *obj = ClassDB::instantiate(res_type);
+				Object *obj = ClassDB::class_exists(res_type) || !ClassDB::get_compatibility_class(res_type).is_empty() ? ClassDB::instantiate(res_type) : nullptr;
 				if (!obj) {
 					if (ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled()) {
 						obj = CompatFormatLoader::create_missing_main_resource(local_path, res_type, res_uid);
