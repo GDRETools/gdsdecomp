@@ -402,7 +402,7 @@ public:
 
 	static V2InputEvent::V2Type get_v2_type(const InputEventType &p_event);
 
-	static HashMap<Key, String> get_key_code_to_v2_string_map();
+	static HashMap<int, String> get_key_code_to_v2_string_map();
 
 	static V2InputEvent::V2KeyList get_v2_key_from_iek(Ref<InputEventKey> iek);
 	static V2InputEvent::V2KeyList convert_v4_key_to_v2_key(Key p_key);

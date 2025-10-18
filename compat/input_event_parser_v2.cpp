@@ -1011,13 +1011,13 @@ int InputEventParserV2::encode_input_event(const Ref<InputEvent> &ie, uint8_t *p
 	return llen;
 }
 
-HashMap<Key, String> InputEventParserV2::get_key_code_to_v2_string_map() {
-	HashMap<Key, String> map;
+HashMap<int, String> InputEventParserV2::get_key_code_to_v2_string_map() {
+	HashMap<int, String> map;
 	for (auto &[key, value] : _keycodes) {
 		if (value == nullptr) {
 			continue;
 		}
-		map[key] = value;
+		map[(int)key] = value;
 	}
 	return map;
 }

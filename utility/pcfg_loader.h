@@ -112,7 +112,7 @@ public:
 	Error save_cfb(const String dir, uint32_t ver_major = 0, uint32_t ver_minor = 0);
 	Error save_cfb_binary(const String dir, uint32_t ver_major = 0, uint32_t ver_minor = 0);
 	Error save_custom(const String &p_path, const uint32_t ver_major = 0, const uint32_t ver_minor = 0);
-	String get_as_text();
+	String get_as_text(bool p_skip_cr = false);
 	bool is_loaded() const { return loaded; }
 	bool has_setting(String p_var) const;
 	Variant get_setting(String p_var, Variant default_value) const;

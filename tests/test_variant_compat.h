@@ -395,25 +395,25 @@ void test_iek(const String &fmt, const String &int_fmt, const String &key_str, K
 TEST_CASE("[GDSDecomp][VariantCompat] v2 InputEvent") {
 	SUBCASE("KEY ALL") {
 		for (auto &[key, value] : InputEventParserV2::get_key_code_to_v2_string_map()) {
-			test_iek("InputEvent(KEY,%s)", "InputEvent(KEY,%d)", value, key, false);
+			test_iek("InputEvent(KEY,%s)", "InputEvent(KEY,%d)", value, (Key)key, false);
 		}
 	}
 
 	SUBCASE("KEY ALL (project config)") {
 		for (auto &[key, value] : InputEventParserV2::get_key_code_to_v2_string_map()) {
-			test_iek("key(%s)", "key(%d)", value, key, true);
+			test_iek("key(%s)", "key(%d)", value, (Key)key, true);
 		}
 	}
 
 	SUBCASE("KEY ALL MODIFIER FLAGS") {
 		for (auto &[key, value] : InputEventParserV2::get_key_code_to_v2_string_map()) {
-			test_iek("InputEvent(KEY,%s,CSAM)", "InputEvent(KEY,%d,CSAM)", value, key, false, 0, true, true, true, true);
+			test_iek("InputEvent(KEY,%s,CSAM)", "InputEvent(KEY,%d,CSAM)", value, (Key)key, false, 0, true, true, true, true);
 		}
 	}
 
 	SUBCASE("KEY ALL (project config modifier flags)") {
 		for (auto &[key, value] : InputEventParserV2::get_key_code_to_v2_string_map()) {
-			test_iek("key(%s, CSAM)", "key(%d, CSAM)", value, key, true, 0, true, true, true, true);
+			test_iek("key(%s, CSAM)", "key(%d, CSAM)", value, (Key)key, true, 0, true, true, true, true);
 		}
 	}
 	SUBCASE("MBUTTON") {
