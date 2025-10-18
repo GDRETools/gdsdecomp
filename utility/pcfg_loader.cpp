@@ -433,4 +433,5 @@ void ProjectConfigLoader::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("remove_setting", "var"), &ProjectConfigLoader::remove_setting);
 	ClassDB::bind_method(D_METHOD("set_setting", "var", "value"), &ProjectConfigLoader::set_setting);
 	ClassDB::bind_method(D_METHOD("save_custom", "path", "ver_major", "ver_minor"), &ProjectConfigLoader::save_custom);
+	ClassDB::bind_method(D_METHOD("get_config_version"), &ProjectConfigLoader::get_config_version);
 }
