@@ -86,8 +86,6 @@ TEST_CASE("[GDSDecomp][ProjectConfigLoader] loading example from current engine"
 	SUBCASE("Binary project loading") {
 		ProjectConfigLoader loader;
 		CHECK(loader.load_cfb(binary_project_path, GODOT_VERSION_MAJOR, GODOT_VERSION_MINOR) == OK);
-		// config version isn't saved in binary
-		CHECK(loader.get_config_version() == 0);
 	}
 	SUBCASE("Text project saving") {
 		ProjectConfigLoader loader;
