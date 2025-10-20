@@ -2536,7 +2536,9 @@ Error VariantDecoderCompat::encode_variant_2(const Variant &p_variant, uint8_t *
 				encode_uint32(image->get_height(), &buf[12]);
 				int ds = data.size();
 				encode_uint32(ds, &buf[16]);
-				memcpy(&buf[20], data.ptr(), ds);
+				if (ds > 0) {
+					memcpy(&buf[20], data.ptr(), ds);
+				}
 			}
 
 			int pad = 0;
