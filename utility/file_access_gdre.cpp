@@ -791,26 +791,18 @@ bool DirAccessGDRE::file_exists(String p_file) {
 	if (proxy.is_valid()) {
 		return proxy->file_exists(p_file);
 	}
-	if (!p_file.begins_with("res://") && !p_file.begins_with("user://")) {
-		p_file = fix_path(p_file);
-	}
 
 	GDREPackedData::PackedDir *pd = _find_dir(p_file.get_base_dir());
-	if (!pd) {
-		return false;
+	if (pd) {
+		return pd->files.has(p_file.get_file());
 	}
-	return pd->files.has(p_file.get_file());
+	return false;
 }
 
 bool DirAccessGDRE::dir_exists(String p_dir) {
 	if (proxy.is_valid()) {
 		return proxy->dir_exists(p_dir);
 	}
-
-	if (!p_dir.begins_with("res://") && !p_dir.begins_with("user://")) {
-		p_dir = fix_path(p_dir);
-	}
-
 	return _find_dir(p_dir) != nullptr;
 }
 
@@ -1139,7 +1131,11 @@ String PathFinder::_fix_path_file_access(const String &p_p_path, int p_mode_flag
 	}
 	String r_path = p_p_path;
 	if (r_path.is_relative_path()) {
-		r_path = GDRESettings::get_singleton()->get_cwd().path_join(r_path);
+		if (!GDRESettings::get_singleton()->get_project_path().is_empty()) {
+			r_path = GDRESettings::get_singleton()->get_project_path().path_join(r_path);
+		} else {
+			r_path = GDRESettings::get_singleton()->get_cwd().path_join(r_path);
+		}
 	}
 	// TODO: This will have to be modified if additional fix_path overrides are added
 #ifdef WINDOWS_ENABLED
