@@ -2010,6 +2010,13 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 			} else {
 				name = "Constant " + itos(constant_idx) + " (OUT OF RANGE)";
 			}
+		} else if (g_token == G_TK_BUILT_IN_TYPE) {
+			auto built_in_type_idx = token >> TOKEN_BITS;
+			if (built_in_type_idx < Variant::VARIANT_MAX) {
+				name = "Built-In Type " + itos(built_in_type_idx) + " (" + get_token_text(p_state, token) + ")";
+			} else {
+				name = "Built-In Type " + itos(built_in_type_idx) + " (OUT OF RANGE)";
+			}
 		}
 		return name;
 	};
@@ -2030,8 +2037,12 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 				String old_token_name = GDScriptTokenizerTextCompat::get_token_name(get_global_token(old_token));
 				int old_token_val = old_token >> TOKEN_BITS;
 				int new_token_val = new_token >> TOKEN_BITS;
+				String old_token_text = get_token_text(state1, i);
+				String new_token_text = get_token_text(state2, i);
 				if (old_token_val != new_token_val) {
-					bl_print(String("Different Token Val for ") + GDScriptTokenizerTextCompat::get_token_name(get_global_token(old_token)) + ":" + itos(old_token_val) + String(" != ") + itos(new_token_val));
+					bl_print(String("Different Token Val for ") +
+							GDScriptTokenizerTextCompat::get_token_name(get_global_token(old_token)) + ":" +
+							vformat("%s (%s) != %s (%s)", old_token_text, itos(old_token_val), new_token_text, itos(new_token_val)));
 				} else {
 					bl_print(String("Same Token Val for ") + get_token_name_plus_value(state1, old_token));
 				}
