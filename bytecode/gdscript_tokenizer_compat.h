@@ -42,8 +42,48 @@
 
 typedef char32_t CharType;
 
+class GDScriptTokenizerV1Compat {
+public:
+	using Token = GDScriptDecomp::GlobalToken;
+	using T = Token;
+
+protected:
+	enum StringMode {
+		STRING_SINGLE_QUOTE,
+		STRING_DOUBLE_QUOTE,
+		STRING_MULTILINE
+	};
+
+public:
+	static const char *token_names[T::G_TK_MAX];
+
+	static const char *get_token_name(Token p_token);
+
+	bool is_token_literal(int p_offset = 0, bool variable_safe = false) const;
+	StringName get_token_literal(int p_offset = 0) const;
+
+	virtual const Variant &get_token_constant(int p_offset = 0) const = 0;
+	virtual Token get_token(int p_offset = 0) const = 0;
+	virtual StringName get_token_identifier(int p_offset = 0) const = 0;
+	virtual int get_token_built_in_func(int p_offset = 0) const = 0;
+	virtual Variant::Type get_token_type(int p_offset = 0) const = 0;
+	virtual int get_token_line(int p_offset = 0) const = 0;
+	virtual int get_token_column(int p_offset = 0) const = 0;
+	virtual int get_token_line_indent(int p_offset = 0) const = 0;
+	virtual int get_token_line_tab_indent(int p_offset = 0) const = 0;
+	virtual String get_token_error(int p_offset = 0) const = 0;
+	virtual void advance(int p_amount = 1) = 0;
+#ifdef DEBUG_ENABLED
+	virtual const Vector<Pair<int, String>> &get_warning_skips() const = 0;
+	virtual const RBSet<String> &get_warning_global_skips() const = 0;
+	virtual bool is_ignoring_warnings() const = 0;
+#endif // DEBUG_ENABLED
+
+	virtual ~GDScriptTokenizerV1Compat() {}
+};
+
 // NOTE: This only supports up to Godot 4.0-dev2; does not support any 4.x releases.
-class GDScriptTokenizerTextCompat {
+class GDScriptTokenizerTextCompat : GDScriptTokenizerV1Compat {
 public:
 	using Token = GDScriptDecomp::GlobalToken;
 	using T = Token;
@@ -114,10 +154,6 @@ private:
 	void _advance();
 
 public:
-	static const char *token_names[T::G_TK_MAX];
-
-	static const char *get_token_name(Token p_token);
-
 	// bool is_token_literal(int p_offset = 0, bool variable_safe = false) const;
 	// StringName get_token_literal(int p_offset = 0) const;
 

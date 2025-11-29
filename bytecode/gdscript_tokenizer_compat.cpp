@@ -33,7 +33,7 @@
 
 #include "compat/variant_decoder_compat.h"
 
-const char *GDScriptTokenizerTextCompat::token_names[] = {
+const char *GDScriptTokenizerV1Compat::token_names[] = {
 	"Empty",
 	"Identifier",
 	"Constant",
@@ -158,7 +158,7 @@ const char *GDScriptTokenizerTextCompat::token_names[] = {
 	"`", // BACKTICK,
 };
 
-static_assert((sizeof(GDScriptTokenizerTextCompat::token_names) / sizeof(GDScriptTokenizerTextCompat::token_names[0])) == GDScriptTokenizerTextCompat::Token::G_TK_MAX, "Amount of token names don't match the amount of token types.");
+static_assert((sizeof(GDScriptTokenizerV1Compat::token_names) / sizeof(GDScriptTokenizerV1Compat::token_names[0])) == GDScriptTokenizerTextCompat::Token::G_TK_MAX, "Amount of token names don't match the amount of token types.");
 
 struct _bit {
 	Variant::Type type;
@@ -240,7 +240,7 @@ static const _kws _keyword_list[] = {
 	{ GDScriptDecomp::G_TK_ERROR, nullptr }
 };
 
-const char *GDScriptTokenizerTextCompat::get_token_name(Token p_token) {
+const char *GDScriptTokenizerV1Compat::get_token_name(Token p_token) {
 	ERR_FAIL_INDEX_V(p_token, T::G_TK_MAX, "<error>");
 	return token_names[p_token];
 }

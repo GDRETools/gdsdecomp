@@ -1995,7 +1995,7 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 
 	auto get_token_name_plus_value = [&](const ScriptState &p_state, int token) {
 		auto g_token = get_global_token(token);
-		String name = GDScriptTokenizerTextCompat::get_token_name(g_token);
+		String name = GDScriptTokenizerV1Compat::get_token_name(g_token);
 		if (g_token == G_TK_IDENTIFIER || g_token == G_TK_ANNOTATION) {
 			auto identifier_idx = token >> TOKEN_BITS;
 			if (identifier_idx < p_state.identifiers.size()) {
@@ -2034,14 +2034,14 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 			if (get_global_token(old_token) != get_global_token(new_token)) {
 				bl_print(String("Different Tokens: ") + get_token_name_plus_value(state1, old_token) + String(" != ") + get_token_name_plus_value(state2, new_token));
 			} else {
-				String old_token_name = GDScriptTokenizerTextCompat::get_token_name(get_global_token(old_token));
+				String old_token_name = GDScriptTokenizerV1Compat::get_token_name(get_global_token(old_token));
 				int old_token_val = old_token >> TOKEN_BITS;
 				int new_token_val = new_token >> TOKEN_BITS;
 				String old_token_text = get_token_text(state1, i);
 				String new_token_text = get_token_text(state2, i);
 				if (old_token_val != new_token_val) {
 					bl_print(String("Different Token Val for ") +
-							GDScriptTokenizerTextCompat::get_token_name(get_global_token(old_token)) + ":" +
+							GDScriptTokenizerV1Compat::get_token_name(get_global_token(old_token)) + ":" +
 							vformat("%s (%s) != %s (%s)", old_token_text, itos(old_token_val), new_token_text, itos(new_token_val)));
 				} else {
 					bl_print(String("Same Token Val for ") + get_token_name_plus_value(state1, old_token));
@@ -2056,8 +2056,8 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 		while (discontinuity < state1.tokens.size() && discontinuity < state2.tokens.size() && discontinuity != -1) {
 			auto old_token = state1.tokens[discontinuity];
 			auto new_token = state2.tokens[discontinuity];
-			String old_token_name = GDScriptTokenizerTextCompat::get_token_name(get_global_token(old_token));
-			String new_token_name = GDScriptTokenizerTextCompat::get_token_name(get_global_token(new_token));
+			String old_token_name = GDScriptTokenizerV1Compat::get_token_name(get_global_token(old_token));
+			String new_token_name = GDScriptTokenizerV1Compat::get_token_name(get_global_token(new_token));
 			if (old_token_name != new_token_name) {
 				REPORT_DIFF(String("Different Tokens: ") + get_token_name_plus_value(state1, old_token) + String(" != ") + get_token_name_plus_value(state2, new_token));
 			} else {
@@ -2260,7 +2260,7 @@ bool GDScriptDecomp::token_is_keyword_called_like_function(GlobalToken p_token) 
 }
 
 String GDScriptDecomp::get_global_token_name(GlobalToken p_token) {
-	return GDScriptTokenizerTextCompat::get_token_name(p_token);
+	return GDScriptTokenizerV1Compat::get_token_name(p_token);
 }
 
 String GDScriptDecomp::get_token_text(const ScriptState &p_script_state, uint32_t i) {

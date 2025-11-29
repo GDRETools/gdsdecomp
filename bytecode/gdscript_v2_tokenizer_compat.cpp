@@ -44,7 +44,7 @@
 
 const char *GDScriptV2TokenizerCompat::Token::get_name() const {
 	ERR_FAIL_INDEX_V_MSG(type, Type::G_TK_MAX, "<error>", "Using token type out of the enum.");
-	return GDScriptTokenizerTextCompat::token_names[type];
+	return GDScriptTokenizerV1Compat::get_token_name(type);
 }
 
 String GDScriptV2TokenizerCompat::Token::get_debug_name() const {
@@ -147,7 +147,7 @@ bool GDScriptV2TokenizerCompat::Token::is_node_name() const {
 
 String GDScriptV2TokenizerCompat::get_token_name(Token::Type p_token_type) {
 	ERR_FAIL_INDEX_V_MSG(p_token_type, Token::Type::G_TK_MAX, "<error>", "Using token type out of the enum.");
-	return GDScriptTokenizerTextCompat::token_names[p_token_type];
+	return GDScriptTokenizerV1Compat::get_token_name(p_token_type);
 }
 
 void GDScriptV2TokenizerCompatText::set_source_code(const String &p_source_code) {
