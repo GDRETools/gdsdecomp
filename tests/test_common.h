@@ -61,44 +61,4 @@ inline void output_diff(const String &file_name, const String &old_text, const S
 	}
 }
 
-inline String remove_comments(const String &script_text) {
-	// gdscripts have comments starting with #, remove them
-	auto lines = script_text.split("\n", true);
-	auto new_lines = Vector<String>();
-	for (int i = 0; i < lines.size(); i++) {
-		auto &line = lines.write[i];
-		auto comment_pos = line.find("#");
-		if (comment_pos != -1) {
-			if (line.contains("\"") || line.contains("'")) {
-				bool in_quote = false;
-				char32_t quote_char = '"';
-				comment_pos = -1;
-				for (int j = 0; j < line.length(); j++) {
-					if (line[j] == '"' || line[j] == '\'') {
-						if (in_quote) {
-							if (quote_char == line[j]) {
-								in_quote = false;
-							}
-						} else {
-							in_quote = true;
-							quote_char = line[j];
-						}
-					} else if (!in_quote && line[j] == '#') {
-						comment_pos = j;
-						break;
-					}
-				}
-			}
-			if (comment_pos != -1) {
-				line = line.substr(0, comment_pos).strip_edges(false, true);
-			}
-		}
-		new_lines.push_back(line);
-	}
-	String new_text;
-	for (int i = 0; i < new_lines.size() - 1; i++) {
-		new_text += new_lines[i] + "\n";
-	}
-	new_text += new_lines[new_lines.size() - 1];
-	return new_text;
-}
+String remove_comments(const String &script_text);
