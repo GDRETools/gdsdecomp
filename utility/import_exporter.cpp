@@ -2,7 +2,6 @@
 #include "import_exporter.h"
 
 #include "bytecode/bytecode_base.h"
-#include "compat/fake_gdscript.h"
 #include "compat/oggstr_loader_compat.h"
 #include "compat/resource_loader_compat.h"
 #include "core/error/error_list.h"
@@ -27,6 +26,7 @@
 
 #include "core/io/dir_access.h"
 #include "core/io/file_access.h"
+#include "core/io/json.h"
 #include "core/os/os.h"
 #include "thirdparty/minimp3/minimp3_ex.h"
 #include "utility/import_info.h"
@@ -877,7 +877,7 @@ struct ProcessRunnerStruct : public TaskRunnerStruct {
 Error ImportExporter::export_imports(const String &p_out_dir, const Vector<String> &_files_to_export) {
 	ERR_FAIL_COND_V_MSG(p_out_dir.is_empty(), ERR_INVALID_PARAMETER, "Output directory is empty!");
 	reset_log();
-	report = Ref<ImportExporterReport>(memnew(ImportExporterReport(get_settings()->get_version_string())));
+	report = Ref<ImportExporterReport>(memnew(ImportExporterReport(get_settings()->get_version_string(), get_settings()->get_game_name())));
 	report->log_file_location = get_settings()->get_log_file_path();
 	ERR_FAIL_COND_V_MSG(!get_settings()->is_pack_loaded(), ERR_DOES_NOT_EXIST, "pack/dir not loaded!");
 	output_dir = gdre::get_full_path(p_out_dir, DirAccess::ACCESS_FILESYSTEM);
@@ -1372,16 +1372,24 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 		} else if (exporter == GDExtensionExporter::EXPORTER_NAME) {
 			if (!ret->get_message().is_empty()) {
 				report->failed_gdnative_copy.push_back(ret->get_message());
+				ret->set_message("Failed to copy GDExtension addon for this platform");
+				report->failed.push_back(ret);
 				continue;
 			} else if (!ret->get_saved_path().is_empty() && ret->get_download_task_id() != -1) {
 				Error dl_err = TaskManager::get_singleton()->wait_for_download_task_completion(ret->get_download_task_id());
 				if (dl_err != OK) {
 					report->failed_gdnative_copy.push_back(ret->get_saved_path());
+					ret->set_message("Download failed");
+					ret->set_error(dl_err);
+					report->failed.push_back(ret);
 					continue;
 				}
 				dl_err = unzip_and_copy_addon(iinfo, ret->get_saved_path());
 				if (dl_err != OK) {
 					report->failed_gdnative_copy.push_back(ret->get_saved_path());
+					ret->set_message("Failed to unzip and copy GDExtension addon");
+					ret->set_error(dl_err);
+					report->failed.push_back(ret);
 					continue;
 				}
 				report->downloaded_plugins.push_back(ret->get_extra_info());
@@ -1959,6 +1967,9 @@ Dictionary ImportExporterReport::get_report_sections() {
 		sections["failed"] = Dictionary();
 		Dictionary failed_dict = sections["failed"];
 		for (int i = 0; i < failed.size(); i++) {
+			if (failed[i]->get_exporter() == GDExtensionExporter::EXPORTER_NAME) {
+				continue;
+			}
 			failed_dict[failed[i]->get_new_source_path()] = Dictionary();
 			Dictionary error_dict_item = failed_dict[failed[i]->get_new_source_path()];
 			error_dict_item["Imported Resource"] = failed[i]->get_path();
@@ -1974,6 +1985,9 @@ Dictionary ImportExporterReport::get_report_sections() {
 			if (!error_messages.is_empty()) {
 				error_dict_item["Error Messages"] = filter_error_backtraces(error_messages);
 			}
+		}
+		if (failed_dict.size() == 0) {
+			sections.erase("failed");
 		}
 	}
 	if (!not_converted.is_empty()) {
@@ -2108,29 +2122,37 @@ String ImportExporterReport::get_report_string() {
 		}
 	}
 	if (failed.size() > 0) {
-		report += "------\n";
-		report += "\nFailed conversions:" + String("\n");
+		String failed_report = "------\n";
+		failed_report += "\nFailed conversions:" + String("\n");
+		int count = 0;
 		for (auto &fail : failed) {
-			report += vformat("* %s\n", fail->get_source_path());
+			if (fail->get_exporter() == GDExtensionExporter::EXPORTER_NAME) {
+				continue;
+			}
+			count++;
+			failed_report += vformat("* %s\n", fail->get_source_path());
 			auto splits = fail->get_message().split("\n");
 			for (int i = 0; i < splits.size(); i++) {
 				auto split = splits[i].strip_edges();
 				if (split.is_empty()) {
 					continue;
 				}
-				report += "  * " + split + String("\n");
+				failed_report += "  * " + split + String("\n");
 			}
 			for (auto &msg : fail->get_message_detail()) {
-				report += "  * " + msg.strip_edges() + String("\n");
+				failed_report += "  * " + msg.strip_edges() + String("\n");
 			}
 			auto err_messages = fail->get_error_messages();
 			if (!err_messages.is_empty()) {
-				report += "  * Errors:" + String("\n");
+				failed_report += "  * Errors:" + String("\n");
 				for (auto &err : err_messages) {
-					report += "    " + err.replace("\n", " ").replace("\t", "  ") + String("\n");
+					failed_report += "    " + err.replace("\n", " ").replace("\t", "  ") + String("\n");
 				}
 			}
-			report += "\n";
+			failed_report += "\n";
+		}
+		if (count != 0) {
+			report += failed_report;
 		}
 	}
 	return report;
@@ -2324,9 +2346,10 @@ ImportExporterReport::ImportExporterReport() {
 	gdre_version = GDRESettings::get_gdre_version();
 }
 
-ImportExporterReport::ImportExporterReport(String p_ver) {
+ImportExporterReport::ImportExporterReport(const String &p_ver, const String &p_game_name) {
 	set_ver(p_ver);
 	gdre_version = GDRESettings::get_gdre_version();
+	game_name = p_game_name;
 }
 
 Dictionary ImportExporterReport::to_json() const {
@@ -2341,6 +2364,7 @@ Dictionary ImportExporterReport::to_json() const {
 
 	json["report_version"] = REPORT_VERSION;
 	json["gdre_version"] = gdre_version;
+	json["game_name"] = game_name;
 	json["ver"] = ver->as_text();
 	json["had_encryption_error"] = had_encryption_error;
 	json["godotsteam_detected"] = godotsteam_detected;
@@ -2378,6 +2402,7 @@ Ref<ImportExporterReport> ImportExporterReport::from_json(const Dictionary &p_js
 		return vec;
 	};
 	report->ver = GodotVer::parse(p_json.get("ver", "0.0.0"));
+	report->game_name = p_json.get("game_name", "");
 	report->gdre_version = p_json.get("gdre_version", "");
 	report->godotsteam_detected = p_json.get("godotsteam_detected", false);
 	report->mono_detected = p_json.get("mono_detected", false);

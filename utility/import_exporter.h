@@ -21,6 +21,7 @@ class ImportExporterReport : public RefCounted {
 	bool show_headless_warning = false;
 	int session_files_total = 0;
 	String gdre_version;
+	String game_name;
 	String log_file_location;
 	Vector<String> decompiled_scripts;
 	Vector<String> failed_scripts;
@@ -82,7 +83,7 @@ public:
 	void print_report();
 	String get_gdre_version() const;
 	ImportExporterReport();
-	ImportExporterReport(String p_ver);
+	ImportExporterReport(const String &p_ver, const String &p_game_name);
 
 	Dictionary to_json() const;
 	static Ref<ImportExporterReport> from_json(const Dictionary &p_json);
