@@ -31,7 +31,9 @@
 
 #include "gdscript_tokenizer_compat.h"
 
+#include "bytecode/bytecode_base.h"
 #include "compat/variant_decoder_compat.h"
+#include "core/templates/rb_map.h"
 
 const char *GDScriptTokenizerV1Compat::token_names[] = {
 	"Empty",
@@ -243,6 +245,10 @@ static const _kws _keyword_list[] = {
 const char *GDScriptTokenizerV1Compat::get_token_name(Token p_token) {
 	ERR_FAIL_INDEX_V(p_token, T::G_TK_MAX, "<error>");
 	return token_names[p_token];
+}
+
+GDScriptTokenizerV1Compat::GDScriptTokenizerV1Compat(const GDScriptDecomp *p_decomp) :
+		decomp(p_decomp) {
 }
 /* to delete
 
@@ -1204,7 +1210,7 @@ void GDScriptTokenizerTextCompat::advance(int p_amount) {
 }
 
 GDScriptTokenizerTextCompat::GDScriptTokenizerTextCompat(const GDScriptDecomp *p_decomp) :
-		engine_ver(GodotVer::parse(p_decomp->get_engine_version())), decomp(p_decomp) {
+		GDScriptTokenizerV1Compat(p_decomp), engine_ver(GodotVer::parse(p_decomp->get_engine_version())) {
 	const Ref<GodotVer> NEWLINE_AFTER_STRING_DEBUG_FIX_VER = GodotVer::create(2, 0, 0, "dev2"); // 2.0.0-dev2, (actual commit: 8280bb0, Aug-4-2015)
 	const Ref<GodotVer> BIN_CONSTS_VER = GodotVer::create(3, 2, 0, "dev1"); // 3.2.0-dev1, (actual commit: d3cc9c0, Apr-25-2019)
 	const Ref<GodotVer> NO_MIXED_SPACES_VER = GodotVer::create(3, 2, 0); // 3.2.0-stable (actual commit: 4b9fd96, Nov-12-2019)
@@ -1214,4 +1220,361 @@ GDScriptTokenizerTextCompat::GDScriptTokenizerTextCompat(const GDScriptDecomp *p
 	compat_bin_consts = engine_ver->gte(BIN_CONSTS_VER);
 	compat_no_mixed_spaces = engine_ver->gte(NO_MIXED_SPACES_VER);
 	compat_underscore_num_consts = engine_ver->gte(UNDERSCORE_NUM_CONSTS_VER);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+#include "core/io/marshalls.h"
+
+#define BYTECODE_VERSION 13
+
+#define GDSDECOMP_FAIL_V_MSG(m_retval, m_msg) \
+	error_message = RTR(m_msg);               \
+	ERR_FAIL_V_MSG(m_retval, m_msg);
+
+#define GDSDECOMP_FAIL_COND_V_MSG(m_cond, m_retval, m_msg) \
+	if (unlikely(m_cond)) {                                \
+		error_message = RTR(m_msg);                        \
+		ERR_FAIL_V_MSG(m_retval, m_msg);                   \
+	}
+#define GDSC_HEADER "GDSC"
+#define CHECK_GDSC_HEADER(p_buffer) _GDRE_CHECK_HEADER(p_buffer, GDSC_HEADER)
+#include "utility/common.h"
+
+Error GDScriptTokenizerBufferCompat::set_code_buffer(const Vector<uint8_t> &p_buffer) {
+	const uint8_t *buf = p_buffer.ptr();
+	uint64_t total_len = p_buffer.size();
+	GDSDECOMP_FAIL_COND_V_MSG(p_buffer.size() < 24 || !CHECK_GDSC_HEADER(p_buffer), ERR_INVALID_DATA, "Invalid GDScript token buffer.");
+	int version = decode_uint32(&buf[4]);
+	ERR_FAIL_COND_V_MSG(version >= GDScriptDecomp::GDSCRIPT_2_0_VERSION, ERR_INVALID_DATA, "Wrong function!");
+	const int contents_start = 8 + (version >= GDScriptDecomp::GDSCRIPT_2_0_VERSION ? 4 : 0);
+	uint32_t identifier_count = decode_uint32(&buf[contents_start]);
+	uint32_t constant_count = decode_uint32(&buf[contents_start + 4]);
+	uint32_t line_count = decode_uint32(&buf[contents_start + 8]);
+	uint32_t token_count = decode_uint32(&buf[contents_start + 12]);
+
+	const uint8_t *b = &buf[24];
+	total_len -= 24;
+
+	identifiers.resize(identifier_count);
+	for (uint32_t i = 0; i < identifier_count; i++) {
+		uint32_t len = decode_uint32(b);
+		GDSDECOMP_FAIL_COND_V_MSG(len > total_len, ERR_INVALID_DATA, "Invalid identifier length.");
+		b += 4;
+		Vector<uint8_t> cs;
+		cs.resize(len);
+		for (uint32_t j = 0; j < len; j++) {
+			cs.write[j] = b[j] ^ 0xb6;
+		}
+
+		cs.write[cs.size() - 1] = 0;
+		String s;
+		s.append_utf8((const char *)cs.ptr());
+		b += len;
+		total_len -= len + 4;
+		identifiers.write[i] = s;
+	}
+
+	constants.resize(constant_count);
+	for (uint32_t i = 0; i < constant_count; i++) {
+		Variant v;
+		int len;
+		Error err = VariantDecoderCompat::decode_variant_compat(decomp->get_variant_ver_major(), v, b, total_len, &len);
+		if (err) {
+			error_message = RTR("Invalid constant");
+			return err;
+		}
+		b += len;
+		total_len -= len;
+		constants.write[i] = v;
+	}
+
+	GDSDECOMP_FAIL_COND_V_MSG(line_count * /*sizeof(HashMap<uint32_t, uint32_t>::Pair)*/ 8 > total_len, ERR_INVALID_DATA, "Invalid line count.");
+
+	for (uint32_t i = 0; i < line_count; i++) {
+		uint32_t token = decode_uint32(b);
+		b += 4;
+		uint32_t linecol = decode_uint32(b);
+		b += 4;
+
+		lines.insert(token, linecol);
+		total_len -= 8;
+	}
+	tokens.resize(token_count);
+	for (uint32_t i = 0; i < token_count; i++) {
+		GDSDECOMP_FAIL_COND_V_MSG(total_len < 1, ERR_INVALID_DATA, "Invalid token length.");
+
+		if ((*b) & TOKEN_BYTE_MASK) { //BYTECODE_MASK, little endian always
+			GDSDECOMP_FAIL_COND_V_MSG(total_len < 4, ERR_INVALID_DATA, "Invalid token length.");
+
+			tokens.write[i] = decode_uint32(b) & ~TOKEN_BYTE_MASK;
+			b += 4;
+		} else {
+			tokens.write[i] = *b;
+			b += 1;
+			total_len--;
+		}
+	}
+
+	token = 0;
+
+	return OK;
+}
+
+Vector<uint8_t> GDScriptTokenizerBufferCompat::parse_code_string(const String &p_code, const GDScriptDecomp *p_decomp, String &error_message) {
+	Vector<uint8_t> buf;
+
+	RBMap<StringName, int> identifier_map;
+	HashMap<Variant, int> constant_map;
+	RBMap<uint32_t, int> line_map;
+	Vector<uint32_t> token_array;
+
+	int variant_ver_major = p_decomp->get_variant_ver_major();
+
+	// compat: from 3.0 - 3.1.1, the tokenizer defaulted to storing full objects
+	// e61a074, Mar 28, 2019
+	Ref<GodotVer> NO_FULL_OBJ_VER = GodotVer::create(3, 2, 0, "dev1");
+	Ref<GodotVer> godot_ver = p_decomp->get_godot_ver();
+	bool encode_full_objects = godot_ver->lt(NO_FULL_OBJ_VER) && NO_FULL_OBJ_VER->get_major() == godot_ver->get_major();
+	GDScriptTokenizerTextCompat tt(p_decomp);
+	tt.set_code(p_code);
+	int line = -1;
+
+	while (true) {
+		if (tt.get_token_line() != line) {
+			line = tt.get_token_line();
+			line_map[line] = token_array.size();
+		}
+		const Token g_token = tt.get_token();
+		uint32_t local_token = p_decomp->get_local_token_val(g_token);
+		switch (g_token) {
+			case Token::G_TK_IDENTIFIER: {
+				StringName id = tt.get_token_identifier();
+				if (!identifier_map.has(id)) {
+					int idx = identifier_map.size();
+					identifier_map[id] = idx;
+				}
+				local_token |= identifier_map[id] << TOKEN_BITS;
+			} break;
+			case Token::G_TK_CONSTANT: {
+				const Variant &c = tt.get_token_constant();
+				if (!constant_map.has(c)) {
+					int idx = constant_map.size();
+					constant_map[c] = idx;
+				}
+				local_token |= constant_map[c] << TOKEN_BITS;
+			} break;
+			case Token::G_TK_BUILT_IN_TYPE: {
+				Variant::Type type = tt.get_token_type();
+				int local_type = VariantDecoderCompat::convert_variant_type_to_old(type, variant_ver_major);
+				local_token |= local_type << TOKEN_BITS;
+			} break;
+			case Token::G_TK_BUILT_IN_FUNC: {
+				// built-in function already has correct value
+				local_token |= tt.get_token_built_in_func() << TOKEN_BITS;
+			} break;
+			case Token::G_TK_NEWLINE: {
+				local_token |= tt.get_token_line_indent() << TOKEN_BITS;
+			} break;
+			case Token::G_TK_ERROR: {
+				String err = tt.get_token_error();
+				GDSDECOMP_FAIL_V_MSG(Vector<uint8_t>(), vformat("Compile error, line %d: %s", tt.get_token_line(), err));
+			} break;
+			default: {
+			}
+		};
+
+		token_array.push_back(local_token);
+
+		if (tt.get_token() == Token::G_TK_EOF) {
+			break;
+		}
+		tt.advance();
+	}
+
+	//reverse maps
+
+	RBMap<int, StringName> rev_identifier_map;
+	for (RBMap<StringName, int>::Element *E = identifier_map.front(); E; E = E->next()) {
+		rev_identifier_map[E->get()] = E->key();
+	}
+
+	RBMap<int, Variant> rev_constant_map;
+	for (auto K : constant_map) {
+		rev_constant_map[K.value] = K.key;
+	}
+
+	RBMap<int, uint32_t> rev_line_map;
+	for (RBMap<uint32_t, int>::Element *E = line_map.front(); E; E = E->next()) {
+		rev_line_map[E->get()] = E->key();
+	}
+
+	//save header
+	buf.resize(24);
+	buf.write[0] = 'G';
+	buf.write[1] = 'D';
+	buf.write[2] = 'S';
+	buf.write[3] = 'C';
+	encode_uint32(p_decomp->get_bytecode_version(), &buf.write[4]);
+	int content_start = 8;
+	if (p_decomp->get_bytecode_version() >= GDScriptDecomp::GDSCRIPT_2_0_VERSION) {
+		encode_uint32(0, &buf.write[8]);
+		content_start = 12;
+	}
+	encode_uint32(identifier_map.size(), &buf.write[content_start]);
+	encode_uint32(constant_map.size(), &buf.write[content_start + 4]);
+	encode_uint32(line_map.size(), &buf.write[content_start + 8]);
+	encode_uint32(token_array.size(), &buf.write[content_start + 12]);
+
+	//save identifiers
+
+	for (RBMap<int, StringName>::Element *E = rev_identifier_map.front(); E; E = E->next()) {
+		CharString cs = String(E->get()).utf8();
+		int len = cs.length() + 1;
+		int extra = 4 - (len % 4);
+		if (extra == 4) {
+			extra = 0;
+		}
+
+		uint8_t ibuf[4];
+		encode_uint32(len + extra, ibuf);
+		for (int i = 0; i < 4; i++) {
+			buf.push_back(ibuf[i]);
+		}
+		for (int i = 0; i < len; i++) {
+			buf.push_back(cs[i] ^ 0xb6);
+		}
+		for (int i = 0; i < extra; i++) {
+			buf.push_back(0 ^ 0xb6);
+		}
+	}
+
+	for (RBMap<int, Variant>::Element *E = rev_constant_map.front(); E; E = E->next()) {
+		int len;
+		Error err = VariantDecoderCompat::encode_variant_compat(variant_ver_major, E->get(), nullptr, len, encode_full_objects);
+		GDSDECOMP_FAIL_COND_V_MSG(err != OK, Vector<uint8_t>(), "Error when trying to encode Variant.");
+		int pos = buf.size();
+		buf.resize_initialized(pos + len);
+		VariantDecoderCompat::encode_variant_compat(variant_ver_major, E->get(), &buf.write[pos], len, encode_full_objects);
+	}
+
+	for (RBMap<int, uint32_t>::Element *E = rev_line_map.front(); E; E = E->next()) {
+		uint8_t ibuf[8];
+		encode_uint32(E->key(), &ibuf[0]);
+		encode_uint32(E->get(), &ibuf[4]);
+		for (int i = 0; i < 8; i++) {
+			buf.push_back(ibuf[i]);
+		}
+	}
+
+	for (int i = 0; i < token_array.size(); i++) {
+		uint32_t token = token_array[i];
+
+		if (token & ~TOKEN_MASK) {
+			uint8_t buf4[4];
+			encode_uint32(token_array[i] | TOKEN_BYTE_MASK, &buf4[0]);
+			for (int j = 0; j < 4; j++) {
+				buf.push_back(buf4[j]);
+			}
+		} else {
+			buf.push_back(token);
+		}
+	}
+
+	return buf;
+}
+
+GDScriptTokenizerBufferCompat::Token GDScriptTokenizerBufferCompat::get_token(int p_offset) const {
+	int offset = token + p_offset;
+
+	if (offset < 0 || offset >= tokens.size()) {
+		return Token::G_TK_EOF;
+	}
+
+	return decomp->get_global_token((tokens[offset] & TOKEN_MASK));
+}
+
+StringName GDScriptTokenizerBufferCompat::get_token_identifier(int p_offset) const {
+	int offset = token + p_offset;
+
+	ERR_FAIL_INDEX_V(offset, tokens.size(), StringName());
+	uint32_t identifier = tokens[offset] >> TOKEN_BITS;
+	ERR_FAIL_UNSIGNED_INDEX_V(identifier, (uint32_t)identifiers.size(), StringName());
+
+	return identifiers[identifier];
+}
+
+int GDScriptTokenizerBufferCompat::get_token_built_in_func(int p_offset) const {
+	int offset = token + p_offset;
+	ERR_FAIL_INDEX_V(offset, tokens.size(), decomp->get_function_count());
+	return int(tokens[offset] >> TOKEN_BITS);
+}
+
+Variant::Type GDScriptTokenizerBufferCompat::get_token_type(int p_offset) const {
+	int offset = token + p_offset;
+	ERR_FAIL_INDEX_V(offset, tokens.size(), Variant::NIL);
+
+	int local_type = tokens[offset] >> TOKEN_BITS;
+	return VariantDecoderCompat::convert_variant_type_from_old(local_type, decomp->get_variant_ver_major());
+}
+
+int GDScriptTokenizerBufferCompat::get_token_line(int p_offset) const {
+	int offset = token + p_offset;
+	auto pos_it = lines.find_closest(offset);
+
+	auto largest = lines.back();
+	uint32_t l = 0;
+	if (pos_it == nullptr) {
+		if (offset > largest->key()) {
+			l = largest->value();
+		} else {
+			return -1;
+		}
+	} else {
+		l = pos_it->value();
+	}
+
+	return l & TOKEN_LINE_MASK;
+}
+
+int GDScriptTokenizerBufferCompat::get_token_column(int p_offset) const {
+	int offset = token + p_offset;
+	auto pos_it = lines.find_closest(offset);
+
+	auto largest = lines.back();
+	uint32_t l = 0;
+	if (pos_it == nullptr) {
+		if (offset > largest->key()) {
+			l = largest->value();
+		} else {
+			return -1;
+		}
+	} else {
+		l = pos_it->value();
+	}
+	return l >> TOKEN_LINE_BITS;
+}
+int GDScriptTokenizerBufferCompat::get_token_line_indent(int p_offset) const {
+	int offset = token + p_offset;
+	ERR_FAIL_INDEX_V(offset, tokens.size(), 0);
+	return tokens[offset] >> TOKEN_BITS;
+}
+const Variant &GDScriptTokenizerBufferCompat::get_token_constant(int p_offset) const {
+	int offset = token + p_offset;
+	ERR_FAIL_INDEX_V(offset, tokens.size(), nil);
+	uint32_t constant = tokens[offset] >> TOKEN_BITS;
+	ERR_FAIL_UNSIGNED_INDEX_V(constant, (uint32_t)constants.size(), nil);
+	return constants[constant];
+}
+String GDScriptTokenizerBufferCompat::get_token_error(int p_offset) const {
+	ERR_FAIL_V(String());
+}
+
+void GDScriptTokenizerBufferCompat::advance(int p_amount) {
+	ERR_FAIL_INDEX(p_amount + token, tokens.size());
+	token += p_amount;
+}
+
+GDScriptTokenizerBufferCompat::GDScriptTokenizerBufferCompat(const GDScriptDecomp *p_decomp) :
+		GDScriptTokenizerV1Compat(p_decomp) {
+	token = 0;
 }

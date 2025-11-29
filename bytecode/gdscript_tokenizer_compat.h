@@ -38,6 +38,7 @@
 #include "core/templates/rb_set.h"
 #include "core/variant/variant.h"
 
+#include "core/templates/rb_map.h"
 #include "utility/godotver.h"
 
 typedef char32_t CharType;
@@ -48,6 +49,7 @@ public:
 	using T = Token;
 
 protected:
+	const GDScriptDecomp *decomp;
 	enum StringMode {
 		STRING_SINGLE_QUOTE,
 		STRING_DOUBLE_QUOTE,
@@ -79,6 +81,8 @@ public:
 	virtual bool is_ignoring_warnings() const = 0;
 #endif // DEBUG_ENABLED
 
+	GDScriptTokenizerV1Compat() = delete;
+	explicit GDScriptTokenizerV1Compat(const GDScriptDecomp *p_decomp);
 	virtual ~GDScriptTokenizerV1Compat() {}
 };
 
@@ -137,7 +141,6 @@ private:
 	bool error_flag = 0;
 
 	const Ref<GodotVer> engine_ver;
-	const GDScriptDecomp *decomp;
 
 	bool compat_newline_after_string_debug_fix = false;
 	bool compat_bin_consts = false;
@@ -177,4 +180,54 @@ public:
 
 	GDScriptTokenizerTextCompat() = delete;
 	explicit GDScriptTokenizerTextCompat(const GDScriptDecomp *p_decomp);
+};
+
+class GDScriptTokenizerBufferCompat : public GDScriptTokenizerV1Compat {
+	using Token = GDScriptDecomp::GlobalToken;
+
+	enum {
+
+		TOKEN_BYTE_MASK = 0x80,
+		TOKEN_BITS = 8,
+		TOKEN_MASK = (1 << TOKEN_BITS) - 1,
+		TOKEN_LINE_BITS = 24,
+		TOKEN_LINE_MASK = (1 << TOKEN_LINE_BITS) - 1,
+	};
+
+	Vector<StringName> identifiers;
+	Vector<Variant> constants;
+	RBMap<uint32_t, uint32_t> lines;
+	Vector<uint32_t> tokens;
+	Variant nil;
+	int token;
+
+	String error_message;
+
+public:
+	Error set_code_buffer(const Vector<uint8_t> &p_buffer);
+	static Vector<uint8_t> parse_code_string(const String &p_code, const GDScriptDecomp *p_decomp, String &r_error_message);
+	virtual Token get_token(int p_offset = 0) const;
+	virtual StringName get_token_identifier(int p_offset = 0) const;
+	virtual int get_token_built_in_func(int p_offset = 0) const;
+	virtual Variant::Type get_token_type(int p_offset = 0) const;
+	virtual int get_token_line(int p_offset = 0) const;
+	virtual int get_token_column(int p_offset = 0) const;
+	virtual int get_token_line_indent(int p_offset = 0) const;
+	virtual int get_token_line_tab_indent(int p_offset = 0) const { return 0; }
+	virtual const Variant &get_token_constant(int p_offset = 0) const;
+	virtual String get_token_error(int p_offset = 0) const;
+	virtual void advance(int p_amount = 1);
+#ifdef DEBUG_ENABLED
+	virtual const Vector<Pair<int, String>> &get_warning_skips() const {
+		static Vector<Pair<int, String>> v;
+		return v;
+	}
+	virtual const RBSet<String> &get_warning_global_skips() const {
+		static RBSet<String> s;
+		return s;
+	}
+	virtual bool is_ignoring_warnings() const { return true; }
+#endif // DEBUG_ENABLED
+	GDScriptTokenizerBufferCompat() = delete;
+	explicit GDScriptTokenizerBufferCompat(const GDScriptDecomp *p_decomp);
 };
