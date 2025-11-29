@@ -29,12 +29,22 @@ void ImportInfo::_get_json(Dictionary &p_json) const {
 	p_json["import_md_path"] = import_md_path;
 	p_json["ver_major"] = ver_major;
 	p_json["ver_minor"] = ver_minor;
-	p_json["not_an_import"] = not_an_import;
-	p_json["auto_converted_export"] = auto_converted_export;
+	if (not_an_import) {
+		p_json["not_an_import"] = not_an_import;
+	}
+	if (auto_converted_export) {
+		p_json["auto_converted_export"] = auto_converted_export;
+	}
 	// p_json["dirty"] = dirty;
-	p_json["preferred_import_path"] = preferred_import_path;
-	p_json["export_dest"] = export_dest;
-	p_json["export_lossless_copy"] = export_lossless_copy;
+	if (!preferred_import_path.is_empty()) {
+		p_json["preferred_import_path"] = preferred_import_path;
+	}
+	if (!export_dest.is_empty()) {
+		p_json["export_dest"] = export_dest;
+	}
+	if (!export_lossless_copy.is_empty()) {
+		p_json["export_lossless_copy"] = export_lossless_copy;
+	}
 }
 
 Dictionary ImportInfo::to_json() const {
