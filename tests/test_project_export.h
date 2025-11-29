@@ -106,17 +106,44 @@ void test_exported_wav(const Ref<ExportReport> &export_report, const String &ori
 			default:
 				break;
 		}
-		Dictionary options {
-			{"force/8_bit", false,},
-			{"force/mono", false,},
-			{"force/max_rate", false,},
-			{"force/max_rate_hz", original_audio->get_mix_rate(),},
-			{"edit/trim", false,},
-			{"edit/normalize", false,},
-			{"edit/loop_mode", original_audio->get_loop_mode(),},
-			{"edit/loop_begin", original_audio->get_loop_begin(),},
-			{"edit/loop_end", original_audio->get_loop_end(),},
-			{"compress/mode", compressed_mode},
+		Dictionary options{
+			{
+					"force/8_bit",
+					false,
+			},
+			{
+					"force/mono",
+					false,
+			},
+			{
+					"force/max_rate",
+					false,
+			},
+			{
+					"force/max_rate_hz",
+					original_audio->get_mix_rate(),
+			},
+			{
+					"edit/trim",
+					false,
+			},
+			{
+					"edit/normalize",
+					false,
+			},
+			{
+					"edit/loop_mode",
+					original_audio->get_loop_mode(),
+			},
+			{
+					"edit/loop_begin",
+					original_audio->get_loop_begin(),
+			},
+			{
+					"edit/loop_end",
+					original_audio->get_loop_end(),
+			},
+			{ "compress/mode", compressed_mode },
 		};
 
 		Ref<AudioStreamWAV> exported_audio = AudioStreamWAV::load_from_file(exported_resource, options);
@@ -270,10 +297,9 @@ void test_recovered_resource(const Ref<ExportReport> &export_report, const Strin
 	}
 }
 
-String get_test_projects_path(){
+String get_test_projects_path() {
 	return get_gdsdecomp_path().path_join("tests/test_projects");
 }
-
 
 // TODO: might need to add '[Audio]'
 // '[SceneTree]' is in the name so that the test runner instantiates the rendering server and various other things.
@@ -284,7 +310,7 @@ TEST_CASE("[GDSDecomp][ProjectRecovery] ([SceneTree]) Recover projects ") {
 	String exported_path = test_projects_path.path_join("exported");
 	Vector<String> versions = gdre::get_dirs_at(exported_path, {}, false);
 	for (const String &version : versions) {
-		Vector<String> sub_projects = gdre::get_recursive_dir_list(exported_path.path_join(version), {"*.pck"}, false);
+		Vector<String> sub_projects = gdre::get_recursive_dir_list(exported_path.path_join(version), { "*.pck" }, false);
 		for (const String &sub_project : sub_projects) {
 			SUBCASE(vformat("%s: Test recover project %s", version, sub_project).utf8().get_data()) {
 				String exported_pck_path = exported_path.path_join(version).path_join(sub_project);
@@ -342,5 +368,4 @@ TEST_CASE("[GDSDecomp][ProjectRecovery] ([SceneTree]) Recover projects ") {
 	}
 }
 
-} // namespace TestResourceExport
-
+} //namespace TestProjectExport

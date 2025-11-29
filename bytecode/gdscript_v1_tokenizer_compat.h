@@ -31,13 +31,13 @@
 
 #pragma once
 
-#include "gdscript_tokenizer_compat.h"
 #include "bytecode_base.h"
 #include "core/string/string_name.h"
 #include "core/string/ustring.h"
 #include "core/templates/pair.h"
 #include "core/templates/rb_set.h"
 #include "core/variant/variant.h"
+#include "gdscript_tokenizer_compat.h"
 
 #include "core/templates/rb_map.h"
 #include "utility/godotver.h"

@@ -252,7 +252,6 @@ Error GDScriptV2TokenizerBufferCompat::set_code_buffer(const Vector<uint8_t> &p_
 		b += token_len;
 		// ERR_FAIL_INDEX_V(token.type, Token::Type::G_TK_MAX, ERR_INVALID_DATA);
 
-
 		total_len -= token_len;
 	}
 

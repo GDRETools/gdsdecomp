@@ -45,8 +45,6 @@ public:
 	}
 };
 
-
-
 struct GDRETestListener : public doctest::IReporter {
 	MainLoop *main_loop = nullptr;
 	XRServer *xr_server = nullptr;
@@ -54,8 +52,7 @@ struct GDRETestListener : public doctest::IReporter {
 public:
 	GDRETestListener(const doctest::ContextOptions &p_in) {}
 
-
-	void set_main_loop(MainLoop *p_main_loop){
+	void set_main_loop(MainLoop *p_main_loop) {
 		GDRETestOS *os = reinterpret_cast<GDRETestOS *>(OS::get_singleton());
 		GDRETestOS::do_set_main_loop(os, p_main_loop);
 	}
@@ -83,7 +80,6 @@ public:
 
 			set_main_loop(main_loop);
 		}
-
 	}
 
 	void test_case_end(const doctest::CurrentTestCaseStats &) override {
@@ -93,7 +89,7 @@ public:
 		}
 		xr_server = nullptr;
 
-		if (OS::get_singleton()->get_main_loop() == main_loop){
+		if (OS::get_singleton()->get_main_loop() == main_loop) {
 			set_main_loop(nullptr);
 		}
 		if (main_loop) {
@@ -105,7 +101,6 @@ public:
 			memdelete(AudioServer::get_singleton());
 		}
 	}
-
 
 	void test_run_start() override {
 		// signal_watcher = memnew(SignalWatcher);
