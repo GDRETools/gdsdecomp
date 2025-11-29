@@ -227,6 +227,12 @@ Vector<Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 				"Forces all tasks to run on the main thread",
 				false)),
 		memnew(GDREConfigSetting(
+				"write_json_report",
+				"Write JSON report",
+				"Write a JSON report to the output directory after exporting.",
+				false,
+				true)),
+		memnew(GDREConfigSetting(
 				"ask_for_download",
 				"Ask for download",
 				"",

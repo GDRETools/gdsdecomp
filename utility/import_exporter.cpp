@@ -1561,6 +1561,12 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	pr = nullptr;
 	reset_before_return(false);
 	report->print_report();
+	if (GDREConfig::get_singleton()->get_setting("write_json_report", false)) {
+		String json_file = output_dir.path_join("gdre_export.json");
+		Ref<FileAccess> f = FileAccess::open(json_file, FileAccess::WRITE, &err);
+		ERR_FAIL_COND_V_MSG(err || f.is_null(), ERR_FILE_CANT_WRITE, "can't open report.json for writing");
+		f->store_string(JSON::stringify(report->to_json(), "\t", false, true));
+	}
 	return OK;
 }
 
