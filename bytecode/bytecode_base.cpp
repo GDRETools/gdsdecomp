@@ -6,6 +6,7 @@
 
 #include "bytecode/bytecode_versions.h"
 #include "bytecode/gdscript_tokenizer_compat.h"
+#include "bytecode/gdscript_v1_tokenizer_compat.h"
 #include "bytecode/gdscript_v2_tokenizer_buffer.h"
 #include "compat/file_access_encrypted_v3.h"
 #include "compat/variant_decoder_compat.h"
