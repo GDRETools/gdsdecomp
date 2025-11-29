@@ -296,11 +296,12 @@ void GDScriptV1TokenizerTextCompat::_make_constant(const Variant &p_constant) {
 	tk_rb_pos = (tk_rb_pos + 1) % TK_RB_SIZE;
 }
 
-void GDScriptV1TokenizerTextCompat::_make_type(const Variant::Type &p_type) {
+void GDScriptV1TokenizerTextCompat::_make_type(const int &p_type) {
 	Token &tk = tk_rb[tk_rb_pos];
 
 	tk.type = T::G_TK_BUILT_IN_TYPE;
-	tk.vtype = p_type;
+	tk.literal = p_type;
+	tk.vtype = VariantDecoderCompat::convert_variant_type_from_old(p_type, decomp->get_variant_ver_major());
 	tk.start_line = line;
 	tk.start_column = column;
 
@@ -903,7 +904,7 @@ void GDScriptV1TokenizerTextCompat::_advance() {
 							// compat
 							int idx = VariantDecoderCompat::get_variant_type(str, decomp->get_variant_ver_major());
 							if (idx != -1) {
-								_make_type(VariantDecoderCompat::convert_variant_type_from_old(idx, decomp->get_variant_ver_major()));
+								_make_type(idx);
 								found = true;
 							}
 						}
@@ -1014,7 +1015,7 @@ const Variant &GDScriptV1TokenizerTextCompat::get_token_constant(int p_offset) c
 	ERR_FAIL_COND_V(p_offset >= MAX_LOOKAHEAD, tk_rb[0].literal);
 
 	int ofs = (TK_RB_SIZE + tk_rb_pos + p_offset - MAX_LOOKAHEAD - 1) % TK_RB_SIZE;
-	ERR_FAIL_COND_V(tk_rb[ofs].type != T::G_TK_CONSTANT, tk_rb[0].literal);
+	ERR_FAIL_COND_V(tk_rb[ofs].type != T::G_TK_CONSTANT && tk_rb[ofs].type != T::G_TK_BUILT_IN_TYPE, tk_rb[0].literal);
 	return tk_rb[ofs].literal;
 }
 
@@ -1234,8 +1235,7 @@ Vector<uint8_t> GDScriptV1TokenizerBufferCompat::parse_code_string(const String 
 				local_token |= constant_map[c] << TOKEN_BITS;
 			} break;
 			case Token::G_TK_BUILT_IN_TYPE: {
-				Variant::Type type = tt.get_token_type();
-				int local_type = VariantDecoderCompat::convert_variant_type_to_old(type, variant_ver_major);
+				int local_type = tt.get_token_constant();
 				local_token |= local_type << TOKEN_BITS;
 			} break;
 			case Token::G_TK_BUILT_IN_FUNC: {
@@ -1467,6 +1467,7 @@ GDScriptTokenizerV1Compat::Token GDScriptTokenizerV1Compat::scan() {
 			data.literal = get_token_constant();
 		} break;
 		case TokenType::G_TK_BUILT_IN_TYPE: {
+			data.literal = get_token_constant();
 			data.vtype = get_token_type();
 		} break;
 		case TokenType::G_TK_BUILT_IN_FUNC: {

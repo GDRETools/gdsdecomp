@@ -162,7 +162,7 @@ private:
 	void _make_identifier(const StringName &p_identifier);
 	void _make_built_in_func(int p_func);
 	void _make_constant(const Variant &p_constant);
-	void _make_type(const Variant::Type &p_type);
+	void _make_type(const int &p_type);
 	void _make_error(const String &p_error);
 
 	String code;
