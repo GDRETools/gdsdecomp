@@ -881,6 +881,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	report->log_file_location = get_settings()->get_log_file_path();
 	ERR_FAIL_COND_V_MSG(!get_settings()->is_pack_loaded(), ERR_DOES_NOT_EXIST, "pack/dir not loaded!");
 	output_dir = gdre::get_full_path(p_out_dir, DirAccess::ACCESS_FILESYSTEM);
+	report->output_dir = output_dir;
 	ERR_FAIL_COND_V_MSG(gdre::ensure_dir(output_dir) != OK, ERR_FILE_CANT_WRITE, "Failed to create output directory " + output_dir);
 	Error err = OK;
 	// TODO: make this use "copy"
@@ -2371,6 +2372,7 @@ Dictionary ImportExporterReport::to_json() const {
 	json["report_version"] = REPORT_VERSION;
 	json["gdre_version"] = gdre_version;
 	json["game_name"] = game_name;
+	json["output_dir"] = output_dir;
 	json["ver"] = ver->as_text();
 	json["had_encryption_error"] = had_encryption_error;
 	json["godotsteam_detected"] = godotsteam_detected;
@@ -2416,6 +2418,7 @@ Ref<ImportExporterReport> ImportExporterReport::from_json(const Dictionary &p_js
 	report->show_headless_warning = p_json.get("show_headless_warning", false);
 	report->session_files_total = p_json.get("session_files_total", 0);
 	report->log_file_location = p_json.get("log_file_location", "");
+	report->output_dir = p_json.get("output_dir", "");
 	report->decompiled_scripts = p_json.get("decompiled_scripts", Vector<String>());
 	report->failed_scripts = p_json.get("failed_scripts", Vector<String>());
 	report->translation_export_message = p_json.get("translation_export_message", "");
@@ -2467,6 +2470,12 @@ bool ImportExporterReport::is_equal_to(const Ref<ImportExporterReport> &p_import
 		return false;
 	}
 	if (log_file_location != p_import_exporter_report->log_file_location) {
+		return false;
+	}
+	if (game_name != p_import_exporter_report->game_name) {
+		return false;
+	}
+	if (output_dir != p_import_exporter_report->output_dir) {
 		return false;
 	}
 	if (decompiled_scripts != p_import_exporter_report->decompiled_scripts) {

@@ -23,6 +23,7 @@ class ImportExporterReport : public RefCounted {
 	String gdre_version;
 	String game_name;
 	String log_file_location;
+	String output_dir;
 	Vector<String> decompiled_scripts;
 	Vector<String> failed_scripts;
 	String translation_export_message;
