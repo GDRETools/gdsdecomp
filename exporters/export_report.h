@@ -97,6 +97,11 @@ public:
 
 	String get_path() const { return import_info.is_valid() ? import_info->get_path() : ""; }
 
+	Dictionary to_json() const;
+	static Ref<ExportReport> from_json(const Dictionary &p_json);
+
+	bool is_equal_to(const Ref<ExportReport> &p_export_report) const;
+
 	ExportReport() {}
 	ExportReport(Ref<ImportInfo> p_import_info, const String &p_exporter = "") :
 			import_info(p_import_info), exporter(p_exporter), source_path(import_info.is_valid() ? p_import_info->get_source_file() : ""), new_source_path(import_info.is_valid() ? p_import_info->get_export_dest() : "") {}
