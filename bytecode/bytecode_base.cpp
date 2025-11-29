@@ -1964,14 +1964,20 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 	} else {
 		auto decompressed_size1 = decode_uint32(&p_buffer1[8]);
 		auto decompressed_size2 = decode_uint32(&p_buffer2[8]);
-		if (decompressed_size1 != decompressed_size2) {
-			REPORT_DIFF("Decompressed size mismatch: " + itos(decompressed_size1) + " != " + itos(decompressed_size2));
+		if (decompressed_size1 != 0 && decompressed_size2 != 0) {
+			if (decompressed_size1 != decompressed_size2) {
+				REPORT_DIFF("Decompressed size mismatch: " + itos(decompressed_size1) + " != " + itos(decompressed_size2));
+			}
+			Vector<uint8_t> contents1;
+			Vector<uint8_t> contents2;
+			decompress_buf(p_buffer1, contents1);
+			decompress_buf(p_buffer2, contents2);
+			discontinuity = continuity_tester(contents1, contents2, "Decompressed Bytecode");
+		} else {
+			if (decompressed_size1 != decompressed_size2) {
+				discontinuity = 0;
+			}
 		}
-		Vector<uint8_t> contents1;
-		Vector<uint8_t> contents2;
-		decompress_buf(p_buffer1, contents1);
-		decompress_buf(p_buffer2, contents2);
-		discontinuity = continuity_tester(contents1, contents2, "Decompressed Bytecode");
 	}
 	if (discontinuity == -1) {
 		return OK;
@@ -2052,8 +2058,8 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 				String new_token_text = get_token_text(state2, i);
 				if (old_token_val != new_token_val) {
 					bl_print(String("Different Token Val for ") +
-							GDScriptTokenizerCompat::get_token_name(get_global_token(old_token)) + ":" +
-							vformat("%s (%s) != %s (%s)", old_token_text, itos(old_token_val), new_token_text, itos(new_token_val)));
+							GDScriptTokenizerCompat::get_token_name(get_global_token(old_token)).c_escape() + ":" +
+							vformat("%s (%s) != %s (%s)", old_token_text.c_escape(), itos(old_token_val), new_token_text.c_escape(), itos(new_token_val)));
 				} else {
 					bl_print(String("Same Token Val for ") + get_token_name_plus_value(state1, old_token));
 				}
@@ -2074,8 +2080,12 @@ Error GDScriptDecomp::test_bytecode_match(const Vector<uint8_t> &p_buffer1, cons
 			} else {
 				int old_token_val = old_token >> TOKEN_BITS;
 				int new_token_val = new_token >> TOKEN_BITS;
+				String old_token_text = get_token_text(state1, discontinuity);
+				String new_token_text = get_token_text(state2, discontinuity);
 				if (old_token_val != new_token_val) {
-					REPORT_DIFF(String("Different Token Val for ") + old_token_name + ":" + itos(old_token_val) + String(" != ") + itos(new_token_val));
+					REPORT_DIFF(String("Different Token Val for ") + old_token_name.c_escape() + ":" +
+							vformat("%s (%s) != %s (%s)", old_token_text.c_escape(), itos(old_token_val), new_token_text.c_escape(), itos(new_token_val)));
+					// + itos(old_token_val) + String(" != ") + itos(new_token_val));
 				}
 			}
 			discontinuity = continuity_tester(state1.tokens, state2.tokens, "Tokens", discontinuity + 1);
