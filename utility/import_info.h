@@ -173,7 +173,7 @@ public:
 
 	Dictionary to_json() const;
 
-	String as_text(bool full = true);
+	String as_text(bool full = true) const;
 
 	bool is_equal_to(const Ref<ImportInfo> &p_iinfo) const;
 

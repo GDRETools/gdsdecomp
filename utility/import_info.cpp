@@ -2,6 +2,7 @@
 #include "compat/resource_compat_binary.h"
 #include "compat/resource_loader_compat.h"
 #include "core/error/error_list.h"
+#include "core/io/json.h"
 #include "core/string/string_builder.h"
 
 #include "compat/config_file_compat.h"
@@ -119,7 +120,10 @@ bool ImportInfo::is_equal_to(const Ref<ImportInfo> &p_iinfo) const {
 	return true;
 }
 
-String ImportInfo::as_text(bool full) {
+String ImportInfo::as_text(bool full) const {
+	if (!full) {
+		return JSON::stringify(to_json(), "", false, true);
+	}
 	String s = "ImportInfo: {";
 	s += "\n\timport_md_path: " + import_md_path;
 	s += "\n\tpath: " + get_path();

@@ -2394,6 +2394,10 @@ Dictionary ImportExporterReport::to_json() const {
 	return json;
 }
 
+String ImportExporterReport::_to_string() {
+	return JSON::stringify(to_json(), "", false, true);
+}
+
 Ref<ImportExporterReport> ImportExporterReport::from_json(const Dictionary &p_json) {
 	Ref<ImportExporterReport> report = memnew(ImportExporterReport);
 	auto array_to_vec = [](const Array &arr) -> Vector<Ref<ExportReport>> {

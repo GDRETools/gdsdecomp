@@ -1,4 +1,5 @@
 #include "resource_info.h"
+#include <core/io/json.h>
 
 bool ResourceInfo::using_script_class() const {
 	return !script_class.is_empty();
@@ -152,6 +153,10 @@ bool ResourceInfo::get_is_compressed() const {
 
 Dictionary ResourceInfo::get_extra() const {
 	return extra;
+}
+
+String ResourceInfo::_to_string() {
+	return JSON::stringify(to_dict(), "", false, true);
 }
 
 void ResourceInfo::_bind_methods() {

@@ -87,6 +87,7 @@ public:
 	ImportExporterReport(const String &p_ver, const String &p_game_name);
 
 	Dictionary to_json() const;
+	String _to_string() override;
 	static Ref<ImportExporterReport> from_json(const Dictionary &p_json);
 
 	bool is_equal_to(const Ref<ImportExporterReport> &p_import_exporter_report) const;

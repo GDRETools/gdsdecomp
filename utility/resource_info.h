@@ -74,6 +74,7 @@ public:
 	bool get_stored_big_endian() const;
 	bool get_is_compressed() const;
 	Dictionary get_extra() const;
+	String _to_string() override;
 
 protected:
 	static void _bind_methods();
