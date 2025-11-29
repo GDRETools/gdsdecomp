@@ -2216,6 +2216,12 @@ bool GDScriptDecomp::token_is_valid_v2_func_id(GlobalToken p_token) {
 		case G_TK_IDENTIFIER:
 		case G_TK_CF_MATCH: // For some godforsaken reason, the 4.x parser allows "match" and "when" as function identifiers
 		case G_TK_CF_WHEN:
+		case G_TK_ABSTRACT: // Abstract can be used as a function identifier
+		// Allow constants to be treated as regular identifiers.
+		case G_TK_CONST_PI:
+		case G_TK_CONST_INF:
+		case G_TK_CONST_NAN:
+		case G_TK_CONST_TAU:
 			return true;
 		default:
 			return false;
