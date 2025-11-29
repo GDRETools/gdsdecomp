@@ -117,6 +117,8 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerBufferCompat::_binary_to_tok
 	// token.start_line = decode_uint32(b);
 	token.start_line = get_token_line(token_lines, p_token_index);
 	token.end_line = token.start_line;
+	token.start_column = get_token_line(token_columns, p_token_index);
+	token.end_column = token.start_column;
 
 	token.literal = token.get_name();
 	if (token.type == Token::Type::G_TK_CONST_NAN) {
@@ -246,10 +248,11 @@ Error GDScriptV2TokenizerBufferCompat::set_code_buffer(const Vector<uint8_t> &p_
 			token_len = 8;
 		}
 		ERR_FAIL_COND_V(total_len < token_len, ERR_INVALID_DATA);
-		Token token = _binary_to_token(b, i);
+		tokens.write[i] = _binary_to_token(b, i);
 		b += token_len;
-		ERR_FAIL_INDEX_V(token.type, Token::Type::G_TK_MAX, ERR_INVALID_DATA);
-		tokens.write[i] = token;
+		// ERR_FAIL_INDEX_V(token.type, Token::Type::G_TK_MAX, ERR_INVALID_DATA);
+
+
 		total_len -= token_len;
 	}
 

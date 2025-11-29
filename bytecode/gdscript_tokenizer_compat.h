@@ -43,10 +43,62 @@
 
 typedef char32_t CharType;
 
-class GDScriptTokenizerV1Compat {
+class GDScriptTokenizerCompat : public RefCounted {
+	GDCLASS(GDScriptTokenizerCompat, RefCounted);
+
 public:
-	using Token = GDScriptDecomp::GlobalToken;
-	using T = Token;
+	enum CursorPlace {
+		CURSOR_NONE,
+		CURSOR_BEGINNING,
+		CURSOR_MIDDLE,
+		CURSOR_END,
+	};
+
+	struct Token {
+		using Type = GDScriptDecomp::GlobalToken;
+
+		Type type = Type::G_TK_EMPTY;
+		Variant literal;
+		int start_line = 0, end_line = 0, start_column = 0, end_column = 0;
+		int leftmost_column = 0, rightmost_column = 0; // Column span for multiline tokens.
+		int cursor_position = -1;
+		CursorPlace cursor_place = CURSOR_NONE;
+		String source;
+
+		Variant::Type vtype = Variant::VARIANT_MAX;
+		int func = -1;
+		int current_indent = 0;
+
+		const char *get_name() const;
+		String get_debug_name() const;
+		bool can_precede_bin_op() const;
+		bool is_identifier() const;
+		bool is_node_name() const;
+		StringName get_identifier() const { return literal; }
+		String get_func_name() const { return literal; }
+		String get_error() const { return literal; }
+
+		Token(Type p_type) {
+			type = p_type;
+		}
+
+		Token() {}
+	};
+	static const char *token_names[Token::Type::G_TK_MAX];
+
+	static Ref<GDScriptTokenizerCompat> create_tokenizer(const GDScriptDecomp *p_decomp);
+	static Vector<uint8_t> parse_code_string(const String &p_code, const GDScriptDecomp *p_decomp, String &error_message);
+	static String get_token_name(Token::Type p_token_type);
+
+	virtual Token scan() = 0;
+
+	virtual ~GDScriptTokenizerCompat() {}
+};
+
+class GDScriptTokenizerV1Compat : public GDScriptTokenizerCompat {
+public:
+	using TokenType = GDScriptDecomp::GlobalToken;
+	using T = TokenType;
 
 	// struct TokenData {
 	// 	Token type;
@@ -67,47 +119,40 @@ public:
 	// 		vtype = Variant::NIL;
 	// 	}
 	// };
-	enum CursorPlace {
-		CURSOR_NONE,
-		CURSOR_BEGINNING,
-		CURSOR_MIDDLE,
-		CURSOR_END,
-	};
 
-	struct TokenData {
-		Token type = Token::G_TK_EMPTY;
-		StringName identifier; //for identifier types
-		Variant constant;
-		int line = 0, end_line = 0, col = 0, end_column = 0;
-		int leftmost_column = 0, rightmost_column = 0; // Column span for multiline tokens.
-		int cursor_position = -1;
-		CursorPlace cursor_place = CURSOR_NONE;
-		String source;
-		String func_name;
-		int current_indent = 0;
-		String error;
-		union {
-			Variant::Type vtype; //for type types
-			int func; //function for built in functions
-			int warning_code; //for warning skip
-		};
+	// struct TokenData {
+	// 	TokenType type = TokenType::G_TK_EMPTY;
+	// 	Variant literal;
+	// 	int start_line = 0, end_line = 0, start_column = 0, end_column = 0;
+	// 	int leftmost_column = 0, rightmost_column = 0; // Column span for multiline tokens.
+	// 	int cursor_position = -1;
+	// 	CursorPlace cursor_place = CURSOR_NONE;
+	// 	String source;
+	// 	String func_name;
+	// 	int current_indent = 0;
+	// 	String error;
+	// 	union {
+	// 		Variant::Type vtype; //for type types
+	// 		int func; //function for built in functions
+	// 		int warning_code; //for warning skip
+	// 	};
 
-		// const char *get_name() const;
-		// String get_debug_name() const;
-		// bool can_precede_bin_op() const;
-		// bool is_identifier() const;
-		// bool is_node_name() const;
-		// StringName get_identifier() const { return constant; }
+	// 	// const char *get_name() const;
+	// 	// String get_debug_name() const;
+	// 	// bool can_precede_bin_op() const;
+	// 	// bool is_identifier() const;
+	// 	// bool is_node_name() const;
+	// 	// StringName get_identifier() const { return constant; }
 
-		TokenData() {
-			type = T::G_TK_EMPTY;
-			vtype = Variant::NIL;
-		}
+	// 	TokenData() {
+	// 		type = T::G_TK_EMPTY;
+	// 		vtype = Variant::NIL;
+	// 	}
 
-		// Token(Type p_type) {
-		// 	type = p_type;
-		// }
-	};
+	// 	// Token(Type p_type) {
+	// 	// 	type = p_type;
+	// 	// }
+	// };
 
 protected:
 	int current_indent = 0;
@@ -119,15 +164,11 @@ protected:
 	};
 
 public:
-	static const char *token_names[T::G_TK_MAX];
-
-	static const char *get_token_name(Token p_token);
-
 	bool is_token_literal(int p_offset = 0, bool variable_safe = false) const;
 	StringName get_token_literal(int p_offset = 0) const;
 
 	virtual const Variant &get_token_constant(int p_offset = 0) const = 0;
-	virtual Token get_token(int p_offset = 0) const = 0;
+	virtual TokenType get_token(int p_offset = 0) const = 0;
 	virtual StringName get_token_identifier(int p_offset = 0) const = 0;
 	virtual int get_token_built_in_func(int p_offset = 0) const = 0;
 	virtual Variant::Type get_token_type(int p_offset = 0) const = 0;
@@ -137,7 +178,7 @@ public:
 	virtual int get_token_line_tab_indent(int p_offset = 0) const = 0;
 	virtual String get_token_error(int p_offset = 0) const = 0;
 	virtual void advance(int p_amount = 1) = 0;
-	virtual TokenData scan();
+	virtual Token scan() override;
 #ifdef DEBUG_ENABLED
 	virtual const Vector<Pair<int, String>> &get_warning_skips() const = 0;
 	virtual const RBSet<String> &get_warning_global_skips() const = 0;
@@ -150,10 +191,10 @@ public:
 };
 
 // NOTE: This only supports up to Godot 4.0-dev2; does not support any 4.x releases.
-class GDScriptTokenizerTextCompat : GDScriptTokenizerV1Compat {
+class GDScriptV1TokenizerTextCompat : GDScriptTokenizerV1Compat {
 public:
-	using Token = GDScriptDecomp::GlobalToken;
-	using T = Token;
+	using TokenType = GDScriptDecomp::GlobalToken;
+	using T = TokenType;
 
 	enum {
 		MAX_LOOKAHEAD = 4,
@@ -167,7 +208,7 @@ public:
 	};
 
 private:
-	void _make_token(Token p_type);
+	void _make_token(TokenType p_type);
 	void _make_newline(int p_indentation = 0, int p_tabs = 0);
 	void _make_identifier(const StringName &p_identifier);
 	void _make_built_in_func(int p_func);
@@ -181,7 +222,7 @@ private:
 	const CharType *_code = nullptr;
 	int line = 0;
 	int column = 0;
-	TokenData tk_rb[TK_RB_SIZE * 2 + 1];
+	Token tk_rb[TK_RB_SIZE * 2 + 1];
 	int tk_rb_pos = 0;
 	String last_error;
 	bool error_flag = 0;
@@ -224,11 +265,11 @@ public:
 	virtual bool is_ignoring_warnings() const { return ignore_warnings; }
 #endif // DEBUG_ENABLED
 
-	GDScriptTokenizerTextCompat() = delete;
-	explicit GDScriptTokenizerTextCompat(const GDScriptDecomp *p_decomp);
+	GDScriptV1TokenizerTextCompat() = delete;
+	explicit GDScriptV1TokenizerTextCompat(const GDScriptDecomp *p_decomp);
 };
 
-class GDScriptTokenizerBufferCompat : public GDScriptTokenizerV1Compat {
+class GDScriptV1TokenizerBufferCompat : public GDScriptTokenizerV1Compat {
 	using Token = GDScriptDecomp::GlobalToken;
 
 	enum {
@@ -276,6 +317,6 @@ public:
 	}
 	virtual bool is_ignoring_warnings() const { return true; }
 #endif // DEBUG_ENABLED
-	GDScriptTokenizerBufferCompat() = delete;
-	explicit GDScriptTokenizerBufferCompat(const GDScriptDecomp *p_decomp);
+	GDScriptV1TokenizerBufferCompat() = delete;
+	explicit GDScriptV1TokenizerBufferCompat(const GDScriptDecomp *p_decomp);
 };
