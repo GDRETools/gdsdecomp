@@ -628,6 +628,7 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 	int indent = 0;
 
 	GlobalToken prev_token = G_TK_NEWLINE;
+	GlobalToken prev_prev_token = G_TK_MAX;
 	uint32_t prev_line = 1;
 	uint32_t prev_line_start_column = 1;
 
@@ -1157,10 +1158,11 @@ Error GDScriptDecomp::decompile_buffer(Vector<uint8_t> p_buffer) {
 				GDSDECOMP_FAIL_V_MSG(ERR_INVALID_DATA, "Invalid token: " + itos(local_token));
 			}
 		}
+		prev_prev_token = prev_token;
 		prev_token = curr_token;
 	}
 
-	if (!line.is_empty()) {
+	if (!line.is_empty() || (prev_prev_token == G_TK_NEWLINE && bytecode_version < GDSCRIPT_2_0_VERSION && indent > 0)) {
 		for (int j = 0; j < indent; j++) {
 			script_text += use_spaces ? " " : "\t";
 		}

@@ -105,6 +105,14 @@ func _ready():
 	print(thingy.pass)
 )";
 
+// clang-format off
+static constexpr const char *test_eof_newline = R"(
+extends RefCounted
+func _ready():
+	pass
+	)";
+// clang-format on
+
 inline void test_script_binary(const String &script_name, const Vector<uint8_t> &bytecode, const String &helper_script_text, int revision, bool helper_script, bool no_text_equality_check, bool compare_whitespace = false) {
 	auto decomp = GDScriptDecomp::create_decomp_for_commit(revision);
 	CHECK(decomp.is_valid());
@@ -444,6 +452,14 @@ TEST_CASE("[GDSDecomp][Bytecode][Create] Test creating custom decomp") {
 		SUBCASE(sub_case_name.utf8().get_data()) {
 			test_script(script_path, revision, false, true);
 		}
+	}
+}
+
+TEST_CASE("[GDSDecomp][Bytecode][EOFNewline] Test indented newline at EOF") {
+	auto versions = GDScriptDecompVersion::get_decomp_versions(true, 0);
+	for (const GDScriptDecompVersion &version : versions) {
+		int revision = version.commit;
+		test_script_text("indented_newline_at_eof", test_eof_newline, revision, false, true, false);
 	}
 }
 
