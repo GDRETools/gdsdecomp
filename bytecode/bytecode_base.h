@@ -270,7 +270,7 @@ public:
 	static bool token_is_operator_keyword(GlobalToken p_token);
 	static bool token_is_valid_v2_func_id(GlobalToken p_token);
 	static String get_global_token_name(GlobalToken p_token);
-	static String get_token_name(GlobalToken p_token);
+	static String get_token_identifier(GlobalToken p_token);
 
 	String get_token_text(const ScriptState &p_script_state, uint32_t i);
 

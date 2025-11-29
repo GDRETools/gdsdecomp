@@ -33,7 +33,7 @@
 #include "core/io/compression.h"
 #include "core/io/marshalls.h"
 
-int GDScriptV2TokenizerBufferCompat::_token_to_binary(const Token &p_token, Vector<uint8_t> &r_buffer, int p_start, HashMap<StringName, uint32_t> &r_identifiers_map, HashMap<Variant, uint32_t> &r_constants_map, GDScriptDecomp *p_decomp) {
+int GDScriptV2TokenizerBufferCompat::_token_to_binary(const Token &p_token, Vector<uint8_t> &r_buffer, int p_start, HashMap<StringName, uint32_t> &r_identifiers_map, HashMap<Variant, uint32_t> &r_constants_map, const GDScriptDecomp *p_decomp) {
 	int pos = p_start;
 
 	int token_type = p_decomp->get_local_token_val((GDScriptDecomp::GlobalToken)(p_token.type & TOKEN_MASK));
@@ -261,7 +261,7 @@ Error GDScriptV2TokenizerBufferCompat::set_code_buffer(const Vector<uint8_t> &p_
 	return OK;
 }
 
-Vector<uint8_t> GDScriptV2TokenizerBufferCompat::parse_code_string(const String &p_code, GDScriptDecomp *p_decomp, CompressMode p_compress_mode) {
+Vector<uint8_t> GDScriptV2TokenizerBufferCompat::parse_code_string(const String &p_code, const GDScriptDecomp *p_decomp, CompressMode p_compress_mode) {
 	HashMap<StringName, uint32_t> identifier_map;
 	HashMap<Variant, uint32_t> constant_map;
 	Vector<uint8_t> token_buffer;
@@ -525,4 +525,8 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerBufferCompat::scan() {
 
 	Token token = tokens[current++];
 	return token;
+}
+
+GDScriptV2TokenizerBufferCompat::GDScriptV2TokenizerBufferCompat(const GDScriptDecomp *p_decomp) {
+	decomp = p_decomp;
 }

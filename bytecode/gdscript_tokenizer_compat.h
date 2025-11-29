@@ -86,8 +86,9 @@ public:
 	};
 	static const char *token_names[Token::Type::G_TK_MAX];
 
-	static Ref<GDScriptTokenizerCompat> create_tokenizer(const GDScriptDecomp *p_decomp);
 	static Vector<uint8_t> parse_code_string(const String &p_code, const GDScriptDecomp *p_decomp, String &error_message);
+	static Ref<GDScriptTokenizerCompat> create_buffer_tokenizer(const GDScriptDecomp *p_decomp, const Vector<uint8_t> &p_buffer);
+	static Ref<GDScriptTokenizerCompat> create_text_tokenizer(const GDScriptDecomp *p_decomp, const String &p_code);
 	static String get_token_name(Token::Type p_token_type);
 
 	virtual Token scan() = 0;

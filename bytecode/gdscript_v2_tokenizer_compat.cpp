@@ -1472,7 +1472,7 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::scan() {
 	}
 }
 
-GDScriptV2TokenizerCompatText::GDScriptV2TokenizerCompatText(GDScriptDecomp *p_decomp) {
+GDScriptV2TokenizerCompatText::GDScriptV2TokenizerCompatText(const GDScriptDecomp *p_decomp) {
 #ifdef TOOLS_ENABLED
 	if (EditorSettings::get_singleton()) {
 		// fuck off

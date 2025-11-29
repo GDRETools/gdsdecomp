@@ -140,7 +140,7 @@ public:
 };
 
 // NOTE: This only supports up to Godot 4.0-dev2; does not support any 4.x releases.
-class GDScriptV1TokenizerTextCompat : GDScriptTokenizerV1Compat {
+class GDScriptV1TokenizerTextCompat : public GDScriptTokenizerV1Compat {
 public:
 	using TokenType = GDScriptDecomp::GlobalToken;
 	using T = TokenType;

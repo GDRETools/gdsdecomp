@@ -30,6 +30,9 @@
 /**************************************************************************/
 
 #include "gdscript_tokenizer_compat.h"
+#include "gdscript_v1_tokenizer_compat.h"
+#include "gdscript_v2_tokenizer_buffer.h"
+#include "gdscript_v2_tokenizer_compat.h"
 
 #include "bytecode/bytecode_base.h"
 #include "compat/variant_decoder_compat.h"
@@ -267,4 +270,42 @@ bool GDScriptTokenizerCompat::Token::is_node_name() const {
 		default:
 			return false;
 	}
+}
+
+// static Vector<uint8_t> parse_code_string(const String &p_code, const GDScriptDecomp *p_decomp, String &error_message);
+// static Ref<GDScriptTokenizerCompat> create_buffer_tokenizer(const Ref<GDScriptDecomp> &p_decomp, const Vector<uint8_t> &p_buffer);
+// static Ref<GDScriptTokenizerCompat> create_text_tokenizer(const Ref<GDScriptDecomp> &p_decomp, const String &p_code);
+
+Vector<uint8_t> GDScriptTokenizerCompat::parse_code_string(const String &p_code, const GDScriptDecomp *p_decomp, String &error_message) {
+	if (p_decomp->get_bytecode_version() >= GDScriptDecomp::GDSCRIPT_2_0_VERSION) {
+		return GDScriptV2TokenizerBufferCompat::parse_code_string(p_code, p_decomp, GDScriptV2TokenizerBufferCompat::CompressMode::COMPRESS_ZSTD);
+	}
+
+	return GDScriptV1TokenizerBufferCompat::parse_code_string(p_code, p_decomp, error_message);
+}
+
+Ref<GDScriptTokenizerCompat> GDScriptTokenizerCompat::create_buffer_tokenizer(const GDScriptDecomp *p_decomp, const Vector<uint8_t> &p_buffer) {
+	if (p_decomp->get_bytecode_version() >= GDScriptDecomp::GDSCRIPT_2_0_VERSION) {
+		auto tokenizer = Ref<GDScriptV2TokenizerBufferCompat>(memnew(GDScriptV2TokenizerBufferCompat(p_decomp)));
+		tokenizer->set_code_buffer(p_buffer);
+		return tokenizer;
+	}
+
+	auto tokenizer = Ref<GDScriptV1TokenizerBufferCompat>(memnew(GDScriptV1TokenizerBufferCompat(p_decomp)));
+	tokenizer->set_code_buffer(p_buffer);
+	return tokenizer;
+}
+
+Ref<GDScriptTokenizerCompat> GDScriptTokenizerCompat::create_text_tokenizer(const GDScriptDecomp *p_decomp, const String &p_code) {
+	Ref<GDScriptTokenizerCompat> r_tokenizer;
+	if (p_decomp->get_bytecode_version() >= GDScriptDecomp::GDSCRIPT_2_0_VERSION) {
+		Ref<GDScriptV2TokenizerCompatText> tokenizer = Ref<GDScriptV2TokenizerCompatText>(memnew(GDScriptV2TokenizerCompatText(p_decomp)));
+		tokenizer->set_source_code(p_code);
+		r_tokenizer = tokenizer;
+	} else {
+		Ref<GDScriptV1TokenizerTextCompat> tokenizer = Ref<GDScriptV1TokenizerTextCompat>(memnew(GDScriptV1TokenizerTextCompat(p_decomp)));
+		tokenizer->set_code(p_code);
+		r_tokenizer = tokenizer;
+	}
+	return r_tokenizer;
 }

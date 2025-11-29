@@ -38,6 +38,8 @@
 #include "gdscript_tokenizer_compat.h"
 
 class GDScriptV2TokenizerCompat : public GDScriptTokenizerCompat {
+	GDSOFTCLASS(GDScriptV2TokenizerCompat, GDScriptTokenizerCompat);
+
 public:
 #ifdef TOOLS_ENABLED
 	struct CommentData {
@@ -65,12 +67,13 @@ public:
 	virtual void pop_expression_indented_block() = 0; // For lambdas, or blocks inside expressions.
 	virtual bool is_text() = 0;
 
-	virtual Token scan() = 0;
+	// virtual Token scan() = 0;
 
 	virtual ~GDScriptV2TokenizerCompat() {}
 };
 
 class GDScriptV2TokenizerCompatText : public GDScriptV2TokenizerCompat {
+	GDSOFTCLASS(GDScriptV2TokenizerCompatText, GDScriptV2TokenizerCompat);
 	String source;
 	const char32_t *_source = nullptr;
 	const char32_t *_current = nullptr;
@@ -164,5 +167,5 @@ public:
 
 	virtual Token scan() override;
 
-	GDScriptV2TokenizerCompatText(GDScriptDecomp *p_decomp);
+	GDScriptV2TokenizerCompatText(const GDScriptDecomp *p_decomp);
 };
