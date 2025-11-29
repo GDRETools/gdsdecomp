@@ -86,7 +86,6 @@ protected:
 	String import_md_path; // path to the ".import" file
 	int ver_major = 0; //2, 3, 4
 	int ver_minor = 0;
-	int format_ver = 0;
 	bool not_an_import = false;
 	bool auto_converted_export = false;
 	bool dirty = false;
@@ -96,6 +95,9 @@ protected:
 	IInfoType iitype;
 	void _init();
 	virtual Error _load(const String &p_path) = 0;
+
+	virtual void _get_json(Dictionary &p_json) const;
+	virtual void _set_from_json(const Dictionary &p_json);
 
 public:
 	enum LossType {
@@ -169,12 +171,17 @@ public:
 	virtual Error reload() = 0;
 	virtual String _to_string() override;
 
+	Dictionary to_json() const;
+
 	String as_text(bool full = true);
+
+	bool is_equal_to(const Ref<ImportInfo> &p_iinfo) const;
 
 	virtual Error save_to(const String &p_path) = 0;
 	static Error get_resource_info(const String &p_path, Ref<ResourceInfo> &i_info);
 	static Ref<ImportInfo> copy(const Ref<ImportInfo> &p_iinfo);
 	static Ref<ImportInfo> load_from_file(const String &p_path, int ver_major = 0, int ver_minor = 0);
+	static Ref<ImportInfo> from_json(const Dictionary &p_json);
 	ImportInfo();
 
 protected:
@@ -195,6 +202,8 @@ private:
 
 protected:
 	static void _bind_methods();
+	virtual void _get_json(Dictionary &p_json) const override;
+	virtual void _set_from_json(const Dictionary &p_json) override;
 
 public:
 	// Gets the Godot resource type (e.g. "StreamTexture")
@@ -254,6 +263,8 @@ private:
 
 protected:
 	static void _bind_methods();
+	virtual void _get_json(Dictionary &p_json) const override;
+	virtual void _set_from_json(const Dictionary &p_json) override;
 
 public:
 	// Gets the Godot resource type (e.g. "StreamTexture")
@@ -307,15 +318,18 @@ protected:
 	String type;
 	String source_file;
 	String src_md5;
+	String importer = NO_IMPORTER;
 	Vector<String> dest_files;
 	static void _bind_methods() {}
+	virtual void _get_json(Dictionary &p_json) const override;
+	virtual void _set_from_json(const Dictionary &p_json) override;
 
 public:
 	virtual String get_type() const override { return type; }
 	virtual void set_type(const String &p_type) override { type = p_type; }
 	virtual String get_compat_type() const override { return ClassDB::get_compatibility_remapped_class(get_type()); }
 
-	virtual String get_importer() const override { return NO_IMPORTER; }
+	virtual String get_importer() const override { return importer; }
 
 	virtual String get_source_file() const override { return source_file; }
 	virtual void set_source_file(const String &path) override { source_file = path; }
@@ -355,12 +369,10 @@ class ImportInfoRemap : public ImportInfoDummy {
 	GDCLASS(ImportInfoRemap, ImportInfoDummy)
 private:
 	friend class ImportInfo;
-	String importer = NO_IMPORTER;
 
 	virtual Error _load(const String &p_path) override;
 
 public:
-	virtual String get_importer() const override { return importer; }
 	ImportInfoRemap();
 };
 
@@ -368,19 +380,20 @@ class ImportInfoGDExt : public ImportInfoDummy {
 	GDCLASS(ImportInfoGDExt, ImportInfoDummy)
 private:
 	friend class ImportInfo;
-	String importer = "gdextension";
 	Ref<ConfigFileCompat> cf; // GDExtension/GDNative file
 	Error _load_after_cf(const String &p_path);
 	virtual Error _load(const String &p_path) override;
 	String correct_path(const String &p_path) const;
 	HashMap<String, String> get_libaries_section() const;
 
+protected:
+	virtual void _get_json(Dictionary &p_json) const override;
+	virtual void _set_from_json(const Dictionary &p_json) override;
+
 public:
 	Error load_from_string(const String &p_fakepath, const String &p_string);
 	virtual Variant get_iinfo_val(const String &p_section, const String &p_prop) const override;
 	virtual void set_iinfo_val(const String &p_section, const String &p_prop, const Variant &p_val) override;
-
-	virtual String get_importer() const override { return importer; }
 
 	Vector<SharedObject> get_libaries(bool fix_rel_paths = true) const;
 	Vector<SharedObject> get_dependencies(bool fix_rel_paths = true) const;

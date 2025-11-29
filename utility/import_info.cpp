@@ -11,8 +11,95 @@
 #include "utility/common.h"
 #include "utility/glob.h"
 
+void ImportInfo::_set_from_json(const Dictionary &p_json) {
+	iitype = (IInfoType)p_json.get("iitype", BASE);
+	import_md_path = p_json.get("import_md_path", "");
+	ver_major = p_json.get("ver_major", 0);
+	ver_minor = p_json.get("ver_minor", 0);
+	not_an_import = p_json.get("not_an_import", false);
+	auto_converted_export = p_json.get("auto_converted_export", false);
+	// dirty = p_json.get("dirty", false);
+	preferred_import_path = p_json.get("preferred_import_path", "");
+	export_dest = p_json.get("export_dest", "");
+	export_lossless_copy = p_json.get("export_lossless_copy", "");
+}
+
+void ImportInfo::_get_json(Dictionary &p_json) const {
+	p_json["iitype"] = iitype;
+	p_json["import_md_path"] = import_md_path;
+	p_json["ver_major"] = ver_major;
+	p_json["ver_minor"] = ver_minor;
+	p_json["not_an_import"] = not_an_import;
+	p_json["auto_converted_export"] = auto_converted_export;
+	// p_json["dirty"] = dirty;
+	p_json["preferred_import_path"] = preferred_import_path;
+	p_json["export_dest"] = export_dest;
+	p_json["export_lossless_copy"] = export_lossless_copy;
+}
+
+Dictionary ImportInfo::to_json() const {
+	Dictionary json;
+	_get_json(json);
+	return json;
+}
+
 String ImportInfo::_to_string() {
 	return as_text(false);
+}
+
+bool ImportInfo::is_equal_to(const Ref<ImportInfo> &p_iinfo) const {
+	if (p_iinfo.is_null()) {
+		return false;
+	}
+	if (get_iitype() != p_iinfo->get_iitype()) {
+		return false;
+	}
+	if (get_import_md_path() != p_iinfo->get_import_md_path()) {
+		return false;
+	}
+	if (get_ver_major() != p_iinfo->get_ver_major()) {
+		return false;
+	}
+	if (get_ver_minor() != p_iinfo->get_ver_minor()) {
+		return false;
+	}
+	if (is_import() != p_iinfo->is_import()) {
+		return false;
+	}
+	if (is_auto_converted() != p_iinfo->is_auto_converted()) {
+		return false;
+	}
+	if (get_path() != p_iinfo->get_path()) {
+		return false;
+	}
+	if (get_type() != p_iinfo->get_type()) {
+		return false;
+	}
+	if (get_importer() != p_iinfo->get_importer()) {
+		return false;
+	}
+	if (get_compat_type() != p_iinfo->get_compat_type()) {
+		return false;
+	}
+	if (get_source_file() != p_iinfo->get_source_file()) {
+		return false;
+	}
+	if (get_source_md5() != p_iinfo->get_source_md5()) {
+		return false;
+	}
+	if (get_additional_sources() != p_iinfo->get_additional_sources()) {
+		return false;
+	}
+	if (get_dest_files() != p_iinfo->get_dest_files()) {
+		return false;
+	}
+	if (get_metadata_prop() != p_iinfo->get_metadata_prop()) {
+		return false;
+	}
+	if (get_params() != p_iinfo->get_params()) {
+		return false;
+	}
+	return true;
 }
 
 String ImportInfo::as_text(bool full) {
@@ -141,7 +228,6 @@ Ref<ImportInfo> ImportInfo::copy(const Ref<ImportInfo> &p_iinfo) {
 	r_iinfo->import_md_path = p_iinfo->import_md_path;
 	r_iinfo->ver_major = p_iinfo->ver_major;
 	r_iinfo->ver_minor = p_iinfo->ver_minor;
-	r_iinfo->format_ver = p_iinfo->format_ver;
 	r_iinfo->not_an_import = p_iinfo->not_an_import;
 	r_iinfo->auto_converted_export = p_iinfo->auto_converted_export;
 	r_iinfo->preferred_import_path = p_iinfo->preferred_import_path;
@@ -178,6 +264,7 @@ ImportInfoRemap::ImportInfoRemap() {
 
 ImportInfoGDExt::ImportInfoGDExt() {
 	iitype = IInfoType::GDEXT;
+	importer = "gdextension";
 }
 
 Error ImportInfo::get_resource_info(const String &p_path, Ref<ResourceInfo> &res_info) {
@@ -232,6 +319,28 @@ Ref<ImportInfo> ImportInfo::load_from_file(const String &p_path, int ver_major, 
 	if (err != OK) {
 		return Ref<ImportInfo>();
 	}
+	return iinfo;
+}
+
+Ref<ImportInfo> ImportInfo::from_json(const Dictionary &p_json) {
+	Ref<ImportInfo> iinfo;
+	ERR_FAIL_COND_V_MSG(!p_json.has("iitype"), Ref<ImportInfo>(), "ImportInfo: iitype not found in json");
+	ImportInfo::IInfoType iitype = (ImportInfo::IInfoType)p_json["iitype"];
+	if (iitype == ImportInfo::MODERN) {
+		iinfo = Ref<ImportInfo>(memnew(ImportInfoModern));
+	} else if (iitype == ImportInfo::V2) {
+		iinfo = Ref<ImportInfo>(memnew(ImportInfov2));
+	} else if (iitype == ImportInfo::GDEXT) {
+		iinfo = Ref<ImportInfo>(memnew(ImportInfoGDExt));
+	} else if (iitype == ImportInfo::DUMMY) {
+		iinfo = Ref<ImportInfo>(memnew(ImportInfoDummy));
+	} else if (iitype == ImportInfo::REMAP) {
+		iinfo = Ref<ImportInfo>(memnew(ImportInfoRemap));
+	} else {
+		ERR_FAIL_V_MSG(Ref<ImportInfo>(), "ImportInfo: invalid iitype: " + itos(iitype));
+	}
+	ERR_FAIL_COND_V_MSG(!iinfo.is_valid(), Ref<ImportInfo>(), "ImportInfo: could not create import info from json");
+	iinfo->_set_from_json(p_json);
 	return iinfo;
 }
 
@@ -524,6 +633,32 @@ Error ImportInfoDummy::_load(const String &p_path) {
 	dest_files = Vector<String>({ p_path });
 	import_md_path = "";
 	return OK;
+}
+
+void ImportInfoDummy::_set_from_json(const Dictionary &p_json) {
+	ImportInfo::_set_from_json(p_json);
+	preferred_import_path = p_json["preferred_import_path"];
+	source_file = p_json["source_file"];
+	not_an_import = p_json["not_an_import"];
+	ver_major = p_json["ver_major"];
+	ver_minor = p_json["ver_minor"];
+	type = p_json["type"];
+	dest_files = p_json["dest_files"];
+	importer = p_json["importer"];
+	src_md5 = p_json["src_md5"];
+}
+
+void ImportInfoDummy::_get_json(Dictionary &p_json) const {
+	ImportInfo::_get_json(p_json);
+	p_json["preferred_import_path"] = preferred_import_path;
+	p_json["source_file"] = source_file;
+	p_json["not_an_import"] = not_an_import;
+	p_json["ver_major"] = ver_major;
+	p_json["ver_minor"] = ver_minor;
+	p_json["type"] = type;
+	p_json["dest_files"] = dest_files;
+	p_json["importer"] = importer;
+	p_json["src_md5"] = src_md5;
 }
 
 Ref<ImportInfo> ImportInfoDummy::create_dummy(const String &p_path) {
@@ -898,6 +1033,20 @@ Error ImportInfov2::save_to(const String &new_import_file) {
 	return err;
 }
 
+void ImportInfov2::_set_from_json(const Dictionary &p_json) {
+	ImportInfo::_set_from_json(p_json);
+	type = p_json.get("type", "");
+	dest_files = p_json.get("dest_files", Vector<String>());
+	v2metadata = ResourceImportMetadatav2::from_json(p_json["v2metadata"]);
+}
+
+void ImportInfov2::_get_json(Dictionary &p_json) const {
+	ImportInfo::_get_json(p_json);
+	p_json["type"] = type;
+	p_json["dest_files"] = dest_files;
+	p_json["v2metadata"] = v2metadata->to_json();
+}
+
 String ImportInfoModern::get_md5_file_path() const {
 	return (ver_major <= 3 ? "res://.import/" : "res://.godot/imported/") + get_source_file().get_file() + "-" + get_source_file().md5_text() + ".md5";
 }
@@ -937,6 +1086,19 @@ Error ImportInfoModern::save_md5_file(const String &output_dir) {
 	md5_file->store_string("source_md5=\"" + src_md5 + "\"\ndest_md5=\"" + dst_md5 + "\"\n\n");
 	md5_file->flush();
 	return OK;
+}
+
+void ImportInfoModern::_set_from_json(const Dictionary &p_json) {
+	ImportInfo::_set_from_json(p_json);
+	src_md5 = p_json["src_md5"];
+	cf = Ref<ConfigFileCompat>(memnew(ConfigFileCompat));
+	cf->parse(p_json["cf"]);
+}
+
+void ImportInfoModern::_get_json(Dictionary &p_json) const {
+	ImportInfo::_get_json(p_json);
+	p_json["src_md5"] = src_md5;
+	p_json["cf"] = encode_cfg_to_text(cf, ver_major, ver_minor);
 }
 
 void ImportInfo::_bind_methods() {
@@ -1011,6 +1173,9 @@ void ImportInfo::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("as_text", "full"), &ImportInfo::as_text, DEFVAL(true));
 
 	ClassDB::bind_method(D_METHOD("save_to", "p_path"), &ImportInfo::save_to);
+
+	ClassDB::bind_method(D_METHOD("to_json"), &ImportInfo::to_json);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("from_json", "json"), &ImportInfo::from_json);
 
 	BIND_ENUM_CONSTANT(UNKNOWN);
 	BIND_ENUM_CONSTANT(LOSSLESS);
@@ -1313,4 +1478,15 @@ Error ImportInfoGDExt::save_to(const String &p_path) {
 	fa->store_string(content);
 	fa->flush();
 	return OK;
+}
+
+void ImportInfoGDExt::_set_from_json(const Dictionary &p_json) {
+	ImportInfo::_set_from_json(p_json);
+	cf = Ref<ConfigFileCompat>(memnew(ConfigFileCompat));
+	cf->parse(p_json["cf"]);
+}
+
+void ImportInfoGDExt::_get_json(Dictionary &p_json) const {
+	ImportInfo::_get_json(p_json);
+	p_json["cf"] = encode_cfg_to_text(cf, ver_major, ver_minor, true);
 }
