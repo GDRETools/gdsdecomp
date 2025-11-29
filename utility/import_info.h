@@ -117,7 +117,7 @@ public:
 	String get_import_md_path() const { return import_md_path; }
 	void set_import_md_path(const String &p_path) { import_md_path = p_path; }
 
-	String get_export_dest() const { return export_dest; }
+	String get_export_dest() const;
 	void set_export_dest(const String &p_path) { export_dest = p_path; }
 
 	String get_export_lossless_copy() const { return export_lossless_copy; }

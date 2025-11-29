@@ -11,6 +11,13 @@
 #include "utility/common.h"
 #include "utility/glob.h"
 
+String ImportInfo::get_export_dest() const {
+	if (export_dest.is_empty()) {
+		return get_source_file();
+	}
+	return export_dest;
+}
+
 void ImportInfo::_set_from_json(const Dictionary &p_json) {
 	iitype = (IInfoType)p_json.get("iitype", BASE);
 	import_md_path = p_json.get("import_md_path", "");
@@ -307,6 +314,10 @@ Ref<ImportInfo> ImportInfo::load_from_file(const String &p_path, int ver_major, 
 	} else if (p_path.get_extension() == "gdnlib" || p_path.get_extension() == "gdextension") {
 		iinfo = Ref<ImportInfoGDExt>(memnew(ImportInfoGDExt));
 		err = iinfo->_load(p_path);
+		if (err == OK && iinfo.is_valid() && iinfo->ver_major == 0 && ver_major != 0) {
+			iinfo->ver_major = ver_major;
+			iinfo->ver_minor = ver_minor;
+		}
 	} else {
 		if (ver_major == 0 && ResourceCompatLoader::handles_resource(p_path)) {
 			Ref<ResourceInfo> res_info;
