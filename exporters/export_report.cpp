@@ -8,9 +8,7 @@ void ExportReport::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_message"), &ExportReport::get_message);
 	ClassDB::bind_method(D_METHOD("set_import_info", "import_info"), &ExportReport::set_import_info);
 	ClassDB::bind_method(D_METHOD("get_import_info"), &ExportReport::get_import_info);
-	ClassDB::bind_method(D_METHOD("set_source_path", "source_path"), &ExportReport::set_source_path);
 	ClassDB::bind_method(D_METHOD("get_source_path"), &ExportReport::get_source_path);
-	ClassDB::bind_method(D_METHOD("set_new_source_path", "new_source_parth"), &ExportReport::set_new_source_path);
 	ClassDB::bind_method(D_METHOD("get_new_source_path"), &ExportReport::get_new_source_path);
 	ClassDB::bind_method(D_METHOD("set_saved_path", "saved_path"), &ExportReport::set_saved_path);
 	ClassDB::bind_method(D_METHOD("get_saved_path"), &ExportReport::get_saved_path);
@@ -34,8 +32,6 @@ void ExportReport::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "exporter"), "set_exporter", "get_exporter");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "message"), "set_message", "get_message");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "import_info", PROPERTY_HINT_RESOURCE_TYPE, "ImportInfo"), "set_import_info", "get_import_info");
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "source_path"), "set_source_path", "get_source_path");
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "new_source_path"), "set_new_source_path", "get_new_source_path");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "saved_path"), "set_saved_path", "get_saved_path");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "error"), "set_error", "get_error");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "loss_type"), "set_loss_type", "get_loss_type");
@@ -51,12 +47,6 @@ Dictionary ExportReport::to_json() const {
 	}
 	if (!message.is_empty()) {
 		ret["message"] = message;
-	}
-	if (!source_path.is_empty()) {
-		ret["source_path"] = source_path;
-	}
-	if (!new_source_path.is_empty()) {
-		ret["new_source_path"] = new_source_path;
 	}
 	if (!saved_path.is_empty()) {
 		ret["saved_path"] = saved_path;
@@ -99,8 +89,6 @@ Ref<ExportReport> ExportReport::from_json(const Dictionary &p_json) {
 	}
 	report->exporter = p_json.get("exporter", "");
 	report->message = p_json.get("message", "");
-	report->source_path = p_json.get("source_path", "");
-	report->new_source_path = p_json.get("new_source_path", "");
 	report->saved_path = p_json.get("saved_path", "");
 	report->resources_used = p_json.get("resources_used", Vector<String>());
 	report->unsupported_format_type = p_json.get("unsupported_format_type", "");
@@ -122,12 +110,6 @@ bool ExportReport::is_equal_to(const Ref<ExportReport> &p_export_report) const {
 		return false;
 	}
 	if (message != p_export_report->message) {
-		return false;
-	}
-	if (source_path != p_export_report->source_path) {
-		return false;
-	}
-	if (new_source_path != p_export_report->new_source_path) {
 		return false;
 	}
 	if (saved_path != p_export_report->saved_path) {

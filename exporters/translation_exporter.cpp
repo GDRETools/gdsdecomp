@@ -2423,7 +2423,6 @@ Ref<ExportReport> TranslationExporter::export_resource(const String &output_dir,
 		iinfo->set_param("compress", is_optimized);
 		iinfo->set_param("delimiter", 0);
 	}
-	report->set_new_source_path(iinfo->get_export_dest());
 	report->set_saved_path(output_path);
 	return report;
 }

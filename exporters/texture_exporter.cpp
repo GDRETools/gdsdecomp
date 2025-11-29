@@ -1069,7 +1069,6 @@ Ref<ExportReport> TextureExporter::export_resource(const String &output_dir, Ref
 			}
 		}
 	}
-	report->set_new_source_path(iinfo->get_export_dest());
 
 	Error err = OK;
 	String img_format = "bitmap";

@@ -21,8 +21,6 @@ private:
 	Ref<ImportInfo> import_info;
 	String exporter;
 	String message;
-	String source_path;
-	String new_source_path;
 	String saved_path;
 	Vector<String> resources_used;
 	String unsupported_format_type;
@@ -60,11 +58,9 @@ public:
 	}
 	Vector<String> get_resources_used() const { return resources_used; }
 
-	void set_source_path(const String &p_source_path) { source_path = p_source_path; }
-	String get_source_path() const { return source_path; }
+	String get_source_path() const { return import_info.is_valid() ? import_info->get_source_file() : ""; }
 
-	void set_new_source_path(const String &p_saved_path) { new_source_path = p_saved_path; }
-	String get_new_source_path() const { return (new_source_path.is_empty() ? source_path : new_source_path); }
+	String get_new_source_path() const { return import_info.is_valid() ? import_info->get_export_dest() : ""; }
 
 	void set_saved_path(const String &p_saved_path) { saved_path = p_saved_path; }
 	String get_saved_path() const { return saved_path; }
@@ -104,7 +100,7 @@ public:
 
 	ExportReport() {}
 	ExportReport(Ref<ImportInfo> p_import_info, const String &p_exporter = "") :
-			import_info(p_import_info), exporter(p_exporter), source_path(import_info.is_valid() ? p_import_info->get_source_file() : ""), new_source_path(import_info.is_valid() ? p_import_info->get_export_dest() : "") {}
+			import_info(p_import_info), exporter(p_exporter) {}
 };
 
 VARIANT_ENUM_CAST(ExportReport::MetadataStatus);
