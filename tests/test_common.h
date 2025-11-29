@@ -20,6 +20,10 @@ _ALWAYS_INLINE_ String get_test_resources_path() {
 	return get_gdsdecomp_path().path_join("tests/test_files");
 }
 
+_ALWAYS_INLINE_ String get_test_scripts_path() {
+	return get_gdsdecomp_path().path_join("tests/test_scripts");
+}
+
 _ALWAYS_INLINE_ String get_gdscript_tests_path() {
 	REQUIRE(GDRESettings::get_singleton());
 	return GDRESettings::get_singleton()->get_cwd().path_join("modules/gdscript/tests/scripts");

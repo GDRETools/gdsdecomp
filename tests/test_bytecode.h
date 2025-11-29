@@ -289,23 +289,30 @@ TEST_CASE("[GDSDecomp][Bytecode][GDScript2.0] Test unique_id modulo operator") {
 }
 
 TEST_CASE("[GDSDecomp][Bytecode] Test sample GDScript bytecode") {
-	Vector<String> versions = get_test_versions();
+	Vector<String> versions = DirAccess::get_directories_at(get_test_scripts_path());
 	CHECK(versions.size() > 0);
 
 	for (const String &version : versions) {
 		auto decomp = GDScriptDecomp::create_decomp_for_version(version);
 		CHECK(decomp.is_valid());
 		int revision = decomp->get_bytecode_rev();
-		String test_dir = get_test_resources_path().path_join(version).path_join("code");
+		String test_dir = get_test_scripts_path().path_join(version).path_join("code");
+		REQUIRE(DirAccess::exists(test_dir));
 		Vector<String> files = gdre::get_recursive_dir_list(test_dir, { "*.gdc" });
 		String output_dir = get_tmp_path().path_join(version).path_join("code");
 		for (const String &file : files) {
 			auto sub_case_name = vformat("Testing compiling script %s, version %s", file, version);
 			SUBCASE(sub_case_name.utf8().get_data()) {
 				String original_file = file.get_basename() + ".gd";
+				REQUIRE(FileAccess::exists(file));
+				REQUIRE(FileAccess::exists(original_file));
 
 				Vector<uint8_t> bytecode = FileAccess::get_file_as_bytes(file);
 				String original_script_text = FileAccess::get_file_as_string(original_file);
+				auto compiled_bytecode = decomp->compile_code_string(original_script_text);
+				CHECK(decomp->get_error_message() == "");
+				CHECK(compiled_bytecode.size() > 0);
+				CHECK(decomp->test_bytecode_match(bytecode, compiled_bytecode) == OK);
 				test_script_binary(original_file, bytecode, original_script_text, revision, false, true);
 			}
 		}
