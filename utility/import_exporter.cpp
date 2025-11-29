@@ -2,7 +2,6 @@
 #include "import_exporter.h"
 
 #include "bytecode/bytecode_base.h"
-#include "compat/fake_gdscript.h"
 #include "compat/oggstr_loader_compat.h"
 #include "compat/resource_loader_compat.h"
 #include "core/error/error_list.h"
@@ -19,6 +18,7 @@
 #include "utility/common.h"
 #include "utility/gdre_config.h"
 #include "utility/gdre_settings.h"
+#include "utility/gdre_version.gen.h"
 #include "utility/glob.h"
 #include "utility/godot_mono_decomp_wrapper.h"
 
@@ -26,6 +26,7 @@
 
 #include "core/io/dir_access.h"
 #include "core/io/file_access.h"
+#include "core/io/json.h"
 #include "core/os/os.h"
 #include "thirdparty/minimp3/minimp3_ex.h"
 #include "utility/import_info.h"
@@ -876,10 +877,11 @@ struct ProcessRunnerStruct : public TaskRunnerStruct {
 Error ImportExporter::export_imports(const String &p_out_dir, const Vector<String> &_files_to_export) {
 	ERR_FAIL_COND_V_MSG(p_out_dir.is_empty(), ERR_INVALID_PARAMETER, "Output directory is empty!");
 	reset_log();
-	report = Ref<ImportExporterReport>(memnew(ImportExporterReport(get_settings()->get_version_string())));
+	report = Ref<ImportExporterReport>(memnew(ImportExporterReport(get_settings()->get_version_string(), get_settings()->get_game_name())));
 	report->log_file_location = get_settings()->get_log_file_path();
 	ERR_FAIL_COND_V_MSG(!get_settings()->is_pack_loaded(), ERR_DOES_NOT_EXIST, "pack/dir not loaded!");
 	output_dir = gdre::get_full_path(p_out_dir, DirAccess::ACCESS_FILESYSTEM);
+	report->output_dir = output_dir;
 	ERR_FAIL_COND_V_MSG(gdre::ensure_dir(output_dir) != OK, ERR_FILE_CANT_WRITE, "Failed to create output directory " + output_dir);
 	Error err = OK;
 	// TODO: make this use "copy"
@@ -1368,34 +1370,27 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 			if ((get_ver_major() == 4 && get_ver_minor() >= 4) || get_ver_major() > 4) {
 				recreate_uid_file(iinfo->get_source_file(), true, files_to_export_set);
 			}
-		}
-		// ***** Record export result *****
-		auto metadata_status = ret->get_rewrote_metadata();
-		// the following are successful exports, but we failed to rewrite metadata or write md5 files
-		if (metadata_status == ExportReport::REWRITTEN) {
-			report->rewrote_metadata.push_back(ret);
-		} else if ((metadata_status == ExportReport::NOT_IMPORTABLE && iinfo->is_import()) || metadata_status == ExportReport::FAILED) {
-			// necessary to rewrite import metadata but failed to do so
-			report->failed_rewrite_md.push_back(ret);
-		} else if (metadata_status == ExportReport::MD5_FAILED) {
-			report->failed_rewrite_md5.push_back(ret);
-		}
-		if (ret->get_loss_type() != ImportInfo::LOSSLESS) {
-			report->lossy_imports.push_back(ret);
-		}
-		if (exporter == GDExtensionExporter::EXPORTER_NAME) {
+		} else if (exporter == GDExtensionExporter::EXPORTER_NAME) {
 			if (!ret->get_message().is_empty()) {
 				report->failed_gdnative_copy.push_back(ret->get_message());
+				ret->set_message("Failed to copy GDExtension addon for this platform");
+				report->failed.push_back(ret);
 				continue;
 			} else if (!ret->get_saved_path().is_empty() && ret->get_download_task_id() != -1) {
 				Error dl_err = TaskManager::get_singleton()->wait_for_download_task_completion(ret->get_download_task_id());
 				if (dl_err != OK) {
 					report->failed_gdnative_copy.push_back(ret->get_saved_path());
+					ret->set_message("Download failed");
+					ret->set_error(dl_err);
+					report->failed.push_back(ret);
 					continue;
 				}
 				dl_err = unzip_and_copy_addon(iinfo, ret->get_saved_path());
 				if (dl_err != OK) {
 					report->failed_gdnative_copy.push_back(ret->get_saved_path());
+					ret->set_message("Failed to unzip and copy GDExtension addon");
+					ret->set_error(dl_err);
+					report->failed.push_back(ret);
 					continue;
 				}
 				report->downloaded_plugins.push_back(ret->get_extra_info());
@@ -1567,6 +1562,12 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	pr = nullptr;
 	reset_before_return(false);
 	report->print_report();
+	if (GDREConfig::get_singleton()->get_setting("write_json_report", false)) {
+		String json_file = output_dir.path_join("gdre_export.json");
+		Ref<FileAccess> f = FileAccess::open(json_file, FileAccess::WRITE, &err);
+		ERR_FAIL_COND_V_MSG(err || f.is_null(), ERR_FILE_CANT_WRITE, "can't open report.json for writing");
+		f->store_string(JSON::stringify(report->to_json(), "\t", false, true));
+	}
 	return OK;
 }
 
@@ -1781,6 +1782,10 @@ String ImportExporterReport::get_ver() {
 }
 
 Dictionary ImportExporterReport::get_totals() {
+	auto lossy_imports = _get_lossy_imports();
+	auto rewrote_metadata = _get_rewrote_metadata();
+	auto failed_rewrite_md = _get_failed_rewrite_md();
+	auto failed_rewrite_md5 = _get_failed_rewrite_md5();
 	Dictionary totals;
 	totals["total"] = decompiled_scripts.size() + failed_scripts.size() + lossy_imports.size() + rewrote_metadata.size() + failed_rewrite_md.size() + failed_rewrite_md5.size() + failed.size() + success.size() + not_converted.size() + failed_plugin_cfg_create.size() + failed_gdnative_copy.size() + unsupported_types.size();
 	totals["decompiled_scripts"] = decompiled_scripts.size();
@@ -1911,6 +1916,9 @@ Dictionary ImportExporterReport::get_session_notes() {
 
 String ImportExporterReport::get_totals_string() {
 	String report = "";
+	auto lossy_imports = _get_lossy_imports();
+	auto rewrote_metadata = _get_rewrote_metadata();
+	auto failed_rewrite_md = _get_failed_rewrite_md();
 	report += vformat("%-40s", "Totals: ") + String("\n");
 	report += vformat("%-40s", "Decompiled scripts: ") + itos(decompiled_scripts.size()) + String("\n");
 	report += vformat("%-40s", "Failed scripts: ") + itos(failed_scripts.size()) + String("\n");
@@ -1958,10 +1966,17 @@ Dictionary ImportExporterReport::get_report_sections() {
 	// sections["unsupported_types"] = get_unsupported_types();
 	// sections["session_notes"] = get_session_notes();
 
+	auto lossy_imports = _get_lossy_imports();
+	auto rewrote_metadata = _get_rewrote_metadata();
+	auto failed_rewrite_md = _get_failed_rewrite_md();
+	auto failed_rewrite_md5 = _get_failed_rewrite_md5();
 	if (!failed.is_empty()) {
 		sections["failed"] = Dictionary();
 		Dictionary failed_dict = sections["failed"];
 		for (int i = 0; i < failed.size(); i++) {
+			if (failed[i]->get_exporter() == GDExtensionExporter::EXPORTER_NAME) {
+				continue;
+			}
 			failed_dict[failed[i]->get_new_source_path()] = Dictionary();
 			Dictionary error_dict_item = failed_dict[failed[i]->get_new_source_path()];
 			error_dict_item["Imported Resource"] = failed[i]->get_path();
@@ -1977,6 +1992,9 @@ Dictionary ImportExporterReport::get_report_sections() {
 			if (!error_messages.is_empty()) {
 				error_dict_item["Error Messages"] = filter_error_backtraces(error_messages);
 			}
+		}
+		if (failed_dict.size() == 0) {
+			sections.erase("failed");
 		}
 	}
 	if (!not_converted.is_empty()) {
@@ -2066,11 +2084,10 @@ String ImportExporterReport::get_report_string() {
 	String report;
 	report += get_totals_string();
 	report += "-------------\n" + String("\n");
-	if (lossy_imports.size() > 0) {
-		if (!opt_lossy) {
-			report += "\nThe following files were not converted from a lossy import." + String("\n");
-			report += get_failed_section_string(lossy_imports);
-		}
+	if (!opt_lossy) {
+		auto lossy_imports = _get_lossy_imports();
+		report += "\nThe following files were not converted from a lossy import." + String("\n");
+		report += get_failed_section_string(lossy_imports);
 	}
 	if (failed_plugin_cfg_create.size() > 0) {
 		report += "------\n";
@@ -2093,6 +2110,7 @@ String ImportExporterReport::get_report_string() {
 	// 	report += "\nThe following files had their import data rewritten:" + String("\n");
 	// 	report += get_to_string(rewrote_metadata);
 	// }
+	auto failed_rewrite_md = _get_failed_rewrite_md();
 	if (failed_rewrite_md.size() > 0) {
 		report += "------\n";
 		report += "\nThe following files were converted and saved to a non-original path, but did not have their import data rewritten." + String("\n");
@@ -2111,29 +2129,37 @@ String ImportExporterReport::get_report_string() {
 		}
 	}
 	if (failed.size() > 0) {
-		report += "------\n";
-		report += "\nFailed conversions:" + String("\n");
+		String failed_report = "------\n";
+		failed_report += "\nFailed conversions:" + String("\n");
+		int count = 0;
 		for (auto &fail : failed) {
-			report += vformat("* %s\n", fail->get_source_path());
+			if (fail->get_exporter() == GDExtensionExporter::EXPORTER_NAME) {
+				continue;
+			}
+			count++;
+			failed_report += vformat("* %s\n", fail->get_source_path());
 			auto splits = fail->get_message().split("\n");
 			for (int i = 0; i < splits.size(); i++) {
 				auto split = splits[i].strip_edges();
 				if (split.is_empty()) {
 					continue;
 				}
-				report += "  * " + split + String("\n");
+				failed_report += "  * " + split + String("\n");
 			}
 			for (auto &msg : fail->get_message_detail()) {
-				report += "  * " + msg.strip_edges() + String("\n");
+				failed_report += "  * " + msg.strip_edges() + String("\n");
 			}
 			auto err_messages = fail->get_error_messages();
 			if (!err_messages.is_empty()) {
-				report += "  * Errors:" + String("\n");
+				failed_report += "  * Errors:" + String("\n");
 				for (auto &err : err_messages) {
-					report += "    " + err.replace("\n", " ").replace("\t", "  ") + String("\n");
+					failed_report += "    " + err.replace("\n", " ").replace("\t", "  ") + String("\n");
 				}
 			}
-			report += "\n";
+			failed_report += "\n";
+		}
+		if (count != 0) {
+			report += failed_report;
 		}
 	}
 	return report;
@@ -2228,20 +2254,61 @@ TypedArray<ExportReport> ImportExporterReport::get_not_converted() const {
 	return vector_to_typed_array(not_converted);
 }
 
+Vector<Ref<ExportReport>> ImportExporterReport::_get_lossy_imports() const {
+	Vector<Ref<ExportReport>> vec;
+	for (auto &report : success) {
+		if (report->get_loss_type() != ImportInfo::LossType::LOSSLESS) {
+			vec.push_back(report);
+		}
+	}
+	return vec;
+}
+
+Vector<Ref<ExportReport>> ImportExporterReport::_get_rewrote_metadata() const {
+	Vector<Ref<ExportReport>> vec;
+	for (auto &report : success) {
+		if (report->get_rewrote_metadata() == ExportReport::REWRITTEN) {
+			vec.push_back(report);
+		}
+	}
+	return vec;
+}
+
+Vector<Ref<ExportReport>> ImportExporterReport::_get_failed_rewrite_md() const {
+	Vector<Ref<ExportReport>> vec;
+	for (auto &report : success) {
+		auto metadata_status = report->get_rewrote_metadata();
+		if ((metadata_status == ExportReport::NOT_IMPORTABLE && report->get_import_info()->is_import()) || metadata_status == ExportReport::FAILED) {
+			vec.push_back(report);
+		}
+	}
+	return vec;
+}
+
+Vector<Ref<ExportReport>> ImportExporterReport::_get_failed_rewrite_md5() const {
+	Vector<Ref<ExportReport>> vec;
+	for (auto &report : success) {
+		if (report->get_rewrote_metadata() == ExportReport::MD5_FAILED) {
+			vec.push_back(report);
+		}
+	}
+	return vec;
+}
+
 TypedArray<ExportReport> ImportExporterReport::get_lossy_imports() const {
-	return vector_to_typed_array(lossy_imports);
+	return vector_to_typed_array(_get_lossy_imports());
 }
 
 TypedArray<ExportReport> ImportExporterReport::get_rewrote_metadata() const {
-	return vector_to_typed_array(rewrote_metadata);
+	return vector_to_typed_array(_get_rewrote_metadata());
 }
 
 TypedArray<ExportReport> ImportExporterReport::get_failed_rewrite_md() const {
-	return vector_to_typed_array(failed_rewrite_md);
+	return vector_to_typed_array(_get_failed_rewrite_md());
 }
 
 TypedArray<ExportReport> ImportExporterReport::get_failed_rewrite_md5() const {
-	return vector_to_typed_array(failed_rewrite_md5);
+	return vector_to_typed_array(_get_failed_rewrite_md5());
 }
 
 TypedArray<Dictionary> ImportExporterReport::get_downloaded_plugins() const {
@@ -2275,6 +2342,177 @@ void ImportExporterReport::print_report() {
 	print_line("\n------------------------------------------------------------------------------------" + String("\n"));
 	print_line(get_editor_message_string());
 	print_line("*******************************************************************************\n");
+}
+
+String ImportExporterReport::get_gdre_version() const {
+	return gdre_version;
+}
+
+ImportExporterReport::ImportExporterReport() {
+	set_ver("0.0.0");
+	gdre_version = GDRESettings::get_gdre_version();
+}
+
+ImportExporterReport::ImportExporterReport(const String &p_ver, const String &p_game_name) {
+	set_ver(p_ver);
+	gdre_version = GDRESettings::get_gdre_version();
+	game_name = p_game_name;
+}
+
+Dictionary ImportExporterReport::to_json() const {
+	auto vec_to_json_array = [](const Vector<Ref<ExportReport>> &vec) -> Array {
+		Array arr;
+		for (auto &info : vec) {
+			arr.append(info->to_json());
+		}
+		return arr;
+	};
+	Dictionary json;
+
+	json["report_version"] = REPORT_VERSION;
+	json["gdre_version"] = gdre_version;
+	json["game_name"] = game_name;
+	json["output_dir"] = output_dir;
+	json["ver"] = ver->as_text();
+	json["had_encryption_error"] = had_encryption_error;
+	json["godotsteam_detected"] = godotsteam_detected;
+	json["mono_detected"] = mono_detected;
+	json["exported_scenes"] = exported_scenes;
+	json["show_headless_warning"] = show_headless_warning;
+	json["session_files_total"] = session_files_total;
+	json["log_file_location"] = log_file_location;
+	json["decompiled_scripts"] = decompiled_scripts;
+	json["failed_scripts"] = failed_scripts;
+	json["translation_export_message"] = translation_export_message;
+	json["failed"] = vec_to_json_array(failed);
+	json["success"] = vec_to_json_array(success);
+	json["not_converted"] = vec_to_json_array(not_converted);
+	json["failed_plugin_cfg_create"] = failed_plugin_cfg_create;
+	json["failed_gdnative_copy"] = failed_gdnative_copy;
+	json["unsupported_types"] = unsupported_types;
+	json["downloaded_plugins"] = vector_to_typed_array(downloaded_plugins);
+	return json;
+}
+
+String ImportExporterReport::_to_string() {
+	return JSON::stringify(to_json(), "", false, true);
+}
+
+Ref<ImportExporterReport> ImportExporterReport::from_json(const Dictionary &p_json) {
+	Ref<ImportExporterReport> report = memnew(ImportExporterReport);
+	auto array_to_vec = [](const Array &arr) -> Vector<Ref<ExportReport>> {
+		Vector<Ref<ExportReport>> vec;
+		for (auto &info : arr) {
+			if (info.get_type() != Variant::DICTIONARY) {
+				continue;
+			}
+			Ref<ExportReport> report = ExportReport::from_json(info);
+			if (report.is_valid()) {
+				vec.push_back(report);
+			}
+		}
+		return vec;
+	};
+	report->ver = GodotVer::parse(p_json.get("ver", "0.0.0"));
+	report->game_name = p_json.get("game_name", "");
+	report->gdre_version = p_json.get("gdre_version", "");
+	report->godotsteam_detected = p_json.get("godotsteam_detected", false);
+	report->mono_detected = p_json.get("mono_detected", false);
+	report->exported_scenes = p_json.get("exported_scenes", false);
+	report->show_headless_warning = p_json.get("show_headless_warning", false);
+	report->session_files_total = p_json.get("session_files_total", 0);
+	report->log_file_location = p_json.get("log_file_location", "");
+	report->output_dir = p_json.get("output_dir", "");
+	report->decompiled_scripts = p_json.get("decompiled_scripts", Vector<String>());
+	report->failed_scripts = p_json.get("failed_scripts", Vector<String>());
+	report->translation_export_message = p_json.get("translation_export_message", "");
+	report->failed = array_to_vec(p_json.get("failed", Array()));
+	report->success = array_to_vec(p_json.get("success", Array()));
+	report->not_converted = array_to_vec(p_json.get("not_converted", Array()));
+	report->failed_plugin_cfg_create = p_json.get("failed_plugin_cfg_create", Vector<String>());
+	report->failed_gdnative_copy = p_json.get("failed_gdnative_copy", Vector<String>());
+	report->unsupported_types = p_json.get("unsupported_types", Vector<String>());
+	report->downloaded_plugins = array_to_vector<Dictionary>(p_json.get("downloaded_plugins", Array()));
+	return report;
+}
+
+bool ImportExporterReport::is_equal_to(const Ref<ImportExporterReport> &p_import_exporter_report) const {
+	if (p_import_exporter_report.is_null()) {
+		return false;
+	}
+	if (gdre_version != p_import_exporter_report->gdre_version) {
+		return false;
+	}
+
+	if (ver->as_text() != p_import_exporter_report->ver->as_text()) {
+		return false;
+	}
+	auto export_report_vec_is_equal = [](const Vector<Ref<ExportReport>> &a, const Vector<Ref<ExportReport>> &b) -> bool {
+		if (a.size() != b.size()) {
+			return false;
+		}
+		for (int i = 0; i < a.size(); i++) {
+			if (!a[i]->is_equal_to(b[i])) {
+				return false;
+			}
+		}
+		return true;
+	};
+	if (godotsteam_detected != p_import_exporter_report->godotsteam_detected) {
+		return false;
+	}
+	if (mono_detected != p_import_exporter_report->mono_detected) {
+		return false;
+	}
+	if (exported_scenes != p_import_exporter_report->exported_scenes) {
+		return false;
+	}
+	if (show_headless_warning != p_import_exporter_report->show_headless_warning) {
+		return false;
+	}
+	if (session_files_total != p_import_exporter_report->session_files_total) {
+		return false;
+	}
+	if (log_file_location != p_import_exporter_report->log_file_location) {
+		return false;
+	}
+	if (game_name != p_import_exporter_report->game_name) {
+		return false;
+	}
+	if (output_dir != p_import_exporter_report->output_dir) {
+		return false;
+	}
+	if (decompiled_scripts != p_import_exporter_report->decompiled_scripts) {
+		return false;
+	}
+	if (failed_scripts != p_import_exporter_report->failed_scripts) {
+		return false;
+	}
+	if (translation_export_message != p_import_exporter_report->translation_export_message) {
+		return false;
+	}
+	if (!export_report_vec_is_equal(failed, p_import_exporter_report->failed)) {
+		return false;
+	}
+	if (!export_report_vec_is_equal(success, p_import_exporter_report->success)) {
+		return false;
+	}
+	if (!export_report_vec_is_equal(not_converted, p_import_exporter_report->not_converted)) {
+		return false;
+	}
+	if (failed_plugin_cfg_create != p_import_exporter_report->failed_plugin_cfg_create) {
+		return false;
+	}
+	if (failed_gdnative_copy != p_import_exporter_report->failed_gdnative_copy) {
+		return false;
+	}
+	if (unsupported_types != p_import_exporter_report->unsupported_types) {
+		return false;
+	}
+	if (downloaded_plugins != p_import_exporter_report->downloaded_plugins) {
+		return false;
+	}
+	return true;
 }
 
 void ImportExporterReport::_bind_methods() {

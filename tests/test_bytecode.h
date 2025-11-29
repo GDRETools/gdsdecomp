@@ -105,6 +105,14 @@ func _ready():
 	print(thingy.pass)
 )";
 
+// clang-format off
+static constexpr const char *test_eof_newline = R"(
+extends RefCounted
+func _ready():
+	pass
+	)";
+// clang-format on
+
 inline void test_script_binary(const String &script_name, const Vector<uint8_t> &bytecode, const String &helper_script_text, int revision, bool helper_script, bool no_text_equality_check, bool compare_whitespace = false) {
 	auto decomp = GDScriptDecomp::create_decomp_for_commit(revision);
 	CHECK(decomp.is_valid());
@@ -182,6 +190,17 @@ inline void test_script_binary(const String &script_name, const Vector<uint8_t> 
 	CHECK(fake_script->is_loaded());
 	CHECK(fake_script->get_error_message() == "");
 	CHECK(fake_script->get_override_bytecode_revision() == revision);
+
+	// if (decomp->get_bytecode_version() <= GDScriptDecomp::GDSCRIPT_2_0_VERSION) {
+	// 	auto tokenizer = GDScriptTokenizerBufferCompat(decomp.ptr());
+	// 	tokenizer.set_code_buffer(bytecode);
+	// 	auto token = tokenizer.scan();
+	// 	while (token.type != GDScriptDecomp::G_TK_EOF) {
+	// 		print_line(vformat("Token: '%s', Line: %d, Column: %d, Indent: %d, Function: %s, Error: %s", GDScriptTokenizerBufferCompat::get_token_name(token.type), token.line, token.col, token.current_indent, token.func_name, token.error));
+	// 		token = tokenizer.scan();
+	// 	}
+	// 	bool thignas = false;
+	// }
 }
 
 inline void test_script_text(const String &script_name, const String &helper_script_text, int revision, bool helper_script, bool no_text_equality_check, bool compare_whitespace = false) {
@@ -220,7 +239,7 @@ TEST_CASE("[GDSDecomp][Bytecode] Bytecode for current engine version has same nu
 	CHECK(decomp->get_token_max() == GDScriptTokenizerBuffer::Token::TK_MAX);
 }
 
-TEST_CASE("[GDSDecomp][Bytecode] Compiling Helper Scripts") {
+TEST_CASE("[GDSDecomp][Bytecode][GDScript1.0] Compiling Helper Scripts") {
 	for (int i = 0; tests[i].script != nullptr; i++) {
 		auto &script_to_revision = tests[i];
 		String sub_case_name = vformat("Testing compiling script %s, revision %07x", String(script_to_revision.script), script_to_revision.revision);
@@ -270,23 +289,30 @@ TEST_CASE("[GDSDecomp][Bytecode][GDScript2.0] Test unique_id modulo operator") {
 }
 
 TEST_CASE("[GDSDecomp][Bytecode] Test sample GDScript bytecode") {
-	Vector<String> versions = get_test_versions();
+	Vector<String> versions = DirAccess::get_directories_at(get_test_scripts_path());
 	CHECK(versions.size() > 0);
 
 	for (const String &version : versions) {
 		auto decomp = GDScriptDecomp::create_decomp_for_version(version);
 		CHECK(decomp.is_valid());
 		int revision = decomp->get_bytecode_rev();
-		String test_dir = get_test_resources_path().path_join(version).path_join("code");
+		String test_dir = get_test_scripts_path().path_join(version).path_join("code");
+		REQUIRE(DirAccess::exists(test_dir));
 		Vector<String> files = gdre::get_recursive_dir_list(test_dir, { "*.gdc" });
 		String output_dir = get_tmp_path().path_join(version).path_join("code");
 		for (const String &file : files) {
 			auto sub_case_name = vformat("Testing compiling script %s, version %s", file, version);
 			SUBCASE(sub_case_name.utf8().get_data()) {
 				String original_file = file.get_basename() + ".gd";
+				REQUIRE(FileAccess::exists(file));
+				REQUIRE(FileAccess::exists(original_file));
 
 				Vector<uint8_t> bytecode = FileAccess::get_file_as_bytes(file);
 				String original_script_text = FileAccess::get_file_as_string(original_file);
+				auto compiled_bytecode = decomp->compile_code_string(original_script_text);
+				CHECK(decomp->get_error_message() == "");
+				CHECK(compiled_bytecode.size() > 0);
+				CHECK(decomp->test_bytecode_match(bytecode, compiled_bytecode) == OK);
 				test_script_binary(original_file, bytecode, original_script_text, revision, false, true);
 			}
 		}
@@ -433,6 +459,14 @@ TEST_CASE("[GDSDecomp][Bytecode][Create] Test creating custom decomp") {
 		SUBCASE(sub_case_name.utf8().get_data()) {
 			test_script(script_path, revision, false, true);
 		}
+	}
+}
+
+TEST_CASE("[GDSDecomp][Bytecode][EOFNewline] Test indented newline at EOF") {
+	auto versions = GDScriptDecompVersion::get_decomp_versions(true, 0);
+	for (const GDScriptDecompVersion &version : versions) {
+		int revision = version.commit;
+		test_script_text("indented_newline_at_eof", test_eof_newline, revision, false, true, false);
 	}
 }
 

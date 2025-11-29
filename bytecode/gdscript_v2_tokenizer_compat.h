@@ -35,41 +35,12 @@
 #include "core/templates/list.h"
 #include "core/templates/vector.h"
 #include "core/variant/variant.h"
+#include "gdscript_tokenizer_compat.h"
 
-class GDScriptV2TokenizerCompat {
+class GDScriptV2TokenizerCompat : public GDScriptTokenizerCompat {
+	GDSOFTCLASS(GDScriptV2TokenizerCompat, GDScriptTokenizerCompat);
+
 public:
-	enum CursorPlace {
-		CURSOR_NONE,
-		CURSOR_BEGINNING,
-		CURSOR_MIDDLE,
-		CURSOR_END,
-	};
-
-	struct Token {
-		using Type = GDScriptDecomp::GlobalToken;
-
-		Type type = Type::G_TK_EMPTY;
-		Variant literal;
-		int start_line = 0, end_line = 0, start_column = 0, end_column = 0;
-		int leftmost_column = 0, rightmost_column = 0; // Column span for multiline tokens.
-		int cursor_position = -1;
-		CursorPlace cursor_place = CURSOR_NONE;
-		String source;
-
-		const char *get_name() const;
-		String get_debug_name() const;
-		bool can_precede_bin_op() const;
-		bool is_identifier() const;
-		bool is_node_name() const;
-		StringName get_identifier() const { return literal; }
-
-		Token(Type p_type) {
-			type = p_type;
-		}
-
-		Token() {}
-	};
-
 #ifdef TOOLS_ENABLED
 	struct CommentData {
 		String comment;
@@ -96,12 +67,13 @@ public:
 	virtual void pop_expression_indented_block() = 0; // For lambdas, or blocks inside expressions.
 	virtual bool is_text() = 0;
 
-	virtual Token scan() = 0;
+	// virtual Token scan() = 0;
 
 	virtual ~GDScriptV2TokenizerCompat() {}
 };
 
 class GDScriptV2TokenizerCompatText : public GDScriptV2TokenizerCompat {
+	GDSOFTCLASS(GDScriptV2TokenizerCompatText, GDScriptV2TokenizerCompat);
 	String source;
 	const char32_t *_source = nullptr;
 	const char32_t *_current = nullptr;
@@ -195,5 +167,5 @@ public:
 
 	virtual Token scan() override;
 
-	GDScriptV2TokenizerCompatText(GDScriptDecomp *p_decomp);
+	GDScriptV2TokenizerCompatText(const GDScriptDecomp *p_decomp);
 };

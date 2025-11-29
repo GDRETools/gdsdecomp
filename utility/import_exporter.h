@@ -20,14 +20,13 @@ class ImportExporterReport : public RefCounted {
 	bool exported_scenes = false;
 	bool show_headless_warning = false;
 	int session_files_total = 0;
+	String gdre_version;
+	String game_name;
 	String log_file_location;
+	String output_dir;
 	Vector<String> decompiled_scripts;
 	Vector<String> failed_scripts;
 	String translation_export_message;
-	Vector<Ref<ExportReport>> lossy_imports;
-	Vector<Ref<ExportReport>> rewrote_metadata;
-	Vector<Ref<ExportReport>> failed_rewrite_md;
-	Vector<Ref<ExportReport>> failed_rewrite_md5;
 	Vector<Ref<ExportReport>> failed;
 	Vector<Ref<ExportReport>> success;
 	Vector<Ref<ExportReport>> not_converted;
@@ -40,6 +39,7 @@ class ImportExporterReport : public RefCounted {
 	bool opt_lossy = true;
 
 public:
+	constexpr static const int REPORT_VERSION = 1;
 	void set_ver(String p_ver);
 	String get_ver();
 	void set_lossy_opt(bool lossy) {
@@ -63,6 +63,10 @@ public:
 	Vector<String> get_decompiled_scripts();
 	Vector<String> get_failed_scripts();
 	String get_translation_export_message();
+	Vector<Ref<ExportReport>> _get_lossy_imports() const;
+	Vector<Ref<ExportReport>> _get_rewrote_metadata() const;
+	Vector<Ref<ExportReport>> _get_failed_rewrite_md() const;
+	Vector<Ref<ExportReport>> _get_failed_rewrite_md5() const;
 	TypedArray<ExportReport> get_lossy_imports() const;
 	TypedArray<ExportReport> get_rewrote_metadata() const;
 	TypedArray<ExportReport> get_failed_rewrite_md() const;
@@ -78,12 +82,15 @@ public:
 	bool is_mono_detected() const;
 
 	void print_report();
-	ImportExporterReport() {
-		set_ver("0.0.0");
-	}
-	ImportExporterReport(String p_ver) {
-		set_ver(p_ver);
-	}
+	String get_gdre_version() const;
+	ImportExporterReport();
+	ImportExporterReport(const String &p_ver, const String &p_game_name);
+
+	Dictionary to_json() const;
+	String _to_string() override;
+	static Ref<ImportExporterReport> from_json(const Dictionary &p_json);
+
+	bool is_equal_to(const Ref<ImportExporterReport> &p_import_exporter_report) const;
 
 protected:
 	static void _bind_methods();

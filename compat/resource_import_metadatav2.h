@@ -40,28 +40,10 @@ public:
 	Variant get_option(const String &p_key) const;
 	bool has_option(const String &p_key) const;
 	void get_options(List<String> *r_options) const;
-	Dictionary get_options_as_dictionary() const {
-		Dictionary opts;
-		for (auto E = options.front(); E; E = E->next()) {
-			opts[E->key()] = E->value();
-		}
-		return opts;
-	}
-	Dictionary get_as_dictionary() const {
-		Dictionary ret;
-		Array srcs;
-		for (int i = 0; i < sources.size(); i++) {
-			Dictionary src;
-			src["path"] = sources[i].path;
-			src["md5"] = sources[i].md5;
-			srcs.push_back(src);
-		}
-		ret["sources"] = srcs;
-		ret["editor"] = editor;
+	Dictionary get_options_as_dictionary() const;
+	Dictionary to_json() const;
 
-		ret["options"] = get_options_as_dictionary();
-		return ret;
-	}
+	static Ref<ResourceImportMetadatav2> from_json(const Dictionary &p_dict);
 	ResourceImportMetadatav2();
 };
 

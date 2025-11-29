@@ -71,9 +71,11 @@ opts.Update(env_gdsdecomp)
 # and the headers that our tests pull in are relative to the current directory.
 # TODO: Figure out a way to not have to do this
 if env["tests"]:
+    env_gdsdecomp.Append(CPPDEFINES=["TESTS_ENABLED"])
     env.Append(CPPPATH=[vtracer_dir_include_dir])
     env.Append(CPPPATH=[godot_mono_decomp_include_dir])
     env.Append(CPPPATH=["#modules/gdsdecomp/"])
+    env.Append(CPPPATH=[mmp3thirdparty_dir])
     env.Append(CPPPATH=[liboggthirdparty_dir])
     env.Append(CPPPATH=[libvorbisthirdparty_dir])
 env_gdsdecomp.Append(CPPPATH=[vtracer_dir_include_dir])
@@ -199,11 +201,7 @@ if env["builtin_libogg"]:
 if env["builtin_libvorbis"]:
     env_gdsdecomp.Prepend(CPPPATH=["#thirdparty/libvorbis"])
 
-# Treat minimp3 headers as system headers to avoid raising warnings. Not supported on MSVC.
-if not env.msvc:
-    env_gdsdecomp.Append(CPPFLAGS=["-isystem", Dir(mmp3thirdparty_dir).path])
-else:
-    env_gdsdecomp.Prepend(CPPPATH=[mmp3thirdparty_dir])
+env_gdsdecomp.Prepend(CPPPATH=[mmp3thirdparty_dir])
 
 if env["builtin_libwebp"]:
     env_gdsdecomp.Prepend(CPPPATH=[webpthirdparty_dir, webpthirdparty_dir + "src/"])
@@ -859,6 +857,8 @@ if env["target"] == "editor":
 env_gdsdecomp.add_source_files(module_obj, "exporters/*.cpp")
 env_gdsdecomp.add_source_files(module_obj, "gui/*.cpp")
 env_gdsdecomp.add_source_files(module_obj, "plugin_manager/*.cpp")
+if env["tests"]:
+    env_gdsdecomp.add_source_files(module_obj, "tests/*.cpp")
 env_gdsdecomp.add_source_files(module_obj, "utility/*.cpp")
 
 env_gdsdecomp.add_source_files(module_obj, "external/tga/*.cpp")

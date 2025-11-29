@@ -42,114 +42,6 @@
 #include "editor/settings/editor_settings.h"
 #endif
 
-const char *GDScriptV2TokenizerCompat::Token::get_name() const {
-	ERR_FAIL_INDEX_V_MSG(type, Type::G_TK_MAX, "<error>", "Using token type out of the enum.");
-	return GDScriptTokenizerTextCompat::token_names[type];
-}
-
-String GDScriptV2TokenizerCompat::Token::get_debug_name() const {
-	switch (type) {
-		case Type::G_TK_IDENTIFIER:
-			return vformat(R"(identifier "%s")", source);
-		default:
-			return vformat(R"("%s")", get_name());
-	}
-}
-
-bool GDScriptV2TokenizerCompat::Token::can_precede_bin_op() const {
-	switch (type) {
-		case Type::G_TK_IDENTIFIER:
-		case Type::G_TK_CONSTANT:
-		case Type::G_TK_SELF:
-		case Type::G_TK_BRACKET_CLOSE:
-		case Type::G_TK_CURLY_BRACKET_CLOSE:
-		case Type::G_TK_PARENTHESIS_CLOSE:
-		case Type::G_TK_CONST_PI:
-		case Type::G_TK_CONST_TAU:
-		case Type::G_TK_CONST_INF:
-		case Type::G_TK_CONST_NAN:
-			return true;
-		default:
-			return false;
-	}
-}
-
-bool GDScriptV2TokenizerCompat::Token::is_identifier() const {
-	// Note: Most keywords should not be recognized as identifiers.
-	// These are only exceptions for stuff that already is on the engine's API.
-	switch (type) {
-		case Type::G_TK_IDENTIFIER:
-		case Type::G_TK_CF_MATCH: // Used in String.match().
-		case Type::G_TK_CF_WHEN: // New keyword, avoid breaking existing code.
-		case Type::G_TK_ABSTRACT:
-		// Allow constants to be treated as regular identifiers.
-		case Type::G_TK_CONST_PI:
-		case Type::G_TK_CONST_INF:
-		case Type::G_TK_CONST_NAN:
-		case Type::G_TK_CONST_TAU:
-			return true;
-		default:
-			return false;
-	}
-}
-
-bool GDScriptV2TokenizerCompat::Token::is_node_name() const {
-	// This is meant to allow keywords with the $ notation, but not as general identifiers.
-	switch (type) {
-		case Type::G_TK_IDENTIFIER:
-		case Type::G_TK_ABSTRACT:
-		case Type::G_TK_OP_AND:
-		case Type::G_TK_PR_AS:
-		case Type::G_TK_PR_ASSERT:
-		case Type::G_TK_PR_AWAIT:
-		case Type::G_TK_CF_BREAK:
-		case Type::G_TK_PR_BREAKPOINT:
-		case Type::G_TK_PR_CLASS_NAME:
-		case Type::G_TK_PR_CLASS:
-		case Type::G_TK_PR_CONST:
-		case Type::G_TK_CONST_PI:
-		case Type::G_TK_CONST_INF:
-		case Type::G_TK_CONST_NAN:
-		case Type::G_TK_CONST_TAU:
-		case Type::G_TK_CF_CONTINUE:
-		case Type::G_TK_CF_ELIF:
-		case Type::G_TK_CF_ELSE:
-		case Type::G_TK_PR_ENUM:
-		case Type::G_TK_PR_EXTENDS:
-		case Type::G_TK_CF_FOR:
-		case Type::G_TK_PR_FUNCTION:
-		case Type::G_TK_CF_IF:
-		case Type::G_TK_OP_IN:
-		case Type::G_TK_PR_IS:
-		case Type::G_TK_CF_MATCH:
-		case Type::G_TK_PR_NAMESPACE:
-		case Type::G_TK_OP_NOT:
-		case Type::G_TK_OP_OR:
-		case Type::G_TK_CF_PASS:
-		case Type::G_TK_PR_PRELOAD:
-		case Type::G_TK_CF_RETURN:
-		case Type::G_TK_SELF:
-		case Type::G_TK_PR_SIGNAL:
-		case Type::G_TK_PR_STATIC:
-		case Type::G_TK_PR_SUPER:
-		case Type::G_TK_PR_TRAIT:
-		case Type::G_TK_UNDERSCORE:
-		case Type::G_TK_PR_VAR:
-		case Type::G_TK_PR_VOID:
-		case Type::G_TK_CF_WHILE:
-		case Type::G_TK_CF_WHEN:
-		case Type::G_TK_PR_YIELD:
-			return true;
-		default:
-			return false;
-	}
-}
-
-String GDScriptV2TokenizerCompat::get_token_name(Token::Type p_token_type) {
-	ERR_FAIL_INDEX_V_MSG(p_token_type, Token::Type::G_TK_MAX, "<error>", "Using token type out of the enum.");
-	return GDScriptTokenizerTextCompat::token_names[p_token_type];
-}
-
 void GDScriptV2TokenizerCompatText::set_source_code(const String &p_source_code) {
 	source = p_source_code;
 	if (source.is_empty()) {
@@ -1580,7 +1472,7 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerCompatText::scan() {
 	}
 }
 
-GDScriptV2TokenizerCompatText::GDScriptV2TokenizerCompatText(GDScriptDecomp *p_decomp) {
+GDScriptV2TokenizerCompatText::GDScriptV2TokenizerCompatText(const GDScriptDecomp *p_decomp) {
 #ifdef TOOLS_ENABLED
 	if (EditorSettings::get_singleton()) {
 		// fuck off

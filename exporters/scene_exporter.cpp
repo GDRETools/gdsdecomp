@@ -3003,7 +3003,6 @@ struct BatchExportToken : public TaskRunnerStruct {
 		// Non-original path, save it under .assets, which won't be picked up for import by the godot editor
 		if (!to_text && !to_obj && non_gltf) {
 			new_path = new_path.replace("res://", "res://.assets/").get_basename() + ".glb";
-			report->set_new_source_path(new_path);
 		}
 		ver_major = p_iinfo->get_ver_major();
 		scene_size = FileAccess::get_size(p_iinfo->get_path());
@@ -3063,7 +3062,6 @@ struct BatchExportToken : public TaskRunnerStruct {
 		auto da = DirAccess::create_for_path(new_dest_base_dir);
 		if (da.is_valid() && da->rename(p_dest_path, new_dest) == OK) {
 			report->get_import_info()->set_export_dest(new_export_dest);
-			report->set_new_source_path(new_export_dest);
 			report->set_saved_path(new_dest);
 			Dictionary extra_info = report->get_extra_info();
 			if (extra_info.has("external_buffer_paths")) {
@@ -3281,7 +3279,6 @@ Ref<ExportReport> SceneExporter::export_file_with_options(const String &out_path
 		}
 		if (!iinfo.is_valid()) {
 			Ref<ExportReport> report = memnew(ExportReport(nullptr, EXPORTER_NAME));
-			report->set_source_path(res_path);
 			if (!is_resource) {
 				report->set_message(res_path + " is not a valid resource.");
 				report->set_error(ERR_INVALID_PARAMETER);

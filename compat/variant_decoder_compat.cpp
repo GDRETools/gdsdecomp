@@ -1,5 +1,6 @@
 #include "variant_decoder_compat.h"
 #include "core/error/error_list.h"
+#include "core/version_generated.gen.h"
 #include "input_event_parser_v2.h"
 
 #include "compat/image_enum_compat.h"
@@ -289,6 +290,8 @@ Variant::Type VariantDecoderCompat::convert_variant_type_from_old(int type, int 
 		return variant_type_enum_v2_to_v4(type);
 	} else if (ver_major == 3) {
 		return variant_type_enum_v3_to_v4(type);
+	} else if (ver_major == GODOT_VERSION_MAJOR) {
+		return (Variant::Type)type;
 	} else {
 		WARN_PRINT("VariantDecoderCompat::convert_variant_type_from_old: ver_major is not 2 or 3, returning type as is.");
 	}
@@ -486,8 +489,10 @@ int VariantDecoderCompat::convert_variant_type_to_old(Variant::Type type, int ve
 		return variant_type_enum_v4_to_v2(type);
 	} else if (ver_major == 3) {
 		return variant_type_enum_v4_to_v3(type);
+	} else if (ver_major == GODOT_VERSION_MAJOR) {
+		return int(type);
 	} else {
-		WARN_PRINT("VariantDecoderCompat::convert_variant_type_to_old: ver_major is not 2 or 3, returning type as is.");
+		WARN_PRINT("VariantDecoderCompat::convert_variant_type_to_old: ver_major is not 2-4, returning type as is.");
 	}
 	return int(type);
 }
