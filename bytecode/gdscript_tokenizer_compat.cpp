@@ -43,37 +43,37 @@ const char *GDScriptTokenizerV1Compat::token_names[] = {
 	"Built-In Type",
 	"Built-In Func",
 	"in",
-	"'=='",
-	"'!='",
-	"'<'",
-	"'<='",
-	"'>'",
-	"'>='",
+	"==",
+	"!=",
+	"<",
+	"<=",
+	">",
+	">=",
 	"and",
 	"or",
 	"not",
-	"'+'",
-	"'-'",
-	"'*'",
-	"'/'",
-	"'%'",
-	"'<<'",
-	"'>>'",
-	"'='",
-	"'+='",
-	"'-='",
-	"'*='",
-	"'/='",
-	"'%='",
-	"'<<='",
-	"'>>='",
-	"'&='",
-	"'|='",
-	"'^='",
-	"'&'",
-	"'|'",
-	"'^'",
-	"'~'",
+	"+",
+	"-",
+	"*",
+	"/",
+	"%",
+	"<<",
+	">>",
+	"=",
+	"+=",
+	"-=",
+	"*=",
+	"/=",
+	"%=",
+	"<<=",
+	">>=",
+	"&=",
+	"|=",
+	"^=",
+	"&",
+	"|",
+	"^",
+	"~",
 	//"Plus Plus",
 	//"Minus Minus",
 	"if",
@@ -114,20 +114,20 @@ const char *GDScriptTokenizerV1Compat::token_names[] = {
 	"remotesync",
 	"mastersync",
 	"puppetsync",
-	"'['",
-	"']'",
-	"'{'",
-	"'}'",
-	"'('",
-	"')'",
-	"','",
-	"';'",
-	"'.'",
-	"'?'",
-	"':'",
-	"'$'",
-	"'->'",
-	"'\\n'",
+	"[",
+	"]",
+	"{",
+	"}",
+	"(",
+	")",
+	",",
+	";",
+	".",
+	"?",
+	":",
+	"$",
+	"->",
+	"\n",
 	"PI",
 	"TAU",
 	"_",
@@ -1094,6 +1094,7 @@ void GDScriptTokenizerTextCompat::_advance() {
 }
 
 void GDScriptTokenizerTextCompat::set_code(const String &p_code) {
+	current_indent = 0;
 	code = p_code;
 	len = p_code.length();
 	if (len) {
@@ -1291,12 +1292,12 @@ Error GDScriptTokenizerBufferCompat::set_code_buffer(const Vector<uint8_t> &p_bu
 	GDSDECOMP_FAIL_COND_V_MSG(line_count * /*sizeof(HashMap<uint32_t, uint32_t>::Pair)*/ 8 > total_len, ERR_INVALID_DATA, "Invalid line count.");
 
 	for (uint32_t i = 0; i < line_count; i++) {
-		uint32_t token = decode_uint32(b);
+		uint32_t token_index = decode_uint32(b);
 		b += 4;
 		uint32_t linecol = decode_uint32(b);
 		b += 4;
 
-		lines.insert(token, linecol);
+		lines.insert(token_index, linecol);
 		total_len -= 8;
 	}
 	tokens.resize(token_count);
@@ -1316,7 +1317,7 @@ Error GDScriptTokenizerBufferCompat::set_code_buffer(const Vector<uint8_t> &p_bu
 	}
 
 	token = 0;
-
+	current_indent = 0;
 	return OK;
 }
 
@@ -1572,6 +1573,60 @@ String GDScriptTokenizerBufferCompat::get_token_error(int p_offset) const {
 void GDScriptTokenizerBufferCompat::advance(int p_amount) {
 	ERR_FAIL_INDEX(p_amount + token, tokens.size());
 	token += p_amount;
+}
+
+GDScriptTokenizerV1Compat::TokenData GDScriptTokenizerV1Compat::scan() {
+	int line = get_token_line();
+	const Token g_token = get_token();
+	if (g_token == Token::G_TK_EOF) {
+		TokenData data;
+		data.type = Token::G_TK_EOF;
+		data.line = line;
+		data.col = get_token_column();
+		return data;
+	}
+	StringName id;
+	Variant c;
+	Variant::Type type = Variant::VARIANT_MAX;
+	int func = 0;
+	String func_name = "";
+	String err;
+	switch (g_token) {
+		case Token::G_TK_IDENTIFIER: {
+			id = get_token_identifier();
+		} break;
+		case Token::G_TK_CONSTANT: {
+			c = get_token_constant();
+		} break;
+		case Token::G_TK_BUILT_IN_TYPE: {
+			type = get_token_type();
+		} break;
+		case Token::G_TK_BUILT_IN_FUNC: {
+			// built-in function already has correct value
+			func = get_token_built_in_func();
+		} break;
+		case Token::G_TK_NEWLINE: {
+			current_indent = get_token_line_indent();
+		} break;
+		case Token::G_TK_ERROR: {
+			err = get_token_error();
+		} break;
+		default: {
+		}
+	};
+	TokenData data;
+	data.type = g_token;
+	data.identifier = id;
+	data.constant = c;
+	data.vtype = type;
+	data.func = func;
+	data.func_name = decomp->get_function_name(func);
+	data.line = line;
+	data.col = get_token_column();
+	data.current_indent = current_indent;
+	data.error = err;
+	advance();
+	return data;
 }
 
 GDScriptTokenizerBufferCompat::GDScriptTokenizerBufferCompat(const GDScriptDecomp *p_decomp) :

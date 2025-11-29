@@ -85,7 +85,25 @@ int GDScriptV2TokenizerBufferCompat::_token_to_binary(const Token &p_token, Vect
 	return token_len;
 }
 
-GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerBufferCompat::_binary_to_token(const uint8_t *p_buffer) {
+int get_token_line(const RBMap<int, int> &lines, int offset) {
+	auto pos_it = lines.find_closest(offset);
+
+	auto largest = lines.back();
+	int l = 0;
+	if (pos_it == nullptr) {
+		if (offset > largest->key()) {
+			l = largest->value();
+		} else {
+			return -1;
+		}
+	} else {
+		l = pos_it->value();
+	}
+
+	return l;
+}
+
+GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerBufferCompat::_binary_to_token(const uint8_t *p_buffer, int p_token_index) {
 	Token token;
 	const uint8_t *b = p_buffer;
 
@@ -96,7 +114,8 @@ GDScriptV2TokenizerCompat::Token GDScriptV2TokenizerBufferCompat::_binary_to_tok
 	} else {
 		b++;
 	}
-	token.start_line = decode_uint32(b);
+	// token.start_line = decode_uint32(b);
+	token.start_line = get_token_line(token_lines, p_token_index);
 	token.end_line = token.start_line;
 
 	token.literal = token.get_name();
@@ -227,7 +246,7 @@ Error GDScriptV2TokenizerBufferCompat::set_code_buffer(const Vector<uint8_t> &p_
 			token_len = 8;
 		}
 		ERR_FAIL_COND_V(total_len < token_len, ERR_INVALID_DATA);
-		Token token = _binary_to_token(b);
+		Token token = _binary_to_token(b, i);
 		b += token_len;
 		ERR_FAIL_INDEX_V(token.type, Token::Type::G_TK_MAX, ERR_INVALID_DATA);
 		tokens.write[i] = token;

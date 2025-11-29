@@ -48,7 +48,69 @@ public:
 	using Token = GDScriptDecomp::GlobalToken;
 	using T = Token;
 
+	// struct TokenData {
+	// 	Token type;
+	// 	StringName identifier; //for identifier types
+	// 	Variant constant; //for constant types
+	// 	union {
+	// 		Variant::Type vtype; //for type types
+	// 		int func; //function for built in functions
+	// 		int warning_code; //for warning skip
+	// 	};
+	// 	int line, col;
+	// 	int current_indent;
+	// 	String func_name;
+	// 	String error;
+	// 	TokenData() {
+	// 		type = T::G_TK_EMPTY;
+	// 		line = col = 0;
+	// 		vtype = Variant::NIL;
+	// 	}
+	// };
+	enum CursorPlace {
+		CURSOR_NONE,
+		CURSOR_BEGINNING,
+		CURSOR_MIDDLE,
+		CURSOR_END,
+	};
+
+	struct TokenData {
+		Token type = Token::G_TK_EMPTY;
+		StringName identifier; //for identifier types
+		Variant constant;
+		int line = 0, end_line = 0, col = 0, end_column = 0;
+		int leftmost_column = 0, rightmost_column = 0; // Column span for multiline tokens.
+		int cursor_position = -1;
+		CursorPlace cursor_place = CURSOR_NONE;
+		String source;
+		String func_name;
+		int current_indent = 0;
+		String error;
+		union {
+			Variant::Type vtype; //for type types
+			int func; //function for built in functions
+			int warning_code; //for warning skip
+		};
+
+		// const char *get_name() const;
+		// String get_debug_name() const;
+		// bool can_precede_bin_op() const;
+		// bool is_identifier() const;
+		// bool is_node_name() const;
+		// StringName get_identifier() const { return constant; }
+
+		TokenData() {
+			type = T::G_TK_EMPTY;
+			vtype = Variant::NIL;
+		}
+
+		// Token(Type p_type) {
+		// 	type = p_type;
+		// }
+	};
+
 protected:
+	int current_indent = 0;
 	const GDScriptDecomp *decomp;
 	enum StringMode {
 		STRING_SINGLE_QUOTE,
@@ -75,6 +137,7 @@ public:
 	virtual int get_token_line_tab_indent(int p_offset = 0) const = 0;
 	virtual String get_token_error(int p_offset = 0) const = 0;
 	virtual void advance(int p_amount = 1) = 0;
+	virtual TokenData scan();
 #ifdef DEBUG_ENABLED
 	virtual const Vector<Pair<int, String>> &get_warning_skips() const = 0;
 	virtual const RBSet<String> &get_warning_global_skips() const = 0;
@@ -101,23 +164,6 @@ public:
 		STRING_SINGLE_QUOTE,
 		STRING_DOUBLE_QUOTE,
 		STRING_MULTILINE
-	};
-
-	struct TokenData {
-		Token type;
-		StringName identifier; //for identifier types
-		Variant constant; //for constant types
-		union {
-			Variant::Type vtype; //for type types
-			int func; //function for built in functions
-			int warning_code; //for warning skip
-		};
-		int line, col;
-		TokenData() {
-			type = T::G_TK_EMPTY;
-			line = col = 0;
-			vtype = Variant::NIL;
-		}
 	};
 
 private:
@@ -199,7 +245,9 @@ class GDScriptTokenizerBufferCompat : public GDScriptTokenizerV1Compat {
 	RBMap<uint32_t, uint32_t> lines;
 	Vector<uint32_t> tokens;
 	Variant nil;
-	int token;
+	int token = 0;
+	int current_line = 0;
+	int current_indent = 0;
 
 	String error_message;
 

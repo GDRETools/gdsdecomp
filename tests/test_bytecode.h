@@ -182,6 +182,17 @@ inline void test_script_binary(const String &script_name, const Vector<uint8_t> 
 	CHECK(fake_script->is_loaded());
 	CHECK(fake_script->get_error_message() == "");
 	CHECK(fake_script->get_override_bytecode_revision() == revision);
+
+	if (decomp->get_bytecode_version() <= GDScriptDecomp::GDSCRIPT_2_0_VERSION) {
+		auto tokenizer = GDScriptTokenizerBufferCompat(decomp.ptr());
+		tokenizer.set_code_buffer(bytecode);
+		auto token = tokenizer.scan();
+		while (token.type != GDScriptDecomp::G_TK_EOF) {
+			print_line(vformat("Token: '%s', Line: %d, Column: %d, Indent: %d, Function: %s, Error: %s", GDScriptTokenizerBufferCompat::get_token_name(token.type), token.line, token.col, token.current_indent, token.func_name, token.error));
+			token = tokenizer.scan();
+		}
+		bool thignas = false;
+	}
 }
 
 inline void test_script_text(const String &script_name, const String &helper_script_text, int revision, bool helper_script, bool no_text_equality_check, bool compare_whitespace = false) {
@@ -220,7 +231,7 @@ TEST_CASE("[GDSDecomp][Bytecode] Bytecode for current engine version has same nu
 	CHECK(decomp->get_token_max() == GDScriptTokenizerBuffer::Token::TK_MAX);
 }
 
-TEST_CASE("[GDSDecomp][Bytecode] Compiling Helper Scripts") {
+TEST_CASE("[GDSDecomp][Bytecode][GDScript1.0] Compiling Helper Scripts") {
 	for (int i = 0; tests[i].script != nullptr; i++) {
 		auto &script_to_revision = tests[i];
 		String sub_case_name = vformat("Testing compiling script %s, revision %07x", String(script_to_revision.script), script_to_revision.revision);

@@ -31,6 +31,7 @@
 #pragma once
 
 #include "bytecode/bytecode_base.h"
+#include "core/templates/rb_map.h"
 #include "gdscript_v2_tokenizer_compat.h"
 
 class GDScriptV2TokenizerBufferCompat : public GDScriptV2TokenizerCompat {
@@ -47,7 +48,7 @@ public:
 	Vector<StringName> identifiers;
 	Vector<Variant> constants;
 	Vector<int> continuation_lines;
-	HashMap<int, int> token_lines;
+	RBMap<int, int> token_lines;
 	HashMap<int, int> token_columns;
 	Vector<Token> tokens;
 	int current = 0;
@@ -65,7 +66,7 @@ public:
 #endif // TOOLS_ENABLED
 
 	static int _token_to_binary(const Token &p_token, Vector<uint8_t> &r_buffer, int p_start, HashMap<StringName, uint32_t> &r_identifiers_map, HashMap<Variant, uint32_t> &r_constants_map, GDScriptDecomp *p_decomp);
-	Token _binary_to_token(const uint8_t *p_buffer);
+	Token _binary_to_token(const uint8_t *p_buffer, int p_token_index);
 
 public:
 	Error set_code_buffer(const Vector<uint8_t> &p_buffer);
