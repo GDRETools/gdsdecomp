@@ -329,10 +329,15 @@ public static class GodotStuff
 		if (scriptMetadata != null)
 		{
 			// create a map of metadata FQN to file path
-			metadataFQNToFileMap = scriptMetadata.ToDictionary(
-				pair => pair.Value.Class.GetFullClassName(),
-				pair => pair.Key,
-				StringComparer.OrdinalIgnoreCase);
+			metadataFQNToFileMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+			foreach (var pair in scriptMetadata)
+			{
+				var fqn = pair.Value.Class.GetFullClassName();
+				if (!metadataFQNToFileMap.ContainsKey(fqn))
+				{
+					metadataFQNToFileMap[fqn] = pair.Key;
+				}
+			}
 		}
 
 		excludedSubdirectories = excludedSubdirectories?.Select(e => {
