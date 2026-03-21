@@ -720,6 +720,30 @@ String ImportExporter::get_export_token_description(uint32_t i, ExportToken *tok
 	return tokens[i].iinfo.is_valid() ? tokens[i].iinfo->get_path() : "";
 }
 
+// This is to preserve feature tags when running the project in the editor
+void write_project_metadata_cfg(const String &p_output_dir) {
+	if (get_settings()->get_ver_major() < 4) {
+		return;
+	}
+	constexpr const char *project_metadata_path = ".godot/editor/project_metadata.cfg";
+	constexpr const char *main_feature_tags_key = "debug_options/run_main_feature_tags";
+	String output_path = p_output_dir.path_join(project_metadata_path);
+	Ref<ConfigFile> project_metadata = memnew(ConfigFile);
+	if (FileAccess::exists(output_path)) {
+		Error err = project_metadata->load(output_path);
+		if (err != OK) {
+			WARN_PRINT("Failed to load project metadata: " + output_path);
+		}
+	}
+	String _custom_features = get_settings()->get_project_setting("_custom_features");
+	project_metadata->set_value("debug_options", main_feature_tags_key, "true");
+	gdre::ensure_dir(output_path.get_base_dir());
+	Error err = project_metadata->save(output_path);
+	if (err != OK) {
+		WARN_PRINT("Failed to save project metadata: " + output_path);
+	}
+}
+
 // TODO: rethink this, it's not really recovering any keys beyond the first time
 Error ImportExporter::_reexport_translations(Vector<ImportExporter::ExportToken> &non_multithreaded_tokens, size_t token_size, Ref<EditorProgressGDDC> pr) {
 	Vector<size_t> incomp_trans;
@@ -1461,6 +1485,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	}
 
 	if (get_settings()->is_project_config_loaded()) { // some pcks do not have project configs
+		write_project_metadata_cfg(output_dir);
 		if constexpr (GDScriptDecomp::FORCE_SPACES_FOR_2_0) {
 			// if we're at v4.5 or higher (<4.5 doesn't support editor_overrides), we want to set "editor_overrides/text_editor/behavior/indent/type" to "Spaces"
 			// This avoids editor churn on the scripts when they're resaved by the editor
