@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 
-import json
-import platform
-import re
-from typing import Any, Literal
-import gdre_icon_builder
-import shutil
-from subprocess import STDOUT, Popen, PIPE, check_output
 import os
-import glob
 from typing import TYPE_CHECKING
+
+from build import gdre_icon_builder
+from build.common import add_libs_to_env, add_source_groups, append_cpppaths, find_llvm_prebuild_path, get_sources
+from build.mono_decomp import build_godot_mono_decomp, get_godot_mono_decomp_lib_dir
+from build.paths import *
+from build.versioning import write_version_header
+from build.vtracer import build_vtracer, get_vtracer_lib_dir
 
 if TYPE_CHECKING:
     from SCons.Environment import Environment
@@ -26,68 +25,62 @@ Import("env_modules")
 opts = Variables([], ARGUMENTS)
 opts.Add(BoolVariable("disable_godot_mono_decomp", "Disable Godot Mono Decompilation", False))
 opts.Add(BoolVariable("disable_gifski", "Disable Gifski", False))
-
 opts.Update(env)
 
+MODULE_DIR = get_module_dir(env)
+BUILD_DIR = get_build_dir(env)
+EXTERNAL_DIR = get_external_dir(MODULE_DIR)
+VTRACER_DIR = get_vtracer_dir(MODULE_DIR)
+VTRACER_BUILD_DIR = get_vtracer_build_dir(MODULE_DIR)
+GODOT_MONO_DECOMP_DIR = get_godot_mono_decomp_dir(MODULE_DIR)
 
-MODULE_DIR: str = env.Dir("#modules/gdsdecomp").abspath
-BUILD_DIR: str = env.Dir("#bin").abspath
-EXTERNAL_STEM: str = "external_install"
-EXTERNAL_DIR: str = os.path.join(MODULE_DIR, EXTERNAL_STEM)
-
-# TODO: enable static linking once we figure out why Linux keeps missing symbols
+# TODO: Keep static branch intact for future use. Runtime/dotnet issues still block rollout.
 mono_native_lib_type = "Shared"
 is_using_clang = env["CXX"].lower().endswith("clang++")
 if env["platform"] == "android" or (is_using_clang and env["platform"] == "macos"):
-    # force shared on android because of https://github.com/dotnet/runtime/issues/109341 (fixed in 10.0.0, but we're not upgrading to that yet)
-    # force shared on macos with clang++, because `ld` does not support multiple definitions of the same symbol
     mono_native_lib_type = "Shared"
 
-mbedtlsthirdparty_dir = "#thirdparty/mbedtls/include/"
-mmp3thirdparty_dir = "#thirdparty/minimp3/"
-liboggthirdparty_dir = "#thirdparty/libogg/"
-libtheorathirdparty_dir = "#thirdparty/libtheora/"
-libvorbisthirdparty_dir = "#thirdparty/libvorbis/"
-webpthirdparty_dir = "#thirdparty/libwebp/"
-vtracer_dir_include_dir = "#modules/gdsdecomp/external/vtracer/include"
-godot_mono_decomp_include_dir = "#modules/gdsdecomp/godot-mono-decomp/GodotMonoDecompNativeAOT/include"
-
-# hack to force the minimum macOS version to 10.15; it is currently hard-coded to 10.13 in the macos/detect.py script
+# hack to force the minimum macOS version to 10.15; it is currently hard-coded to 10.13
 # TODO: remove this hack once the minimum macOS version is updated to 10.15
 if env["platform"] == "macos" and env["arch"] == "x86_64":
-    env.Append(CPPFLAGS=["-mmacosx-version-min=10.15"])
-    env.Append(LINKFLAGS=["-mmacosx-version-min=10.15"])
-    env.Append(CXXFLAGS=["-mmacosx-version-min=10.15"])
-    env.Append(ASFLAGS=["-mmacosx-version-min=10.15"])
-    env_modules.Append(CPPFLAGS=["-mmacosx-version-min=10.15"])
-    env_modules.Append(LINKFLAGS=["-mmacosx-version-min=10.15"])
-    env_modules.Append(CXXFLAGS=["-mmacosx-version-min=10.15"])
-    env_modules.Append(ASFLAGS=["-mmacosx-version-min=10.15"])
+    min_version_flag = "-mmacosx-version-min=10.15"
+    for build_env in [env, env_modules]:
+        build_env.Append(CPPFLAGS=[min_version_flag])
+        build_env.Append(LINKFLAGS=[min_version_flag])
+        build_env.Append(CXXFLAGS=[min_version_flag])
+        build_env.Append(ASFLAGS=[min_version_flag])
+
 env_gdsdecomp = env_modules.Clone()
 opts.Update(env_gdsdecomp)
 
-# Append the include path to include the current directory
-# This is a hack for tests, since the test headers get built from tests/test_main.cpp,
-# and the headers that our tests pull in are relative to the current directory.
-# TODO: Figure out a way to not have to do this
 if env["tests"]:
     env_gdsdecomp.Append(CPPDEFINES=["TESTS_ENABLED"])
-    env.Append(CPPPATH=[vtracer_dir_include_dir])
-    env.Append(CPPPATH=[godot_mono_decomp_include_dir])
-    env.Append(CPPPATH=["#modules/gdsdecomp/"])
-    env.Append(CPPPATH=[mmp3thirdparty_dir])
-    env.Append(CPPPATH=[liboggthirdparty_dir])
-    env.Append(CPPPATH=[libvorbisthirdparty_dir])
-env_gdsdecomp.Append(CPPPATH=[vtracer_dir_include_dir])
-env_gdsdecomp.Append(CPPPATH=[godot_mono_decomp_include_dir])
-env_gdsdecomp.Append(CPPPATH=["#modules/gdsdecomp/"])
-env_gdsdecomp.Append(CPPPATH=["#thirdparty/thorsvg/"])
-env_gdsdecomp.Append(CPPPATH=[libtheorathirdparty_dir])
-env_gdsdecomp.Append(CPPPATH=[mbedtlsthirdparty_dir])
+    append_cpppaths(
+        env,
+        [
+            VTRACER_INCLUDE_DIR,
+            GODOT_MONO_DECOMP_INCLUDE_DIR,
+            MODULE_INCLUDE_DIR,
+            MMP3_THIRDPARTY_DIR,
+            LIBOGG_THIRDPARTY_DIR,
+            LIBVORBIS_THIRDPARTY_DIR,
+        ],
+    )
+
+append_cpppaths(
+    env_gdsdecomp,
+    [
+        VTRACER_INCLUDE_DIR,
+        GODOT_MONO_DECOMP_INCLUDE_DIR,
+        MODULE_INCLUDE_DIR,
+        THORSVG_THIRDPARTY_DIR,
+        LIBTHEORA_THIRDPARTY_DIR,
+        MBEDTLS_THIRDPARTY_DIR,
+    ],
+)
+
 if env["disable_exceptions"]:
     env_gdsdecomp.Append(CPPDEFINES=["DOCTEST_CONFIG_NO_EXCEPTIONS_BUT_WITH_ALL_ASSERTS"])
-
-# enable 3.x scenes
 env_gdsdecomp.Append(CPPDEFINES=["ENABLE_3_X_SCENE_LOADING"])
 
 env_gdsdecomp["BUILDERS"]["MakeGDREIconsBuilder"] = Builder(
@@ -96,781 +89,80 @@ env_gdsdecomp["BUILDERS"]["MakeGDREIconsBuilder"] = Builder(
     src_suffix=".svg",
 )
 icon_sources = Glob("icons/*.svg")
+env_gdsdecomp.Alias("gdre_icons", [env_gdsdecomp.MakeGDREIconsBuilder("gui/gdre_icons.gen.h", icon_sources)])
 
-env_gdsdecomp.Alias(
-    "gdre_icons",
-    [env_gdsdecomp.MakeGDREIconsBuilder("gui/gdre_icons.gen.h", icon_sources)],
-)
-
-
-def doproc(cmd):
-    # ensure that it doesn't print stderr to the terminal if print_err is False
-    process = Popen(cmd, stdout=PIPE, stderr=PIPE)
-    (output, err) = process.communicate()
-    if not err:
-        return output.decode("utf-8").strip()
-    else:
-        return None
-
-
-semver_regex = r"^[vV]?(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"
-
-
-def is_dev_build(env):
-    return env["dev_build"] if "dev_build" in env else False
-
-
-def get_version_info():
-    git = shutil.which("git")
-    version_info = "unknown"
-    if git == None:
-        print("GDRE WARNING: cannot find git on path, unknown version will be saved in gdre_version.gen.h")
-    else:
-        # git describe --abbrev=6
-        version_info = doproc([git, "describe", "--tags", "--abbrev=6"])
-        if version_info is None:
-            print("GDRE WARNING: git failed to run, unknown version will be saved in gdre_version.gen.h")
-            version_info = "unknown"
-        else:
-            # git describe --exact-match --tags HEAD
-            res = doproc([git, "describe", "--exact-match", "--tags", "HEAD"])
-            if not res:
-                splits = version_info.split("-")
-                build_info = splits[-1]
-                build_num = splits[-2]
-                # everything but the last two elements
-                new_version_info = "-".join(splits[:-2])
-                semver_regex_match = re.match(semver_regex, new_version_info)
-                if semver_regex_match:
-                    major = semver_regex_match.group("major")
-                    minor = semver_regex_match.group("minor")
-                    patch = semver_regex_match.group("patch")
-                    prerelease_tag = semver_regex_match.group("prerelease")
-                    build_metadata = semver_regex_match.group("buildmetadata")
-                else:
-                    print("WARNING: version string does not match semver format")
-                    splits = new_version_info.split(".")
-                    if len(splits) < 3:
-                        print("WARNING: version string is too short")
-                        major = "0"
-                        minor = "0"
-                        patch = "0"
-                    else:
-                        major = splits[0]
-                        minor = splits[1]
-                        patch = splits[2]
-                    prerelease_tag = ""
-                    build_metadata = ""
-                dev_stuff = f"dev.{build_num}+{build_info}"
-                if prerelease_tag:
-                    prerelease_name = prerelease_tag.split(".")[0]
-                    prerelease_num = prerelease_tag.split(".")[-1]
-                    if prerelease_num.isdigit():
-                        prerelease_num = str(int(prerelease_num) + 1)
-                        print("prerelease_num", prerelease_num)
-                        prerelease_tag = f"{prerelease_name}.{prerelease_num}"
-                    else:
-                        prerelease_tag += ".1"
-                    new_version_info = f"{major}.{minor}.{patch}-{prerelease_tag}+{dev_stuff.replace('+', '-')}"
-                else:
-                    patch = str(int(patch) + 1) if patch.isdigit() else 0
-                    new_version_info = f"{major}.{minor}.{patch}-{dev_stuff}"
-                version_info = new_version_info
-            else:
-                version_info = res
-    return version_info
-
-
-def write_version_header():
-    git = shutil.which("git")
-    version_info = get_version_info()
-
-    f = open("utility/gdre_version.gen.h", "w")
-    # define GDRE_VERSION "dev-poc (for Godot 4.0)"
-    f.write('#define GDRE_VERSION "')
-    f.write(version_info)
-    f.write('"\n')
-    f.close()
-
-
-write_version_header()
-
+write_version_header(os.path.join(MODULE_DIR, "utility", "gdre_version.gen.h"))
 
 if env["builtin_libogg"]:
-    env_gdsdecomp.Prepend(CPPPATH=[liboggthirdparty_dir])
+    env_gdsdecomp.Prepend(CPPPATH=[LIBOGG_THIRDPARTY_DIR])
 if env["builtin_libvorbis"]:
     env_gdsdecomp.Prepend(CPPPATH=["#thirdparty/libvorbis"])
-
-env_gdsdecomp.Prepend(CPPPATH=[mmp3thirdparty_dir])
-
+env_gdsdecomp.Prepend(CPPPATH=[MMP3_THIRDPARTY_DIR])
 if env["builtin_libwebp"]:
-    env_gdsdecomp.Prepend(CPPPATH=[webpthirdparty_dir, webpthirdparty_dir + "src/"])
+    env_gdsdecomp.Prepend(CPPPATH=[WEBP_THIRDPARTY_DIR, WEBP_THIRDPARTY_DIR + "src/"])
 
-
-def get_sources(rel_path, filters=["*.h", "*.hpp", "*.cpp"], exclude_filters=[]):
-    abs_path = os.path.join(MODULE_DIR, rel_path)
-    # check if abs_path exists
-    if not os.path.exists(abs_path):
-        raise Exception(
-            f"Path {abs_path} does not exist, please run `git submodule update --init --recursive` in the patchwork_editor directory"
-        )
-    sources = []
-    for suffix in filters:
-        globstr = os.path.join(abs_path, "**", suffix)
-        new_sources = glob.glob(globstr, recursive=True)
-        sources += [
-            source
-            for source in new_sources
-            if (not exclude_filters or not any(exclude_filter in source for exclude_filter in exclude_filters))
-        ]
-    # print("SOURCES", sources)
-    return [os.path.relpath(source, MODULE_DIR) for source in sources]
-
-
-def cmake_builder(external_dir, source_dir, build_dir, libs, config_options=None):
-    output = bytes()
-    # get dev_build from env
-    dev_build = env["dev_build"] if "dev_build" in env else False
-    build_variant = "Debug" if dev_build else "Release"
-    print("BUILD VARIANT", build_variant)
-
-    Config_cmd = ["cmake", "-S", source_dir, "-B", build_dir, "-DCMAKE_BUILD_TYPE=" + build_variant]
-    if config_options:
-        Config_cmd += config_options
-    try:
-        # if os.path.exists(build_dir):
-        #     shutil.rmtree(build_dir, ignore_errors=True)
-        output += check_output(["cmake", "-E", "make_directory", external_dir]) + b"\n"
-        output += check_output(["cmake", "-E", "make_directory", build_dir]) + b"\n"
-        output += check_output(Config_cmd) + b"\n"
-        output += check_output(["cmake", "--build", build_dir]) + b"\n"
-        # remove the old libs
-        for lib in libs:
-            lib_path = os.path.join(external_dir, lib)
-            if os.path.exists(lib_path):
-                os.remove(lib_path)
-        output += check_output(["cmake", "--install", build_dir, "--prefix", external_dir]) + b"\n"
-    except Exception as e:
-        # convert output to string
-        output = output.decode("utf-8")
-        print(f"Failed to build automerge-c: {e}")
-        print(f"Output: {output}")
-        exit(1)
-    # output = output.decode("utf-8")
-    # print(output)
-
-
-def get_rustc_target():
-    rustc_cmd = shutil.which("rustc")
-    if not rustc_cmd:
-        raise Exception("rustc not found")
-    output = check_output([rustc_cmd, "-vV"])
-    match = re.search(r"host: ([^ \n]*)", output.decode("utf-8"))
-    if not match:
-        raise Exception("Could not determine rustc host target")
-    return match.group(1)
-
-
-def get_cargo_target(build_env):
-    arch_part: str = "x86_64" if build_env["arch"] == "x86_64" else "aarch64"
-    cargo_target: str = ""
-    if build_env["platform"] == "macos":
-        cargo_target = str(f"{arch_part}-apple-darwin")
-    elif build_env["platform"] == "linuxbsd":
-        cargo_target = str(f"{arch_part}-unknown-linux-gnu")
-    elif build_env["platform"] == "windows":
-        cargo_target = str(f"{arch_part}-pc-windows-")
-        if build_env.msvc:
-            cargo_target += "msvc"
-        else:
-            cargo_target += "gnu"
-    elif build_env["platform"] == "web":  # use emscripten
-        cargo_target = str(f"wasm32-unknown-emscripten")
-    elif build_env["platform"] == "ios":
-        cargo_target = str(f"{arch_part}-apple-ios")
-    elif build_env["platform"] == "android":
-        cargo_target = str(f"{arch_part}-linux-android")
-    else:
-        raise Exception(f"Unsupported platform: {build_env['platform']}")
-    return cargo_target
-
-
-def write_cargo_config_toml_file(env):
-    is_windows = platform.system().lower().startswith("win")
-    llvm_prebuild_path = find_llvm_prebuild_path(env).replace("\\", "/")
-    ar = llvm_prebuild_path + "/llvm-ar"
-    min_sdk_ver = env["ndk_platform"].split("-")[1]
-    arm64_linker = llvm_prebuild_path + f"/aarch64-linux-android{min_sdk_ver}-clang"
-    arm_linker = llvm_prebuild_path + f"/arm7a-linux-android{min_sdk_ver}-clang"
-    x86_linker = llvm_prebuild_path + f"/i686-linux-android{min_sdk_ver}-clang"
-    x86_64_linker = llvm_prebuild_path + f"/x86_64-linux-android{min_sdk_ver}-clang"
-
-    if is_windows:
-        ar = ar + ".exe"
-        arm64_linker = arm64_linker + ".cmd"
-        arm_linker = arm_linker + ".cmd"
-        x86_linker = x86_linker + ".cmd"
-        x86_64_linker = x86_64_linker + ".cmd"
-
-    text = f"""
-[target.aarch64-linux-android]
-ar = "{ar}"
-linker = "{arm64_linker}"
-
-[target.armv7-linux-androideabi]
-ar = "{ar}"
-linker = "{arm_linker}"
-
-[target.i686-linux-android]
-ar = "{ar}"
-linker = "{x86_linker}"
-
-[target.x86_64-linux-android]
-ar = "{ar}"
-linker = "{x86_64_linker}"
-"""
-    # ensure external/vtracer/.cargo dir
-    dir = os.path.join(MODULE_DIR, VTRACER_PREFIX, ".cargo")
-    if not os.path.exists(dir):
-        os.makedirs(dir, exist_ok=True)
-    # write the text to the file
-    with open(os.path.join(dir, "config.toml"), "w") as f:
-        f.write(text)
-
-
-def write_cargo_toolchain_toml_file(env):
-    channel = "stable"
-    if env["platform"] == "web":
-        channel = "nightly"
-    text = f"""[toolchain]
-channel = "{channel}"
-"""
-    # ensure external/vtracer/.cargo dir
-    dir = os.path.join(MODULE_DIR, VTRACER_PREFIX)
-    if not os.path.exists(dir):
-        os.makedirs(dir, exist_ok=True)
-    # write the text to the file
-    with open(os.path.join(dir, "rust-toolchain.toml"), "w") as f:
-        f.write(text)
-
-
-def cargo_builder(external_dir: str, source_dir: str, build_dir: str, libs: list[str], build_env):
-    output = bytes()
-    # get dev_build from env
-    if build_env is None:
-        raise Exception("build_env is required")
-    dev_build = build_env["dev_build"] if "dev_build" in build_env else False
-    build_variant = "Debug" if dev_build else "Release"
-    print("BUILD VARIANT", build_variant)
-    cargo_target = get_cargo_target(build_env)
-    cbindgen_dir = os.path.join(source_dir, "include", "vtracer")
-    # rustc_target = get_rustc_target()
-
-    arch_flag = str(f"--target={cargo_target}")
-    cargo_cmd = ["cargo", "build", "--lib", arch_flag]
-    if not dev_build:
-        cargo_cmd.append("--release")
-
-    if "disable_gifski" in build_env and build_env["disable_gifski"]:
-        cargo_cmd.extend(["--no-default-features"])
-
-    cargo_env = get_cmd_env(build_env)
-    if build_env["platform"] == "android":
-        write_cargo_config_toml_file(build_env)
-    write_cargo_toolchain_toml_file(build_env)
-    cargo_env["CARGO_TARGET_DIR"] = build_dir
-    # cargo_env["CARGO_INSTALL_ROOT"] = external_dir
-    cargo_env["CBINDGEN_TARGET_DIR"] = cbindgen_dir
-    if build_env["platform"] == "web":
-        # need to include -Ctarget-feature=+atomics,+bulk-memory,+mutable-globals
-        cargo_env["RUSTFLAGS"] = (
-            "-Cpanic=abort -Ctarget-feature=+atomics,+bulk-memory,+mutable-globals -Clink-arg=-fno-exceptions -Clink-arg=-sDISABLE_EXCEPTION_THROWING=1 -Clink-arg=-sDISABLE_EXCEPTION_CATCHING=1 -Cllvm-args=-enable-emscripten-cxx-exceptions=0 -Clink_arg=--no-entry -Zlink-native-libraries=no"
-        )
-        cargo_cmd.append("-Zbuild-std=std,panic_abort")
-
-    print("CARGO CMD", cargo_cmd)
-
-    output = check_output(cargo_cmd, cwd=source_dir, env=cargo_env)
-    print(output.decode("utf-8"))
-    if env.msvc:
-        dar = get_vtracer_lib_dir()
-        for lib in libs:
-            lib_path = os.path.join(dar, os.path.basename(lib).split(".")[0] + env["LIBSUFFIX"])
-            if os.path.exists(lib):
-                # copy lib to lib_path
-                shutil.copy(lib, lib_path)
-
-
-def add_libs_to_env(module_obj, libs, sources):
-    for lib in libs:
-        env_gdsdecomp.Depends(lib, sources)
-        if env.msvc:
-            # ensure the lib ends with .lib
-            if not lib.endswith(".lib"):
-                # remove the current extension, add .lib
-                lib_base = lib.rsplit(".", 1)[0]
-                lib = lib_base + ".lib"
-            env.Append(LINKFLAGS=[lib])
-            continue
-
-        # get the basename of the library minus the extension
-        lib_name = os.path.basename(lib).split(".")[0]
-        # if env.msvc:
-        # lib_name = lib + env["LIBSUFFIX"]
-        print("LIB NAME", lib_name)
-        env.Append(LIBS=[lib_name])
-    env.Depends(module_obj, libs)
-
-
-VTRACER_PREFIX = "external/vtracer"
-VTRACER_DIR = os.path.join(MODULE_DIR, VTRACER_PREFIX)
-VTRACER_BUILD_DIR = os.path.join(VTRACER_DIR, "target")
-VTRACER_LIBS = ["vtracer"]
-
-# Godot Mono Decomp configuration
-GODOT_MONO_DECOMP_PARENT = "godot-mono-decomp"
-GODOT_MONO_DECOMP_PREFIX = "godot-mono-decomp/GodotMonoDecompNativeAOT"
-GODOT_MONO_DECOMP_DIR = os.path.join(MODULE_DIR, GODOT_MONO_DECOMP_PREFIX)
-GODOT_MONO_DECOMP_LIBS = ["GodotMonoDecompNativeAOT"]
-
-def get_vtracer_libs():
-    lib_prefix: str = "lib" if not env.msvc else ""
-    lib_suffix: Literal[".a", ".lib"] = ".a" if not env.msvc else ".lib"
-    return [lib_prefix + lib + lib_suffix for lib in VTRACER_LIBS]
-
-def get_vtracer_lib_dir():
-    rust_target = get_cargo_target(build_env=env)
-    debug_build = env["dev_build"]
-    variant_dir = "debug" if debug_build else "release"
-    return os.path.join(VTRACER_BUILD_DIR, rust_target, variant_dir)
-
-
-def get_vtracer_lib_paths() -> list[Any]:
-    libs = get_vtracer_libs()
-    lib_paths = []
-    build_dir = get_vtracer_lib_dir()
-    for lib in libs:
-        lib_path = os.path.join(build_dir, lib)
-        lib_paths.append(lib_path)
-    print("LIB PATHS", lib_paths)
-    return lib_paths
-
-
-env.Append(LIBPATH=[get_vtracer_lib_dir()])
-
-
-def vtracer_builder(target, source, env):
-    print("VTRACER BUILD")
-    print(str(target[0]))
-    print(source)
-    # print(env)
-    cargo_builder(EXTERNAL_DIR, VTRACER_DIR, VTRACER_BUILD_DIR, get_vtracer_lib_paths(), env)
-
-
-def build_vtracer(module_obj):
-    SRC_SUFFIXES = ["*.h", "*.cpp", "*.rs", "*.txt"]
-    lib_suffix: Literal[".a", ".lib"] = ".a" if not env.msvc else ".lib"
-    env_gdsdecomp["BUILDERS"]["vtracerBuilder"] = Builder(
-        action=vtracer_builder,
-        suffix=lib_suffix,
-        src_suffix=["*.h", "*.cpp", "*.rs", "*.txt"],
-    )
-    libs = get_vtracer_lib_paths()
-
-    vtracer_sources = get_sources(VTRACER_PREFIX, SRC_SUFFIXES)
-    env_gdsdecomp.Alias(
-        "vtracerlib",
-        [env_gdsdecomp.vtracerBuilder(libs, vtracer_sources)],
-    )
-    add_libs_to_env(module_obj, libs, vtracer_sources)
-    if env.msvc:
-        env.Append(LINKFLAGS=["userenv.lib"])
-        pass
-
-
-def get_godot_mono_decomp_libs(static_lib: bool, _env=env):
-    if static_lib:
-        lib_prefix: str = "lib" if not _env.msvc else ""
-        lib_suffix: str = ".a" if not _env.msvc else ".lib"
-    else:
-        lib_prefix: str = "lib" if not _env.msvc else ""
-        if _env["platform"] == "macos":
-            lib_suffix = ".dylib"
-        elif _env.msvc:
-            # lib_suffix = ".dll"
-            # we can't link against .dll on windows
-            lib_suffix = ".lib"
-        else:
-            lib_suffix = ".so"
-    return [lib_prefix + lib + lib_suffix for lib in GODOT_MONO_DECOMP_LIBS]
-
-
-def get_godot_mono_triplet(platform: str, arch: str):
-    if platform == "macos":
-        platform_part = "osx"
-        arch_part = "arm64" if arch == "arm64" else "x64"
-    elif platform == "linuxbsd":
-        platform_part = "linux"
-        arch_part = "arm64" if arch == "arm64" else "x64"
-    elif platform == "windows":
-        platform_part = "win"
-        arch_part = "arm64" if arch == "arm64" else "x64"
-    elif platform == "android":
-        platform_part = "linux-bionic"
-        arch_part = "arm64" if arch == "arm64" else "x64"
-    elif platform == "web":
-        platform_part = "browser"
-        arch_part = "wasm"
-    else:
-        raise Exception(f"Unsupported platform: {platform}")
-    return f"{platform_part}-{arch_part}"
-
-
-def get_dotnet_variant_name(dev_build: bool):
-    return "Debug" if dev_build else "Release"
-
-
-def get_godot_mono_decomp_lib_dir(platform: str, arch: str, dev_build: bool):
-    # Determine the platform and architecture for the library path
-    triplet = get_godot_mono_triplet(platform, arch)
-    target_framework = "net9.0"
-    # cat the modules/gdsdecomp/external/godot-mono-decomp/GodotMonoDecompNativeAOT/GodotMonoDecompNativeAOT.csproj file to see what runtime is used
-    with open(os.path.join(GODOT_MONO_DECOMP_DIR, "GodotMonoDecompNativeAOT.csproj"), "r") as f:
-        for line in f:
-            if "TargetFramework" in line:
-                target_framework = line.split(">")[1].split("<")[0].strip()
-                print("TARGET FRAMEWORK", target_framework)
-                break
-
-    return os.path.join(
-        GODOT_MONO_DECOMP_DIR, "bin", get_dotnet_variant_name(dev_build), target_framework, triplet, "publish"
-    )
-
-
-def get_godot_mono_decomp_lib_paths(_env=env) -> list[Any]:
-    libs = get_godot_mono_decomp_libs(mono_native_lib_type == "Static", _env)
-    lib_paths = []
-    build_dir = get_godot_mono_decomp_lib_dir(
-        _env["platform"],
-        _env["arch"],
-        is_dev_build(_env),
-    )
-    for lib in libs:
-        lib_path = os.path.join(build_dir, lib)
-        lib_paths.append(lib_path)
-    print("GODOT MONO DECOMP LIB PATHS", lib_paths)
-    return lib_paths
-
-
+env.Append(LIBPATH=[get_vtracer_lib_dir(env, VTRACER_BUILD_DIR)])
 env.Append(LIBPATH=[BUILD_DIR])
-env.Append(LIBPATH=[get_godot_mono_decomp_lib_dir(env["platform"], env["arch"], is_dev_build(env))])
-
-
-def find_llvm_prebuild_path(env):
-    # get the os name from the os lib
-    host_os_name = platform.system().lower()
-    if host_os_name.startswith("win"):
-        host_os_name = "win"
-    ndk_llvm_path = os.path.join(env["ANDROID_NDK_ROOT"], "toolchains", "llvm", "prebuilt")
-    for dir in os.listdir(ndk_llvm_path):
-        if dir.startswith(host_os_name):
-            return os.path.join(ndk_llvm_path, dir, "bin")
-    return None
-
-
-def get_android_lib_dest(env):
-    lib_arch_dir = ""
-    if env["arch"] == "arm32":
-        lib_arch_dir = "armeabi-v7a"
-    elif env["arch"] == "arm64":
-        lib_arch_dir = "arm64-v8a"
-    elif env["arch"] == "x86_32":
-        lib_arch_dir = "x86"
-    elif env["arch"] == "x86_64":
-        lib_arch_dir = "x86_64"
-    else:
-        print("Architecture not suitable for embedding into APK; keeping .so at \\bin")
-
-    if env.editor_build:
-        lib_tools_dir = "tools/"
-    else:
-        lib_tools_dir = ""
-    if env.dev_build:
-        lib_type_dir = "dev"
-    elif env.debug_features:
-        if env.editor_build and env["store_release"]:
-            lib_type_dir = "release"
-        else:
-            lib_type_dir = "debug"
-    else:  # Release
-        lib_type_dir = "release"
-
-    jni_libs_dir = "#platform/android/java/lib/libs/" + lib_tools_dir + lib_type_dir + "/"
-    out_dir = jni_libs_dir + lib_arch_dir
-
-    return env.Dir(out_dir).abspath
-
-
-def host_is_windows():
-    return platform.system().lower().startswith("win")
-
-
-def get_cmd_env(build_env):
-    cmd_env = os.environ.copy()
-    if build_env["platform"] != "android":
-        return cmd_env
-    ndk_llvm_path = find_llvm_prebuild_path(build_env)
-    print("NDK_LLVM_PATH", ndk_llvm_path)
-    path_joiner = ":" if not host_is_windows() else ";"
-    cmd_env["PATH"] = ndk_llvm_path + path_joiner + os.environ.get("PATH")
-    cmd_env["ANDROID_HOME"] = build_env["ANDROID_HOME"]
-    cmd_env["ANDROID_SDK_ROOT"] = cmd_env["ANDROID_HOME"]
-    cmd_env["ANDROID_NDK_ROOT"] = build_env["ANDROID_NDK_ROOT"]
-    return cmd_env
-
-
-def get_dotnet_publish_cmd(env, arch: str):
-    dev_build: bool = is_dev_build(env)
-    build_variant: Literal["Debug", "Release"] = get_dotnet_variant_name(dev_build)
-    BASE_CMD: list[str] = [
-        "dotnet",
-        "publish",
-        # "-v",
-        # "diag",
-        # "-fileLogger",
-        # "-fileLoggerParameters:verbosity=detailed",
-        # "-consoleLoggerParameters:Verbosity=normal",
-        f"/p:NativeLib={mono_native_lib_type}",
-        "/p:PublishProfile=AOT",
-        "-c",
-        build_variant,
-    ]
-    dotnet_publish_cmd = BASE_CMD + ["-r", get_godot_mono_triplet(env["platform"], arch)]
-    if env["platform"] == "android" or mono_native_lib_type == "Static":
-        dotnet_publish_cmd += ["-p:DisableUnsupportedError=true", "-p:PublishAotUsingRuntimePack=true"]
-    if mono_native_lib_type == "Static":
-        dotnet_publish_cmd += ["--use-current-runtime", "--self-contained"]
-    return dotnet_publish_cmd
-
-
-def godot_mono_builder(target, source, env: dict[str, Any]):
-    print("GODOT MONO DECOMP BUILD: ", target)
-    libs = get_godot_mono_decomp_lib_paths(env)
-    dev_build: bool = is_dev_build(env)
-    build_variant = get_dotnet_variant_name(dev_build)
-    print("BUILD VARIANT ", build_variant)
-    cmd_env = get_cmd_env(env)
-    dotnet_publish_cmd = get_dotnet_publish_cmd(env, env["arch"])
-    lib_dir = get_godot_mono_decomp_lib_dir(env["platform"], env["arch"], dev_build)
-    cwd = GODOT_MONO_DECOMP_DIR
-    print("DOTNET PUBLISH CMD", " ".join(dotnet_publish_cmd))
-    dotnet_publish_output = ""
-    try:
-        dotnet_publish_output = check_output(dotnet_publish_cmd, cwd=cwd, stderr=STDOUT, env=cmd_env)
-    except Exception as e:
-        print("ERROR PUBLISHING GODOT MONO DECOMP", e)
-        print(e.output.decode("utf-8"))
-        exit(1)
-    # parse utf-8
-    print("DOTNET PUBLISH OUTPUT", dotnet_publish_output.decode("utf-8"))
-    other_lib_dir = ""
-    if env["platform"] == "macos" and mono_native_lib_type == "Shared":
-        # run it again for the opposite architecture
-        new_arch = "x86_64" if env["arch"] == "arm64" else "arm64"
-        dotnet_publish_cmd = get_dotnet_publish_cmd(env, new_arch)
-        other_lib_dir = get_godot_mono_decomp_lib_dir(env["platform"], new_arch, dev_build)
-        cwd = GODOT_MONO_DECOMP_DIR
-        print("DOTNET PUBLISH CMD", dotnet_publish_cmd)
-        dotnet_publish_output = check_output(dotnet_publish_cmd, cwd=cwd)
-        print("DOTNET PUBLISH OUTPUT", dotnet_publish_output.decode("utf-8"))
-        # lipo them together
-
-    if env["platform"] == "android" or mono_native_lib_type == "Static":
-        return  # don't copy the libs to the BUILD_DIR
-    # if the platform is macos or linux, we need to make a copy with a "lib" prefix
-
-    bin_paths = []
-    # ensure the BUILD_DIR exists
-    if not os.path.exists(BUILD_DIR):
-        os.makedirs(BUILD_DIR)
-    for lib in libs:
-        # copy it to the godot build directory
-        if env.msvc:
-            lib = lib.replace(".lib", ".dll")
-        copy_path: str = os.path.abspath(os.path.join(BUILD_DIR, os.path.basename(lib)))
-        print("LIB PATH", lib)
-        print("COPY PATH", copy_path)
-        if env["platform"] == "macos":
-            # lipo them together
-            lipo_cmd = [
-                "lipo",
-                "-create",
-                lib,
-                os.path.join(other_lib_dir, os.path.basename(lib)),
-                "-output",
-                copy_path,
-            ]
-            print("LIPOING LIB TO ", copy_path)
-            lipo_output = check_output(lipo_cmd, cwd=lib_dir)
-        else:
-            shutil.copy(lib, copy_path)
-            # if env.msvc:
-            #     shutil.copy(lib.replace(".lib", ".dll"), copy_path.replace(".lib", ".dll"))
-
-
-def get_godot_mono_static_linker_args_from_json(json_output: str) -> tuple[list[str], list[str], list[str]]:
-    # json goes like this:
-    # {
-    #   "Items": {
-    #     "LinkerArg": [
-    #       {
-    #         "Identity": "-gz=zlib",
-    # ...
-    # we want to get the "Identity" field for each item
-    json_blob = json.loads(json_output)
-    linker_args: list[str] = []
-    library_args: list[str] = []
-    framework_args: list[str] = []
-    line: str
-    for item in json_blob["Items"]["LinkerArg"]:
-        line = item["Identity"].strip()
-        if line.startswith("/") or line.startswith("\\") or line[0].isalpha():
-            if "libbootstrapper" in line:  # ignore libbootstrapper
-                continue
-            linker_args.append(line)
-        elif line.startswith("-l"):
-            library_args.append(line.removeprefix("-l").strip())
-        elif line.startswith("-framework"):
-            framework_args.append(line.removeprefix("-framework").strip())
-    return linker_args, library_args, framework_args
-
-
-def build_godot_mono_decomp(module_obj):
-    # For pre-built .NET NativeAOT libraries, we just need to link them
-    libs = get_godot_mono_decomp_lib_paths()
-    # Create empty sources list since we're linking pre-built libraries
-    godot_mono_decomp_sources = glob.glob(os.path.join(GODOT_MONO_DECOMP_DIR, "**", "*.cs"), recursive=True)
-    # add the get_godot_mono_decomp_lib_dir() to the LIBPATH
-    if mono_native_lib_type == "Static":
-        lib_suffix = ".a"
-        if env.msvc:
-            lib_suffix = ".lib"
-    else:
-        lib_suffix = ".so"
-        if env.msvc:
-            lib_suffix = ".lib"  # not .dll
-        elif env["platform"] == "macos":
-            lib_suffix = ".dylib"
-
-    src_suffixes = ["*.h", "*.cs", "*.csproj", "*.props", "*.targets", "*.pubxml"]
-    env_gdsdecomp["BUILDERS"]["godotMonoDecompBuilder"] = Builder(
-        action=godot_mono_builder,
-        suffix=lib_suffix,
-        src_suffix=src_suffixes,
-    )
-    depends_libs = []
-    if env["platform"] != "android" and mono_native_lib_type == "Shared":
-        # if the library doesn't exist in BUILD_DIR, remove the libs from disk to force a rebuild
-        for lib in libs:
-            new_lib = os.path.join(BUILD_DIR, os.path.basename(lib))
-            if env.msvc:
-                new_lib = new_lib.replace(".lib", ".dll")
-            depends_libs.append(new_lib)
-
-    all_libs = libs + depends_libs
-
-    godot_mono_decomp_sources = get_sources(GODOT_MONO_DECOMP_PARENT, src_suffixes, ["obj/", "bin/", "obj\\", "bin\\"])
-    env_gdsdecomp.Alias(
-        "godotMonoDecomp",
-        [env_gdsdecomp.godotMonoDecompBuilder(all_libs, godot_mono_decomp_sources)],
-    )
-
-    if env["platform"] == "android" and mono_native_lib_type == "Shared":
-        android_lib_dest = get_android_lib_dest(env) + "/libGodotMonoDecompNativeAOT.so"
-        main_lib = libs[0]
-        env_gdsdecomp.CommandNoCache(android_lib_dest, main_lib, Copy("$TARGET", "$SOURCE"))
-
-    add_libs_to_env(module_obj, libs, godot_mono_decomp_sources)
-    env.Depends(module_obj, depends_libs)
-
-    if env["platform"] == "linuxbsd" and mono_native_lib_type == "Shared":
-        # add -Wl,-rpath,'$ORIGIN'
-        # env.Append(LINKFLAGS=["-Wl,-rpath,'$ORIGIN'"])
-        env.Append( LINKFLAGS = Split('-z origin') )
-        env.Append( RPATH = env.Literal('\\$$ORIGIN'))
-    if mono_native_lib_type == "Static":
-        # the `Object` in C# and the `Object` in Godot end up having conflicting symbols for their vtables,
-        # so we need to allow multiple definitions
-        if env.msvc:
-            env.Append(LINKFLAGS=["/FORCE:MULTIPLE"])
-        else:
-            env.Append(LINKFLAGS=["-Wl,--allow-multiple-definition"])
-            # it's in modules/gdsdecomp/godot-mono-decomp/GodotMonoDecompNativeAOT/msbuild.log
-        cmd_env = get_cmd_env(env)
-        properties = {
-            "RuntimeIdentifier": get_godot_mono_triplet(env["platform"], env["arch"]),
-            "UseCurrentRuntimeIdentifier": "True",
-            "NativeLib": "Static",
-            "PublishProfile": "AOT",
-            "SelfContained": "true",
-            "_IsPublishing": "true",
-            "Configuration": get_dotnet_variant_name(is_dev_build(env)),
-        }
-        if env["platform"] == "android" or True:
-            properties["DisableUnsupportedError"] = "true"
-            properties["PublishAotUsingRuntimePack"] = "true"
-        dotnet_get_linker_args_cmd = [
-            "dotnet",
-            "msbuild",
-            "-restore",
-            "-target:PrintLinkerArgs",
-            "-getItem:LinkerArg",
-        ]
-        for property, value in properties.items():
-            dotnet_get_linker_args_cmd.append(f"-p:{property}={value}")
-        for property, value in properties.items():
-            dotnet_get_linker_args_cmd.append(f"-restoreProperty:{property}={value}")
-        print("RUNNING RESTORE: ", " ".join(dotnet_get_linker_args_cmd))
-        ret = check_output(args=dotnet_get_linker_args_cmd, cwd=GODOT_MONO_DECOMP_DIR, env=cmd_env)
-
-        linker_args, library_args, framework_args = get_godot_mono_static_linker_args_from_json(ret.decode("utf-8"))
-        if len(linker_args) == 0:
-            raise Exception("No linker args found in msbuild.log!!!!!!!!!!!!")
-        print("MONO DECOMP LINKER ARGS", linker_args)
-        print("MONO DECOMP LIBRARY ARGS", library_args)
-        print("MONO DECOMP FRAMEWORK ARGS", framework_args)
-        env.Append(LINKFLAGS=linker_args)
-        env.Append(LIBS=library_args)
-        if env["platform"] == "macos":
-            for framework in framework_args:
-                env.Append(LINKFLAGS=["-framework", framework])
-
-
-# link against external/libvtracer.a and godot-mono-decomp libraries
+env.Append(
+    LIBPATH=[get_godot_mono_decomp_lib_dir(GODOT_MONO_DECOMP_DIR, env["platform"], env["arch"], env.get("dev_build", False))]
+)
 
 module_obj = []
-env_gdsdecomp.add_source_files(module_obj, "*.cpp")
-env_gdsdecomp.add_source_files(module_obj, "bytecode/*.cpp")
-env_gdsdecomp.add_source_files(module_obj, "compat/*.cpp")
-env_gdsdecomp.add_source_files(module_obj, "crypto/*.cpp")
+common_sources = [
+    "*.cpp",
+    "bytecode/*.cpp",
+    "compat/*.cpp",
+    "crypto/*.cpp",
+    "exporters/*.cpp",
+    "gui/*.cpp",
+    "plugin_manager/*.cpp",
+    "utility/*.cpp",
+    "external/tga/*.cpp",
+    "external/tinygltf/tiny_gltf.cc",
+    "module_etc_decompress/*.cpp",
+]
+add_source_groups(env_gdsdecomp, module_obj, common_sources)
 if env["target"] == "editor":
-    env_gdsdecomp.add_source_files(module_obj, "editor/*.cpp")
-env_gdsdecomp.add_source_files(module_obj, "exporters/*.cpp")
-env_gdsdecomp.add_source_files(module_obj, "gui/*.cpp")
-env_gdsdecomp.add_source_files(module_obj, "plugin_manager/*.cpp")
+    add_source_groups(env_gdsdecomp, module_obj, ["editor/*.cpp"])
 if env["tests"]:
-    env_gdsdecomp.add_source_files(module_obj, "tests/*.cpp")
-env_gdsdecomp.add_source_files(module_obj, "utility/*.cpp")
+    add_source_groups(env_gdsdecomp, module_obj, ["tests/*.cpp"])
 
-env_gdsdecomp.add_source_files(module_obj, "external/tga/*.cpp")
-env_gdsdecomp.add_source_files(module_obj, "external/tinygltf/tiny_gltf.cc")
-env_gdsdecomp.add_source_files(module_obj, "module_etc_decompress/*.cpp")
+build_vtracer(
+    root_env=env,
+    env_gdsdecomp=env_gdsdecomp,
+    module_obj=module_obj,
+    module_dir=MODULE_DIR,
+    external_dir=EXTERNAL_DIR,
+    vtracer_prefix=VTRACER_PREFIX,
+    vtracer_dir=VTRACER_DIR,
+    vtracer_build_dir=VTRACER_BUILD_DIR,
+    vtracer_libs=VTRACER_LIBS,
+    get_sources=get_sources,
+    add_libs_to_env=add_libs_to_env,
+    builder_class=Builder,
+    find_llvm_prebuild_path=find_llvm_prebuild_path,
+)
 
-build_vtracer(module_obj)
 if "disable_gifski" in env and env["disable_gifski"]:
     env_gdsdecomp.Append(CPPDEFINES=["GIFSKI_DISABLED"])
 if "disable_godot_mono_decomp" in env and env["disable_godot_mono_decomp"]:
     env_gdsdecomp.Append(CPPDEFINES=["GODOT_MONO_DECOMP_DISABLED"])
 else:
-    build_godot_mono_decomp(module_obj)
+    build_godot_mono_decomp(
+        env=env,
+        env_gdsdecomp=env_gdsdecomp,
+        module_obj=module_obj,
+        module_dir=MODULE_DIR,
+        build_dir=BUILD_DIR,
+        mono_native_lib_type=mono_native_lib_type,
+        godot_mono_decomp_parent=GODOT_MONO_DECOMP_PARENT,
+        godot_mono_decomp_dir=GODOT_MONO_DECOMP_DIR,
+        godot_mono_decomp_libs=GODOT_MONO_DECOMP_LIBS,
+        get_sources=get_sources,
+        add_libs_to_env=add_libs_to_env,
+        builder_class=Builder,
+        copy_action=Copy,
+    )
+
 env.modules_sources += module_obj
+
