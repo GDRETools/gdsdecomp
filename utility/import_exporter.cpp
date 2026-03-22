@@ -726,7 +726,8 @@ void write_project_metadata_cfg(const String &p_output_dir) {
 		return;
 	}
 	constexpr const char *project_metadata_path = ".godot/editor/project_metadata.cfg";
-	constexpr const char *main_feature_tags_key = "debug_options/run_main_feature_tags";
+	constexpr const char *debug_options_section_key = "debug_options";
+	constexpr const char *main_feature_tags_key = "run_main_feature_tags";
 	String output_path = p_output_dir.path_join(project_metadata_path);
 	Ref<ConfigFile> project_metadata = memnew(ConfigFile);
 	if (FileAccess::exists(output_path)) {
@@ -736,7 +737,7 @@ void write_project_metadata_cfg(const String &p_output_dir) {
 		}
 	}
 	String _custom_features = get_settings()->get_project_setting("_custom_features");
-	project_metadata->set_value("debug_options", main_feature_tags_key, "true");
+	project_metadata->set_value(debug_options_section_key, main_feature_tags_key, _custom_features);
 	gdre::ensure_dir(output_path.get_base_dir());
 	Error err = project_metadata->save(output_path);
 	if (err != OK) {
