@@ -132,6 +132,7 @@ class ImportExporter : public RefCounted {
 		bool import_valid = false;
 		String import_group_file;
 		Vector<String> deps;
+		HashSet<StringName> import_scene_groups;
 		bool verified = false; //used for checking changes
 		// This is for script resources only.
 		struct ScriptClassInfo {
@@ -160,6 +161,7 @@ class ImportExporter : public RefCounted {
 	void rewrite_metadata(ExportToken &token);
 	Error unzip_and_copy_addon(const Ref<ImportInfoGDExt> &iinfo, const String &zip_path, Vector<String> &output_dirs);
 	Error _reexport_translations(Vector<ExportToken> &non_multithreaded_tokens, size_t token_size, Ref<EditorProgressGDDC> pr);
+	void write_scene_groups_cache(const String &p_output_dir, const Vector<std::shared_ptr<FileInfo>> &file_infos);
 	void recreate_uid_file(const String &src_path, bool is_import, const HashSet<String> &files_to_export_set);
 	Error recreate_plugin_config(const String &plugin_cfg_path);
 	Error recreate_plugin_configs();
