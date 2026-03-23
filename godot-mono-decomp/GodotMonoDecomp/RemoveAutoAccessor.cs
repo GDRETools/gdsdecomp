@@ -1,21 +1,3 @@
-// Copyright (c) 2011 AlphaSierraPapa for the SharpDevelop Team
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this
-// software and associated documentation files (the "Software"), to deal in the Software
-// without restriction, including without limitation the rights to use, copy, modify, merge,
-// publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons
-// to whom the Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all copies or
-// substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-// PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
-// FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-// DEALINGS IN THE SOFTWARE.
-
 using ICSharpCode.Decompiler.CSharp;
 using ICSharpCode.Decompiler.CSharp.Syntax;
 using ICSharpCode.Decompiler.CSharp.Transforms;
@@ -33,11 +15,65 @@ public class RemoveAutoAccessor : DepthFirstAstVisitor, IAstTransform
 		rootNode.AcceptVisitor(this);
 	}
 
+	public static bool IsCompilerGeneratedAccessorMethod(IMethod method)
+	{
+		// if it's compiler generated, it won't be marked as virtual and it won't be an actual accessor method
+		if (!method.Name.Contains('.') || method.IsVirtual || method.IsAccessor)
+		{
+			return false;
+		}
+
+		bool isAdder = method.Name.Contains(".add_");
+		bool isRemover = method.Name.Contains(".remove_");
+		bool isInvoker = method.Name.Contains(".invoke_");
+		bool isGetter = method.Name.Contains(".get_");
+		bool isSetter = method.Name.Contains(".set_");
+		if (isGetter || isSetter || isAdder || isRemover || isInvoker)
+		{
+			var lastDot = method.Name.LastIndexOf('.');
+			var parentClass = method.Name.Substring(0, lastDot).Split("<")[0];
+			var methodName = method.Name.Substring(lastDot + 1);
+			var usidx = methodName.IndexOf('_');
+			if (string.IsNullOrEmpty(parentClass) || string.IsNullOrEmpty(methodName) || usidx < 0)
+			{
+				return false;
+			}
+			var memberName = methodName.Substring(usidx + 1);
+			var baseTypes = method.DeclaringType.GetAllBaseTypes();
+			var baseType = baseTypes.FirstOrDefault(t => t.FullName == parentClass);
+			if (baseType == null)
+			{
+				return false;
+			}
+			IMember? member = baseType.GetMembers().FirstOrDefault(m => m.Name == memberName);
+
+			if ((isGetter || isSetter) && member is IProperty prop)
+			{
+				var memberAccessorName = isGetter ? prop.Getter?.Name : prop.Setter?.Name;
+
+				if (memberAccessorName == methodName)
+				{
+					return true;
+				}
+			} else if (member is IEvent ev)
+			{
+				var memberAccessorName = isInvoker ? ev.InvokeAccessor?.Name :
+					isAdder ? ev.AddAccessor?.Name : isRemover ? ev.RemoveAccessor?.Name : null;
+				if (memberAccessorName == methodName)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+
+	}
+
 	public override void VisitMethodDeclaration(MethodDeclaration methodDeclaration)
 	{
 		try
 		{
-			if (methodDeclaration.GetSymbol() is IMethod method && GodotStuff.IsCompilerGeneratedAccessorMethod(method))
+			if (methodDeclaration.GetSymbol() is IMethod method && IsCompilerGeneratedAccessorMethod(method))
 			{
 				methodDeclaration.Remove();
 				return;

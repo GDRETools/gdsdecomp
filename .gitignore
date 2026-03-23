@@ -322,3 +322,5 @@ standalone/spriteTest.*
 standalone/character*
 .tmpcache/
 external_install/
+
+!build/

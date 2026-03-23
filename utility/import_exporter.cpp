@@ -28,6 +28,7 @@
 #include "core/io/file_access.h"
 #include "core/io/json.h"
 #include "core/os/os.h"
+#include "scene/resources/packed_scene.h"
 #include "utility/import_info.h"
 
 #include <compat/script_loader.h>
@@ -70,6 +71,23 @@ struct FileInfoComparator {
 		return file_no_case_comparator(a->file, b->file);
 	}
 };
+
+HashSet<StringName> get_scene_groups(const String &p_path) {
+	{
+		Ref<PackedScene> packed_scene = ResourceCache::get_ref(p_path);
+		if (packed_scene.is_valid()) {
+			return packed_scene->get_state()->get_all_groups();
+		}
+	}
+	Ref<MissingResource> missing = ResourceCompatLoader::custom_load(p_path, "", ResourceInfo::LoadType::FAKE_LOAD);
+	if (missing.is_valid()) {
+		Ref<PackedScene> packed_scene = memnew(PackedScene);
+		packed_scene->set("_bundled", missing->get("_bundled"));
+		if (packed_scene.is_valid()) {
+			return packed_scene->get_state()->get_all_groups();
+		}
+	}
+}
 
 // Error remove_remap(const String &src, const String &dst, const String &output_dir);
 Error ImportExporter::handle_auto_converted_file(const String &autoconverted_file) {
@@ -363,6 +381,9 @@ void ImportExporter::_do_file_info(uint32_t i, std::shared_ptr<FileInfo> *file_i
 	} else {
 		file_info.verified = false;
 		return;
+	}
+	if (file_info.type == "PackedScene") {
+		file_info.import_scene_groups = get_scene_groups(file_info.file);
 	}
 	if (ext == "gd") {
 		auto script_entry = GDRESettings::get_singleton()->get_cached_script_entry(file_info.file);
@@ -718,6 +739,56 @@ void ImportExporter::_do_export(uint32_t i, ExportToken *tokens) {
 
 String ImportExporter::get_export_token_description(uint32_t i, ExportToken *tokens) {
 	return tokens[i].iinfo.is_valid() ? tokens[i].iinfo->get_path() : "";
+}
+
+// This is to preserve feature tags when running the project in the editor
+void write_project_metadata_cfg(const String &p_output_dir) {
+	if (get_settings()->get_ver_major() < 4) {
+		return;
+	}
+	constexpr const char *project_metadata_path = ".godot/editor/project_metadata.cfg";
+	constexpr const char *debug_options_section_key = "debug_options";
+	constexpr const char *main_feature_tags_key = "run_main_feature_tags";
+	String output_path = p_output_dir.path_join(project_metadata_path);
+	Ref<ConfigFile> project_metadata = memnew(ConfigFile);
+	if (FileAccess::exists(output_path)) {
+		Error err = project_metadata->load(output_path);
+		if (err != OK) {
+			WARN_PRINT("Failed to load project metadata: " + output_path);
+		}
+	}
+	String _custom_features = get_settings()->get_project_setting("_custom_features");
+	project_metadata->set_value(debug_options_section_key, main_feature_tags_key, _custom_features);
+	gdre::ensure_dir(output_path.get_base_dir());
+	Error err = project_metadata->save(output_path);
+	if (err != OK) {
+		WARN_PRINT("Failed to save project metadata: " + output_path);
+	}
+}
+
+void ImportExporter::write_scene_groups_cache(const String &p_output_dir, const Vector<std::shared_ptr<FileInfo>> &file_infos) {
+	if (get_settings()->get_ver_major() < 4) {
+		return;
+	}
+	constexpr const char *scene_groups_cache_path = ".godot/scene_groups_cache.cfg";
+	String output_path = p_output_dir.path_join(scene_groups_cache_path);
+	Ref<ConfigFile> scene_groups_cache = memnew(ConfigFile);
+	if (FileAccess::exists(output_path)) {
+		Error err = scene_groups_cache->load(output_path);
+		if (err != OK) {
+			WARN_PRINT("Failed to load scene groups cache: " + output_path);
+		}
+	}
+	for (auto &file_info : file_infos) {
+		if (file_info->import_scene_groups.size() > 0) {
+			scene_groups_cache->set_value(file_info->file, "groups", gdre::hashset_to_array(file_info->import_scene_groups));
+		}
+	}
+	gdre::ensure_dir(output_path.get_base_dir());
+	Error err = scene_groups_cache->save(output_path);
+	if (err != OK) {
+		WARN_PRINT("Failed to save scene groups cache: " + output_path);
+	}
 }
 
 // TODO: rethink this, it's not really recovering any keys beyond the first time
@@ -1461,6 +1532,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	}
 
 	if (get_settings()->is_project_config_loaded()) { // some pcks do not have project configs
+		write_project_metadata_cfg(output_dir);
 		if constexpr (GDScriptDecomp::FORCE_SPACES_FOR_2_0) {
 			// if we're at v4.5 or higher (<4.5 doesn't support editor_overrides), we want to set "editor_overrides/text_editor/behavior/indent/type" to "Spaces"
 			// This avoids editor churn on the scripts when they're resaved by the editor
@@ -1561,6 +1633,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 			file_infos.sort_custom<FileInfoComparator>();
 		}
 		if (file_infos.size() > 0) {
+			write_scene_groups_cache(output_dir, file_infos);
 			save_filesystem_cache(file_infos, output_dir);
 		}
 	}

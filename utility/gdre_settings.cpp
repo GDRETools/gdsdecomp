@@ -2731,6 +2731,7 @@ Error GDRESettings::load_project_dotnet_assembly() {
 			search_dirs.push_back(project_dir.path_join(directory));
 		}
 	}
+	search_dirs.push_back(project_dir);
 	String assembly_path = find_dotnet_assembly_path(search_dirs);
 	if (assembly_path.is_empty()) {
 		// We didn't find an assembly, but if there's no C# files, we can just assume it's not a C# project
