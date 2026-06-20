@@ -41,6 +41,7 @@ BRANCHES_TO_MERGE=(
 	fix-v3-meshes
 	fix-clearcoat-gloss
 	fix-blend-export
+	gltf-mutex-all-document-extensions
 )
 
 # set fail on error
