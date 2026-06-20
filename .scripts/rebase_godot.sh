@@ -37,10 +37,8 @@ BRANCHES_TO_MERGE=(
 	gltf-fix-skeleton-bone
 	gltf-fix-double-precision
 	gltf-fix-vertex-colors
-	ensure-bptc-textures
 	fix-v3-meshes
 	fix-clearcoat-gloss
-	fix-blend-export
 	gltf-mutex-all-document-extensions
 )
 
