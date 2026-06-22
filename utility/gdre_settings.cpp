@@ -1656,8 +1656,7 @@ Dictionary GDRESettings::get_remaps(bool include_imports) const {
 			}
 		}
 		if (include_imports) {
-			for (int i = 0; i < import_files.size(); i++) {
-				Ref<ImportInfo> iinfo = import_files[i];
+			for (auto &[path, iinfo] : import_files) {
 				ret[iinfo->get_source_file()] = iinfo->get_path();
 			}
 		}
@@ -1665,6 +1664,7 @@ Dictionary GDRESettings::get_remaps(bool include_imports) const {
 	return ret;
 }
 
+namespace {
 bool has_old_remap(const Vector<String> &remaps, const String &src, const String &dst) {
 	int idx = remaps.find(src);
 	if (idx != -1 && idx % 2 == 0) {
@@ -1675,6 +1675,35 @@ bool has_old_remap(const Vector<String> &remaps, const String &src, const String
 	}
 	return false;
 }
+
+String get_mapped_path_unloaded(const String &p_path) {
+	String src = p_path;
+	if (src.begins_with("uid://")) {
+		auto id = ResourceUID::get_singleton()->text_to_id(src);
+		if (ResourceUID::get_singleton()->has_id(id)) {
+			src = ResourceUID::get_singleton()->get_id_path(id);
+		} else {
+			return "";
+		}
+	}
+
+	String iinfo_path = src + ".remap";
+	if (FileAccess::exists(iinfo_path)) {
+		String new_path = ImportInfoRemap::get_remap_path_from_file(iinfo_path);
+		if (!new_path.is_empty()) {
+			return new_path;
+		}
+	}
+	iinfo_path = src + ".import";
+	if (FileAccess::exists(iinfo_path)) {
+		String new_path = ImportInfoModern::get_remap_path_from_file(iinfo_path);
+		if (!new_path.is_empty()) {
+			return new_path;
+		}
+	}
+	return src;
+}
+} //namespace
 
 String GDRESettings::get_remapped_source_path(const String &p_dst) const {
 	if (is_pack_loaded()) {
@@ -1698,6 +1727,9 @@ String GDRESettings::get_remapped_source_path(const String &p_dst) const {
 }
 
 String GDRESettings::get_mapped_path(const String &p_src) const {
+	if (!is_pack_loaded()) {
+		return get_mapped_path_unloaded(p_src);
+	}
 	String src = p_src;
 	if (src.begins_with("uid://")) {
 		auto id = ResourceUID::get_singleton()->text_to_id(src);
@@ -1707,43 +1739,19 @@ String GDRESettings::get_mapped_path(const String &p_src) const {
 			return "";
 		}
 	}
-	if (is_pack_loaded()) {
-		String local_src = localize_path(src);
-		String remapped_path = get_remap(local_src);
-		if (!remapped_path.is_empty()) {
-			return remapped_path;
-		}
+	String local_src = localize_path(src);
+	String remapped_path = get_remap(local_src);
+	if (!remapped_path.is_empty()) {
+		return remapped_path;
+	}
+	String import_path = local_src + ".import";
+	if (import_files.has(import_path)) {
+		return import_files[import_path]->get_path();
+	}
 
-		for (int i = 0; i < import_files.size(); i++) {
-			Ref<ImportInfo> iinfo = import_files[i];
-			if (iinfo->get_source_file().nocasecmp_to(local_src) == 0) {
-				return iinfo->get_path();
-			}
-		}
-	} else {
-		Ref<ImportInfo> iinfo;
-		String iinfo_path = src + ".import";
-		String dep_path;
-		if (FileAccess::exists(iinfo_path)) {
-			iinfo = ImportInfo::load_from_file(iinfo_path, 0, 0);
-			if (iinfo.is_valid()) {
-				if (FileAccess::exists(iinfo->get_path())) {
-					return iinfo->get_path();
-				}
-				auto dests = iinfo->get_dest_files();
-				for (int i = 0; i < dests.size(); i++) {
-					if (FileAccess::exists(dests[i])) {
-						return dests[i];
-					}
-				}
-			}
-		}
-		iinfo_path = src + ".remap";
-		if (FileAccess::exists(iinfo_path)) {
-			iinfo = ImportInfo::load_from_file(iinfo_path, 0, 0);
-			if (iinfo.is_valid() && FileAccess::exists(iinfo->get_path())) {
-				return iinfo->get_path();
-			}
+	for (auto &[path, iinfo] : import_files) {
+		if (iinfo->get_source_file().nocasecmp_to(local_src) == 0) {
+			return iinfo->get_path();
 		}
 	}
 	return src;
@@ -1984,12 +1992,9 @@ Error GDRESettings::close_log_file() {
 }
 
 Array GDRESettings::get_import_files(bool copy) {
-	if (!copy) {
-		return import_files;
-	}
 	Array ifiles;
-	for (int i = 0; i < import_files.size(); i++) {
-		ifiles.push_back(ImportInfo::copy(import_files[i]));
+	for (auto &[path, iinfo] : import_files) {
+		ifiles.push_back(copy ? ImportInfo::copy(iinfo) : iinfo);
 	}
 	return ifiles;
 }
@@ -2063,13 +2068,13 @@ Error GDRESettings::load_pack_uid_cache(bool p_reset) {
 				if (old_path.simplify_path() == new_path.simplify_path()) {
 					// Sometimes uid caches have duplicate paths when paths were not simplified before saving; this is a workaround
 					new_path = new_path.simplify_path();
-				} else if (has_path_loaded(old_path)) {
-					if (!has_path_loaded(new_path)) { // had old path, but not new path
+				} else if (has_path_loaded(get_mapped_path_unloaded(old_path))) {
+					if (!has_path_loaded(get_mapped_path_unloaded(new_path))) { // had old path, but not new path
 						continue; // skip
 					}
 					// has both
 					dupes.push_back(ResourceUID::get_singleton()->id_to_text(E.second) + " -> " + old_path + "\n    Replacing with: " + new_path);
-				} else if (!has_path_loaded(new_path)) { // has neither
+				} else if (!has_path_loaded(get_mapped_path_unloaded(new_path))) { // has neither
 					dupes.push_back(ResourceUID::get_singleton()->id_to_text(E.second) + " -> " + old_path + "\n    Replacing with: " + new_path);
 				} // else we have the new_path but not the old path
 			}
@@ -2428,7 +2433,7 @@ Error GDRESettings::load_import_files() {
 				remap_iinfo.insert(tokens[i].path, tokens[i].info);
 			}
 		}
-		import_files.push_back(tokens[i].info);
+		import_files.insert(tokens[i].path, tokens[i].info);
 	}
 	return OK;
 }
@@ -2437,7 +2442,7 @@ Error GDRESettings::load_import_file(const String &p_path) {
 	Ref<ImportInfo> i_info = ImportInfo::load_from_file(p_path, get_ver_major(), get_ver_minor());
 	ERR_FAIL_COND_V_MSG(i_info.is_null(), ERR_FILE_CANT_OPEN, "Failed to load import file " + p_path);
 
-	import_files.push_back(i_info);
+	import_files.insert(p_path, i_info);
 	if (i_info->get_iitype() == ImportInfo::REMAP) {
 		if (!FileAccess::exists(i_info->get_path())) {
 			print_line(vformat("Remapped path does not exist: %s -> %s", i_info->get_source_file(), i_info->get_path()));
@@ -2450,25 +2455,17 @@ Error GDRESettings::load_import_file(const String &p_path) {
 
 Ref<ImportInfo> GDRESettings::get_import_info_by_source(const String &p_path) {
 	Ref<ImportInfo> iinfo;
-	for (int i = 0; i < import_files.size(); i++) {
-		iinfo = import_files[i];
+	for (const auto &[path, iinfo] : import_files) {
 		if (iinfo->get_source_file() == p_path) {
 			return iinfo;
 		}
 	}
-	// not found
 	return Ref<ImportInfo>();
 }
 
 Ref<ImportInfo> GDRESettings::get_import_info_by_dest(const String &p_path) const {
 	Ref<ImportInfo> iinfo;
-	for (int i = 0; i < import_files.size(); i++) {
-		iinfo = import_files[i];
-		// for (auto &dest : iinfo->get_dest_files()) {
-		// 	if (dest.to_lower() == p_path.to_lower()) {
-		// 		return iinfo;
-		// 	}
-		// }
+	for (auto &[path, iinfo] : import_files) {
 		if (iinfo->get_dest_files().has(p_path)) {
 			return iinfo;
 		}
