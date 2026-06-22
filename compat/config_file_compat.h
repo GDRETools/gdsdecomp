@@ -60,6 +60,7 @@ public:
 
 	Vector<String> get_sections() const;
 	Vector<String> get_section_keys(const String &p_section) const;
+	Vector<Pair<String, Variant>> get_section_keys_with_values_beginning_with(const String &p_section, const String &p_key_prefix) const;
 
 	void erase_section(const String &p_section);
 	void erase_section_key(const String &p_section, const String &p_key);

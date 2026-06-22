@@ -206,6 +206,8 @@ protected:
 	virtual void _set_from_json(const Dictionary &p_json) override;
 
 public:
+	static String get_remap_path_from_file(const String &p_import_file_path);
+
 	// Gets the Godot resource type (e.g. "StreamTexture")
 	virtual String get_type() const override;
 	virtual void set_type(const String &p_type) override;
@@ -373,6 +375,7 @@ private:
 	virtual Error _load(const String &p_path) override;
 
 public:
+	static String get_remap_path_from_file(const String &p_remap_file_path);
 	ImportInfoRemap();
 };
 

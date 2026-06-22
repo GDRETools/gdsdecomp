@@ -107,6 +107,22 @@ Vector<String> ConfigFileCompat::get_section_keys(const String &p_section) const
 	return keys;
 }
 
+Vector<Pair<String, Variant>> ConfigFileCompat::get_section_keys_with_values_beginning_with(const String &p_section, const String &p_prefix) const {
+	Vector<Pair<String, Variant>> keys;
+	ERR_FAIL_COND_V_MSG(!values.has(p_section), keys, vformat("Cannot get keys from nonexistent section \"%s\".", p_section));
+
+	const HashMap<String, Variant> &keys_map = values[p_section];
+	keys.reserve(keys_map.size());
+
+	for (const KeyValue<String, Variant> &E : keys_map) {
+		if (E.key.begins_with(p_prefix)) {
+			keys.push_back({ E.key, E.value });
+		}
+	}
+
+	return keys;
+}
+
 void ConfigFileCompat::erase_section(const String &p_section) {
 	ERR_FAIL_COND_MSG(!values.has(p_section), vformat("Cannot erase nonexistent section \"%s\".", p_section));
 	values.erase(p_section);
