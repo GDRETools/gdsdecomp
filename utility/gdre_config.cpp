@@ -7,6 +7,7 @@
 #include "core/object/class_db.h"
 #include "core/object/worker_thread_pool.h"
 #include "core/os/os.h"
+#include "core/variant/variant_utility.h"
 #include "gdre_logger.h"
 #include "gdre_settings.h"
 #include "gdre_version.gen.h"
@@ -486,8 +487,12 @@ String GDREConfig::get_config_path() {
 void GDREConfig::save_config() {
 	auto cfg_path = get_config_path();
 	Ref<ConfigFile> config = memnew(ConfigFile);
-	for (const auto &[key, value] : settings) {
+	for (const auto &[key, p_value] : settings) {
 		String name = get_name_from_key(key);
+		Variant value = p_value;
+		if (default_settings.has(key) && default_settings[key]->get_type() != Variant::Type::NIL) {
+			value = VariantUtilityFunctions::type_convert(p_value, default_settings[key]->get_type());
+		}
 		if (!default_settings.has(key) || get_default_value(key) != value) {
 			config->set_value(get_section_from_key(key), name, value);
 		}
@@ -508,11 +513,16 @@ String get_full_name(const String &p_setting) {
 }
 
 void GDREConfig::set_setting(const String &p_setting, const Variant &p_value, bool p_force_ephemeral) {
-	if (p_force_ephemeral || ephemeral_settings.contains(get_full_name(p_setting))) {
-		ephemeral_settings.try_emplace_l(get_full_name(p_setting), [=](auto &v) { v.second = p_value; }, p_value);
+	String full_name = get_full_name(p_setting);
+	Variant value = p_value;
+	if (default_settings.has(full_name) && default_settings[full_name]->get_type() != Variant::Type::NIL) {
+		value = VariantUtilityFunctions::type_convert(p_value, default_settings[full_name]->get_type());
+	}
+	if (p_force_ephemeral || ephemeral_settings.contains(full_name)) {
+		ephemeral_settings.try_emplace_l(full_name, [=](auto &v) { v.second = value; }, value);
 		return;
 	}
-	settings.try_emplace_l(get_full_name(p_setting), [=](auto &v) { v.second = p_value; }, p_value);
+	settings.try_emplace_l(full_name, [=](auto &v) { v.second = value; }, value);
 }
 
 bool GDREConfig::has_setting(const String &p_setting) const {

@@ -16,6 +16,7 @@
 #include "gui/texture_previewer.h"
 #include "modules/regex/regex.h"
 #include "modules/register_module_types.h"
+#include "servers/rendering/rendering_server.h"
 #include "utility/app_version_getter.h"
 #include "utility/file_access_gdre.h"
 #include "utility/file_access_patched_gdre.h"
@@ -618,16 +619,20 @@ void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
 	// Register ICO image loader
 	ico_loader.instantiate();
 	ImageLoader::add_image_format_loader(ico_loader);
-	TextureLayeredPreviewer::init_shaders();
-	TexturePreviewer::init_shaders();
+	if (RenderingServer::get_singleton()) {
+		TextureLayeredPreviewer::init_shaders();
+		TexturePreviewer::init_shaders();
+	}
 }
 
 void uninitialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
-	TextureLayeredPreviewer::finish_shaders();
-	TexturePreviewer::finish_shaders();
+	if (RenderingServer::get_singleton()) {
+		TextureLayeredPreviewer::finish_shaders();
+		TexturePreviewer::finish_shaders();
+	}
 	if (ico_loader.is_valid()) {
 		ImageLoader::remove_image_format_loader(ico_loader);
 		ico_loader.unref();

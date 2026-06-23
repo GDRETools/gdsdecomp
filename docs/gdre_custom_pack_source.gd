@@ -1,9 +1,12 @@
-class_name GDRECustomPackSource
+class_name GDREStandardPackSource
 extends PackSourceCustom
 
+# This script re-implements the standard pack source logic for Godot PCK files.
+# Use this as a base for your own custom pack source logic.
 
-# Godot's packed file magic header ("GDPC" in ASCII, little-endian).
+# Godot's packed file magic header ("GDPC" in ASCII, stored as little-endian in the file).
 const PACK_HEADER_MAGIC: int = 0x43504447
+# 'G', 'D', 'P', 'C' in ASCII.
 var PACK_HEADER_MAGIC_BYTES: PackedByteArray = PackedByteArray([0x47, 0x44, 0x50, 0x43])
 const PACK_FORMAT_VERSION_V2: int = 2
 const PACK_FORMAT_VERSION_V3: int = 3
@@ -26,7 +29,7 @@ func open_encrypted_file(base: FileAccess, key: PackedByteArray) -> FileAccess:
 	return FileAccessEncryptedCustom.create_and_parse_non_custom(base, key, FileAccessEncryptedCustom.MODE_READ, false)
 
 func _try_open_pack(pck_path: String, p_replace_files: bool, p_offset: int, p_decryption_key: PackedByteArray) -> bool:
-	var ext: String = p_path.get_extension().to_lower()
+	var ext: String = pck_path.get_extension().to_lower()
 	if ext == "apk" or ext == "zip":
 		return false
 

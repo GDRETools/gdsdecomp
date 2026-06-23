@@ -418,19 +418,85 @@ Vector<String> ImportInfoModern::get_dest_files() const {
 	return cf->get_value("deps", "dest_files", Vector<String>());
 }
 namespace {
-Vector<String> get_remap_paths(const Ref<ConfigFileCompat> &cf) {
+struct RemapPathSorter {
+	bool operator()(const Pair<String, Variant> &a, const Pair<String, Variant> &b) const {
+		String feature = a.first.get_slicec('.', 1);
+		return a.first < b.first;
+	}
+};
+
+void _insert_remap_paths(const String &key, const String &value, int &decomp_paths_found, Vector<String> &remap_paths, Vector<String> &candidates) {
+	if (key.begins_with("path.")) {
+		String feature = key.get_slicec('.', 1);
+		if (OS::get_singleton()->has_feature(feature)) {
+			remap_paths.push_back(value);
+		} else if (Image::can_decompress(feature)) { // When loading, check for decompressable formats and use first one found if nothing else is supported.
+			candidates.insert(decomp_paths_found, value);
+			decomp_paths_found++;
+		} else {
+			candidates.push_back(value);
+		}
+	} else if (key == "path") {
+		remap_paths.push_back(value);
+	}
+}
+
+Pair<String, Vector<String>> get_remap_paths_from_cf(const Ref<ConfigFileCompat> &cf) {
 	Vector<String> remap_paths;
-	Vector<String> remap_keys = cf->get_section_keys("remap");
+	Vector<String> candidates;
+	Vector<String> ret;
+	int decomp_paths_found = 0;
+	Vector<Pair<String, Variant>> remap_keys = cf->get_section_keys_with_values_beginning_with("remap", "path");
+	if (remap_keys.is_empty()) {
+		return {};
+	} else if (remap_keys.size() == 1) {
+		return { remap_keys[0].second.operator String(), { remap_keys[0].second.operator String() } };
+	}
 	// iterate over keys in remap section
-	for (int64_t i = 0; i < remap_keys.size(); i++) {
-		// if we find a path key, we have a match
-		if (remap_keys[i].begins_with("path.") || remap_keys[i] == "path") {
-			String try_path = cf->get_value("remap", remap_keys[i], "");
-			remap_paths.push_back(try_path);
+	for (auto &E : remap_keys) {
+		ret.push_back(E.second.operator String());
+		_insert_remap_paths(E.first, E.second.operator String(), decomp_paths_found, remap_paths, candidates);
+	}
+	remap_paths.append_array(candidates);
+	for (auto &E : remap_paths) {
+		if (FileAccess::exists(E)) {
+			return { E, ret };
 		}
 	}
+	return { remap_keys[0].second.operator String(), ret };
+}
+
+Vector<String> _parse_remap_paths_from_import_file(const Ref<FileAccess> &p_f) {
+	Vector<String> remap_paths;
+	Error err;
+
+	VariantParser::StreamFile stream;
+	stream.f = p_f;
+	String assign, error_text;
+	Variant value;
+	VariantParser::Tag next_tag;
+	int lines = 0;
+	int decomp_paths_found = 0;
+	Vector<String> candidates;
+	while (true) {
+		assign = Variant();
+		next_tag.fields.clear();
+		next_tag.name = String();
+
+		err = VariantParser::parse_tag_assign_eof(&stream, lines, error_text, next_tag, assign, value, nullptr, true);
+		if (err != OK) {
+			break;
+		}
+		if (!assign.is_empty()) {
+			_insert_remap_paths(assign, value, decomp_paths_found, remap_paths, candidates);
+		} else if (next_tag.name != "remap") {
+			break;
+		}
+	}
+	remap_paths.append_array(candidates);
 	return remap_paths;
 }
+
 Array vec_to_array(const Vector<String> &vec) {
 	Array arr;
 	for (int64_t i = 0; i < vec.size(); i++) {
@@ -553,7 +619,10 @@ Error ImportInfoModern::_load(const String &p_path) {
 			cf->set_value("deps", "dest_files", vec_to_array({ preferred_import_path }));
 		} else {
 			// this is a multi-path import, get all the "path.*" key values
-			dest_files = get_remap_paths(cf);
+			auto [p, d] = get_remap_paths_from_cf(cf);
+			preferred_import_path = p;
+			dest_files = d;
+
 			// No path values at all; may be a translation file
 			if (dest_files.is_empty()) {
 				String importer = cf->get_value("remap", "importer", "");
@@ -608,20 +677,20 @@ Error ImportInfoModern::_load(const String &p_path) {
 	if (preferred_import_path.is_empty()) {
 		//check destination files
 		if (dest_files.size() == 0) {
-			dest_files = get_remap_paths(cf);
-			// Reverse the order; we want to get the s3tc textures first if they exist.
-			dest_files.reverse();
+			auto [p, d] = get_remap_paths_from_cf(cf);
+			preferred_import_path = p;
+			dest_files = d;
 		}
 		if (dest_files.size() == 0) {
 			dest_files = get_dest_files();
-		}
-		ERR_FAIL_COND_V_MSG(dest_files.size() == 0, ERR_FILE_CORRUPT, p_path + ": no destination files found in import data");
-		for (int64_t i = 0; i < dest_files.size(); i++) {
-			if (FileAccess::exists(dest_files[i])) {
-				preferred_import_path = dest_files[i];
-				break;
+			for (int64_t i = 0; i < dest_files.size(); i++) {
+				if (FileAccess::exists(dest_files[i])) {
+					preferred_import_path = dest_files[i];
+					break;
+				}
 			}
 		}
+		ERR_FAIL_COND_V_MSG(dest_files.size() == 0, ERR_FILE_CORRUPT, p_path + ": no destination files found in import data");
 		if (preferred_import_path.is_empty()) {
 			// just set it to the first one
 			preferred_import_path = dest_files[0];
@@ -642,6 +711,28 @@ Error ImportInfoModern::_load(const String &p_path) {
 	}
 
 	return OK;
+}
+
+String ImportInfoModern::get_remap_path_from_file(const String &p_path) {
+	if (FileAccess::exists(p_path)) {
+		Ref<FileAccess> f = FileAccess::open(p_path + ".import", FileAccess::READ);
+		if (f.is_null()) {
+			return "";
+		}
+		Vector<String> remap_paths = _parse_remap_paths_from_import_file(f);
+		if (remap_paths.is_empty()) {
+			return "";
+		} else if (remap_paths.size() == 1) {
+			return remap_paths[0];
+		}
+		for (int i = 0; i < remap_paths.size(); i++) {
+			if (FileAccess::exists(remap_paths[i])) {
+				return remap_paths[i];
+			}
+		}
+		return remap_paths[0];
+	}
+	return "";
 }
 
 Error ImportInfoDummy::_load(const String &p_path) {
@@ -697,6 +788,35 @@ Ref<ImportInfo> ImportInfoDummy::create_dummy(const String &p_path) {
 		return Ref<ImportInfo>();
 	}
 	return iinfo;
+}
+
+String ImportInfoRemap::get_remap_path_from_file(const String &p_path) {
+	Error err;
+	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ, &err);
+	if (f.is_valid()) {
+		VariantParser::StreamFile stream;
+		stream.f = f;
+		String assign, error_text;
+		Variant value;
+		VariantParser::Tag next_tag;
+		int lines = 0;
+		while (true) {
+			assign.clear();
+			next_tag.fields.clear();
+			next_tag.name.clear();
+			err = VariantParserCompat::parse_tag_assign_eof(&stream, lines, error_text, next_tag, assign, value, nullptr, true);
+			if (err) {
+				break;
+			}
+
+			if (assign == "path") {
+				return value;
+			} else if (next_tag.name != "remap") {
+				break;
+			}
+		}
+	}
+	return "";
 }
 
 Error ImportInfoRemap::_load(const String &p_path) {

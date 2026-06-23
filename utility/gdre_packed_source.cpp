@@ -242,7 +242,7 @@ bool GDREPackedSource::_get_exe_embedded_pck_info(Ref<FileAccess> f, const Strin
 
 bool GDREPackedSource::seek_offset_from_exe(Ref<FileAccess> f, const String &p_path, uint64_t &r_pck_size, const PackedByteArray &custom_magic) {
 	EXEPCKInfo info;
-	auto ret = _get_exe_embedded_pck_info(f, p_path, info);
+	auto ret = _get_exe_embedded_pck_info(f, p_path, info, custom_magic);
 #ifdef DEBUG_ENABLED
 	if (ret) {
 		if (info.pck_section_header_pos == 0) {

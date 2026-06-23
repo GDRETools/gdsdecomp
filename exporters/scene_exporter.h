@@ -174,8 +174,8 @@ class GLBExporterInstance {
 	Dictionary _get_default_subresource_options();
 	Error _check_model_can_load(const String &p_dest_path);
 	Error _load_deps();
-	Error _load_scene_and_deps(Ref<PackedScene> &r_scene);
-	Error _load_scene(Ref<PackedScene> &r_scene);
+	Error _load_scene_and_deps(Ref<Resource> &r_scene);
+	Error _load_scene(Ref<Resource> &r_scene);
 	void recompute_animation_tracks_for_library(AnimationPlayer *p_player, const Ref<AnimationLibrary> &p_anim_lib, const LocalVector<StringName> &p_anim_names);
 	void convert_animation_tracks_to_v4_for_player(AnimationPlayer *p_player);
 

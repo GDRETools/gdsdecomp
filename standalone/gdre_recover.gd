@@ -82,6 +82,7 @@ func _get_all_files(files: PackedStringArray) -> PackedStringArray:
 
 const DIR_STRUCTURE_OPTION_NAME = "Directory Structure"
 const EXPORT_SCENE_OPTION_NAME = "Export Scenes as"
+const EXPORT_MESH_OPTION_NAME = "Export Meshes as"
 
 enum DirStructure {
 	FLAT,
@@ -96,6 +97,14 @@ enum ExportSceneType {
 	GLTF
 }
 
+enum ExportMeshType {
+	AUTO,
+	TRES,
+	OBJ,
+	GLB,
+	GLTF
+}
+
 const DIR_STRUCTURE_NAMES: PackedStringArray = [
 	"Flat",
 	"Relative Hierarchical",
@@ -105,6 +114,14 @@ const DIR_STRUCTURE_NAMES: PackedStringArray = [
 const EXPORT_SCENE_TYPE_NAMES: PackedStringArray = [
 	"Auto",
 	"tscn",
+	"GLB",
+	"GLTF",
+]
+
+const EXPORT_MESH_TYPE_NAMES: PackedStringArray = [
+	"Auto",
+	"tres",
+	"OBJ",
 	"GLB",
 	"GLTF",
 ]
@@ -150,6 +167,44 @@ func _export_scene(file: String, output_dir: String, dir_structure: DirStructure
 		report.error = OK
 	return report
 
+# TODO: A more generic way to export resources, stop copying all this code around
+func _export_mesh(file: String, output_dir: String, dir_structure: DirStructure, rel_base: String, export_type: ExportMeshType) -> ExportReport:
+	var source_file = file
+	var iinfo = GDRESettings.get_import_info_by_dest(file)
+	if iinfo:
+		source_file = iinfo.source_file
+
+	var ext = source_file.get_extension().to_lower()
+
+	if export_type == ExportMeshType.GLB:
+		ext = "glb"
+	elif export_type == ExportMeshType.GLTF:
+		ext = "gltf"
+	elif export_type == ExportMeshType.OBJ:
+		ext = "obj"
+	elif export_type == ExportMeshType.TRES:
+		ext = "tres"
+	else: # AUTO
+		if not is_instance_valid(iinfo):
+			ext = "tres"
+
+	var report: ExportReport = ExportReport.new()
+	var export_dest = get_output_file_name(source_file, output_dir, dir_structure, ext, rel_base)
+	if ext == "tres":
+		# just use bin to text
+		report.error = ResourceCompatLoader.to_text(file, export_dest)
+		return report
+
+	if export_type == ExportMeshType.OBJ:
+		report.error = ObjExporter.export_file_with_options(export_dest, file, {})
+	else:
+		report = SceneExporter.export_file_with_options(export_dest, file, {
+			"Exporter/Scene/GLTF/replace_shader_materials": true,
+		})
+		if (report.error == ERR_BUG or report.error == ERR_PRINTER_ON_FIRE or report.error == ERR_DATABASE_CANT_READ):
+			report.error = OK
+	return report
+
 
 func get_log_error_string(errs: PackedStringArray) -> String:
 	return "\n".join(GDRECommon.filter_error_backtraces(errs))
@@ -167,7 +222,7 @@ func convert_pcfg_to_text(path: String, output_dir: String) -> Array:
 		return [err, text_file]
 	return [loader.save_cfb(output_dir, ver_major, ver_minor), text_file]
 
-func _export_files(files: PackedStringArray, output_dir: String, dir_structure: DirStructure, rel_base: String, export_glb: ExportSceneType) -> PackedStringArray:
+func _export_files(files: PackedStringArray, output_dir: String, dir_structure: DirStructure, rel_base: String, export_glb: ExportSceneType, export_mesh: ExportMeshType) -> PackedStringArray:
 	var errs: PackedStringArray = []
 	files = _get_all_files(files)
 
@@ -200,6 +255,12 @@ func _export_files(files: PackedStringArray, output_dir: String, dir_structure: 
 				if (report.error == ERR_SKIP):
 					errs.append("Exporting cancelled: " + file + "\n" + report.message + "\n" + get_log_error_string(report.get_error_messages()))
 					break
+				errs.append("Failed to export resource: " + file + "\n" + report.message + "\n" + get_log_error_string(report.get_error_messages()))
+		if file_ext == "mesh" or (_ret and _ret.get_compat_type().contains("Mesh")) and export_mesh != ExportMeshType.AUTO:
+			var report: ExportReport = _export_mesh(file, output_dir, dir_structure, rel_base, export_mesh)
+			if not report:
+				errs.append("Failed to export resource: " + file + get_log_error_string(GDRESettings.get_errors()))
+			elif report.error != OK and report.error != ERR_PRINTER_ON_FIRE:
 				errs.append("Failed to export resource: " + file + "\n" + report.message + "\n" + get_log_error_string(report.get_error_messages()))
 		elif _ret:
 			var iinfo: ImportInfo = ImportInfo.copy(_ret)
@@ -263,8 +324,9 @@ func _do_export(output_dir: String, export_preview_visible: bool):
 	var options = %ExportResDirDialog.get_selected_options()
 	var dir_structure = options.get(DIR_STRUCTURE_OPTION_NAME, DirStructure.RELATIVE_HIERARCHICAL)
 	var export_glb: ExportSceneType = options.get(EXPORT_SCENE_OPTION_NAME, int(ExportSceneType.AUTO))
+	var export_mesh: ExportMeshType = options.get(EXPORT_MESH_OPTION_NAME, int(ExportMeshType.AUTO))
 
-	errs = _export_files(files, output_dir, dir_structure, rel_base, export_glb)
+	errs = _export_files(files, output_dir, dir_structure, rel_base, export_glb, export_mesh)
 	if export_preview_visible:
 		%GdreResourcePreview.set_main_view_visible(true)
 
@@ -371,6 +433,12 @@ func _set_file_dialog_options(file_dialog: FileDialog, default_dir_structure: Di
 	if not include_scene:
 		return
 	var include_glb = GDRESettings.get_ver_major() >= SceneExporter.get_minimum_godot_ver_supported()
+	var mesh_default = options.get(EXPORT_MESH_OPTION_NAME, int(ExportMeshType.AUTO))
+	var mesh_opts = EXPORT_MESH_TYPE_NAMES.duplicate()
+	if not include_glb:
+		mesh_opts.remove_at(int(ExportMeshType.GLTF))
+		mesh_opts.remove_at(int(ExportMeshType.GLB))
+	file_dialog.add_option(EXPORT_MESH_OPTION_NAME, mesh_opts, mesh_default)
 	var scene_default = options.get(EXPORT_SCENE_OPTION_NAME, int(ExportSceneType.AUTO))
 	#file_dialog.set_option_default(0, int(default_dir_structure))
 	var glb_opts = EXPORT_SCENE_TYPE_NAMES.duplicate()

@@ -53,7 +53,7 @@ private:
 	Ref<ProjectInfo> current_project;
 	Ref<GodotVer> version_override;
 	GDRELogger *logger;
-	Array import_files;
+	HashMap<String, Ref<ImportInfo>> import_files;
 	HashMap<String, Ref<ImportInfoRemap>> remap_iinfo;
 	String gdre_resource_path = "";
 	String v2_remap_setting = "remap/all";

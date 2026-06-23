@@ -94,6 +94,10 @@ func make_button_label(text: String) -> Label:
 
 
 func set_setting_value(setting: GDREConfigSetting, value: Variant):
+	if setting.get_type() == TYPE_INT:
+		value = int(value)
+	elif setting.get_type() == TYPE_FLOAT:
+		value = float(value)
 	setting_value_map[setting] = value
 
 func setting_callback(setting: GDREConfigSetting, value: Variant, control: Control):
