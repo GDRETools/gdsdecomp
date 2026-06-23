@@ -2849,7 +2849,7 @@ Node *GLBExporterInstance::_instantiate_scene(Ref<PackedScene> scene) {
 	return root;
 }
 
-Error GLBExporterInstance::_load_scene_and_deps(Ref<PackedScene> &r_scene) {
+Error GLBExporterInstance::_load_scene_and_deps(Ref<Resource> &r_scene) {
 	MeshInstance3D::upgrading_skeleton_compat = true;
 	err = _load_deps();
 	if (err != OK) {
@@ -2858,7 +2858,7 @@ Error GLBExporterInstance::_load_scene_and_deps(Ref<PackedScene> &r_scene) {
 	return _load_scene(r_scene);
 }
 
-Error GLBExporterInstance::_load_scene(Ref<PackedScene> &r_scene) {
+Error GLBExporterInstance::_load_scene(Ref<Resource> &r_scene) {
 	auto mode_type = ResourceCompatLoader::get_default_load_type();
 	// loading older scenes will spam warnings about deprecated features
 #ifndef DEBUG_ENABLED
@@ -2866,15 +2866,15 @@ Error GLBExporterInstance::_load_scene(Ref<PackedScene> &r_scene) {
 		_silence_errors(true);
 	}
 #endif
-	std::optional<Ref<PackedScene>> result;
+	std::optional<Ref<Resource>> result;
 	// For some reason, scenes with meshes fail to load without the load done by ResourceLoader::load, possibly due to notification shenanigans.
 	if (ResourceCompatLoader::is_globally_available()) {
-		result = TaskManager::get_singleton()->dispatch_to_main_thread((std::function<Ref<PackedScene>()>)[&]() -> Ref<PackedScene> {
-			return ResourceLoader::load(source_path, "PackedScene", ResourceFormatLoader::CACHE_MODE_REUSE, &err);
+		result = TaskManager::get_singleton()->dispatch_to_main_thread((std::function<Ref<Resource>()>)[&]() -> Ref<Resource> {
+			return ResourceLoader::load(source_path, "", ResourceFormatLoader::CACHE_MODE_REUSE, &err);
 		});
 	} else {
-		result = TaskManager::get_singleton()->dispatch_to_main_thread((std::function<Ref<PackedScene>()>)[&]() -> Ref<PackedScene> {
-			return ResourceCompatLoader::custom_load(source_path, "PackedScene", mode_type, &err, using_threaded_load(), ResourceFormatLoader::CACHE_MODE_REUSE);
+		result = TaskManager::get_singleton()->dispatch_to_main_thread((std::function<Ref<Resource>()>)[&]() -> Ref<Resource> {
+			return ResourceCompatLoader::custom_load(source_path, "", mode_type, &err, using_threaded_load(), ResourceFormatLoader::CACHE_MODE_REUSE);
 		});
 	}
 	if (!result.has_value()) {
@@ -3294,6 +3294,18 @@ struct BatchExportToken : public TaskRunnerStruct {
 		return _check_unsupported(ver_major, is_text_output());
 	}
 
+	Error create_packed_scene_from_mesh(const Ref<Mesh> &mesh, Ref<PackedScene> &scene) {
+		ERR_FAIL_COND_V_MSG(mesh.is_null(), ERR_INVALID_PARAMETER, "Mesh is null");
+		return TaskManager::get_singleton()->dispatch_to_main_thread((std::function<Error()>)[&]() -> Error {
+											   MeshInstance3D *root = memnew(MeshInstance3D);
+											   root->set_mesh(mesh);
+											   scene = Ref<PackedScene>(memnew(PackedScene));
+											   scene->pack(root);
+											   return OK;
+										   })
+				.value_or(ERR_SKIP);
+	}
+
 	// scene loading and scene instancing has to be done on the main thread to avoid deadlocks and crashes
 	bool batch_preload() {
 		GDRELogger::clear_error_queues();
@@ -3318,13 +3330,31 @@ struct BatchExportToken : public TaskRunnerStruct {
 
 		err = gdre::ensure_dir(p_dest_path.get_base_dir());
 		report->set_error(err);
-		ERR_FAIL_COND_V_MSG(err, false, "Failed to ensure directory " + p_dest_path.get_base_dir());
+		if (err) {
+			after_preload();
+			ERR_FAIL_V_MSG(false, "Failed to ensure directory " + p_dest_path.get_base_dir());
+		}
 		{
-			Ref<PackedScene> scene;
-			err = instance._load_scene_and_deps(scene);
-			if (scene.is_null() && err == OK) {
+			String resource_type = report->get_import_info()->get_type();
+			bool is_mesh = false;
+			if (resource_type != "PackedScene") {
+				if (resource_type != "Mesh" && !ClassDB::is_parent_class(resource_type, "Mesh")) {
+					after_preload();
+					ERR_FAIL_V_MSG(false, "Unsupported resource type: " + resource_type);
+				}
+				is_mesh = true;
+			}
+			Ref<Resource> resource;
+			err = instance._load_scene_and_deps(resource);
+			if (resource.is_null() && err == OK) {
 				err = ERR_CANT_ACQUIRE_RESOURCE;
 			}
+
+			Ref<PackedScene> scene = resource;
+			if (err == OK && scene.is_null() && is_mesh) {
+				err = create_packed_scene_from_mesh(resource, scene);
+			}
+
 			if (err != OK) {
 				report->set_error(err);
 				after_preload();
