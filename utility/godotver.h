@@ -229,6 +229,7 @@ public:
 		is_strict = false;
 	}
 	GodotVer(const String &p_ver_text) {
+		is_strict = false;
 		auto val = GodotVer::parse(p_ver_text);
 		if (val.is_valid() && val->is_valid_semver()) {
 			major = val->major;

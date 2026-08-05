@@ -3329,16 +3329,6 @@ Error ResourceFormatLoaderCompatBinary::rewrite_v2_import_metadata(const String 
 	return da->rename(dest, p_dst);
 }
 
-struct ConnectionData {
-	int from = 0;
-	int to = 0;
-	int signal = 0;
-	int method = 0;
-	int flags = 0;
-	int unbinds = 0;
-	Vector<int> binds;
-};
-
 Dictionary ResourceFormatSaverCompatBinaryInstance::fix_scene_bundle_format(const Ref<PackedScene> &p_scene) {
 	Dictionary bundled = p_scene->get("_bundled");
 	int ver = bundled.get("version", 1);

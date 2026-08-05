@@ -18,6 +18,9 @@ public:
 	static Error parse_tag(VariantParser::Stream *p_stream, int &line, String &r_err_str, Tag &r_tag, VariantParser::ResourceParser *p_res_parser = nullptr, bool p_simple_tag = false);
 	static Error parse_tag_assign_eof(VariantParser::Stream *p_stream, int &line, String &r_err_str, Tag &r_tag, String &r_assign, Variant &r_value, VariantParser::ResourceParser *p_res_parser = nullptr, bool p_simple_tag = false);
 	static Error parse(Stream *p_stream, Variant &r_ret, String &r_err_str, int &r_err_line, ResourceParser *p_res_parser = nullptr);
+	static Error parse_string(const String &p_string, Variant &r_ret, String &r_err_str, int &r_err_line, ResourceParser *p_res_parser = nullptr);
+
+	static Variant str_to_var(const String &p_string);
 };
 
 class VariantWriterCompat {

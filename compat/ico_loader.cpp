@@ -35,6 +35,8 @@
 
 #include "modules/bmp/image_loader_bmp.h"
 #include "utility/file_access_buffer.h"
+
+namespace {
 // PNG signature: 89 50 4E 47 0D 0A 1A 0A
 static const uint8_t PNG_SIGNATURE[8] = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
 
@@ -184,6 +186,7 @@ static Error parse_after_file_header(const Vector<uint8_t> &p_data, bmp_header_s
 
 	return OK;
 }
+} //namespace
 
 Error ImageLoaderICO::load_embedded_image(const IconEntry &p_icon_entry, Ref<Image> p_image, const Vector<uint8_t> &p_data, BitField<ImageFormatLoader::LoaderFlags> p_flags, float p_scale) {
 	ERR_FAIL_COND_V_MSG(p_data.is_empty(), ERR_INVALID_DATA, "ImageLoaderICO: Empty image data.");

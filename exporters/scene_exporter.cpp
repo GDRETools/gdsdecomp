@@ -289,18 +289,28 @@ void get_deps_recursive(const String &p_path, HashMap<String, dep_info> &r_deps,
 				info.uid_in_uid_cache = info.uid != ResourceUID::INVALID_ID && ResourceUID::get_singleton()->has_id(info.uid);
 				auto uid_path = info.uid_in_uid_cache ? ResourceUID::get_singleton()->get_id_path(info.uid) : "";
 				info.orig_remap = GDRESettings::get_singleton()->get_mapped_path(info.dep);
-				if (info.uid_in_uid_cache && uid_path != info.dep && uid_path != info.orig_remap) {
-					info.uid_in_uid_cache_matches_dep = false;
-					info.remap = GDRESettings::get_singleton()->get_mapped_path(uid_path);
-					if (!FileAccess::exists(info.remap)) {
-						info.uid_remap_path_exists = false;
-						info.remap = "";
+				if (info.uid_in_uid_cache && uid_path != info.dep) {
+					String remap_from_uid = GDRESettings::get_singleton()->get_mapped_path(uid_path);
+					// UID paths override plaintext paths, so we only want to update the UID to point to the
+					// original path if the original remap path exists and the remap path from the UID does not exist
+					if (FileAccess::exists(info.orig_remap) && !FileAccess::exists(remap_from_uid)) {
+						info.uid_in_uid_cache_matches_dep = false;
+						info.remap = info.orig_remap;
+					} else { // otherwise, override the dep and remap with the UID path and remap from the UID path
+						info.dep = uid_path;
+						info.remap = remap_from_uid;
+						if (!FileAccess::exists(info.remap)) {
+							info.uid_remap_path_exists = false;
+							info.remap = "";
+						}
 					}
+				} else if (info.uid != ResourceUID::INVALID_ID && !FileAccess::exists(info.orig_remap)) {
+					info.uid_remap_path_exists = false;
+					info.remap = "";
 				}
 				if (info.remap.is_empty()) {
 					info.remap = info.orig_remap;
 				}
-				auto thingy = GDRESettings::get_singleton()->get_mapped_path(splits[0]);
 				if (!FileAccess::exists(info.remap)) {
 					if (FileAccess::exists(info.dep)) {
 						info.remap = info.dep;
@@ -1022,15 +1032,6 @@ Error GLBExporterInstance::_load_deps() {
 			GDRE_SCN_EXP_FAIL_V_MSG(ERR_FILE_MISSING_DEPENDENCIES,
 					vformat("Dependency %s -> %s does not exist.", info.dep, info.remap));
 		} else if (info.uid != ResourceUID::INVALID_ID) {
-			if (!info.uid_in_uid_cache) {
-				ResourceUID::get_singleton()->add_id(info.uid, info.remap);
-				loaded_dep_uids.push_back(info.uid);
-			} else if (!info.uid_in_uid_cache_matches_dep) {
-				if (info.uid_remap_path_exists) {
-					WARN_PRINT(vformat("Dependency %s:%s is not mapped to the same path: %s (%s)", info.dep, info.remap, info.orig_remap, ResourceUID::get_singleton()->id_to_text(info.uid)));
-					ResourceUID::get_singleton()->set_id(info.uid, info.remap);
-				}
-			}
 			if (info.uid_remap_path_exists) {
 				continue;
 				// else fall through
@@ -2800,12 +2801,6 @@ void GLBExporterInstance::_update_import_params(const String &p_dest_path) {
 
 void GLBExporterInstance::_unload_deps() {
 	loaded_deps.clear();
-
-	// remove the UIDs that we added that didn't exist before
-	for (uint64_t id : loaded_dep_uids) {
-		ResourceUID::get_singleton()->remove_id(id);
-	}
-	loaded_dep_uids.clear();
 }
 
 Error SceneExporter::export_file_to_non_glb(const String &p_src_path, const String &p_dest_path, Ref<ImportInfo> iinfo) {
@@ -2858,6 +2853,29 @@ Error GLBExporterInstance::_load_scene_and_deps(Ref<Resource> &r_scene) {
 	return _load_scene(r_scene);
 }
 
+// happens on main thread right before loading the scene to prevent race conditions with the UID cache
+void GLBExporterInstance::_load_dep_uids() {
+#ifdef DEBUG_ENABLED
+	if (!Thread::is_main_thread()) {
+		WARN_PRINT("Loading dependency UIDs on a non-main thread is not supported!!!");
+	}
+#endif
+	for (auto &[path, info] : get_deps_map) {
+		if (info.uid != ResourceUID::INVALID_ID && info.uid_remap_path_exists) {
+			if (!info.uid_in_uid_cache) {
+				if (!ResourceUID::get_singleton()->has_id(info.uid)) {
+					ResourceUID::get_singleton()->add_id(info.uid, info.dep);
+				} else { // in case it got set by another task
+					ResourceUID::get_singleton()->set_id(info.uid, info.dep);
+				}
+			} else if (!info.uid_in_uid_cache_matches_dep) {
+				WARN_PRINT(vformat("Dependency %s:%s is not mapped to the same path: %s (%s)", info.dep, info.remap, info.orig_remap, ResourceUID::get_singleton()->id_to_text(info.uid)));
+				ResourceUID::get_singleton()->set_id(info.uid, info.dep);
+			}
+		}
+	}
+}
+
 Error GLBExporterInstance::_load_scene(Ref<Resource> &r_scene) {
 	auto mode_type = ResourceCompatLoader::get_default_load_type();
 	// loading older scenes will spam warnings about deprecated features
@@ -2870,10 +2888,12 @@ Error GLBExporterInstance::_load_scene(Ref<Resource> &r_scene) {
 	// For some reason, scenes with meshes fail to load without the load done by ResourceLoader::load, possibly due to notification shenanigans.
 	if (ResourceCompatLoader::is_globally_available()) {
 		result = TaskManager::get_singleton()->dispatch_to_main_thread((std::function<Ref<Resource>()>)[&]() -> Ref<Resource> {
+			_load_dep_uids();
 			return ResourceLoader::load(source_path, "", ResourceFormatLoader::CACHE_MODE_REUSE, &err);
 		});
 	} else {
 		result = TaskManager::get_singleton()->dispatch_to_main_thread((std::function<Ref<Resource>()>)[&]() -> Ref<Resource> {
+			_load_dep_uids();
 			return ResourceCompatLoader::custom_load(source_path, "", mode_type, &err, using_threaded_load(), ResourceFormatLoader::CACHE_MODE_REUSE);
 		});
 	}

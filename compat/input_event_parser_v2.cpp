@@ -4,6 +4,8 @@
 #include "core/io/marshalls.h"
 #include "core/variant/variant_parser.h"
 using namespace V2InputEvent;
+
+namespace {
 struct _KeyCodeText {
 	Key code;
 	const char *text;
@@ -272,17 +274,6 @@ Key convert_v2_key_to_v4_key(V2KeyList spkey) {
 	return Key(spkey);
 }
 
-V2KeyList InputEventParserV2::convert_v4_key_to_v2_key(Key spkey) {
-	if (((uint32_t)spkey & (uint32_t)Key::SPECIAL)) {
-		return V2KeyList(((uint32_t)spkey ^ (uint32_t)Key::SPECIAL) | (uint32_t)V2InputEvent::SPKEY);
-	}
-	return V2KeyList(spkey);
-}
-
-V2KeyList InputEventParserV2::get_v2_key_from_iek(Ref<InputEventKey> iek) {
-	return convert_v4_key_to_v2_key(iek->get_keycode());
-}
-
 String keycode_get_v2_string(Key p_code) {
 	String codestr;
 
@@ -305,6 +296,19 @@ String keycode_get_v2_string(Key p_code) {
 
 String get_v2_string_from_iek(Ref<InputEventKey> iek) {
 	return keycode_get_v2_string(iek->get_keycode());
+}
+
+} //namespace
+
+V2KeyList InputEventParserV2::convert_v4_key_to_v2_key(Key spkey) {
+	if (((uint32_t)spkey & (uint32_t)Key::SPECIAL)) {
+		return V2KeyList(((uint32_t)spkey ^ (uint32_t)Key::SPECIAL) | (uint32_t)V2InputEvent::SPKEY);
+	}
+	return V2KeyList(spkey);
+}
+
+V2KeyList InputEventParserV2::get_v2_key_from_iek(Ref<InputEventKey> iek) {
+	return convert_v4_key_to_v2_key(iek->get_keycode());
 }
 
 String InputEventParserV2::v4_input_event_to_v2_string(const Ref<InputEvent> &p_v4_event) {

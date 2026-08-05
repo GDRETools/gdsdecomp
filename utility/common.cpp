@@ -879,13 +879,21 @@ Ref<FileAccess> gdre::open_encrypted_v3_from_file(Ref<FileAccess> p_base, int p_
 	return fae;
 }
 
-String gdre::get_full_path(const String &p_path, DirAccess::AccessType p_access) {
+String gdre::get_full_path(const String &p_path) {
 	String path = p_path.simplify_path();
 	bool is_dir = DirAccess::exists(path);
 	if (!(is_dir || FileAccess::exists(path))) {
 		return path;
 	}
-	Ref<DirAccess> da = DirAccess::create(p_access);
+	DirAccess::AccessType access;
+	if (p_path.begins_with("res://")) {
+		access = DirAccess::ACCESS_RESOURCES;
+	} else if (p_path.begins_with("user://")) {
+		access = DirAccess::ACCESS_USERDATA;
+	} else {
+		access = DirAccess::ACCESS_FILESYSTEM;
+	}
+	Ref<DirAccess> da = DirAccess::create(access);
 	ERR_FAIL_COND_V_MSG(da.is_null(), path, "Failed to create DirAccess.");
 	ERR_FAIL_COND_V_MSG(da->change_dir(p_path.get_base_dir()) != OK, path, "Failed to change directory.");
 	String real_base_dir = da->get_current_dir();
@@ -912,7 +920,7 @@ String gdre::get_full_path(const String &p_path, DirAccess::AccessType p_access)
 	}
 	if (!new_path.is_empty()) {
 		if (is_dir) {
-			return DirAccess::get_full_path(new_path, p_access);
+			return DirAccess::get_full_path(new_path, access);
 		}
 		return new_path;
 	}

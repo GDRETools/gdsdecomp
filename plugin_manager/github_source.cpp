@@ -54,7 +54,8 @@ static const HashMap<String, String> plugin_map = {
 	{ "sentry", "https://github.com/getsentry/sentry-godot" },
 	{ "sentrysdk", "https://github.com/getsentry/sentry-godot" },
 	{ "wwise", "https://github.com/alessandrofama/wwise-godot-integration" },
-	{ "Wwise", "https://github.com/alessandrofama/wwise-godot-integration" }
+	{ "Wwise", "https://github.com/alessandrofama/wwise-godot-integration" },
+	{ "audio_gate", "https://github.com/Visssarion/audio-gate" },
 };
 } // namespace
 GitHubSource::GitHubSource() {

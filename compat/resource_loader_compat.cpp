@@ -914,7 +914,6 @@ Ref<Resource> ResourceCompatConverter::set_real_from_missing_resource(Ref<Missin
 			}
 		}
 	}
-	res->set_path_cache(mr->get_path());
 	res->set_local_to_scene(mr->is_local_to_scene());
 	res->set_scene_unique_id(mr->get_scene_unique_id());
 	return res;

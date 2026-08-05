@@ -258,6 +258,11 @@ HashMap<String, Ref<GDREConfigSetting>> GDREConfig::_init_default_settings() {
 				"<NONE>",
 				true)),
 		memnew(GDREConfigSetting(
+				"execute_visual_shader_node_scripts",
+				"Execute VisualShaderNodeCustom scripts",
+				"Execute VisualShaderNodeCustom scripts when loading visual shaders.\nSetting this to `true` can fix errors occurring when exporting scenes that contain VisualShaders.\n\nWARNING: As this executes arbitrary code, this should be considered unsafe.\nEnsure that you trust the source code in this project before enabling this.",
+				false)),
+		memnew(GDREConfigSetting(
 				"Preview/use_scene_view_by_default",
 				"Use scene view by default",
 				"Use scene view by default instead of the text preview.\nWARNING: Scene view is still experimental and certain scenes may cause the program to become unresponsive.",

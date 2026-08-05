@@ -1706,12 +1706,24 @@ func handle_cli(args: PackedStringArray) -> bool:
 				var secs_taken = (end_time - start_time) / 1000
 				print("Prepop complete in %02dm%02ds" % [(secs_taken) / 60, (secs_taken) % 60])
 		elif main_cmds.has("list-files"):
+			if !enc_key.is_empty():
+				if GDRESettings.set_encryption_key_string(enc_key) != OK:
+					print_usage()
+					print("Invalid key! Key must be a hex string with 64 characters")
+					ret_code = 1
+					return true
 			ret_code = list_files(input_file)
 		elif compile_files.size() > 0:
 			ret_code = compile(compile_files, bytecode_version, output_dir)
 		elif decompile_files.size() > 0:
 			ret_code = decompile(decompile_files, bytecode_version, output_dir, enc_key)
 		elif not pck_patch_pck.is_empty():
+			if !enc_key.is_empty():
+				if GDRESettings.set_encryption_key_string(enc_key) != OK:
+					print_usage()
+					print("Invalid key! Key must be a hex string with 64 characters")
+					ret_code = 1
+					return true
 			if patch_translations.size() > 0:
 				var tmp_dir = GDRESettings.get_gdre_user_path().path_join(".tmp_translations")
 				if DirAccess.dir_exists_absolute(tmp_dir):
@@ -1729,6 +1741,12 @@ func handle_cli(args: PackedStringArray) -> bool:
 			if ret_code != 0:
 				return
 		elif patch_translations.size() > 0:
+			if !enc_key.is_empty():
+				if GDRESettings.set_encryption_key_string(enc_key) != OK:
+					print_usage()
+					print("Invalid key! Key must be a hex string with 64 characters")
+					ret_code = 1
+					return true
 			var rmap = {}
 			ret_code = patch_translations(input_file, patch_translations, output_dir, locales_to_patch, rmap)
 		elif not input_file.is_empty():

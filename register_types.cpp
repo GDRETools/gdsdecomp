@@ -4,6 +4,7 @@
 
 #include "register_types.h"
 #include "compat/fake_script.h"
+#include "compat/font_loader_compat.h"
 #include "core/io/image_loader.h"
 #include "core/object/class_db.h"
 #include "exporters/dialogue_exporter.h"
@@ -114,6 +115,7 @@ static Ref<ResourceFormatLoaderCompatTexture2D> texture_loader = nullptr;
 static Ref<ResourceFormatLoaderCompatTexture3D> texture3d_loader = nullptr;
 static Ref<ResourceFormatLoaderCompatTextureLayered> texture_layered_loader = nullptr;
 static Ref<ResourceFormatLoaderImageTextureCompat> image_texture_loader = nullptr;
+static Ref<ResourceFormatLoaderCompatFont> font_loader = nullptr;
 static Ref<ResourceFormatGDScriptLoader> script_loader = nullptr;
 static Ref<ResourceFormatLoaderCompatImage> image_loader = nullptr;
 static Ref<ResourceFormatLoaderCompatVideo> video_loader = nullptr;
@@ -130,6 +132,7 @@ static Ref<FakeScriptConverterCompat> fake_script_converter = nullptr;
 static Ref<TranslationConverterCompat> translation_converter = nullptr;
 static Ref<InputEventConverterCompat> input_event_converter = nullptr;
 static Ref<VisualShaderConverterCompat> visual_shader_converter = nullptr;
+static Ref<VisualShaderNodeCustomConverterCompat> visual_shader_node_custom_converter = nullptr;
 
 //exporters
 static Ref<AutoConvertedExporter> auto_converted_exporter = nullptr;
@@ -181,6 +184,7 @@ void init_loaders() {
 	texture3d_loader = memnew(ResourceFormatLoaderCompatTexture3D);
 	texture_layered_loader = memnew(ResourceFormatLoaderCompatTextureLayered);
 	image_texture_loader = memnew(ResourceFormatLoaderImageTextureCompat);
+	font_loader = memnew(ResourceFormatLoaderCompatFont);
 	script_loader = memnew(ResourceFormatGDScriptLoader);
 	image_loader = memnew(ResourceFormatLoaderCompatImage);
 	video_loader = memnew(ResourceFormatLoaderCompatVideo);
@@ -194,6 +198,7 @@ void init_loaders() {
 	translation_converter = memnew(TranslationConverterCompat);
 	input_event_converter = memnew(InputEventConverterCompat);
 	visual_shader_converter = memnew(VisualShaderConverterCompat);
+	visual_shader_node_custom_converter = memnew(VisualShaderNodeCustomConverterCompat);
 	ResourceCompatLoader::add_resource_format_loader(binary_loader, true);
 	ResourceCompatLoader::add_resource_format_loader(obdb_loader, true);
 	ResourceCompatLoader::add_resource_format_loader(text_loader, true);
@@ -201,6 +206,7 @@ void init_loaders() {
 	ResourceCompatLoader::add_resource_format_loader(texture_loader, true);
 	ResourceCompatLoader::add_resource_format_loader(texture3d_loader, true);
 	ResourceCompatLoader::add_resource_format_loader(texture_layered_loader, true);
+	ResourceCompatLoader::add_resource_format_loader(font_loader, true);
 	ResourceCompatLoader::add_resource_format_loader(script_loader, true);
 	ResourceCompatLoader::add_resource_format_loader(image_loader, true);
 	ResourceCompatLoader::add_resource_format_loader(video_loader, true);
@@ -214,6 +220,7 @@ void init_loaders() {
 	ResourceCompatLoader::add_resource_object_converter(translation_converter, true);
 	ResourceCompatLoader::add_resource_object_converter(input_event_converter, true);
 	ResourceCompatLoader::add_resource_object_converter(visual_shader_converter, true);
+	ResourceCompatLoader::add_resource_object_converter(visual_shader_node_custom_converter, true);
 }
 
 void init_exporters() {
@@ -390,6 +397,9 @@ void deinit_loaders() {
 	if (image_texture_loader.is_valid()) {
 		ResourceCompatLoader::remove_resource_format_loader(image_texture_loader);
 	}
+	if (font_loader.is_valid()) {
+		ResourceCompatLoader::remove_resource_format_loader(font_loader);
+	}
 	if (script_loader.is_valid()) {
 		ResourceCompatLoader::remove_resource_format_loader(script_loader);
 	}
@@ -429,6 +439,9 @@ void deinit_loaders() {
 	if (visual_shader_converter.is_valid()) {
 		ResourceCompatLoader::remove_resource_object_converter(visual_shader_converter);
 	}
+	if (visual_shader_node_custom_converter.is_valid()) {
+		ResourceCompatLoader::remove_resource_object_converter(visual_shader_node_custom_converter);
+	}
 	text_loader = nullptr;
 	binary_loader = nullptr;
 	obdb_loader = nullptr;
@@ -436,6 +449,7 @@ void deinit_loaders() {
 	texture3d_loader = nullptr;
 	texture_layered_loader = nullptr;
 	image_texture_loader = nullptr;
+	font_loader = nullptr;
 	script_loader = nullptr;
 	image_loader = nullptr;
 	video_loader = nullptr;
@@ -449,6 +463,7 @@ void deinit_loaders() {
 	translation_converter = nullptr;
 	input_event_converter = nullptr;
 	visual_shader_converter = nullptr;
+	visual_shader_node_custom_converter = nullptr;
 }
 
 void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
@@ -519,6 +534,7 @@ void initialize_gdsdecomp_module(ModuleInitializationLevel p_level) {
 	ClassDB::register_class<ResourceFormatLoaderCompatTexture3D>();
 	ClassDB::register_class<ResourceFormatLoaderCompatTextureLayered>();
 	ClassDB::register_class<ResourceFormatLoaderImageTextureCompat>();
+	ClassDB::register_class<ResourceFormatLoaderCompatFont>();
 	ClassDB::register_class<ResourceFormatGDScriptLoader>();
 	ClassDB::register_class<ResourceFormatLoaderCompatImage>();
 	ClassDB::register_class<ResourceFormatLoaderCompatVideo>();

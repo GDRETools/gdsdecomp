@@ -41,11 +41,13 @@ extern "C" {
 #include "thirdparty/misc/smaz.h"
 }
 
+namespace {
 struct CompressedString {
 	int orig_len = 0;
 	CharString compressed;
 	int offset = 0;
 };
+} //namespace
 
 void OptimizedTranslationExtractor::generate(const Ref<Translation> &p_from) {
 	// This method compresses a Translation instance.

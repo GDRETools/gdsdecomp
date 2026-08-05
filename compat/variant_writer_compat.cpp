@@ -793,6 +793,22 @@ Error VariantParserCompat::parse(Stream *p_stream, Variant &r_ret, String &r_err
 	return parse_value(token, r_ret, p_stream, r_err_line, r_err_str, p_res_parser);
 }
 
+Error VariantParserCompat::parse_string(const String &p_string, Variant &r_ret, String &r_err_str, int &r_err_line, ResourceParser *p_res_parser) {
+	VariantParser::StreamString stream;
+	stream.s = p_string;
+	Error err = parse(&stream, r_ret, r_err_str, r_err_line, p_res_parser);
+	return err;
+}
+
+Variant VariantParserCompat::str_to_var(const String &p_string) {
+	Variant ret;
+	String err_str;
+	int err_line = 0;
+	Error err = parse_string(p_string, ret, err_str, err_line, nullptr);
+	ERR_FAIL_COND_V_MSG(err, Variant(), "Failed to parse string: " + err_str);
+	return ret;
+}
+
 namespace {
 const static String comma_string = ", ";
 

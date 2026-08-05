@@ -1038,7 +1038,7 @@
         "bytecode_version": 13,
         "date": "2020-10-07",
         "engine_version": "3.5.0-stable",
-        "max_engine_version": "3.6.1-stable",
+        "max_engine_version": "3.7.0-stable",
         "engine_ver_major": 3,
         "variant_ver_major": 3,
         "parent": "5565f55",

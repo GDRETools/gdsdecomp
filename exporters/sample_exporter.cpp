@@ -9,14 +9,15 @@
 #include "exporters/export_report.h"
 #include "scene/resources/audio_stream_wav.h"
 
+#define DATA_PAD 16
+namespace {
+
 struct IMA_ADPCM_State {
 	int16_t step_index = 0;
 	int32_t predictor = 0;
 	int32_t last_nibble = -1;
 };
 
-#define DATA_PAD 16
-namespace {
 int64_t qoa_decode(const unsigned char *bytes, int size, qoa_desc *qoa, Vector<uint8_t> &r_dest_data) {
 	unsigned int p = qoa_decode_header(bytes, size, qoa);
 	if (!p) {

@@ -35,6 +35,8 @@
 #include "compat/variant_decoder_compat.h"
 #include "core/templates/rb_map.h"
 
+namespace {
+
 struct _bit {
 	Variant::Type type;
 	const char *text;
@@ -114,6 +116,7 @@ static const _kws _keyword_list[] = {
 
 	{ GDScriptDecomp::G_TK_ERROR, nullptr }
 };
+} //namespace
 
 GDScriptTokenizerV1Compat::GDScriptTokenizerV1Compat(const GDScriptDecomp *p_decomp) :
 		decomp(p_decomp) {
@@ -1105,6 +1108,7 @@ GDScriptV1TokenizerTextCompat::GDScriptV1TokenizerTextCompat(const GDScriptDecom
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 #include "core/io/marshalls.h"
+#include "utility/common.h"
 
 #define BYTECODE_VERSION 13
 
@@ -1119,7 +1123,6 @@ GDScriptV1TokenizerTextCompat::GDScriptV1TokenizerTextCompat(const GDScriptDecom
 	}
 #define GDSC_HEADER "GDSC"
 #define CHECK_GDSC_HEADER(p_buffer) _GDRE_CHECK_HEADER(p_buffer, GDSC_HEADER)
-#include "utility/common.h"
 
 Error GDScriptV1TokenizerBufferCompat::set_code_buffer(const Vector<uint8_t> &p_buffer) {
 	const uint8_t *buf = p_buffer.ptr();

@@ -130,6 +130,8 @@ void ImportExporter::save_filesystem_cache(const Vector<std::shared_ptr<FileInfo
 		{ 3, "ea4bc82a6ad023ab7ee23ee620429895" },
 		{ 4, "ea4bc82a6ad023ab7ee23ee620429895" },
 		{ 5, "63f7b34db8d8cdea90c76aacccf841ec" },
+		{ 6, "72322a848ab928aa5c89f0cb78209805" },
+		{ 7, "78098b89c88a74ebe8c20117b8754620" },
 	};
 
 	String cache_path = get_ver_minor() < 4 ? "filesystem_cache8" : "filesystem_cache10";
@@ -862,6 +864,7 @@ void ImportExporter::recreate_uid_file(const String &src_path, bool is_import, c
 	}
 }
 
+namespace {
 struct ProcessRunnerStruct : public TaskRunnerStruct {
 	String command;
 	Vector<String> arguments;
@@ -960,6 +963,7 @@ struct ProcessRunnerStruct : public TaskRunnerStruct {
 		}
 	}
 };
+} //namespace
 
 bool detect_uses_prebuilt_steam_template() {
 	String glob = DirAccess::dir_exists_absolute("res://addons") ? "res://addons/*" : "res://Addons/*";
@@ -981,7 +985,7 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	report = Ref<ImportExporterReport>(memnew(ImportExporterReport(get_settings()->get_version_string(), get_settings()->get_game_name())));
 	report->log_file_location = get_settings()->get_log_file_path();
 	ERR_FAIL_COND_V_MSG(!get_settings()->is_pack_loaded(), ERR_DOES_NOT_EXIST, "pack/dir not loaded!");
-	output_dir = gdre::get_full_path(p_out_dir, DirAccess::ACCESS_FILESYSTEM);
+	output_dir = gdre::get_full_path(p_out_dir);
 	report->output_dir = output_dir;
 	ERR_FAIL_COND_V_MSG(gdre::ensure_dir(output_dir) != OK, ERR_FILE_CANT_WRITE, "Failed to create output directory " + output_dir);
 	Error err = OK;

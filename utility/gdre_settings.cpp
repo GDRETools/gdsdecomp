@@ -5,6 +5,7 @@
 #include "compat/config_file_compat.h"
 #include "compat/resource_compat_binary.h"
 #include "compat/resource_loader_compat.h"
+#include "compat/variant_writer_compat.h"
 #include "core/error/error_list.h"
 #include "core/error/error_macros.h"
 #include "core/io/dir_access.h"
@@ -502,7 +503,7 @@ Vector<String> GDRESettings::sort_and_validate_pck_files(const Vector<String> &p
 	// A common pattern for games is to have DLC releases come as additional pcks that override paths in the main pck
 	// We want to ensure that the main pck comes first
 	for (int i = 0; i < p_paths.size(); i++) {
-		String path = p_paths[i];
+		String path = gdre::get_full_path(p_paths[i]);
 		String ext = path.get_extension().to_lower();
 		// directories come first
 		if (DirAccess::exists(path)) {
@@ -2603,6 +2604,52 @@ void GDRESettings::_do_string_load(uint32_t i, StringLoadToken *tokens) {
 		}
 		return;
 	}
+	if (src_ext == "dch") {
+		Ref<FileAccess> f = FileAccess::open(tokens[i].path, FileAccess::READ);
+		ERR_FAIL_COND_MSG(f.is_null(), "Failed to open file " + tokens[i].path);
+		String text = f->get_as_text();
+		Variant var = VariantParserCompat::str_to_var(text);
+		ERR_FAIL_COND_MSG(var.get_type() == Variant::Type::NIL, "Failed to parse string " + tokens[i].path);
+		gdre::get_strings_from_variant(var, tokens[i].strings, tokens[i].engine_version);
+		Dictionary dict = var;
+		static const StringName TRANSLATION_ID = StringName("_translation_id");
+		if (dict.has(TRANSLATION_ID)) {
+			String translation_id = dict.get(TRANSLATION_ID, "");
+			tokens[i].strings.push_back(vformat("Character/%s/name", translation_id));
+			tokens[i].strings.push_back(vformat("Character/%s/nicknames", translation_id));
+		}
+		return;
+	}
+	if (src_ext == "dtl") {
+		Ref<FileAccess> f = FileAccess::open(tokens[i].path, FileAccess::READ);
+		ERR_FAIL_COND_MSG(f.is_null(), "Failed to open file " + tokens[i].path);
+		String text = f->get_as_text();
+		auto lines = text.split("\n");
+		for (auto &line : lines) {
+			String translation_id = line.get_slice("#id:", 1).strip_edges();
+			if (!translation_id.is_empty()) {
+				line = line.strip_edges();
+				String event_key = "Text";
+				Vector<String> translatable_properties = { "text" };
+				if (line.begins_with("-")) {
+					// choice
+					event_key = "Choice";
+					translatable_properties.push_back("disabled_text");
+				} else if (line.begins_with("label")) {
+					event_key = "Label";
+					translatable_properties = { "display_name" };
+				} else if (line.begins_with("emotion")) {
+					event_key = "Emotion";
+					translatable_properties = { "emotion_identifier" };
+				} else {
+				}
+				for (auto &property : translatable_properties) {
+					tokens[i].strings.push_back(vformat("%s/%s/%s", event_key, translation_id, property));
+				}
+			}
+		}
+		return;
+	}
 	if (src_ext == "dll") { // .NET assembly
 		if (has_loaded_dotnet_assembly() && tokens[i].path == get_dotnet_assembly_path()) {
 			Ref<GodotMonoDecompWrapper> decompiler = get_dotnet_decompiler();
@@ -2784,6 +2831,8 @@ void GDRESettings::load_all_resource_strings() {
 	wildcards.push_back("*.cfg");
 	wildcards.push_back("*.esc");
 	wildcards.push_back("*.nut");
+	wildcards.push_back("*.dch");
+	wildcards.push_back("*.dtl");
 
 	Vector<String> r_files = get_file_list(wildcards);
 	if (has_loaded_dotnet_assembly()) {
@@ -3393,6 +3442,7 @@ Variant GDRESettings::get_shader_global(const String &p_name) const {
 	return shader_globals.get(p_name);
 }
 
+namespace {
 struct ODBDLoadTask {
 	Vector<String> paths;
 	Mutex global_lock;
@@ -3534,6 +3584,7 @@ struct ODBDLoadTask {
 		return vformat("Loading resource: %s", paths[i]);
 	}
 };
+} //namespace
 
 Error GDRESettings::_load_obdb_resources() {
 	// gather all the files that have `.optimized.scn` or `.optimized.res` extensions

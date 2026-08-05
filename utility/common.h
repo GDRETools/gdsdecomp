@@ -35,7 +35,7 @@ Error rimraf(const String &dir);
 bool dir_is_empty(const String &dir);
 Error touch_file(const String &path);
 bool store_var_compat(Ref<FileAccess> f, const Variant &p_var, int ver_major, bool p_full_objects = false, bool p_real_t_is_double = false);
-String get_full_path(const String &p_path, DirAccess::AccessType p_access);
+String get_full_path(const String &p_path);
 bool directory_has_any_of(const String &p_dir_path, const Vector<String> &p_files);
 Vector<String> get_files_at(const String &p_dir, const Vector<String> &wildcards, bool absolute = true);
 Vector<String> get_directories_at_recursive(const String &p_dir, bool absolute = true, bool include_hidden = true);

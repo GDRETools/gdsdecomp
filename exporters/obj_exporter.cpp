@@ -14,6 +14,7 @@
 
 #include <filesystem>
 
+namespace {
 struct Triplet {
 	Vector3 v;
 	Vector2 vt;
@@ -52,6 +53,8 @@ struct TripletHasher {
 		return HashMapHasherDefault::hash(t.v) ^ HashMapHasherDefault::hash(t.vt) ^ HashMapHasherDefault::hash(t.vn) ^ HashMapHasherDefault::hash(t.vc);
 	}
 };
+} //namespace
+
 namespace {
 
 inline bool has_shadow_mesh(const Ref<Mesh> &p_mesh) {

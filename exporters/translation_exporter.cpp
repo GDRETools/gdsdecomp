@@ -1195,7 +1195,7 @@ struct KeyWorker {
 
 	void stage_1(uint32_t i, String *input_resource_strings) {
 		const String &key = input_resource_strings[i];
-		try_key(key);
+		try_key(key) || try_key(key.to_upper()) || try_key(key.to_lower());
 	}
 
 	int64_t pop_keys(bool quiet = false) {
@@ -1788,12 +1788,15 @@ struct KeyWorker {
 		}
 	}
 
+	double get_found_key_ratio() {
+		return non_blank_keys == 0 ? 0.0 : (double)key_to_message.size() / (double)non_blank_keys;
+	}
+
 	bool step_too_long(Stage step) {
 		if (!step_to_max_filt_res_strings.has(step)) {
 			return false;
 		}
-		auto found_key_ratio = (double)key_to_message.size() / (double)non_blank_keys;
-		double adjustment = MAX(found_key_ratio, 0.50); // don't adjust more than 50%
+		double adjustment = MAX(get_found_key_ratio(), 0.50); // don't adjust more than 50%
 		auto adjusted_frs_size = filtered_resource_strings.size() * adjustment;
 		if (adjusted_frs_size > step_to_max_filt_res_strings[step]) {
 			return true;
@@ -1805,7 +1808,7 @@ struct KeyWorker {
 		if (all_keys_present()) {
 			return false;
 		}
-		if (!more_thorough_recovery && step >= START_OF_LONG_RUNNING_STAGES && (double)key_to_message.size() / (double)non_blank_keys >= 0.99) {
+		if (!more_thorough_recovery && step >= START_OF_LONG_RUNNING_STAGES && get_found_key_ratio()) {
 			return false;
 		}
 		return !step_too_long(step);

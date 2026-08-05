@@ -216,7 +216,7 @@ Vector<GDScriptDecompVersion> GDScriptDecompVersion::decomp_versions = {
 	{ 0x77af6ca, "4.3.0-stable (77af6ca / 2024-02-09 / Bytecode version: 100) - initial version", 100, false, "4.3.0-stable", "4.4.9-stable", 0x0 },
 	{ 0xf3f05dc, "	4.0-dev2 (f3f05dc / 2020-02-13 / Bytecode version: 13) - Removed `SYNC`, `SLAVE` tokens.", 13, true, "4.0-dev2", "", 0x506df14 },
 	{ 0x506df14, "	4.0-dev1 (506df14 / 2020-02-12 / Bytecode version: 13) - Removed `decimals` function.", 13, true, "4.0-dev1", "", 0x5565f55 },
-	{ 0xa7aad78, "3.5.0-stable (a7aad78 / 2020-10-07 / Bytecode version: 13) - Added `deep_equal` function.", 13, false, "3.5.0-stable", "3.6.1-stable", 0x5565f55 },
+	{ 0xa7aad78, "3.5.0-stable (a7aad78 / 2020-10-07 / Bytecode version: 13) - Added `deep_equal` function.", 13, false, "3.5.0-stable", "3.7.0-stable", 0x5565f55 },
 	{ 0x5565f55, "3.2.0-stable (5565f55 / 2019-08-26 / Bytecode version: 13) - Added `ord` function.", 13, false, "3.2.0-stable", "3.4.5-stable", 0x6694c11 },
 	{ 0x6694c11, "	3.2-dev5 (6694c11 / 2019-07-20 / Bytecode version: 13) - Added `lerp_angle` function.", 13, true, "3.2-dev5", "", 0xa60f242 },
 	{ 0xa60f242, "	3.2-dev4 (a60f242 / 2019-07-19 / Bytecode version: 13) - Added `posmod` function.", 13, true, "3.2-dev4", "", 0xc00427a },

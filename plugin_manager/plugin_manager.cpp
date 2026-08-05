@@ -329,6 +329,7 @@ void PluginManager::save_cache() {
 	}
 }
 
+namespace {
 struct PrePopToken {
 	String plugin_name;
 	Ref<PluginSource> source;
@@ -365,6 +366,7 @@ struct PrePopTask {
 		}
 	}
 };
+} //namespace
 
 Error PluginManager::prepop_cache(const Vector<String> &plugin_names, const String &output_path) {
 	bool multithread = !GDREConfig::get_singleton()->get_setting("force_single_threaded", false);
@@ -813,6 +815,7 @@ void PluginManager::_bind_methods() {
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("clear_download_cache"), &PluginManager::clear_download_cache);
 }
 
+namespace {
 struct _PluginVersionSort {
 	bool operator()(const PluginVersion &a, const PluginVersion &b) const {
 		if (a.plugin_name != b.plugin_name) {
@@ -821,6 +824,7 @@ struct _PluginVersionSort {
 		return a.release_info.version < b.release_info.version;
 	}
 };
+} //namespace
 
 void PluginManager::print_plugin_cache() {
 	Vector<PluginVersion> plugin_versions;

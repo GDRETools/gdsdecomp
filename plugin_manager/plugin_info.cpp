@@ -1,14 +1,35 @@
 #include "plugin_info.h"
 #include "utility/common.h"
 
+namespace {
+void set_if_not_empty(Dictionary &d, const String &key, const String &value) {
+	if (!value.is_empty()) {
+		d[key] = value;
+	}
+}
+
+void set_if_not_empty(Dictionary &d, const String &key, const Array &value) {
+	if (!value.is_empty()) {
+		d[key] = value;
+	}
+}
+
+void set_if_not_empty(Dictionary &d, const String &key, const Vector<String> &value) {
+	if (!value.is_empty()) {
+		d[key] = value;
+	}
+}
+
+} //namespace
+
 Dictionary PluginBin::to_json() const {
 	Dictionary d;
 	d["name"] = name;
-	d["sha256"] = sha256;
-	d["verbatim_sha256"] = verbatim_sha256;
+	set_if_not_empty(d, "sha256", sha256);
+	set_if_not_empty(d, "verbatim_sha256", verbatim_sha256);
 	d["exists"] = exists;
-	d["bin_ver"] = bin_ver;
-	d["tags"] = tags;
+	set_if_not_empty(d, "bin_ver", bin_ver);
+	set_if_not_empty(d, "tags", tags);
 	return d;
 }
 
@@ -25,19 +46,19 @@ PluginBin PluginBin::from_json(Dictionary d) {
 
 Dictionary GDExtInfo::to_json() const {
 	Dictionary d;
-	d["relative_path"] = relative_path;
-	d["min_godot_version"] = min_godot_version;
-	d["max_godot_version"] = max_godot_version;
+	set_if_not_empty(d, "relative_path", relative_path);
+	set_if_not_empty(d, "min_godot_version", min_godot_version);
+	set_if_not_empty(d, "max_godot_version", max_godot_version);
 	Array bins_arr;
 	for (const auto &bin : bins) {
 		bins_arr.push_back(bin.to_json());
 	}
-	d["bins"] = bins_arr;
+	set_if_not_empty(d, "bins", bins_arr);
 	Array deps_arr;
 	for (const auto &dep : dependencies) {
 		deps_arr.push_back(dep.to_json());
 	}
-	d["dependencies"] = deps_arr;
+	set_if_not_empty(d, "dependencies", deps_arr);
 	return d;
 }
 
@@ -46,11 +67,11 @@ GDExtInfo GDExtInfo::from_json(Dictionary d) {
 	info.relative_path = d.get("relative_path", "");
 	info.min_godot_version = d.get("min_godot_version", "");
 	info.max_godot_version = d.get("max_godot_version", "");
-	Array bins_arr = d.get("bins", {});
+	Array bins_arr = d.get("bins", Array());
 	for (int i = 0; i < bins_arr.size(); i++) {
 		info.bins.push_back(PluginBin::from_json(bins_arr[i]));
 	}
-	Array deps_arr = d.get("dependencies", {});
+	Array deps_arr = d.get("dependencies", Array());
 	for (int i = 0; i < deps_arr.size(); i++) {
 		info.dependencies.push_back(PluginBin::from_json(deps_arr[i]));
 	}
@@ -62,15 +83,16 @@ bool ReleaseInfo::is_valid() const {
 }
 
 Dictionary ReleaseInfo::to_json() const {
+	// all other keys should be non-empty
 	Dictionary d;
 	d["plugin_source"] = plugin_source;
 	d["primary_id"] = primary_id;
 	d["secondary_id"] = secondary_id;
 	d["version"] = version;
-	d["release_date"] = release_date;
+	set_if_not_empty(d, "release_date", release_date);
 	d["download_url"] = download_url;
 	d["repository_url"] = repository_url;
-	d["sha256_sum"] = sha256_sum;
+	set_if_not_empty(d, "sha256_sum", sha256_sum);
 	return d;
 }
 
@@ -166,16 +188,16 @@ Dictionary PluginVersion::to_json() const {
 	d["cache_version"] = cache_version;
 	d["plugin_name"] = plugin_name;
 	d["release_info"] = release_info.to_json();
-	d["min_godot_version"] = min_godot_version;
-	d["max_godot_version"] = max_godot_version;
-	d["base_folder"] = base_folder;
+	set_if_not_empty(d, "min_godot_version", min_godot_version);
+	set_if_not_empty(d, "max_godot_version", max_godot_version);
+	set_if_not_empty(d, "base_folder", base_folder);
 	d["size"] = size;
-	d["archive_sha256"] = archive_sha256;
+	set_if_not_empty(d, "archive_sha256", archive_sha256);
 	Array gdexts_arr;
 	for (const auto &gdext : gdexts) {
 		gdexts_arr.push_back(gdext.to_json());
 	}
-	d["gdexts"] = gdexts_arr;
+	set_if_not_empty(d, "gdexts", gdexts_arr);
 	return d;
 }
 
@@ -183,13 +205,13 @@ PluginVersion PluginVersion::from_json(Dictionary d) {
 	PluginVersion version;
 	version.cache_version = d.get("cache_version", -1);
 	version.plugin_name = d.get("plugin_name", "");
-	version.release_info = ReleaseInfo::from_json(d.get("release_info", {}));
+	version.release_info = ReleaseInfo::from_json(d.get("release_info", Dictionary()));
 	version.min_godot_version = d.get("min_godot_version", "");
 	version.max_godot_version = d.get("max_godot_version", "");
 	version.base_folder = d.get("base_folder", "");
 	version.size = d.get("size", 0);
 	version.archive_sha256 = d.get("archive_sha256", "");
-	Array gdexts_arr = d.get("gdexts", {});
+	Array gdexts_arr = d.get("gdexts", Array());
 	for (int i = 0; i < gdexts_arr.size(); i++) {
 		version.gdexts.push_back(GDExtInfo::from_json(gdexts_arr[i]));
 	}

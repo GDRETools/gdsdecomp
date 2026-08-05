@@ -854,7 +854,9 @@ Error VariantDecoderCompat::decode_variant_3(Variant &r_variant, const uint8_t *
 						obj->set(str, value);
 					}
 					if (converter.is_valid()) {
-						r_variant = converter->convert(missing_resource, ResourceInfo::LoadType::REAL_LOAD, 3, &err);
+						Ref<Resource> res = converter->convert(missing_resource, ResourceInfo::LoadType::REAL_LOAD, 3, &err);
+						res->set_path_cache(missing_resource->get_path());
+						r_variant = res;
 					} else if (Object::cast_to<RefCounted>(obj)) {
 						Ref<RefCounted> ref = Ref<RefCounted>(Object::cast_to<RefCounted>(obj));
 						r_variant = ref;
@@ -1572,7 +1574,9 @@ Error VariantDecoderCompat::decode_variant_2(Variant &r_variant, const uint8_t *
 					}
 
 					if (converter.is_valid()) {
-						r_variant = converter->convert(missing_resource, ResourceInfo::LoadType::REAL_LOAD, 2, &err);
+						Ref<Resource> res = converter->convert(missing_resource, ResourceInfo::LoadType::REAL_LOAD, 2, &err);
+						res->set_path_cache(missing_resource->get_path());
+						r_variant = res;
 					} else if (Object::cast_to<RefCounted>(obj)) {
 						Ref<RefCounted> ref = Ref<RefCounted>(Object::cast_to<RefCounted>(obj));
 						r_variant = ref;
