@@ -948,7 +948,7 @@ Error GDRESettings::detect_bytecode_revision(bool p_no_valid_version) {
 		if (ver_major > 0 && ver_minor >= 0) {
 			auto decomp = GDScriptDecomp::create_decomp_for_version(current_project->version->as_text(), true);
 			ERR_FAIL_COND_V_MSG(decomp.is_null(), fail_error, "Could not find bytecode revision for engine version: " + get_version_string());
-			print_line("Guessing bytecode revision from engine version: " + get_version_string() + " (rev 0x" + String::num_int64(decomp->get_bytecode_rev(), 16) + ")");
+			print_line("Guessing best bytecode revision from engine version " + get_version_string() + ": " + decomp->get_engine_version() + " (rev 0x" + String::num_int64(decomp->get_bytecode_rev(), 16) + ")");
 			current_project->bytecode_revision = decomp->get_bytecode_rev();
 			return OK;
 		}
@@ -2270,10 +2270,6 @@ struct ScriptCacheTask {
 
 void GDRESettings::_ensure_script_cache_complete() {
 	Vector<String> filters;
-	// We don't need this for C# scripts since they already get their base class script paths via the decompiler, and it's a significant performance hit loading them.
-	if (has_loaded_dotnet_assembly()) {
-		filters.push_back("*.cs");
-	}
 	// Don't attempt to load compiled scripts if we don't have a valid version.
 	if (get_bytecode_revision() != 0) {
 		filters.append_array({ "*.gd", "*.gdc", "*.gde" });
@@ -2283,6 +2279,10 @@ void GDRESettings::_ensure_script_cache_complete() {
 	}
 	cached_scripts.clear();
 	auto script_paths = get_file_list(filters);
+	if (has_loaded_dotnet_assembly()) {
+		Vector<String> global_classes = current_project->decompiler->get_global_class_files();
+		script_paths.append_array(global_classes);
+	}
 	Vector<ScriptCacheTask::ScriptCacheTaskToken> tokens;
 	for (auto &path : script_paths) {
 		auto ext = path.get_extension().to_lower();

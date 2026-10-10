@@ -30,6 +30,8 @@
 
 #pragma once
 
+#include "gui/gdre_previewer.h"
+
 #include "scene/gui/spin_box.h"
 #include "scene/resources/material.h"
 #include "scene/resources/shader.h"
@@ -37,8 +39,8 @@
 
 class GDREColorChannelSelector;
 
-class TextureLayeredPreviewer : public Control {
-	GDCLASS(TextureLayeredPreviewer, Control);
+class TextureLayeredPreviewer : public GDREPreviewer {
+	GDCLASS(TextureLayeredPreviewer, GDREPreviewer);
 
 	struct ThemeCache {
 		Color outline_color;
@@ -46,10 +48,12 @@ class TextureLayeredPreviewer : public Control {
 
 	SpinBox *layer = nullptr;
 	Label *info = nullptr;
-	Ref<TextureLayered> texture;
+	Ref<Texture> texture;
 
-	static inline Ref<Shader> shaders[3];
-	Ref<ShaderMaterial> materials[3];
+	static constexpr const int MATERIAL_COUNT = 4;
+
+	static inline Ref<Shader> shaders[MATERIAL_COUNT];
+	Ref<ShaderMaterial> materials[MATERIAL_COUNT];
 
 	float x_rot = 0;
 	float y_rot = 0;
@@ -81,9 +85,11 @@ class TextureLayeredPreviewer : public Control {
 
 	void on_selected_channels_changed();
 
-protected:
-	static void _bind_methods();
+	Pair<int, int> get_texture_size() const;
 
+	int get_material_index() const;
+
+protected:
 	void _notification(int p_what);
 	virtual void gui_input(const Ref<InputEvent> &p_event) override;
 
@@ -91,9 +97,12 @@ public:
 	static void init_shaders();
 	static void finish_shaders();
 
-	void edit(Ref<TextureLayered> p_texture);
-	void reset();
-	String get_edited_resource_path() const;
+	virtual String get_previewer_name() const override;
+	virtual Error edit(Ref<Resource> p_texture) override;
+	virtual bool can_edit(const String &p_resource_path, const String &p_resource_type) const override;
+	virtual String get_edited_resource_path() const override;
+	virtual void reset() override;
+	virtual ResourceInfo::LoadType get_load_type() const override;
 
 	TextureLayeredPreviewer();
 };

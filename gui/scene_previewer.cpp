@@ -297,22 +297,33 @@ ScenePreviewer2D::ScenePreviewer2D() {
 
 ScenePreviewer::ScenePreviewer() {
 	set_theme_type_variation("ScenePreviewer");
+	main = memnew(MarginContainer);
+	main->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT, Control::PRESET_MODE_MINSIZE, 0);
+	add_child(main);
+
 	previewer_3d = memnew(ScenePreviewer3D);
 	previewer_2d = memnew(ScenePreviewer2D);
 	previewer_2d->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	previewer_2d->set_v_size_flags(Control::SIZE_EXPAND_FILL);
 	previewer_2d->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	previewer_2d->set_v_size_flags(Control::SIZE_EXPAND_FILL);
-	add_child(previewer_3d);
+	main->add_child(previewer_3d);
 	previewer_3d->set_visible(false);
-	add_child(previewer_2d);
+	main->add_child(previewer_2d);
 	previewer_2d->set_visible(false);
 }
 
-void ScenePreviewer::edit(Ref<PackedScene> p_scene) {
+String ScenePreviewer::get_previewer_name() const {
+	return "scene";
+}
+
+Error ScenePreviewer::edit(Ref<Resource> p_scene) {
+	ERR_FAIL_COND_V_MSG(p_scene.is_null(), ERR_INVALID_PARAMETER, "Scene is null");
 	reset();
 	scene = p_scene;
+	ERR_FAIL_COND_V_MSG(scene.is_null(), ERR_INVALID_PARAMETER, "Resource is not a PackedScene");
 	Node *root = scene->instantiate();
+	ERR_FAIL_COND_V_MSG(!root, ERR_INVALID_PARAMETER, "Failed to instantiate scene");
 	root->set_process_mode(Node::PROCESS_MODE_DISABLED);
 	root->set_process(false);
 	root->set_process_internal(false);
@@ -332,6 +343,7 @@ void ScenePreviewer::edit(Ref<PackedScene> p_scene) {
 	root->set_process_internal(false);
 	root->set_physics_process(false);
 	root->set_physics_process_internal(false);
+	return OK;
 }
 
 void ScenePreviewer::reset() {
@@ -342,20 +354,28 @@ void ScenePreviewer::reset() {
 	scene = nullptr;
 }
 
-void ScenePreviewer2D::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("edit", "scene"), &ScenePreviewer2D::edit);
-	ClassDB::bind_method(D_METHOD("reset"), &ScenePreviewer2D::reset);
-}
-
-void ScenePreviewer::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("edit", "scene"), &ScenePreviewer::edit);
-	ClassDB::bind_method(D_METHOD("reset"), &ScenePreviewer::reset);
-	ClassDB::bind_method(D_METHOD("get_edited_resource_path"), &ScenePreviewer::get_edited_resource_path);
-}
-
 String ScenePreviewer::get_edited_resource_path() const {
 	if (scene.is_valid()) {
 		return scene->get_path();
 	}
 	return "";
+}
+
+bool ScenePreviewer::can_edit(const String &p_resource_path, const String &p_resource_type) const {
+	if (!p_resource_type.is_empty()) {
+		return p_resource_type == "PackedScene";
+	}
+	String ext = p_resource_path.get_file().get_extension().to_lower();
+	if (ext == "tscn" || ext == "scn") {
+		return true;
+	}
+	return false;
+}
+
+ResourceInfo::LoadType ScenePreviewer::get_load_type() const {
+	return ResourceInfo::LoadType::REAL_LOAD;
+}
+
+bool ScenePreviewer::can_switch_to_text() const {
+	return true;
 }

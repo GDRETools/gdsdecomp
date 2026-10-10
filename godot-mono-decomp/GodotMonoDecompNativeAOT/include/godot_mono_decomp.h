@@ -138,6 +138,8 @@ int GodotMonoDecomp_IsCustomVersionDetected(void *decompilerHandle);
 
 bool GodotMonoDecomp_CheckFileIsAssembly(const char* file);
 
+const char** GodotMonoDecomp_GetGlobalClassFiles(void* decompilerHandle, int* r_num_files);
+
 #ifdef __cplusplus
 }
 #endif

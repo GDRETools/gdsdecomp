@@ -9,8 +9,8 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
     <ItemGroup>
-      <PackageReference Include="ICSharpCode.Decompiler" Version="11.0.0.9375" />
-      <PackageReference Include="ICSharpCode.ILSpyX" Version="11.0.0.9375" />
+      <PackageReference Include="ICSharpCode.Decompiler" Version="11.1.0.9782" />
+      <PackageReference Include="ICSharpCode.ILSpyX" Version="11.1.0.9782" />
       <PackageReference Include="NuGet.Packaging" Version="6.14.0" />
     </ItemGroup>
 

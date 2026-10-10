@@ -381,4 +381,25 @@ static public class Lib
 			return false;
 		}
 	}
+
+	[UnmanagedCallersOnly(EntryPoint = "GodotMonoDecomp_GetGlobalClassFiles")]
+	public static IntPtr AOTGetGlobalClassFiles(
+		IntPtr decompilerHandle,
+		IntPtr r_num_files
+	)
+	{
+		var decompiler = GCHandle.FromIntPtr(decompilerHandle).Target as GodotModuleDecompiler;
+		if (decompiler == null)
+		{
+			return IntPtr.Zero;
+		}
+		var files = decompiler.GetGlobalClassFiles();
+		Marshal.WriteInt32(r_num_files, files.Length);
+		var arrayPtr = Marshal.AllocHGlobal(files.Length * IntPtr.Size);
+		for (int i = 0; i < files.Length; i++)
+		{
+			Marshal.WriteIntPtr(arrayPtr + i * IntPtr.Size, StringToHGlobalUtf8(files[i]));
+		}
+		return arrayPtr;
+	}
 }

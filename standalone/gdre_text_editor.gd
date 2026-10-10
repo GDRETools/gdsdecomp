@@ -306,7 +306,15 @@ func load_code(path, override_bytecode_revision: int = 0) -> bool:
 func load_text_resource(path):
 	current_path = path
 	set_highlight_type(HighlightType.GDRESOURCE)
-	set_viewer_text(ResourceCompatLoader.resource_to_string(path))
+	set_viewer_text(ResourceCompatLoader.resource_file_to_string(path))
+	return true
+
+func load_text(path: String, text: String, type: HighlightType = HighlightType.UNKNOWN):
+	if type == HighlightType.UNKNOWN:
+		type = recognize(path)
+	current_path = path
+	set_highlight_type(type)
+	set_viewer_text(text)
 	return true
 
 func load_text_string(text):

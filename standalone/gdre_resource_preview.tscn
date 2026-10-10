@@ -2,9 +2,6 @@
 
 [ext_resource type="Theme" uid="uid://crq1fwn0ajw7b" path="res://gdre_theme.tres" id="1_crn14"]
 [ext_resource type="Script" uid="uid://dnjt5hkgucm3" path="res://gdre_resource_preview.gd" id="1_tgfma"]
-[ext_resource type="Texture2D" uid="uid://b3l2iqhf34x5c" path="res://gdre_icons/gdre_LogoBig.svg" id="3_gp5ss"]
-[ext_resource type="PackedScene" uid="uid://cuifra52kkek" path="res://gdre_media_player.tscn" id="4_crn14"]
-[ext_resource type="Script" uid="uid://d3gw3xp1peanv" path="res://gdre_text_editor.gd" id="5_1bufa"]
 [ext_resource type="Material" uid="uid://dql80mrl8tckq" path="res://gdre_loading_circle.tres" id="6_gp5ss"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gp5ss"]
@@ -35,7 +32,7 @@ split_offset = 220
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="ResourceView" type="Control" parent="VBoxContainer/RootView" unique_id=1217151174]
+[node name="ResourceView" type="TabContainer" parent="VBoxContainer/RootView" unique_id=361258567]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -44,15 +41,17 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 size_flags_vertical = 3
+current_tab = 0
+tabs_visible = false
+switch_on_drag_hover = false
+
+[node name="BlankView" type="Control" parent="VBoxContainer/RootView/ResourceView" unique_id=35235235]
+unique_name_in_owner = true
 
 [node name="LoadingWaitView" type="CenterContainer" parent="VBoxContainer/RootView/ResourceView" unique_id=99313455]
 unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+layout_mode = 2
+metadata/_tab_index = 0
 
 [node name="LoadingCirclePanel" type="Panel" parent="VBoxContainer/RootView/ResourceView/LoadingWaitView" unique_id=1278454177]
 material = ExtResource("6_gp5ss")
@@ -60,91 +59,7 @@ custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_gp5ss")
 
-[node name="TextureView" type="TexturePreviewer" parent="VBoxContainer/RootView/ResourceView" unique_id=494726531]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="MediaPlayer" parent="VBoxContainer/RootView/ResourceView" unique_id=326216806 instance=ExtResource("4_crn14")]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-
-[node name="TextView" type="CodeEdit" parent="VBoxContainer/RootView/ResourceView" unique_id=2141427000]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme = ExtResource("1_crn14")
-text = "@tool
-class_name FOO
-extends Node
-@export var string_prop: String = \"haldo\"
-func thingy():
-	var foo = 1
-	var bl = true
-	var bar = \"var\"
-	var baz: Color = Color(0.1,0.2,0.3)
-	var far: float = baz.r
-	var string_name: StringName = &\"haldo\"
-	var barf: NodePath = ^\"farts/lmao\"
-	$Cam / Camera2D.drag_margin_left = margin
-	$Cam / Camera2D.drag_margin_right = margin
-	var node_id = $Path/To/Node
-	var node_id_2 = $Path/To/\"A\"/Node/With/\"Some Spaces\"/In/It.thing()
-# this is a really long comment that is going to wrap around the text box!
-	lerp()
-	pass
-#  haldodelimiter_comments
-# NOTE: This is a note
-# BUG: This is a warning
-# ALERT: this is a critical"
-editable = false
-highlight_all_occurrences = true
-highlight_current_line = true
-script = ExtResource("5_1bufa")
-metadata/_custom_type_script = "uid://d3gw3xp1peanv"
-
-[node name="MeshPreviewer" type="MeshPreviewer" parent="VBoxContainer/RootView/ResourceView" unique_id=1377593542]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="ScenePreviewer3D" type="ScenePreviewer" parent="VBoxContainer/RootView/ResourceView" unique_id=2045920641]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="TextureLayeredPreviewer" type="TextureLayeredPreviewer" parent="VBoxContainer/RootView/ResourceView" unique_id=262956170]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="SwitchViewButton" type="Button" parent="VBoxContainer/RootView/ResourceView" unique_id=1975647277]
+[node name="SwitchViewButton" type="Button" parent="VBoxContainer/RootView" unique_id=1975647277]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = -1
@@ -152,8 +67,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -162.0
-offset_top = -31.0
+offset_left = -184.0
+offset_top = -41.0
 offset_right = -10.0
 offset_bottom = -10.0
 grow_horizontal = 0
@@ -180,4 +95,4 @@ text = "[b]Path:[/b]
 
 [connection signal="drag_ended" from="VBoxContainer" to="." method="_on_v_box_container_drag_ended"]
 [connection signal="drag_started" from="VBoxContainer" to="." method="_on_v_box_container_drag_started"]
-[connection signal="pressed" from="VBoxContainer/RootView/ResourceView/SwitchViewButton" to="." method="_on_switch_view_button_pressed"]
+[connection signal="pressed" from="VBoxContainer/RootView/SwitchViewButton" to="." method="_on_switch_view_button_pressed"]

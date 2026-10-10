@@ -63,6 +63,7 @@ public:
 	bool try_open_pack(const String &p_path, bool p_replace_files, uint64_t p_offset, const Vector<uint8_t> &p_decryption_key = Vector<uint8_t>());
 	Ref<FileAccess> get_file(const String &p_path, Ref<CoreBind::PackedFile> p_file, const Vector<uint8_t> &p_decryption_key = Vector<uint8_t>());
 
+	static Ref<FileAccess> open_encrypted_file(const Ref<FileAccess> &p_base, const Vector<uint8_t> &p_key, FileAccess::ModeFlags p_mode = FileAccess::READ, bool p_with_magic = true, const Vector<uint8_t> &p_iv = Vector<uint8_t>());
 	static Ref<FileAccess> create_file_access_pck(const String &p_path, const Ref<CoreBind::PackedFile> &p_file, const Vector<uint8_t> &p_decryption_key);
 	static int64_t seek_pck_offset_from_exe(Ref<FileAccess> p_file, const String &p_path, const PackedByteArray &custom_magic = PackedByteArray());
 	static Ref<FileAccess> get_bundled_file(const String &p_path, const Ref<CoreBind::PackedFile> &p_file, const Vector<uint8_t> &p_decryption_key);
@@ -135,6 +136,7 @@ public:
 	static DummySource *get_singleton();
 	virtual bool try_open_pack(const String &p_path, bool p_replace_files, uint64_t p_offset, const Vector<uint8_t> &p_decryption_key = Vector<uint8_t>()) override;
 	virtual Ref<FileAccess> get_file(const String &p_path, PackedData::PackedFile *p_file, const Vector<uint8_t> &p_decryption_key = Vector<uint8_t>()) override;
+	void clear();
 	DummySource();
 	~DummySource();
 };

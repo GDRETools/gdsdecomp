@@ -23,11 +23,6 @@ const PACK_FILE_ENCRYPTED: int = 1 << 0
 const PACK_FILE_REMOVAL: int = 1 << 1
 const PACK_FILE_DELTA: int = 1 << 2
 
-func open_encrypted_file(base: FileAccess, key: PackedByteArray) -> FileAccess:
-	if GDRESettings.get_custom_decryptor():
-		return FileAccessEncryptedCustom.create_and_parse_custom(GDRESettings.get_custom_decryptor(), base, key, FileAccessEncryptedCustom.MODE_READ, false)
-	return FileAccessEncryptedCustom.create_and_parse_non_custom(base, key, FileAccessEncryptedCustom.MODE_READ, false)
-
 func _try_open_pack(pck_path: String, p_replace_files: bool, p_offset: int, p_decryption_key: PackedByteArray) -> bool:
 	var ext: String = pck_path.get_extension().to_lower()
 	if ext == "apk" or ext == "zip":
@@ -89,7 +84,7 @@ func _try_open_pack(pck_path: String, p_replace_files: bool, p_offset: int, p_de
 		if sparse_bundle and enc_directory and version == PACK_FORMAT_VERSION_V4:
 			# V4: Read encrypted directory salt.
 			var salt_data: PackedByteArray = f.get_buffer(32)
-			salt = salt_data.get_string_from_utf8()
+			salt = GDRECommon.get_latin1_string_from_bytes(salt_data)
 		if dir_offset == 0:
 			printerr("Directory offset is 0, this is not a valid PCK file")
 			return false
@@ -113,7 +108,7 @@ func _try_open_pack(pck_path: String, p_replace_files: bool, p_offset: int, p_de
 	if enc_directory:
 		if p_decryption_key.is_empty():
 			p_decryption_key = GDRESettings.get_encryption_key()
-		var file = open_encrypted_file(f, p_decryption_key)
+		var file = PackSourceCustom.open_encrypted_file(f, p_decryption_key, FileAccess.READ, false)
 		if not file or file.get_error() != OK:
 			printerr("Failed to open encrypted pack directory: " + str(file.get_error() if file else "Unknown error"))
 			return false
@@ -176,7 +171,7 @@ func _get_file(p_path: String, p_file: PackedFile, p_decryption_key: PackedByteA
 				printerr("Failed to open pack-referenced file: " + str(base.get_error() if base else "Unknown error"))
 				return null
 			base.seek(p_file.offset)
-			file = open_encrypted_file(base, p_decryption_key)
+			file = PackSourceCustom.open_encrypted_file(base, p_decryption_key, FileAccess.READ, false)
 			if not file or file.get_error() != OK:
 				printerr("Failed to open encrypted pack-referenced file: " + str(file.get_error() if file else "Unknown error"))
 				return null

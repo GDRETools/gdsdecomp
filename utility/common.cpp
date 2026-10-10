@@ -1188,6 +1188,12 @@ Error gdre::clear_dir_except_for(const String &p_dir, const Vector<String> &p_fi
 	return OK;
 }
 
+String gdre::get_latin1_string_from_bytes(const PackedByteArray &p_bytes) {
+	String salt;
+	salt.append_latin1(Span((const char *)p_bytes.ptr(), p_bytes.size()));
+	return salt;
+}
+
 void GDRECommon::_bind_methods() {
 	//	ClassDB::bind_static_method("GLTFCamera", D_METHOD("from_node", "camera_node"), &GLTFCamera::from_node);
 
@@ -1219,4 +1225,5 @@ void GDRECommon::_bind_methods() {
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_safe_dir_name", "dir_name", "allow_paths"), &gdre::get_safe_dir_name, DEFVAL(false));
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("clear_dir_except_for", "dir", "files_or_dirs"), &gdre::clear_dir_except_for);
 	ClassDB::bind_static_method("GDRECommon", D_METHOD("load_image_from_file", "path"), &gdre::load_image_from_file);
+	ClassDB::bind_static_method("GDRECommon", D_METHOD("get_latin1_string_from_bytes", "bytes"), &gdre::get_latin1_string_from_bytes);
 }

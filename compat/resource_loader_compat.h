@@ -52,7 +52,8 @@ public:
 	static bool exists(const String &p_path);
 	static bool has_custom_uid_support(const String &p_path);
 
-	static String resource_to_string(const String &p_path, bool p_skip_cr = true);
+	static String resource_file_to_string(const String &p_path);
+	static String resource_to_string(const Ref<Resource> &p_resource);
 
 	static void set_default_gltf_load(bool p_enable);
 	static bool is_default_gltf_load();

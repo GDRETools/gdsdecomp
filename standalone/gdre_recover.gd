@@ -195,7 +195,7 @@ func _export_mesh(file: String, output_dir: String, dir_structure: DirStructure,
 		report.error = ResourceCompatLoader.to_text(file, export_dest)
 		return report
 
-	if export_type == ExportMeshType.OBJ:
+	if ext == "obj":
 		report.error = ObjExporter.export_file_with_options(export_dest, file, {})
 	else:
 		report = SceneExporter.export_file_with_options(export_dest, file, {

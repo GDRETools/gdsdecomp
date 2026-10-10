@@ -36,15 +36,18 @@
 #include "scene/gui/subviewport_container.h"
 #include "scene/resources/camera_attributes.h"
 
+#include "gui/gdre_previewer.h"
+
 class SubViewport;
 class Button;
 
-class MeshPreviewer : public SubViewportContainer {
-	GDCLASS(MeshPreviewer, SubViewportContainer);
+class MeshPreviewer : public GDREPreviewer {
+	GDCLASS(MeshPreviewer, GDREPreviewer);
 
 	float rot_x;
 	float rot_y;
 
+	SubViewportContainer *main = nullptr;
 	SubViewport *viewport = nullptr;
 	MeshInstance3D *mesh_instance = nullptr;
 	Vector3 scale = Vector3(1.0, 1.0, 1.0);
@@ -72,11 +75,14 @@ protected:
 	virtual void _update_theme_item_cache() override;
 	void _notification(int p_what);
 	void gui_input(const Ref<InputEvent> &p_event) override;
-	static void _bind_methods();
 
 public:
-	String get_edited_resource_path() const;
-	void edit(Ref<Mesh> p_mesh);
-	void reset();
+	virtual String get_previewer_name() const override;
+	virtual String get_edited_resource_path() const override;
+	virtual Error edit(Ref<Resource> p_mesh) override;
+	virtual bool can_edit(const String &p_resource_path, const String &p_resource_type) const override;
+	virtual void reset() override;
+	virtual ResourceInfo::LoadType get_load_type() const override;
+	virtual bool can_switch_to_text() const override;
 	MeshPreviewer();
 };

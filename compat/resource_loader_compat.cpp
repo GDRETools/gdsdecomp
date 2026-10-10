@@ -7,9 +7,11 @@
 #include "core/io/resource_loader.h"
 #include "core/object/class_db.h"
 #include "core/version_generated.gen.h"
+#include "scene/resources/text_file.h"
 #include "utility/common.h"
-#include "utility/file_access_buffer.h"
+#include "utility/file_access_string.h"
 #include "utility/gdre_settings.h"
+#include "utility/godot_mono_decomp_wrapper.h"
 #include "utility/resource_info.h"
 
 Ref<CompatFormatLoader> ResourceCompatLoader::loaders[ResourceCompatLoader::MAX_LOADERS];
@@ -555,7 +557,7 @@ Error ResourceCompatLoader::to_text(const String &p_path, const String &p_dst, u
 	return saver.save(p_dst, res, p_flags);
 }
 
-String ResourceCompatLoader::resource_to_string(const String &p_path, bool p_skip_cr) {
+String ResourceCompatLoader::resource_file_to_string(const String &p_path) {
 	ERR_FAIL_COND_V_MSG(p_path.is_empty(), "", "Path is empty");
 	String orig_path;
 	String path = p_path;
@@ -570,7 +572,12 @@ String ResourceCompatLoader::resource_to_string(const String &p_path, bool p_ski
 		return ProjectConfigLoader::get_project_settings_as_string(path);
 	}
 	String ext = path.get_extension().to_lower();
-	if (ext == "tres" || ext == "tscn" || !handles_resource(path, "")) {
+	if (ext == "cs" && GDRESettings::get_singleton()->has_loaded_dotnet_assembly()) {
+		String code = GDRESettings::get_singleton()->get_dotnet_decompiler()->decompile_individual_file(path);
+		return code;
+	}
+
+	if (FileAccess::exists(path) && (ext == "tres" || ext == "tscn" || ext == "gd" || ext == "cs" || !handles_resource(path, ""))) {
 		Error err;
 		Ref<FileAccess> f = FileAccess::open(path, FileAccess::READ, &err);
 		if (f.is_null() || err != OK) {
@@ -580,6 +587,9 @@ String ResourceCompatLoader::resource_to_string(const String &p_path, bool p_ski
 			return "ERROR: Failed to open file: " + path;
 		}
 		auto buf = f->get_buffer(f->get_length());
+		if (buf.size() == 0 || (buf.size() == 1 && buf[0] == 0)) {
+			return "";
+		}
 		if (ext == "tres" || ext == "tscn" || gdre::detect_utf8(buf)) {
 			String str;
 			str.append_utf8((const char *)buf.ptr(), buf.size());
@@ -597,15 +607,29 @@ String ResourceCompatLoader::resource_to_string(const String &p_path, bool p_ski
 		return "ERROR: Failed to load " + path;
 	}
 
-	int64_t length = FileAccess::get_size(path);
+	return resource_to_string(res);
+}
+
+String ResourceCompatLoader::resource_to_string(const Ref<Resource> &res) {
+	ERR_FAIL_COND_V_MSG(res.is_null(), "", "Resource is null");
+	int64_t length = 1024;
+	String path = res->get_path();
+	if (!path.is_empty() && FileAccess::exists(path)) {
+		length = FileAccess::get_size(path);
+	}
 	Ref<Script> script = res;
 	if (script.is_valid()) {
 		return script->get_source_code();
 	}
+	Ref<TextFile> text_file = res;
+	if (text_file.is_valid()) {
+		return text_file->get_text();
+	}
 
-	Ref<FileAccessBuffer> f = FileAccessBuffer::create(FileAccessBuffer::RESIZE_OPTIMIZED);
+	Ref<FileAccessString> f = FileAccessString::create();
 	f->reserve(length * 3);
 
+	Error err = OK;
 	String save_path;
 	String base_ext = path.get_basename().get_basename().get_extension();
 	bool optimized = path.contains(".optimized.");
@@ -895,7 +919,8 @@ void ResourceCompatLoader::_bind_methods() {
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("get_resource_script_class", "path"), &::ResourceCompatLoader::get_resource_script_class);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("get_resource_type", "path"), &::ResourceCompatLoader::get_resource_type);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("save_custom", "resource", "path", "ver_major", "ver_minor"), &::ResourceCompatLoader::save_custom);
-	ClassDB::bind_static_method(get_class_static(), D_METHOD("resource_to_string", "path", "skip_cr"), &::ResourceCompatLoader::resource_to_string, DEFVAL(true));
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("resource_file_to_string", "path"), &::ResourceCompatLoader::resource_file_to_string);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("resource_to_string", "resource"), &::ResourceCompatLoader::resource_to_string);
 	ClassDB::bind_integer_constant(get_class_static(), "LoadType", "FAKE_LOAD", ResourceInfo::FAKE_LOAD);
 	ClassDB::bind_integer_constant(get_class_static(), "LoadType", "NON_GLOBAL_LOAD", ResourceInfo::NON_GLOBAL_LOAD);
 	ClassDB::bind_integer_constant(get_class_static(), "LoadType", "GLTF_LOAD", ResourceInfo::GLTF_LOAD);

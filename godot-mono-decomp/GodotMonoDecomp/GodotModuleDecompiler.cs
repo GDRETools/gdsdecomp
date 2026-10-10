@@ -1025,5 +1025,22 @@ public class GodotModuleDecompiler
 		Console.WriteLine($"Dumped {strings.Count} strings to {outputFile}");
 	}
 
+	public string[] GetGlobalClassFiles() {
+		var godotObjectFiles = new List<string>();
+		List<GodotModule> list = [MainModule];
+		foreach (var module in list.Concat(AdditionalModules))
+		{
+			var decompiler = module.CreateCSharpDecompilerWithPartials(module.fileMap.SelectMany(kv => kv.Value).ToHashSet());
+			foreach (var kv in module.fileMap){
+				if (kv.Value.Any(type => {
+					var typeDef = decompiler.TypeSystem.MainModule.GetDefinition(type);
+					return typeDef != null && GodotStuff.IsGodotClass(typeDef) && typeDef.GetAttributes().Any(a => a.AttributeType.Name == "GlobalClassAttribute");
+					})){
+					godotObjectFiles.Add(kv.Key);
+				}
+			}
+		}
+		return godotObjectFiles.ToArray();
+	}
 
 }

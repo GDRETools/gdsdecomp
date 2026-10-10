@@ -2,59 +2,132 @@ class_name GDREResourcePreview
 extends Control
 
 const RESOURCE_INFO_TEXT_FORMAT = "[b]Path:[/b] %s\n[b]Type:[/b] %s\n[b]Format:[/b] %s"
-const IMAGE_FORMAT_NAME = [
-	"Lum8",
-	"LumAlpha8",
-	"Red8",
-	"RedGreen",
-	"RGB8",
-	"RGBA8",
-	"RGBA4444",
-	"RGBA5551", # Actually RGB565, kept as RGBA5551 for compatibility.
-	"RFloat",
-	"RGFloat",
-	"RGBFloat",
-	"RGBAFloat",
-	"RHalf",
-	"RGHalf",
-	"RGBHalf",
-	"RGBAHalf",
-	"RGBE9995",
-	"DXT1 RGB8",
-	"DXT3 RGBA8",
-	"DXT5 RGBA8",
-	"RGTC Red8",
-	"RGTC RedGreen8",
-	"BPTC_RGBA",
-	"BPTC_RGBF",
-	"BPTC_RGBFU",
-	"ETC",
-	"ETC2_R11",
-	"ETC2_R11S",
-	"ETC2_RG11",
-	"ETC2_RG11S",
-	"ETC2_RGB8",
-	"ETC2_RGBA8",
-	"ETC2_RGB8A1",
-	"ETC2_RA_AS_RG",
-	"FORMAT_DXT5_RA_AS_RG",
-	"ASTC_4x4",
-	"ASTC_4x4_HDR",
-	"ASTC_8x8",
-	"ASTC_8x8_HDR",
-]
+const SWITCH_TO_TEMPLATE = "Switch to %s View"
 
-const SWITCH_TO_SCENE_TEXT = "Switch to Scene View"
-const SWITCH_TO_MESH_TEXT = "Switch to Mesh View"
-const SWITCH_TO_TEXT_TEXT = "Switch to Text View"
+@onready var LOADING_WAIT_VIEW = %LoadingWaitView
+@onready var BLANK_VIEW = %BlankView
+
+const USE_THREADED_LOAD = true
+var pending_resources: Array[LoadTask] = []
+
+class TextPreviewer extends GDREPreviewer:
+	var text_view: GDRETextEditor = null
+
+	func _get_previewer_name() -> String:
+		return "text"
+	func _edit(resource: Resource) -> Error:
+		var text = ResourceCompatLoader.resource_to_string(resource)
+		text_view.load_text_string(text)
+		return OK
+	func _edit_from_path(resource_path: String) -> Error:
+		return text_view.load_path(resource_path, text_view.recognize(resource_path))
+	func _can_edit(resource_path: String, resource_type: String) -> bool:
+		return text_view.recognize(resource_path) != -1
+	func _get_edited_resource_path() -> String:
+		return text_view.current_path
+	func _reset():
+		text_view.reset()
+	func _init():
+		text_view = GDRETextEditor.new()
+		text_view.editable = false
+		text_view.set_anchors_preset(Control.PRESET_FULL_RECT)
+		add_child(text_view)
+		text_view.visible = true
+
+	func _refresh():
+		text_view.reload_from_disk()
+
+	func _get_load_type():
+		return 0
+
+	func load_text_string(text: String):
+		text_view.load_text_string(text)
+
+	func load_text(path: String, text: String, type: int):
+		text_view.load_text(path, text, type)
+
+	func recognize(path: String) -> int:
+		return text_view.recognize(path)
+
+class LoadTask extends RefCounted:
+	var path: String
+	var type: int = -1
+	var task_id: int = -1
+	var res: Resource = null
+	var text: String = ""
+	var previewer: GDREPreviewer = null
+	var error: Error = OK
+	var done: bool = false
+
+	func _init(p_path: String, p_previewer: GDREPreviewer):
+		path = p_path
+		previewer = p_previewer
+		if previewer is TextPreviewer:
+			type = previewer.recognize(path)
+			if type == -1:
+				return
+			task_id = WorkerThreadPool.add_task(func(): self.text = ResourceCompatLoader.resource_file_to_string(path), true)
+			if task_id == -1:
+				error = ERR_CANT_CREATE
+				done = true
+				return
+		else:
+			error = ResourceLoader.load_threaded_request(path, "", false, ResourceLoader.CACHE_MODE_REUSE)
+			if error != OK:
+				done = true
+				return
+		return
+
+	func get_error() -> Error:
+		return error
+
+	func check_status() -> Error:
+		if self.done:
+			return error
+		if self.task_id != -1:
+			if !WorkerThreadPool.is_task_completed(self.task_id):
+				return ERR_BUSY
+			WorkerThreadPool.wait_for_task_completion(self.task_id)
+			self.done = true
+			self.task_id = -1
+			return self.error
+		else:
+			var status = ResourceLoader.load_threaded_get_status(path)
+			match status:
+				ResourceLoader.THREAD_LOAD_LOADED:
+					res = ResourceLoader.load_threaded_get(path)
+					self.done = true
+					if is_instance_valid(res):
+						self.error = OK
+					else:
+						self.error = ERR_FILE_CORRUPT
+				ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+					return ERR_BUSY
+				ResourceLoader.THREAD_LOAD_FAILED:
+					self.error = ERR_FILE_CORRUPT
+					done = true
+					return self.error
+				ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+					self.error = ERR_FILE_CORRUPT
+					done = true
+					return self.error
+			return error
+
+	func matches(current_path: String, current_previewer: GDREPreviewer) -> bool:
+		return path == current_path and previewer == current_previewer
 
 
-var cached_scenes: Array = []
+
+var TEXT_PREVIEWER: TextPreviewer
+var resource_previewers: Array[GDREPreviewer] = []
+
+var current_view: GDREPreviewer = null
+var alt_previewer: GDREPreviewer = null
+
 var current_resource_path: String = ""
-var current_resource_type: String = ""
+var current_resource_info: Dictionary = {}
 
 func reset():
-	cached_scenes.clear()
 	_reset()
 
 func is_main_view_visible() -> bool:
@@ -65,51 +138,29 @@ func set_main_view_visible(p_visible: bool):
 
 func _make_all_views_invisible():
 	%SwitchViewButton.visible = false
-	%MediaPlayer.visible = false
-	%TextView.visible = false
-	%TextureView.visible = false
-	%MeshPreviewer.visible = false
-	%ScenePreviewer3D.visible = false
-	%TextureLayeredPreviewer.visible = false
-	%LoadingWaitView.visible = false
+	# %ResourceView is a TabContainer, so setting this to true will set all of the child views to false
+	BLANK_VIEW.visible = true
 
 func _reset():
+	current_view = null
+	alt_previewer = null
 	current_resource_path = ""
-	current_resource_type = ""
 	_make_all_views_invisible()
-	%MediaPlayer.reset()
-	%TextView.reset()
-	%TextureView.reset()
+	for previewer in resource_previewers:
+		previewer.reset()
 	%ResourceInfo.text = ""
-	%MeshPreviewer.reset()
-	%ScenePreviewer3D.reset()
-	%TextureLayeredPreviewer.reset()
+
+func set_current_view(previewer: GDREPreviewer):
+	current_view = previewer
+	previewer.visible = true
+	if alt_previewer:
+		%SwitchViewButton.text = SWITCH_TO_TEMPLATE % alt_previewer.get_previewer_name().capitalize()
+		%SwitchViewButton.visible = true
+	else:
+		%SwitchViewButton.visible = false
 
 
 var previous_res_info_size = Vector2(0, 0)
-
-func load_texture(path):
-	var ext = path.get_extension().to_lower()
-	var texture = null
-	if (ext == "image"):
-		texture = ImageTexture.create_from_image(ResourceCompatLoader.real_load(path, "", ResourceCompatLoader.CACHE_MODE_IGNORE_DEEP))
-	elif (is_image(ext)):
-		texture = ImageTexture.create_from_image(GDRECommon.load_image_from_file(path))
-	else:
-		texture = ResourceCompatLoader.real_load(path, "", ResourceCompatLoader.CACHE_MODE_IGNORE_DEEP) # TODO: handle other texture types
-	if (texture == null):
-		return false
-	%TextureView.edit(texture)
-	%TextureView.visible = true
-	return true
-
-func load_layered_texture(path):
-	var res = ResourceCompatLoader.real_load(path, "", ResourceCompatLoader.CACHE_MODE_IGNORE_DEEP)
-	if not res:
-		return false
-	%TextureLayeredPreviewer.edit(res)
-	%TextureLayeredPreviewer.visible = true
-	return true
 
 func pop_resource_info(path: String, info: Dictionary):
 	var info_text = ""
@@ -147,283 +198,137 @@ func pop_resource_info(path: String, info: Dictionary):
 		info_text = "[b]Path:[/b] " + path
 	%ResourceInfo.text = info_text
 
-func is_mesh(ext, type: String):
-	return ext == "mesh" || type == "Mesh" || type == "ArrayMesh" || type == "PlaceholderMesh"
-
-func is_scene(ext, type: String):
-	return ext == "tscn" || ext == "scn" || type == "PackedScene"
-
-func load_mesh(path):
-	var res = ResourceCompatLoader.real_load(path, "", ResourceCompatLoader.CACHE_MODE_IGNORE_DEEP)
-	%SwitchViewButton.text = SWITCH_TO_TEXT_TEXT
-	%SwitchViewButton.visible = true
-	if not res:
+func _start_resource_load(path):
+	if current_view == null:
+		printerr("Current view is null")
 		return false
-	# check if the resource is a mesh or a descendant of mesh
-	if not res.get_class().contains("Mesh"):
-		return false
-	%MeshPreviewer.edit(res)
-	%MeshPreviewer.visible = true
-	return true
-
-const USE_THREADED_LOAD = true
-var pending_scenes: PackedStringArray = []
-
-func load_scene(path):
-	var res = null
-	var is_cached = false
-	for scene in cached_scenes:
-		if scene.get_path() == path:
-			res = scene
-			is_cached = true
-			break
-	var start_time = Time.get_ticks_msec()
-	if not res:
-		if not ResourceCompatLoader.is_globally_available():
-			res = ResourceCompatLoader.real_load(path, "", ResourceCompatLoader.CACHE_MODE_REUSE)
-		elif USE_THREADED_LOAD:
-			var err = ResourceLoader.load_threaded_request(path, "", false, ResourceLoader.CACHE_MODE_REUSE)
-			if err != OK:
+	if not ResourceCompatLoader.handles_resource(path, "") and current_view != TEXT_PREVIEWER:
+		if current_view.edit_from_path(path) != OK:
+			return false
+		set_current_view(current_view)
+		return true
+	var res: Resource = null
+	var load_type = current_view.get_load_type()
+	if current_view == TEXT_PREVIEWER or (ResourceCompatLoader.is_globally_available() and load_type == ResourceInfo.LoadType.REAL_LOAD):
+		if current_view == TEXT_PREVIEWER or USE_THREADED_LOAD:
+			var task = LoadTask.new(path, current_view)
+			if task.get_error() != OK:
 				return false
-			else:
-				_make_all_views_invisible()
-				%LoadingWaitView.visible = true
-				pending_scenes.append(path)
-				return true
+			pending_resources.append(task)
+			set_current_view(current_view)
+			%LoadingWaitView.visible = true
+			return true
 		else:
 			res = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REUSE)
-	return _load_scene_complete(res, is_cached)
+	else:
+		if load_type == ResourceInfo.LoadType.REAL_LOAD:
+			res = ResourceCompatLoader.real_load(path, "", ResourceCompatLoader.CACHE_MODE_REUSE)
+		elif load_type == ResourceInfo.LoadType.FAKE_LOAD:
+			res = ResourceCompatLoader.fake_load(path)
+	return _load_resource_complete(res)
 
-func _load_scene_complete(res: PackedScene, is_cached: bool = false):
-	_make_all_views_invisible()
-	%SwitchViewButton.text = SWITCH_TO_TEXT_TEXT
-	%SwitchViewButton.visible = true
+func _load_resource_complete(res: Resource, is_cached: bool = false):
 	if not res:
 		return false
-	# check if the resource is a scene or a descendant of scene
-	if not res.get_class().contains("PackedScene"):
+	if current_view.edit(res) != OK:
+		handle_error_opening(res.get_path())
 		return false
-	%ScenePreviewer3D.edit(res)
-	%ScenePreviewer3D.visible = true
-	# var time_to_load = Time.get_ticks_msec() - start_time
-	# if time_to_load > 200 and not is_cached:
-	# 	# print("Caching scene: ", path)
-	# 	cached_scenes.append(res)
-	# else:
-	# 	# print("Loaded scene in ", time_to_load, "ms")
-	# 	pass
+	set_current_view(current_view)
 	return true
 
-func handle_pending_scenes():
-	if pending_scenes.size() == 0:
+func handle_pending_resources():
+	if pending_resources.size() == 0:
 		return
-	var to_remove: PackedStringArray = []
-	var res: PackedScene = null
-	for path in pending_scenes:
-		var status = ResourceLoader.load_threaded_get_status(path)
-		match status:
-			ResourceLoader.THREAD_LOAD_LOADED:
-				to_remove.append(path)
-				res = ResourceLoader.load_threaded_get(path)
-			ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+	var to_remove: Array[LoadTask] = []
+	var res: Resource = null
+	for task in pending_resources:
+		var error = task.check_status()
+		if error == ERR_BUSY:
+			continue
+		to_remove.append(task)
+		if task.matches(current_resource_path, current_view):
+			if error != OK:
+				handle_error_opening(task.path)
 				continue
-			ResourceLoader.THREAD_LOAD_FAILED:
-				to_remove.append(path)
-				printerr("Failed to load scene: ", path)
-			ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
-				to_remove.append(path)
-				printerr("Invalid resource: ", path)
-		if path == current_resource_path:
-			if not res:
-				_make_all_views_invisible()
-				handle_error_opening(path)
+			if current_view == TEXT_PREVIEWER:
+				TEXT_PREVIEWER.load_text(task.path, task.text, task.type)
+				set_current_view(TEXT_PREVIEWER)
 			else:
-				_load_scene_complete(res, false)
-		else:
-			pass
-	for path in to_remove:
-		pending_scenes.erase(path)
-
-func can_preview_scene():
-	return SceneExporter.get_minimum_godot_ver_supported() <= GDRESettings.get_ver_major()
-
-func text_preview_check_button(path, type):
-	if (is_mesh(path.get_extension().to_lower(), type)):
-		%SwitchViewButton.text = SWITCH_TO_MESH_TEXT
-		%SwitchViewButton.visible = true
-	elif (is_scene(path.get_extension().to_lower(), type)):
-		if (can_preview_scene()):
-			%SwitchViewButton.text = SWITCH_TO_SCENE_TEXT
-			%SwitchViewButton.visible = true
-
+				_load_resource_complete(task.res, false)
+	for task in to_remove:
+		pending_resources.erase(task)
 
 func handle_error_opening(path):
-	# %SwitchViewButton.visible = false
-	%TextView.load_text_string("Error opening resource:\n" + GDRESettings.get_recent_error_string())
-	%TextView.visible = true
+	alt_previewer = null
+	_make_all_views_invisible()
+	TEXT_PREVIEWER.load_text_string("Error opening resource:\n" + GDRESettings.get_recent_error_string())
+	set_current_view(TEXT_PREVIEWER)
 	%ResourceInfo.text = path
 
+func previewer_is_not_default(previewer: GDREPreviewer) -> bool:
+	if previewer is ScenePreviewer and not GDREConfig.get_setting("Preview/use_scene_view_by_default", false):
+		return true
+	return false
 
+func previewer_works_on_resource(previewer: GDREPreviewer, path: String, info: Dictionary) -> bool:
+	if not previewer.can_edit(path, info.get("type", "")):
+		return false
+	if previewer is ScenePreviewer and info.get("ver_major", 0) < SceneExporter.get_minimum_godot_ver_supported():
+		return false
+	return true
 
 func load_resource(path: String) -> void:
 	_reset()
 	current_resource_path = path
-	current_resource_type = ""
 	var ext = path.get_extension().to_lower()
-	var error_opening = false
-	var not_supported = false
-	var info: Dictionary = {}
 
 	# clear errors
 	GDRESettings.get_errors()
 	if ResourceCompatLoader.handles_resource(path, ""):
-		info = ResourceCompatLoader.get_resource_info(path)
-		current_resource_type = info.get("type", "")
-	if (is_sample(ext)):
-		error_opening = not %MediaPlayer.load_sample(path)
-		if not error_opening:
-			%MediaPlayer.visible = true
-	elif (is_video(ext)):
-		error_opening = not %MediaPlayer.load_video(path)
-		if not error_opening:
-			%MediaPlayer.visible = true
-	elif (is_image(ext)):
-		error_opening = not load_texture(path)
-	elif (is_texture(ext)):
-		error_opening = not load_texture(path)
-	elif (is_mesh(ext, current_resource_type)):
-		error_opening = not load_mesh(path)
-	elif (GDREConfig.get_setting("Preview/use_scene_view_by_default", false) and is_scene(ext, current_resource_type) and can_preview_scene()):
-		error_opening = not load_scene(path)
-	elif (is_layered_texture(ext)):
-		error_opening = not load_layered_texture(path)
+		current_resource_info = ResourceCompatLoader.get_resource_info(path)
 	else:
-		var type = %TextView.recognize(path)
-		if type == -1:
-			not_supported = true
-		else:
-			error_opening = not try_text_preview(path, type, current_resource_type)
+		current_resource_info = {}
+	var previewer = null
+	for p in resource_previewers:
+		if previewer_works_on_resource(p, path, current_resource_info):
+			previewer = p
+			break
 
-	if (not_supported):
-		%TextView.load_text_string("Not a supported resource")
-		%TextView.visible = true
+	if not previewer:
+		TEXT_PREVIEWER.load_text_string("Not a supported resource")
+		set_current_view(TEXT_PREVIEWER)
 		%ResourceInfo.text = path
-	elif (error_opening):
+		return
+
+	if previewer_is_not_default(previewer):
+		current_view = TEXT_PREVIEWER
+		alt_previewer = previewer
+	else:
+		current_view = previewer
+		if previewer.can_switch_to_text():
+			alt_previewer = TEXT_PREVIEWER
+		else:
+			alt_previewer = null
+
+	if not _start_resource_load(path):
 		handle_error_opening(path)
 	if (%ResourceInfo.text == ""):
-		pop_resource_info(path, info)
+		pop_resource_info(path, current_resource_info)
 
 func refresh():
-	var current_view = get_currently_visible_view()
-	if current_view == %TextView and current_resource_path != "":
-		%TextView.reload_from_disk()
+	if current_view == TEXT_PREVIEWER and current_resource_path != "":
+		TEXT_PREVIEWER._refresh()
 	# TODO: handle other views? Not currently necessary, config settings only affect the text view currently
 
-
-func try_text_preview(path, type, res_type):
-	if type == -1:
-		return false
-	if not %TextView.load_path(path, type):
-		return false
-	text_preview_check_button(path, res_type)
-	%TextView.visible = true
-	return true
-
-	# TODO: handle binary resources
-	# var res_info:Dictionary = ResourceCompatLoader.get_resource_info(path)
-	# if (res_info.size() == 0):
-	# 	return
-
-func is_content_text(path):
-	# load up the first 8000 bytes, check if there are any null bytes
-	var file = FileAccess.open(path, FileAccess.READ)
-	if not file:
-		return false
-	var data = file.get_buffer(8000)
-	if data.find(0) != -1:
-		return false
-	if GDRECommon.detect_utf8(data):
-		return true
-	return false
-
-func is_shader(ext, p_type = ""):
-	if (ext == "shader" || ext == "gdshader"):
-		return true
-	return false
-
-func is_code(ext, p_type = ""):
-	if (ext == "gd" || ext == "gdc" || ext == "gde" || ext == "cs"):
-		return true
-	return false
-
-func is_text(ext, p_type = ""):
-	if (ext == "txt" || ext == "xml" || ext == "csv" || ext == "html" || ext == "md" || ext == "yml" || ext == "yaml"):
-		return true
-	return false
-
-func is_text_resource(ext, p_type = ""):
-	return ext == "tscn" || ext == "tres"
-
-func is_ini_like(ext, p_type = ""):
-	return ext == "cfg" || ext == "remap" || ext == "import" || ext == "gdextension" || ext == "gdnative" || ext == "godot"
-
-
-func is_non_resource_smp(ext, p_type = ""):
-	return (ext == "wav" || ext == "ogg" || ext == "mp3")
-
-func is_sample(ext, p_type = ""):
-	if (ext == "oggstr" || ext == "mp3str" || ext == "oggvorbisstr" || ext == "sample" || ext == "smp" || is_non_resource_smp(ext, p_type)):
-		return true
-	return false
-
-func is_video(ext, p_type = ""):
-	if (ext == "webm" || ext == "ogv" || ext == "ogm" || ext == "mp4" || ext == "avi" || ext == "mov" || ext == "flv" || ext == "mkv" || ext == "wmv" || ext == "mpg" || ext == "mpeg"):
-		return true
-	return false
-
-
-func is_texture(ext, p_type = ""):
-	if (ext == "ctex" || ext == "stex" || ext == "tex" || ext == "dds" || ext == "ktx" || ext == "ktx2"):
-		return true
-	# return p_type == "CompressedTexture2D" || p_type == "StreamTexture" || p_type == "Texture2D" || p_type == "ImageTexture"
-	return false
-
-func is_binary_project_settings(path):
-	return path.get_file() == "project.binary" || path.get_file() == "engine.cfb"
-
-func is_image(ext, p_type = ""):
-	if (ext == "image" || ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "svg" || ext == "webp" || ext == "bmp" || ext == "tga" || ext == "tiff" || ext == "hdr" || ext == "ico" || ext == "icns"):
-		return true
-	return false
-
-func is_layered_texture(ext, p_type = ""):
-	if (ext == "ctexarray" || ext == "ccube" || ext == "ccubearray" || ext == "texarr" || ext == "ctex3d" || ext == "tex3d"):
-		return true
-	return false
-
 func get_currently_visible_view() -> Control:
-	if %TextView.visible:
-		return %TextView
-	elif %MediaPlayer.visible:
-		return %MediaPlayer
-	elif %TextureView.visible:
-		return %TextureView
-	elif %MeshPreviewer.visible:
-		return %MeshPreviewer
-	elif %ScenePreviewer3D.visible:
-		return %ScenePreviewer3D
-	elif %TextureLayeredPreviewer.visible:
-		return %TextureLayeredPreviewer
-	elif %LoadingWaitView.visible:
-		return %LoadingWaitView
+	if current_view and current_view.visible:
+		return current_view
 	return null
 
 
 func _on_gdre_resource_preview_visibility_changed() -> void:
 	if not self.is_visible_in_tree():
-		%MediaPlayer.stop()
 		self.reset()
-	pass # Replace with function body.
 
 func _ready():
 	reset()
@@ -431,13 +336,9 @@ func _ready():
 	self.connect("resized", self._on_resized)
 	previous_res_info_size = Vector2(0, 100)
 	%ResourceInfoContainer.custom_minimum_size = previous_res_info_size
-	# load_resource("res://.godot/imported/kyuu_on_bike.glb-ecab64cc65c256db28f6d03df73eb447.scn")
-	# load_resource("res://.godot/imported/ScifiStruct_3.obj-8ad9868dec2ef9403c73f82a7404489a.mesh")
-	# load_resource("res://.godot/imported/gdre_Script.svg-4c68c9c5e02f5e7a41dddea59a95e245.ctex")
-	#load_resource("res://.godot/imported/anomaly 105 jun12.ogg-d3e939934d210d1a4e1f9d2d34966046.oggvorbisstr")
-
-# audio player stuff
-
+	for previewer in resource_previewers:
+		previewer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		%ResourceView.add_child(previewer)
 
 func _on_v_box_container_drag_started() -> void:
 	pass
@@ -461,41 +362,32 @@ func _on_resized() -> void:
 	pass # Replace with function body.
 
 func _on_switch_view_button_pressed() -> void:
-	var path = current_resource_path
 	var cur_text = %SwitchViewButton.text
 	_make_all_views_invisible()
-	current_resource_path = path
-	var error_opening = false
+	if not alt_previewer:
+		printerr("No alt previewer")
+		return
+	var prev_view = current_view
+	current_view = alt_previewer
+	alt_previewer = prev_view
 
-	match cur_text:
-		SWITCH_TO_SCENE_TEXT:
-			if %ScenePreviewer3D.get_edited_resource_path() != path:
-				error_opening = not load_scene(path)
-			else:
-				%ScenePreviewer3D.visible = true
-			if not error_opening:
-				%SwitchViewButton.text = SWITCH_TO_TEXT_TEXT
-				%SwitchViewButton.visible = true
-		SWITCH_TO_MESH_TEXT:
-			if %MeshPreviewer.get_edited_resource_path() != path:
-				error_opening = not load_mesh(path)
-			else:
-				%MeshPreviewer.visible = true
-			if not error_opening:
-				%SwitchViewButton.text = SWITCH_TO_TEXT_TEXT
-				%SwitchViewButton.visible = true
-		SWITCH_TO_TEXT_TEXT:
-			if %TextView.current_path != path:
-				error_opening = not try_text_preview(path, %TextView.recognize(path), current_resource_type)
-			else:
-				%TextView.visible = true
-			if not error_opening:
-				text_preview_check_button(path, current_resource_type)
-		_:
-			print("!!!!!Unknown switch view button text: ", cur_text)
-			pass
+	var error_opening = false
+	set_current_view(current_view)
+	if current_view.get_edited_resource_path() != current_resource_path:
+		error_opening = not _start_resource_load(current_resource_path)
 	if error_opening:
-		handle_error_opening(path)
+		handle_error_opening(current_resource_path)
 
 func _process(delta: float) -> void:
-	handle_pending_scenes()
+	handle_pending_resources()
+
+func _init():
+	TEXT_PREVIEWER = TextPreviewer.new()
+	resource_previewers = [
+		TexturePreviewer.new(),
+		GDREMediaPlayer.new(),
+		MeshPreviewer.new(),
+		ScenePreviewer.new(),
+		TextureLayeredPreviewer.new(),
+		TEXT_PREVIEWER, # Always last so that it's the default view
+	]

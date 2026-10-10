@@ -54,6 +54,7 @@ public:
 	Vector<String> get_files_in_file_map();
 	bool is_custom_version_detected() const;
 	Vector<String> get_all_strings_in_module();
+	Vector<String> get_global_class_files();
 
 	GodotMonoDecompSettings get_settings() const;
 	Error set_settings(const GodotMonoDecompSettings &p_settings);

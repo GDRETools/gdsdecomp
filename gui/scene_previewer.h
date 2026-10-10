@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include "gui/gdre_previewer.h"
 #include "scene/3d/camera_3d.h"
 #include "scene/3d/light_3d.h"
 #include "scene/gui/box_container.h"
@@ -97,28 +98,27 @@ class ScenePreviewer2D : public SubViewportContainer {
 
 	static void set_visible_windows_to_non_exclusive(Node *p_root);
 
-protected:
-	static void _bind_methods();
-
 public:
 	void edit(Node *root);
 	void reset();
 	ScenePreviewer2D();
 };
 
-class ScenePreviewer : public MarginContainer {
-	GDCLASS(ScenePreviewer, MarginContainer);
+class ScenePreviewer : public GDREPreviewer {
+	GDCLASS(ScenePreviewer, GDREPreviewer);
 
 	Ref<PackedScene> scene;
+	MarginContainer *main = nullptr;
 	ScenePreviewer3D *previewer_3d = nullptr;
 	ScenePreviewer2D *previewer_2d = nullptr;
 
-protected:
-	static void _bind_methods();
-
 public:
-	void edit(Ref<PackedScene> p_scene);
-	String get_edited_resource_path() const;
-	void reset();
+	virtual String get_previewer_name() const override;
+	virtual Error edit(Ref<Resource> p_scene) override;
+	virtual bool can_edit(const String &p_resource_path, const String &p_resource_type) const override;
+	virtual String get_edited_resource_path() const override;
+	virtual void reset() override;
+	virtual ResourceInfo::LoadType get_load_type() const override;
+	virtual bool can_switch_to_text() const override;
 	ScenePreviewer();
 };

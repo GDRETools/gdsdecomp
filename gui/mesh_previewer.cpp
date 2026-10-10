@@ -77,7 +77,7 @@ void MeshPreviewer::gui_input(const Ref<InputEvent> &p_event) {
 }
 
 void MeshPreviewer::_update_theme_item_cache() {
-	SubViewportContainer::_update_theme_item_cache();
+	GDREPreviewer::_update_theme_item_cache();
 	theme_cache.light_1_icon = get_theme_icon(SNAME("MaterialPreviewLight1"), SNAME("EditorIcons"));
 	theme_cache.light_2_icon = get_theme_icon(SNAME("MaterialPreviewLight2"), SNAME("EditorIcons"));
 }
@@ -99,7 +99,9 @@ void MeshPreviewer::_update_rotation() {
 	rotation->set_transform(t);
 }
 
-void MeshPreviewer::edit(Ref<Mesh> p_mesh) {
+Error MeshPreviewer::edit(Ref<Resource> p_mesh) {
+	ERR_FAIL_COND_V_MSG(p_mesh.is_null(), ERR_INVALID_PARAMETER, "Mesh is null");
+	ERR_FAIL_COND_V_MSG(Ref<Mesh>(p_mesh).is_null(), ERR_INVALID_PARAMETER, "Mesh is not a Mesh");
 	mesh = p_mesh;
 	mesh_instance->set_mesh(mesh);
 
@@ -120,12 +122,17 @@ void MeshPreviewer::edit(Ref<Mesh> p_mesh) {
 		//xform.origin.z -= aabb.get_longest_axis_size() * 2;
 		mesh_instance->set_transform(xform);
 	}
+	return OK;
 }
 
 void MeshPreviewer::reset() {
 	mesh_instance->set_transform(Transform3D());
 	mesh = Ref<Mesh>();
 	mesh_instance->set_mesh(mesh);
+}
+
+ResourceInfo::LoadType MeshPreviewer::get_load_type() const {
+	return ResourceInfo::LoadType::REAL_LOAD;
 }
 
 void MeshPreviewer::_on_light_1_switch_pressed() {
@@ -141,10 +148,13 @@ MeshPreviewer::MeshPreviewer() {
 	Ref<World3D> world_3d;
 	world_3d.instantiate();
 	viewport->set_world_3d(world_3d); // Use own world.
-	add_child(viewport);
+	main = memnew(SubViewportContainer);
+	main->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT, Control::PRESET_MODE_MINSIZE, 0);
+	main->add_child(viewport);
+	add_child(main);
 	viewport->set_disable_input(true);
 	viewport->set_msaa_3d(Viewport::MSAA_4X);
-	set_stretch(true);
+	main->set_stretch(true);
 	camera = memnew(Camera3D);
 	camera->set_transform(Transform3D(Basis(), Vector3(0, 0, 1.1)));
 	camera->set_perspective(45, 0.1, 10);
@@ -172,7 +182,7 @@ MeshPreviewer::MeshPreviewer() {
 	set_custom_minimum_size(Size2(1, 150) * GDRESettings::get_auto_display_scale());
 
 	HBoxContainer *hb = memnew(HBoxContainer);
-	add_child(hb);
+	main->add_child(hb);
 	hb->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT, Control::PRESET_MODE_MINSIZE, 2);
 
 	hb->add_spacer();
@@ -200,6 +210,10 @@ MeshPreviewer::MeshPreviewer() {
 	rot_y = 0;
 }
 
+String MeshPreviewer::get_previewer_name() const {
+	return "mesh";
+}
+
 String MeshPreviewer::get_edited_resource_path() const {
 	if (mesh.is_valid()) {
 		return mesh->get_path();
@@ -207,8 +221,17 @@ String MeshPreviewer::get_edited_resource_path() const {
 	return "";
 }
 
-void MeshPreviewer::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("edit", "mesh"), &MeshPreviewer::edit);
-	ClassDB::bind_method(D_METHOD("reset"), &MeshPreviewer::reset);
-	ClassDB::bind_method(D_METHOD("get_edited_resource_path"), &MeshPreviewer::get_edited_resource_path);
+bool MeshPreviewer::can_edit(const String &p_resource_path, const String &p_resource_type) const {
+	String ext = p_resource_path.get_extension().to_lower();
+	if (ext == "mesh" || ext == "arraymesh" || ext == "placeholdermesh") {
+		return true;
+	}
+	if (!p_resource_type.is_empty()) {
+		return ClassDB::is_parent_class(p_resource_type, "Mesh");
+	}
+	return false;
+}
+
+bool MeshPreviewer::can_switch_to_text() const {
+	return true;
 }

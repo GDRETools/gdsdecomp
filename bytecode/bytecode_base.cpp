@@ -1673,7 +1673,7 @@ Ref<GDScriptDecomp> GDScriptDecomp::create_decomp_for_version(String str_ver, bo
 				return Ref<GDScriptDecomp>(create_decomp_for_commit(v.commit));
 			}
 		}
-		ERR_FAIL_COND_V_MSG(include_dev, Ref<GDScriptDecomp>(), "No version found for: " + str_ver);
+		ERR_FAIL_COND_V_MSG(!p_force, Ref<GDScriptDecomp>(), "No version found for: " + str_ver);
 	}
 	if (p_force && ver->get_major() == 4 && ver->get_minor() < 3 && (ver->get_minor() != 0 || !ver->is_prerelease())) {
 		return Ref<GDScriptDecomp>(create_decomp_for_version("4.3.0"));

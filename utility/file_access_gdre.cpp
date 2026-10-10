@@ -96,10 +96,15 @@ Ref<FileAccess> PackSourceCustom::get_bundled_file(const String &p_path, const R
 	return GDREPackedSource::get_bundled_file(p_path, &p_file->get_packed_file(), p_decryption_key);
 }
 
+Ref<FileAccess> PackSourceCustom::open_encrypted_file(const Ref<FileAccess> &p_base, const Vector<uint8_t> &p_key, FileAccess::ModeFlags p_mode, bool p_with_magic, const Vector<uint8_t> &p_iv) {
+	return GDREPackedSource::open_encrypted_file(p_base, p_key, p_mode, p_with_magic, p_iv);
+}
+
 void PackSourceCustom::_bind_methods() {
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("create_file_access_pck", "path", "file", "decryption_key"), &PackSourceCustom::create_file_access_pck);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("seek_pck_offset_from_exe", "file", "path", "custom_magic"), &PackSourceCustom::seek_pck_offset_from_exe, DEFVAL(PackedByteArray()));
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("get_bundled_file", "path", "file", "decryption_key"), &PackSourceCustom::get_bundled_file);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("open_encrypted_file", "base", "key", "mode", "with_magic", "iv"), &PackSourceCustom::open_encrypted_file, DEFVAL(FileAccess::READ), DEFVAL(true), DEFVAL(Vector<uint8_t>()));
 	GDVIRTUAL_BIND(_try_open_pack, "path", "replace_files", "offset", "decryption_key");
 	GDVIRTUAL_BIND(_get_file, "path", "file", "decryption_key");
 }
@@ -232,13 +237,17 @@ Ref<FileAccess> DummySource::get_file(const String &p_path, PackedData::PackedFi
 		file_access_memory->open_custom(file_contents[pmd5].ptr(), file_contents[pmd5].size());
 		return file_access_memory;
 	}
-	ERR_FAIL_V_MSG(nullptr, "File not found");
+	ERR_FAIL_V_MSG(Ref<FileAccess>(), "File not found");
 }
 
 void DummySource::add_file_content(const String &p_path, const Vector<uint8_t> &p_file_content) {
 	String simplified_path = p_path.simplify_path().trim_prefix("res://");
 	PathMD5 pmd5(simplified_path.md5_buffer());
 	file_contents[pmd5] = p_file_content;
+}
+
+void DummySource::clear() {
+	file_contents.clear();
 }
 
 Error GDREPackedData::add_pack(const String &p_path, bool p_replace_files, uint64_t p_offset) {
@@ -323,6 +332,13 @@ void GDREPackedData::add_path(const String &p_pkg_path, const String &p_path, ui
 		files[pmd5] = pf;
 		file_map[path] = pf_info;
 		delta_patches[pmd5].clear();
+		// Remove salt paths from the file map if they exist so they don't show up in the file listing
+		if (p_bundle && !pf.salt.is_empty()) {
+			String salt_path = "res://" + (abs_path.simplify_path() + pf.salt).sha256_text();
+			if (file_map.has(salt_path)) {
+				file_map.erase(salt_path);
+			}
+		}
 	}
 
 	if (!exists) {
@@ -575,6 +591,7 @@ void GDREPackedData::_clear() {
 	// don't clear custom pack sources, they are owned by the custom pack sources
 	sources.clear();
 	dir_source.reset();
+	dummy_source.clear();
 	set_disabled(true);
 	_free_packed_dirs(root);
 	root = memnew(PackedDir);

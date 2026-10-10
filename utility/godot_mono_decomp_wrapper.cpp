@@ -262,6 +262,18 @@ bool GodotMonoDecompWrapper::is_file_assembly(const String &file) {
 	return GodotMonoDecomp_CheckFileIsAssembly(file_c) != 0;
 }
 
+Vector<String> GodotMonoDecompWrapper::get_global_class_files() {
+	ERR_FAIL_COND_V_MSG(decompilerHandle == nullptr, Vector<String>(), "Decompiler handle is null");
+	int num_files = 0;
+	const char **files = GodotMonoDecomp_GetGlobalClassFiles(decompilerHandle, &num_files);
+	Vector<String> files_strs;
+	for (int i = 0; i < num_files; i++) {
+		files_strs.push_back("res://" + String::utf8(files[i]).trim_prefix("res://"));
+	}
+	GodotMonoDecomp_FreeArray((void *)files, num_files);
+	return files_strs;
+}
+
 GodotMonoDecompWrapper::~GodotMonoDecompWrapper() {
 	if (decompilerHandle != nullptr) {
 		GodotMonoDecomp_FreeObjectHandle(decompilerHandle);
@@ -304,6 +316,9 @@ Error GodotMonoDecompWrapper::set_settings(const GodotMonoDecompSettings &p_sett
 }
 bool GodotMonoDecompWrapper::is_file_assembly(const String &file) const {
 	ERR_FAIL_V_MSG(false, GODOT_MONO_DECOMP_DISABLED_ERROR_MESSAGE);
+}
+Vector<String> GodotMonoDecompWrapper::get_global_class_files() {
+	ERR_FAIL_V_MSG({}, GODOT_MONO_DECOMP_DISABLED_ERROR_MESSAGE);
 }
 GodotMonoDecompWrapper::~GodotMonoDecompWrapper() {}
 #endif
@@ -359,5 +374,6 @@ void GodotMonoDecompWrapper::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_files_not_present_in_file_map"), &GodotMonoDecompWrapper::get_files_not_present_in_file_map);
 	ClassDB::bind_method(D_METHOD("get_files_in_file_map"), &GodotMonoDecompWrapper::get_files_in_file_map);
 	ClassDB::bind_method(D_METHOD("is_custom_version_detected"), &GodotMonoDecompWrapper::is_custom_version_detected);
+	ClassDB::bind_method(D_METHOD("get_global_class_files"), &GodotMonoDecompWrapper::get_global_class_files);
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("is_file_assembly", "file"), &GodotMonoDecompWrapper::is_file_assembly);
 }

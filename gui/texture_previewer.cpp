@@ -30,6 +30,8 @@
 
 #include "texture_previewer.h"
 
+#include "compat/resource_loader_compat.h"
+#include "core/io/image_loader.h"
 #include "core/object/callable_mp.h"
 #include "core/object/class_db.h"
 #include "scene/gui/aspect_ratio_container.h"
@@ -38,6 +40,8 @@
 #include "scene/gui/spin_box.h"
 #include "scene/gui/texture_rect.h"
 #include "scene/resources/atlas_texture.h"
+#include "scene/resources/dpi_texture.h"
+#include "scene/resources/image_texture.h"
 #include "scene/resources/material.h"
 #include "scene/resources/texture_rd.h"
 #include "servers/rendering/rendering_device.h"
@@ -283,7 +287,15 @@ void TexturePreviewer::on_selected_mipmap_changed(double p_value) {
 	texture_display->set_instance_shader_parameter("lod", mipmap_spinbox->get_value());
 }
 
-void TexturePreviewer::edit(Ref<Texture2D> p_texture, bool p_show_metadata) {
+String TexturePreviewer::get_previewer_name() const {
+	return "texture";
+}
+
+Error TexturePreviewer::edit(Ref<Resource> p_resource) {
+	ERR_FAIL_COND_V_MSG(p_resource.is_null(), ERR_INVALID_PARAMETER, "Resource is null");
+	Ref<Texture2D> p_texture = p_resource;
+	ERR_FAIL_COND_V_MSG(p_texture.is_null(), ERR_INVALID_PARAMETER, "Not a 2d texture");
+	bool p_show_metadata = true;
 	texture_display->set_texture(p_texture);
 	if (p_texture.is_valid()) {
 		_update_texture_display_ratio();
@@ -322,6 +334,40 @@ void TexturePreviewer::edit(Ref<Texture2D> p_texture, bool p_show_metadata) {
 		metadata_label->set_visible(false);
 	}
 	_update_position_and_scale();
+	return OK;
+}
+
+Error TexturePreviewer::edit_from_path(const String &p_resource_path) {
+	// If the file exists and this is not remapped, try to edit it
+	if (FileAccess::exists(p_resource_path)) {
+		if (p_resource_path.has_extension("svg")) {
+			String source = FileAccess::get_file_as_string(p_resource_path);
+			if (source.is_empty()) {
+				return ERR_FILE_CORRUPT;
+			}
+			Ref<DPITexture> dpi_texture = memnew(DPITexture);
+			dpi_texture->set_source(source);
+			dpi_texture->set_path_cache(p_resource_path);
+			return edit(dpi_texture);
+		}
+		auto loader = ImageLoader::recognize(p_resource_path.get_extension().to_lower());
+		if (loader.is_valid()) {
+			Ref<Image> image;
+			Error err = ImageLoader::load_image(p_resource_path, image);
+			if (err != OK) {
+				return err;
+			}
+			Ref<ImageTexture> image_texture = ImageTexture::create_from_image(image);
+			image_texture->set_path_cache(p_resource_path);
+			return edit(image_texture);
+		}
+		// else fallthrough
+	}
+	Ref<Texture2D> texture = ResourceCompatLoader::real_load(p_resource_path);
+	if (texture.is_valid()) {
+		return edit(texture);
+	}
+	return ERR_FILE_UNRECOGNIZED;
 }
 
 String TexturePreviewer::get_edited_resource_path() const {
@@ -330,6 +376,24 @@ String TexturePreviewer::get_edited_resource_path() const {
 		return texture->get_path();
 	}
 	return "";
+}
+
+bool TexturePreviewer::can_edit(const String &p_resource_path, const String &p_type) const {
+	if (!p_type.is_empty()) {
+		if (p_type == "CompressedTexture2D" || p_type == "StreamTexture" || p_type == "Texture2D" || p_type == "Texture" || p_type == "ImageTexture") {
+			return true;
+		}
+		if (p_type != "Resource" && ClassDB::is_parent_class("Texture2D", p_type)) {
+			return true;
+		}
+		return false;
+	}
+
+	auto ext = p_resource_path.get_extension().to_lower();
+	if (ext == "ctex" || ext == "stex" || ext == "tex" || ImageLoader::recognize(ext).is_valid()) {
+		return true;
+	}
+	return false;
 }
 
 void TexturePreviewer::reset() {
@@ -354,9 +418,13 @@ void TexturePreviewer::reset() {
 
 TexturePreviewer::TexturePreviewer() {
 	set_custom_minimum_size(Size2(0.0, 256.0) * GDRESettings::get_auto_display_scale());
+	main_margin_container = memnew(MarginContainer);
+	main_margin_container->set_anchors_preset(Control::PRESET_FULL_RECT);
+	add_child(main_margin_container);
+
 	bg_rect = memnew(ColorRect);
 
-	add_child(bg_rect);
+	main_margin_container->add_child(bg_rect);
 
 	margin_container = memnew(MarginContainer);
 	const float outline_width = Math::round(GDRESettings::get_auto_display_scale());
@@ -364,7 +432,7 @@ TexturePreviewer::TexturePreviewer() {
 	margin_container->add_theme_constant_override("margin_top", outline_width);
 	margin_container->add_theme_constant_override("margin_left", outline_width);
 	margin_container->add_theme_constant_override("margin_bottom", outline_width);
-	add_child(margin_container);
+	main_margin_container->add_child(margin_container);
 
 	centering_container = memnew(AspectRatioContainer);
 	centering_container->set_clip_children_mode(ClipChildrenMode::CLIP_CHILDREN_AND_DRAW);
@@ -400,13 +468,13 @@ TexturePreviewer::TexturePreviewer() {
 	mipmap_spinbox->set_v_size_flags(Control::SIZE_SHRINK_BEGIN);
 	mipmap_spinbox->set_anchors_preset(Control::PRESET_TOP_RIGHT);
 	mipmap_spinbox->connect(SceneStringName(value_changed), callable_mp(this, &TexturePreviewer::on_selected_mipmap_changed));
-	add_child(mipmap_spinbox);
+	main_margin_container->add_child(mipmap_spinbox);
 
 	channel_selector = memnew(GDREColorChannelSelector);
 	channel_selector->connect("selected_channels_changed", callable_mp(this, &TexturePreviewer::on_selected_channels_changed));
 	channel_selector->set_h_size_flags(Control::SIZE_SHRINK_BEGIN);
 	channel_selector->set_v_size_flags(Control::SIZE_SHRINK_BEGIN);
-	add_child(channel_selector);
+	main_margin_container->add_child(channel_selector);
 
 	metadata_label = memnew(Label);
 	metadata_label->set_focus_mode(FOCUS_ACCESSIBILITY);
@@ -421,11 +489,5 @@ TexturePreviewer::TexturePreviewer() {
 
 	metadata_label->set_h_size_flags(Control::SIZE_SHRINK_END);
 	metadata_label->set_v_size_flags(Control::SIZE_SHRINK_END);
-	add_child(metadata_label);
-}
-
-void TexturePreviewer::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("edit", "texture", "show_metadata"), &TexturePreviewer::edit, DEFVAL(true));
-	ClassDB::bind_method(D_METHOD("reset"), &TexturePreviewer::reset);
-	ClassDB::bind_method(D_METHOD("get_edited_resource_path"), &TexturePreviewer::get_edited_resource_path);
+	main_margin_container->add_child(metadata_label);
 }

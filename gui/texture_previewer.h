@@ -1,6 +1,6 @@
 #pragma once
+#include "gui/gdre_previewer.h"
 #include "scene/gui/margin_container.h"
-#include "scene/resources/texture.h"
 
 class AspectRatioContainer;
 class ColorRect;
@@ -9,8 +9,8 @@ class ShaderMaterial;
 class GDREColorChannelSelector;
 class SpinBox;
 
-class TexturePreviewer : public MarginContainer {
-	GDCLASS(TexturePreviewer, MarginContainer);
+class TexturePreviewer : public GDREPreviewer {
+	GDCLASS(TexturePreviewer, GDREPreviewer);
 
 private:
 	struct ThemeCache {
@@ -19,6 +19,7 @@ private:
 
 	TextureRect *texture_display = nullptr;
 
+	MarginContainer *main_margin_container = nullptr;
 	MarginContainer *margin_container = nullptr;
 	Control *outline_overlay = nullptr;
 	AspectRatioContainer *centering_container = nullptr;
@@ -43,7 +44,6 @@ protected:
 	void _update_texture_display_ratio();
 	void on_selected_channels_changed();
 	void on_selected_mipmap_changed(double p_value);
-	static void _bind_methods();
 	void gui_input(const Ref<InputEvent> &p_event) override;
 
 public:
@@ -51,8 +51,11 @@ public:
 	static void finish_shaders();
 
 	TextureRect *get_texture_display();
-	void edit(Ref<Texture2D> p_texture, bool p_show_metadata = true);
-	void reset();
-	String get_edited_resource_path() const;
+	virtual String get_previewer_name() const override;
+	virtual Error edit(Ref<Resource> p_texture) override;
+	virtual Error edit_from_path(const String &p_resource_path) override;
+	virtual void reset() override;
+	virtual String get_edited_resource_path() const override;
+	virtual bool can_edit(const String &p_resource_path, const String &p_resource_type) const override;
 	TexturePreviewer();
 };
