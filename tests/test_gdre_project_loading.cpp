@@ -13,6 +13,7 @@
 #include <scene/resources/resource_format_text.h>
 
 #include "core/version_generated.gen.h"
+#include <modules/gdscript/gdscript.h>
 #include <utility/file_access_gdre.h>
 #include <utility/import_exporter.h>
 #include <utility/pck_dumper.h>
@@ -21,9 +22,12 @@ TEST_FORCE_LINK(test_gdre_project_loading)
 
 namespace TestGdreProjectLoading {
 
-inline Error create_test_pck(const String &pck_path, const HashMap<String, String> &paths) {
+// 32 0s
+static const String empty_key = "0000000000000000000000000000000000000000000000000000000000000000";
+
+inline Error create_test_pck(const String &pck_path, const HashMap<String, String> &paths, const String &key = empty_key, bool encrypt_directory = false) {
 	PCKPacker pck;
-	Error err = pck.pck_start(pck_path, 32);
+	Error err = pck.pck_start(pck_path, 32, key, encrypt_directory);
 	ERR_FAIL_COND_V(err, err);
 	for (const auto &path : paths) {
 		err = pck.add_file(path.key, path.value);
@@ -170,6 +174,56 @@ TEST_CASE("[GDSDecomp] FileAccessGDRE tests") {
 	CHECK(settings->unload_project() == OK);
 	CHECK(GDREPackedData::get_current_dir_access_class(DirAccess::ACCESS_RESOURCES) == GDREPackedData::get_os_dir_access_class_name());
 	CHECK(GDREPackedData::get_current_file_access_class(FileAccess::ACCESS_RESOURCES) == GDREPackedData::get_os_file_access_class_name());
+
+	gdre::rimraf(tmp_test_file);
+	gdre::rimraf(tmp_pck_path);
+}
+
+TEST_CASE("[GDSDecomp] Check opening encrypted PCKs") {
+	REQUIRE(GDRESettings::get_singleton());
+	CHECK(gdre::ensure_dir(get_tmp_path()) == OK);
+	auto tmp_pck_path = get_tmp_path().path_join("test.pck");
+	auto tmp_test_file = get_tmp_path().path_join("test.txt");
+	auto tmp_project_path = get_tmp_path().path_join("project.binary");
+	REQUIRE(ProjectSettings::get_singleton());
+	ProjectSettings::get_singleton()->save_custom(tmp_project_path);
+
+	CHECK(store_file_as_string(tmp_test_file, "dummy") == OK);
+	HashMap<String, String> files = {
+		{ "res://test.txt", tmp_test_file },
+		{ "res://project.binary", tmp_project_path }
+	};
+	static const String key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+
+	CHECK(create_test_pck(tmp_pck_path, files, key, true) == OK);
+
+	auto settings = GDRESettings::get_singleton();
+	REQUIRE(settings);
+
+	SUBCASE("Standard encryption") {
+		CHECK(settings->set_encryption_key_string(key) == OK);
+		CHECK(settings->load_project({ tmp_pck_path }, false) == OK);
+
+		test_pck_files(files);
+
+		CHECK(settings->unload_project() == OK);
+		settings->reset_encryption_key();
+	}
+
+	SUBCASE("Custom encryption") {
+		GDScriptLanguage::get_singleton()->init();
+		CHECK(ClassDB::class_exists(StringName("CustomDecryptor")));
+		String custom_encryption_script_path = get_gdsdecomp_path().path_join("docs/gdre_standard_encryption.gd");
+		CHECK(settings->set_encryption_key_string(key) == OK);
+		CHECK(settings->set_custom_decryption_script(custom_encryption_script_path) == OK);
+		CHECK(settings->load_project({ tmp_pck_path }, false) == OK);
+
+		test_pck_files(files);
+
+		CHECK(settings->unload_project() == OK);
+		settings->reset_custom_decryptor();
+		settings->reset_encryption_key();
+	}
 
 	gdre::rimraf(tmp_test_file);
 	gdre::rimraf(tmp_pck_path);

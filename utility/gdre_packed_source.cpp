@@ -525,7 +525,7 @@ Ref<FileAccess> GDREPackedSource::open_encrypted_file(const Ref<FileAccess> &p_b
 	ERR_FAIL_COND_V_MSG((p_mode != FileAccess::READ && p_mode != FileAccess::WRITE), nullptr, "Invalid mode for encrypted file, only READ and WRITE are supported");
 	Ref<FileAccess> fae;
 	Error err = OK;
-	if (Ref<CustomDecryptor> custom_decryptor = GDRESettings::get_singleton()->get_custom_decryptor(); custom_decryptor.is_valid() && custom_decryptor->is_file_nonpck_encrypted(p_base)) {
+	if (Ref<CustomDecryptor> custom_decryptor = GDRESettings::get_singleton()->get_custom_decryptor(); custom_decryptor.is_valid()) {
 		fae = FileAccessEncryptedCustom::create(custom_decryptor);
 		err = ((Ref<FileAccessEncryptedCustom>)fae)->open_and_parse(p_base, p_key, p_mode == FileAccess::READ ? FileAccessEncryptedCustom::Mode::MODE_READ : FileAccessEncryptedCustom::Mode::MODE_WRITE, p_with_magic, p_iv);
 	} else {
