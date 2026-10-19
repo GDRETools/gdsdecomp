@@ -18,6 +18,9 @@ protected:
 	void _notification(int p_what);
 
 public:
+	static Size2i get_safe_window_size(Size2i p_size);
+	static Rect2i get_safe_window_size_and_position(Size2i p_size, Vector2i p_position);
+	static void ensure_safe_size_and_position(Window *p_window);
 	static void set_window_autoscaling(Window *p_window, Size2i p_min_size);
 	static void popup_box(Node *p_parent, Window *p_box, const String &p_message, const String &p_title, const Callable &p_confirm_callback = {}, const Callable &p_cancel_callback = {}, const String &p_ok_button_text = "OK", const String &p_cancel_button_text = "Cancel");
 

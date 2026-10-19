@@ -3,6 +3,7 @@
 #include "compat/resource_import_metadatav2.h"
 #include "import_info.h"
 #include "utility/godotver.h"
+#include "utility/process_runner.h"
 
 #include "core/object/object.h"
 #include "core/object/ref_counted.h"
@@ -121,7 +122,7 @@ class ImportExporter : public RefCounted {
 	HashSet<String> textfile_extensions;
 	HashSet<String> other_file_extensions;
 	HashSet<String> valid_extensions;
-	std::shared_ptr<ProcessRunnerStruct> process_runner;
+	Ref<ProcessRunner> process_runner;
 
 	// for the cache file
 	struct FileInfo {

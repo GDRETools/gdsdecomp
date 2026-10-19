@@ -95,6 +95,8 @@ static const Pair<String, Pair<int, int>> funcs[] = {
 };
 
 static constexpr int num_funcs = sizeof(funcs) / sizeof(Pair<String, Pair<int, int>>);
+
+namespace {
 enum Token {
 	TK_EMPTY,
 	TK_IDENTIFIER,
@@ -196,6 +198,7 @@ enum Token {
 	TK_CURSOR,
 	TK_MAX,
 };
+} // namespace
 
 int GDScriptDecomp_620ec47::get_token_max() const {
 	return TK_MAX;

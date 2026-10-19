@@ -216,14 +216,14 @@ Ref<ExportReport> GDExtensionExporter::export_resource(const String &output_dir,
 			}
 		}
 		if (!hashes.is_empty()) {
-			PluginVersion version = PluginManager::get_plugin_info(plugin_name, gdre::hashset_to_vector(hashes));
+			PluginVersion version = PluginManager::get_singleton()->get_plugin_info(plugin_name, gdre::hashset_to_vector(hashes));
 			if (TaskManager::get_singleton()->is_current_task_canceled()) {
 				report->set_error(ERR_SKIP);
 				return report;
 			}
 			if (version.is_valid()) {
 				String zip_path;
-				auto task_id = PluginManager::download_plugin(version, zip_path, err);
+				auto task_id = PluginManager::get_singleton()->download_plugin(version, zip_path, err);
 				GDExt_ERR_FAIL_COND_V_MSG(err, report, "Failed to download plugin " + import_infos->get_import_md_path());
 				report->set_download_task_id(task_id);
 				report->set_saved_path(zip_path);
@@ -235,7 +235,7 @@ Ref<ExportReport> GDExtensionExporter::export_resource(const String &output_dir,
 					deps.push_back(PluginSource::get_plugin_bin(E.value, E.key));
 				}
 				auto ver = GodotVer::parse(GDRESettings::get_singleton()->get_version_string());
-				Vector<PluginVersion> possibles = PluginManager::get_possibles_from_deps(plugin_name, ver, deps);
+				Vector<PluginVersion> possibles = PluginManager::get_singleton()->get_possibles_from_deps(plugin_name, ver, deps);
 				if (possibles.size() > 0) {
 					print_line(vformat("Found %d possible plugins for plugin %s", possibles.size(), import_infos->get_import_md_path()));
 					for (const auto &version : possibles) {

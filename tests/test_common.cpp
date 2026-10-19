@@ -4,8 +4,6 @@
 #include "servers/audio/audio_server.h"
 #include <utility/gdre_settings.h>
 
-#include "compat/resource_loader_compat.h"
-
 TEST_FORCE_LINK(test_common)
 
 String get_gdsdecomp_path() {
@@ -97,8 +95,56 @@ public:
 	}
 };
 
+class GDRETestMainLoop : public MainLoop {
+	GDCLASS(GDRETestMainLoop, MainLoop);
+
+public:
+	void initialize() override {
+		GDREMainLoop::get_singleton()->initialize();
+		if (SceneTree::get_singleton()) {
+			SceneTree::get_singleton()->initialize();
+		}
+	}
+	void iteration_prepare() override {
+		GDREMainLoop::get_singleton()->iteration_prepare();
+		if (SceneTree::get_singleton()) {
+			SceneTree::get_singleton()->iteration_prepare();
+		}
+	}
+	void iteration_end() override {
+		GDREMainLoop::get_singleton()->iteration_end();
+		if (SceneTree::get_singleton()) {
+			SceneTree::get_singleton()->iteration_end();
+		}
+	}
+	bool physics_process(double p_time) override {
+		if (GDREMainLoop::get_singleton()->physics_process(p_time)) {
+			return true;
+		}
+		if (SceneTree::get_singleton()) {
+			return SceneTree::get_singleton()->physics_process(p_time);
+		}
+		return false;
+	}
+	bool process(double p_time) override {
+		if (GDREMainLoop::get_singleton()->process(p_time)) {
+			return true;
+		}
+		if (SceneTree::get_singleton()) {
+			return SceneTree::get_singleton()->process(p_time);
+		}
+		return false;
+	}
+	void finalize() override {
+		GDREMainLoop::get_singleton()->finalize();
+		if (SceneTree::get_singleton()) {
+			SceneTree::get_singleton()->finalize();
+		}
+	}
+};
+
 struct GDRETestListener : public doctest::IReporter {
-	MainLoop *main_loop = nullptr;
+	GDRETestMainLoop *main_loop = nullptr;
 #ifndef XR_DISABLED
 	XRServer *xr_server = nullptr;
 #endif // XR_DISABLED
@@ -112,7 +158,7 @@ public:
 	}
 
 	void test_case_start(const doctest::TestCaseData &p_in) override {
-		ResourceCompatLoader::_init();
+		GDREMainLoop::set_is_testing(true);
 		String name = String(p_in.m_name);
 		String suite_name = String(p_in.m_test_suite);
 		if (name.contains("[ProjectRecovery]") || name.contains("[FakeScript]")) {
@@ -123,9 +169,9 @@ public:
 #endif // XR_DISABLED
 		}
 		if (name.contains("[ProjectRecovery]") || name.contains("[ResourceExport]") || name.contains("[FakeScript]")) {
-			main_loop = memnew(MainLoop);
+			main_loop = memnew(GDRETestMainLoop);
+			main_loop->initialize();
 			set_main_loop(main_loop);
-			GDREMainLoop::set_is_testing(true);
 			int dummy_idx = AudioDriverManager::get_driver_count() - 1;
 			AudioDriverManager::initialize(dummy_idx);
 			AudioServer *audio_server = memnew(AudioServer);
@@ -146,6 +192,7 @@ public:
 			set_main_loop(nullptr);
 		}
 		if (main_loop) {
+			main_loop->finalize();
 			memdelete(main_loop);
 			main_loop = nullptr;
 		}
@@ -153,7 +200,7 @@ public:
 			AudioServer::get_singleton()->finish();
 			memdelete(AudioServer::get_singleton());
 		}
-		ResourceCompatLoader::_deinit();
+		GDREMainLoop::set_is_testing(false);
 	}
 
 	void test_run_start() override {

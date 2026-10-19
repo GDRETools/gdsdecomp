@@ -17,7 +17,6 @@
 #include "main/main.h"
 #include "modules/gdscript/gdscript_resource_format.h"
 #include "modules/zip/zip_reader.h"
-#include "plugin_manager/plugin_manager.h"
 #include "utility/app_version_getter.h"
 #include "utility/common.h"
 #include "utility/file_access_buffer.h"
@@ -217,7 +216,6 @@ GDRESettings::GDRESettings() {
 	logger = memnew(GDRELogger);
 	headless = !RenderingServer::get_singleton() || RenderingServer::get_singleton()->get_video_adapter_name().is_empty();
 	add_logger();
-	PluginManager::load_cache();
 #ifdef ANDROID_ENABLED
 	if (!OS::get_singleton()->request_permission("android.permission.READ_EXTERNAL_STORAGE")) {
 		ERR_PRINT("Permission READ_EXTERNAL_STORAGE is required to access external storage!");
@@ -241,7 +239,6 @@ GDRESettings::GDRESettings() {
 }
 
 GDRESettings::~GDRESettings() {
-	PluginManager::save_cache();
 	remove_current_pack();
 	singleton = nullptr;
 	logger->_disable();

@@ -5,6 +5,8 @@
 // clang-format off
 #include "bytecode_ee121ef.h"
 
+
+namespace {
 enum Token {
 	TK_EMPTY,
 	TK_ANNOTATION,
@@ -109,6 +111,7 @@ enum Token {
 	TK_EOF,
 	TK_MAX,
 };
+} // namespace
 
 int GDScriptDecomp_ee121ef::get_token_max() const {
 	return TK_MAX;

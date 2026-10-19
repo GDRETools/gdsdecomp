@@ -2,6 +2,7 @@
 #include "gui/gdre_progress.h"
 #include "scene/main/node.h"
 #include "scene/main/window.h"
+#include "servers/display/display_server.h"
 #include "utility/gdre_settings.h"
 
 #include "core/config/engine.h"
@@ -49,32 +50,66 @@ void GDREWindow::popup_box(Node *p_parent, Window *p_box, const String &p_messag
 	p_box->popup_centered();
 }
 
+Size2i GDREWindow::get_safe_window_size(Size2i p_new_size) {
+	// get the display's safe area
+	Rect2 safe_area = DisplayServer::get_singleton()->get_display_safe_area();
+	int64_t new_width = MIN(p_new_size.x, safe_area.size.x - 20);
+	int64_t new_height = MIN(p_new_size.y, safe_area.size.y - 20);
+	return Size2i(new_width, new_height);
+}
+
+static inline int64_t get_safe_dimension(int64_t p_pos, int64_t p_size, int64_t safe_area_pos, int64_t safe_area_width) {
+	if (p_pos < safe_area_pos) {
+		p_pos = safe_area_pos;
+	}
+	if (p_pos + p_size > safe_area_pos + safe_area_width) {
+		p_pos = MAX(safe_area_pos, safe_area_width - p_size);
+	}
+
+	return p_pos;
+}
+
+Rect2i GDREWindow::get_safe_window_size_and_position(Size2i p_size, Vector2i p_position) {
+	// get the display's safe area
+	Rect2i safe_area = DisplayServer::get_singleton()->get_display_safe_area();
+	int64_t new_width = MIN(p_size.x, safe_area.size.x - 20);
+	int64_t new_height = MIN(p_size.y, safe_area.size.y - 20);
+	int64_t new_x = get_safe_dimension(p_position.x, new_width, safe_area.position.x, safe_area.size.x);
+	int64_t new_y = get_safe_dimension(p_position.y, new_height, safe_area.position.y, safe_area.size.y);
+	Rect2i result = Rect2i(new_x, new_y, new_width, new_height);
+	return result;
+}
+
+void GDREWindow::ensure_safe_size_and_position(Window *p_window) {
+	Rect2i safe_area = get_safe_window_size_and_position(p_window->get_size(), p_window->get_position());
+	p_window->set_position(safe_area.position);
+	p_window->set_size(safe_area.size);
+}
+
 void GDREWindow::set_window_autoscaling(Window *p_window, Size2i p_min_size) {
-#ifdef ANDROID_ENABLED
-	return;
-#endif
 	ERR_FAIL_NULL(p_window);
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
 	}
 	float current_scale = p_window->get_content_scale_factor();
 	float auto_display_scale = GDRESettings::get_auto_display_scale();
-	if (auto_display_scale != 1.0 && auto_display_scale != current_scale) {
+	if (auto_display_scale != current_scale) {
 		p_window->set_content_scale_factor(auto_display_scale);
 	}
 	bool no_min = p_min_size == Size2i();
 	float size_scale = auto_display_scale / current_scale;
-	Size2i new_min_size = Size2i(float(p_min_size.x) * size_scale, float(p_min_size.y) * size_scale);
+	Size2i new_min_size = get_safe_window_size(Size2i(float(p_min_size.x) * size_scale, float(p_min_size.y) * size_scale));
 
 	if (!no_min && p_window->get_min_size() != new_min_size) {
 		p_window->set_min_size(new_min_size);
 	}
 
 	Size2i current_size = p_window->get_size();
-	Size2i new_size = no_min ? Size2i(float(current_size.x) * size_scale, float(current_size.y) * size_scale) : new_min_size;
-	if (no_min || current_size < new_size) {
+	Size2i new_size = no_min ? GDREWindow::get_safe_window_size(Size2i(float(current_size.x) * size_scale, float(current_size.y) * size_scale)) : new_min_size;
+	if (current_size < new_size) {
 		p_window->set_size(new_size);
 	}
+	ensure_safe_size_and_position(p_window);
 	p_window->set_oversampling_override(auto_display_scale);
 }
 

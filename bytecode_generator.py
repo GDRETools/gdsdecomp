@@ -319,10 +319,12 @@ def generate_class_cpp(dir: Path, bytecode_class: BytecodeClass) -> None:
             f.write("\n")
             f.write("static constexpr int num_funcs = sizeof(funcs) / sizeof(Pair<String, Pair<int, int>>);\n")
         # 3) the Token enum declarations:
+        f.write("\nnamespace {\n")
         f.write("enum Token {\n")
         for tk_name in tk_names:
             f.write("\t" + tk_name + ",\n")
         f.write("};\n")
+        f.write("} // namespace\n")
         f.write("\n")
 
         # 3.5) the `get_token_max` function:

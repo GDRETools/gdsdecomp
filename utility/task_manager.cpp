@@ -254,6 +254,140 @@ bool TaskManager::BaseTemplateTaskData::wait_for_completion(uint64_t timeout_s_n
 
 TaskManager::BaseTemplateTaskData::~BaseTemplateTaskData() {}
 
+TaskManager::BaseGroupTaskData::BaseGroupTaskData(
+		TaskManagerID p_task_manager_id,
+		int p_elements,
+		const String &p_task,
+		const String &p_description,
+		bool p_can_cancel,
+		int p_tasks,
+		bool p_high_priority,
+		bool p_runs_current_thread,
+		bool p_progress_enabled,
+		Ref<EditorProgressGDDC> p_progress,
+		int p_progress_start) :
+		task_manager_id(p_task_manager_id),
+		elements(p_elements),
+		tasks(p_tasks == -1 ? TaskManager::get_max_thread_count() : p_tasks),
+		task(p_task),
+		description(p_description),
+		can_cancel(p_can_cancel),
+		high_priority(p_high_priority),
+		progress_start(p_progress_start) {
+	if (tasks > elements) { // Don't spin up more threads than we need
+		tasks = elements;
+	}
+	progress_enabled = p_progress_enabled;
+	progress = p_progress;
+	runs_current_thread = p_runs_current_thread;
+}
+
+String TaskManager::BaseGroupTaskData::get_current_task_step_description() {
+	if (elements == 0) {
+		return "<UNKNOWN>";
+	}
+	return get_current_task_step_description_internal(last_completed < elements ? (int)last_completed : elements - 1);
+}
+
+void TaskManager::BaseGroupTaskData::start_internal() {
+	if (runs_current_thread) {
+		// random group id
+		started_current_thread = true;
+	} else {
+		for (int i = 0; i < tasks; i++) {
+			task_ids.push_back(TaskManager::get_thread_pool()->add_template_task(this, &BaseGroupTaskData::task_callback, nullptr, high_priority, task + "_" + itos(i)));
+		}
+	}
+	if (progress_enabled && progress.is_null()) {
+		progress = EditorProgressGDDC::create(nullptr, task + itos(task_manager_id), description, elements, can_cancel);
+	}
+}
+
+bool TaskManager::BaseGroupTaskData::_do_one_iteration(bool p_no_memory_check) {
+	// if we're using too much memory, wait until it goes down
+	if (unlikely(!p_no_memory_check && is_memory_usage_too_high() && !canceled)) {
+		tasks_busy_waiting++;
+		while (is_memory_usage_too_high() && !canceled) {
+			if (tasks_busy_waiting == tasks || elements - last_completed == tasks_busy_waiting) {
+				// all tasks are busy waiting, so we should break to prevent a deadlock and just deal with the potential thrashing.
+				break;
+			}
+			OS::get_singleton()->delay_usec(10000);
+		}
+		tasks_busy_waiting--;
+	}
+	if (unlikely(canceled)) {
+		return true;
+	}
+
+	int64_t work_index = current_work_index++;
+
+	if (work_index >= elements) {
+		return true;
+	}
+	call_instance_method_internal(work_index);
+
+	// This is the only way to ensure posting is done when all tasks are really complete.
+	int64_t completed_amount = ++last_completed;
+
+	if (completed_amount == elements) {
+		done = true; // TODO: check that this doesn't break
+		return true;
+	}
+	return false;
+}
+
+void TaskManager::BaseGroupTaskData::task_callback(void *_unused) {
+	TaskManager::get_singleton()->set_thread_task_id(task_manager_id);
+	bool no_memory_check = tasks == 1;
+	while (true) {
+		if (_do_one_iteration(no_memory_check)) {
+			break;
+		}
+	}
+	TaskManager::get_singleton()->set_thread_task_id(-1);
+	tasks_quit++;
+}
+
+bool TaskManager::BaseGroupTaskData::is_done() const {
+	if (runs_current_thread) {
+		return last_completed >= elements;
+	}
+	if (canceled) {
+		return tasks_quit >= tasks;
+	}
+	return done;
+}
+
+int TaskManager::BaseGroupTaskData::get_current_task_step_value() {
+	return last_completed + progress_start;
+}
+
+void TaskManager::BaseGroupTaskData::run_on_current_thread() {
+	if (canceled) {
+		return;
+	}
+	TaskManager::get_singleton()->set_thread_task_id(task_manager_id);
+	uint64_t last_progress_upd = OS::get_singleton()->get_ticks_usec();
+	for (int i = 0; i < elements; i++) {
+		if (_do_one_iteration(true) || OS::get_singleton()->get_ticks_usec() - last_progress_upd > 50000) {
+			if (update_progress()) {
+				break;
+			}
+			last_progress_upd = OS::get_singleton()->get_ticks_usec();
+		}
+	}
+	TaskManager::get_singleton()->set_thread_task_id(-1);
+}
+
+void TaskManager::BaseGroupTaskData::wait_for_task_completion_internal() {
+	if (!runs_current_thread) {
+		for (auto task_id : task_ids) {
+			TaskManager::get_thread_pool()->wait_for_task_completion(task_id);
+		}
+	}
+}
+
 Error TaskManager::wait_for_task_completion(TaskManagerID p_group_id, uint64_t timeout_s_no_progress) {
 	if (p_group_id == -1) {
 		return ERR_INVALID_PARAMETER;

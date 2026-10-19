@@ -32,6 +32,7 @@
 #include "core/os/os.h"
 #include "scene/resources/packed_scene.h"
 #include "utility/import_info.h"
+#include "utility/process_runner.h"
 
 #include <compat/script_loader.h>
 
@@ -865,106 +866,6 @@ void ImportExporter::recreate_uid_file(const String &src_path, bool is_import, c
 	}
 }
 
-struct ProcessRunnerStruct : public TaskRunnerStruct {
-	String command;
-	Vector<String> arguments;
-	int error_code = -1;
-	ProcessID process_id = -1;
-	String description;
-	bool is_cancelled = false;
-	Ref<FileAccess> fa_stdout;
-	Ref<FileAccess> fa_stderr;
-	String output;
-	TaskManager::TaskManagerID task_id = -1;
-
-	ProcessRunnerStruct() {
-	}
-
-	ProcessRunnerStruct(const String &p_command, const Vector<String> &p_arguments) :
-			command(p_command), arguments(p_arguments) {
-		description = "Running " + command + " " + String(" ").join(arguments);
-	}
-
-	void set_command(const String &p_command, const Vector<String> &p_arguments) {
-		command = p_command;
-		arguments = p_arguments;
-		description = "Running " + command + " " + String(" ").join(arguments);
-	}
-
-	virtual int get_current_task_step_value() override {
-		return 0;
-	}
-
-	virtual String get_current_task_step_description() override {
-		return description;
-	}
-
-	virtual void cancel() override {
-		if (process_id != -1) {
-			OS::get_singleton()->kill(process_id);
-		}
-		is_cancelled = true;
-	}
-
-	// We have to start the process on the main thread because of inscrutable WINPROC stuff.
-	virtual bool pre_run() override {
-		List<String> args;
-		for (const String &arg : arguments) {
-			args.push_back(arg);
-		}
-		Dictionary pipe_info = OS::get_singleton()->execute_with_pipe(command, args, false);
-		if (pipe_info.is_empty()) {
-			error_code = -2;
-			after_run();
-			return false;
-		}
-		fa_stdout = pipe_info["stdio"];
-		fa_stderr = pipe_info["stderr"];
-		process_id = pipe_info["pid"];
-		return true;
-	}
-
-	virtual void run(void *p_userdata) override {
-		if (process_id == -1) {
-			return;
-		}
-
-		while (OS::get_singleton()->is_process_running(process_id) && !is_cancelled) {
-			// we have to do continually read from the pipes or the process will hang
-			output += fa_stdout->get_as_text() + fa_stderr->get_as_text();
-			OS::get_singleton()->delay_usec(10000);
-		}
-		error_code = OS::get_singleton()->get_process_exit_code(process_id);
-		process_id = -1;
-		after_run();
-	}
-
-	virtual bool auto_close_progress_bar() override {
-		return true;
-	}
-
-	void after_run() {
-		if (error_code != 0) {
-			if (error_code == -2) {
-				ERR_PRINT("Failed to run process " + command + " (error code: " + String::num_int64(error_code) + "):\n" + "execute_with_pipe failed");
-			} else {
-				ERR_PRINT("Failed to run process " + command + " (error code: " + String::num_int64(error_code) + "):\n" + output);
-			}
-		} else {
-			print_line(vformat("Successfully ran %s %s", command, String(" ").join(arguments)));
-		}
-	}
-
-	virtual ~ProcessRunnerStruct() {
-		if (fa_stdout.is_valid()) {
-			fa_stdout->close();
-		}
-		if (fa_stderr.is_valid()) {
-			fa_stderr->close();
-		}
-	}
-};
-
 bool detect_uses_prebuilt_steam_template() {
 	String glob = DirAccess::dir_exists_absolute("res://addons") ? "res://addons/*" : "res://Addons/*";
 	auto globs = Glob::glob(glob, true);
@@ -1028,11 +929,9 @@ Error ImportExporter::compile_csharp_scripts() {
 	if (get_ver_major() < GODOT_VERSION_MAJOR) {
 		return ERR_UNAVAILABLE;
 	}
-	int ret_code;
-	if (OS::get_singleton()->execute("dotnet", { "--version" }, nullptr, &ret_code) == OK && ret_code == 0) {
+	if (ProcessRunner::run_process("dotnet", { "--version" }, "Checking dotnet version", true) == OK) {
 		String solution_path = csproj_path.get_basename() + ".sln";
-		process_runner = std::make_shared<ProcessRunnerStruct>("dotnet", Vector<String>({ "build", solution_path, "--property", "WarningLevel=0" }));
-		process_runner->task_id = TaskManager::get_singleton()->add_task(process_runner, nullptr, "Compiling C# project...", -1, true, true);
+		process_runner = ProcessRunner::start_process("dotnet", Vector<String>({ "build", solution_path, "--property", "WarningLevel=0" }), "Compiling C# project...");
 	} else {
 		return ERR_UNCONFIGURED;
 	}
@@ -1071,11 +970,11 @@ Error ImportExporter::export_imports(const String &p_out_dir, const Vector<Strin
 	// *** Detect steam
 	report->godotsteam_detected = detect_uses_prebuilt_steam_template();
 	auto check_process_done = [&](bool p_cancelled = false) {
-		if (process_runner) {
-			if (p_cancelled && !process_runner->is_cancelled) {
+		if (process_runner.is_valid()) {
+			if (p_cancelled && !process_runner->is_finished()) {
 				process_runner->cancel();
 			}
-			Error err = TaskManager::get_singleton()->wait_for_task_completion(process_runner->task_id);
+			Error err = process_runner->wait_for_completion();
 			process_runner = nullptr;
 			// err != OK means cancelled or timed out
 			return err != OK;
@@ -1917,26 +1816,27 @@ void ImportExporter::make_git_repo() {
 	}
 
 	Vector<String> add_args = { "-C", output_dir, "add", "." };
-	auto add_runner = std::make_shared<ProcessRunnerStruct>("git", add_args);
-	Error err = TaskManager::get_singleton()->run_task(add_runner, nullptr, "Adding files to git repo...", -1, true, true);
+	Error err = ProcessRunner::run_process("git", add_args, "Adding files to git repo...");
 	if (err == ERR_SKIP) {
 		return;
 	}
-	if (err != OK || add_runner->error_code != 0) {
-		ERR_FAIL_MSG("Failed to add files to git repo: " + add_runner->output);
+	if (err != OK) {
+		ERR_FAIL_MSG("Failed to add files to git repo!");
 	}
 	// commit the files
 	String commit_message = "Initial commit";
 	if (!game_version.is_empty()) {
 		commit_message += " @ version " + game_version;
 	}
-	auto commit_runner = std::make_shared<ProcessRunnerStruct>("git", Vector<String>{ "-C", output_dir, "commit", "-m", commit_message });
-	err = TaskManager::get_singleton()->run_task(commit_runner, nullptr, "Committing files to git repo...", -1, true, true);
+	err = ProcessRunner::run_process(
+			"git",
+			Vector<String>{ "-C", output_dir, "commit", "-m", commit_message },
+			"Committing files to git repo...");
 	if (err == ERR_SKIP) {
 		return;
 	}
-	if (err != OK || commit_runner->error_code != 0) {
-		ERR_FAIL_MSG("Failed to commit files to git repo: " + commit_runner->output);
+	if (err != OK) {
+		ERR_FAIL_MSG("Failed to commit files to git repo!");
 	}
 }
 
@@ -1988,7 +1888,7 @@ void ImportExporter::reset_log() {
 }
 
 void ImportExporter::reset() {
-	if (process_runner) {
+	if (process_runner.is_valid()) {
 		process_runner->cancel();
 	}
 	process_runner = nullptr;

@@ -844,7 +844,6 @@ void ResourceCompatLoader::_init() {
 	return;
 }
 
-#ifdef TESTS_ENABLED
 void ResourceCompatLoader::_deinit() {
 	if (!ResourceCompatLoader::initialized) {
 		return;
@@ -852,7 +851,6 @@ void ResourceCompatLoader::_deinit() {
 	ext_to_v4_types.clear();
 	initialized = false;
 }
-#endif
 
 namespace CoreBind {
 

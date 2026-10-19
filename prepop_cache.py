@@ -37,6 +37,9 @@ PLUGINS_TO_PREPOP = [
     "sentry",
     "wwise",
     "audio_gate",
+    "GameAnalytics",
+    "twovoip",
+    "twovoip_lipsync",
 ]
 
 

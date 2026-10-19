@@ -499,6 +499,13 @@ HashMap<String, Variant> set_params_from_render_mode(const Vector<StringName> &r
 	return params;
 }
 
+static inline void copy_resource_props(const Ref<ShaderMaterial> &p_shader_material, Ref<BaseMaterial3D> &p_base_material) {
+	p_base_material->set_name(p_shader_material->get_name());
+	p_base_material->set_local_to_scene(p_shader_material->is_local_to_scene());
+	p_base_material->set_path_cache(p_shader_material->get_path());
+	p_base_material->merge_meta_from(p_shader_material.ptr());
+}
+
 Pair<Ref<BaseMaterial3D>, Pair<bool, bool>> ShaderMaterialConverter::convert_shader_material_to_base_material(Ref<ShaderMaterial> p_shader_material, Node *p_parent) {
 	// we need to manually create a BaseMaterial3D from the shader material
 	// We do this by getting the shader uniforms and then mapping them to the BaseMaterial3D properties
@@ -507,7 +514,14 @@ Pair<Ref<BaseMaterial3D>, Pair<bool, bool>> ShaderMaterialConverter::convert_sha
 	ERR_FAIL_COND_V_MSG(p_shader_material.is_null(), {}, "ShaderMaterial is NULL");
 	List<StringName> list;
 	Ref<Shader> shader = p_shader_material->get_shader();
-	ERR_FAIL_COND_V_MSG(shader.is_null(), {}, "Shader on ShaderMaterial is NULL: " + p_shader_material->get_path());
+	if (shader.is_null()) {
+#ifdef DEBUG_ENABLED
+		WARN_PRINT("Shader on ShaderMaterial is NULL: " + p_shader_material->get_path());
+#endif
+		Ref<BaseMaterial3D> base_material = memnew(BaseMaterial3D(false));
+		copy_resource_props(p_shader_material, base_material);
+		return { base_material, { false, false } };
+	}
 
 	Ref<ResourceInfo> resource_info = ResourceInfo::get_info_from_resource(p_shader_material);
 	bool is_deprecated = resource_info.is_valid() && resource_info->get_ver_major() < 4;
@@ -978,10 +992,7 @@ Pair<Ref<BaseMaterial3D>, Pair<bool, bool>> ShaderMaterialConverter::convert_sha
 		}
 	}
 	// set the resource properties
-	base_material->set_name(p_shader_material->get_name());
-	base_material->set_local_to_scene(p_shader_material->is_local_to_scene());
-	base_material->set_path_cache(p_shader_material->get_path());
-	base_material->merge_meta_from(p_shader_material.ptr());
+	copy_resource_props(p_shader_material, base_material);
 
 	bool set_instance_uniforms = false;
 	for (auto &E : set_params) {

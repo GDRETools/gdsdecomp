@@ -5,6 +5,7 @@
 #include "core/object/object.h"
 #include "core/os/os.h"
 #include "main/main.h"
+#include "plugin_manager/plugin_manager.h"
 #include "scene/main/node.h"
 #include "servers/rendering/rendering_server.h"
 #include "utility/task_manager.h"
@@ -25,7 +26,9 @@ GDREMainLoop *GDREMainLoop::get_singleton() {
 }
 
 void GDREMainLoop::initialize() {
+	// Stuff that can't happen in `register_types` because it requires the engine to be fully initialized first.
 	ResourceCompatLoader::_init();
+	PluginManager::get_singleton()->start_load_cache();
 }
 
 void GDREMainLoop::iteration_prepare() {
@@ -77,11 +80,18 @@ void GDREMainLoop::finalize() {
 		WARN_PRINT("Finalize called while we still have process calls!!");
 		_process_next_process_calls();
 	}
+	ResourceCompatLoader::_deinit();
 }
 
 bool GDREMainLoop::wait_until_next_frame(int64_t p_time_usec) {
 	if (!singleton) {
-		GDREMainLoop::iteration(false);
+		WARN_PRINT_ONCE("GDREMainLoop singleton not initialized, waiting for next frame");
+		if (Thread::is_main_thread()) {
+			return GDREMainLoop::iteration(false);
+		} else {
+			OS::get_singleton()->delay_usec(p_time_usec);
+			return false;
+		}
 	}
 	return singleton->_wait_until_next_frame(p_time_usec, false);
 }
@@ -157,6 +167,8 @@ bool GDREMainLoop::iteration(bool p_no_delay) {
 	}
 #endif
 
+	// If we want no delay, we need to set the frame delay and low processor usage mode
+	// sleep usec to 0 so that Main::iteration() doesn't wait for the next frame.
 	int64_t time_delay = Engine::get_singleton()->get_frame_delay();
 	int64_t os_low_processor_usage_mode_sleep_usec = OS::get_singleton()->get_low_processor_usage_mode_sleep_usec();
 	if (p_no_delay) {
