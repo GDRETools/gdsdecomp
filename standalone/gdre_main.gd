@@ -709,6 +709,7 @@ var RECOVER_OPTS_NOTES = """Recover/Extract Options:
 
 --key=<KEY>                          The Key to use if project is encrypted as a 64-character hex string,
 									  e.g.: '000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F'
+--recover-key                        Search the pack/executable for the encryption key when no key is provided
 --output=<DIR>                       Output directory, defaults to <NAME_extracted>, or the project directory if one of specified
 --scripts-only                       Only extract/recover scripts
 --include=<GLOB>                     Include files matching the glob pattern (can be repeated, see notes below)
@@ -1430,6 +1431,7 @@ func handle_cli(args: PackedStringArray) -> bool:
 	var clear_plugin_cache: bool = false
 	var clear_static_cache: bool = false
 	var clear_download_cache: bool = false
+	var recover_key: bool = false
 	if (args.size() == 0):
 		if GDRESettings.is_headless():
 			print_usage()
@@ -1477,6 +1479,9 @@ func handle_cli(args: PackedStringArray) -> bool:
 			scripts_only = true
 		elif arg.begins_with("--key"):
 			enc_key = get_arg_value(arg)
+			set_setting = true
+		elif arg == "--recover-key":
+			recover_key = true
 			set_setting = true
 		elif arg.begins_with("--custom-decryption-script"):
 			var decryptor_script_path = get_cli_abs_path(get_arg_value(arg))
@@ -1673,6 +1678,8 @@ func handle_cli(args: PackedStringArray) -> bool:
 		PluginManager.clear_plugin_cache(clear_static_cache)
 	if clear_download_cache:
 		PluginManager.clear_download_cache()
+	if recover_key:
+		GDRESettings.set_key_recovery_enabled(true)
 
 	if main_cmds.size() == 0:
 		if (GDRESettings.is_headless() or not set_setting):

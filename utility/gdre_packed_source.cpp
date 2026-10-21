@@ -4,6 +4,7 @@
 #include "file_access_apk.h"
 #include "file_access_gdre.h"
 #include "gdre_settings.h"
+#include "key_recovery.h"
 
 #include "core/io/file_access_encrypted.h"
 #include "core/io/file_access_pack.h"
@@ -415,6 +416,15 @@ bool GDREPackedSource::try_open_pack(const String &p_path, bool p_replace_files,
 	ERR_FAIL_COND_V_MSG(file_count > 0 && file_base >= pck_end_pos, false, "file_base is out of bounds: " + String::num_int64(file_base) + " (file length: " + String::num_int64(pck_size) + ")");
 	if (enc_directory) {
 		Vector<uint8_t> key = p_decryption_key.is_empty() ? GDRESettings::get_singleton()->get_encryption_key() : p_decryption_key;
+		if (key.is_empty() && GDRESettings::get_singleton()->is_key_recovery_enabled()) {
+			key = GDREKeyRecovery::recover_key(pck_path);
+			if (!key.is_empty()) {
+				print_line("Recovered encryption key: " + String::hex_encode_buffer(key.ptr(), key.size()));
+				GDRESettings::get_singleton()->set_encryption_key(key);
+			} else {
+				WARN_PRINT("Could not recover the encryption key from " + pck_path);
+			}
+		}
 		f = GDREPackedSource::open_encrypted_file(f, key, FileAccess::READ, false);
 		if (f.is_null()) {
 			GDRESettings::get_singleton()->_set_error_encryption(true);

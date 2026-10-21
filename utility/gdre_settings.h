@@ -95,6 +95,7 @@ private:
 	bool in_editor = false;
 	bool first_load = true;
 	bool error_encryption = false;
+	bool key_recovery_enabled = false;
 	// Currently only used for testing
 	String project_path = "";
 	static GDRESettings *singleton;
@@ -216,6 +217,10 @@ public:
 
 	// Returns whether the project had an encryption error
 	bool had_encryption_error() const;
+
+	// Enables scanning the pack/executable for a key when no encryption key is set.
+	void set_key_recovery_enabled(bool p_enabled);
+	bool is_key_recovery_enabled() const;
 
 	// Returns the encryption key as bytes
 	Vector<uint8_t> get_encryption_key();

@@ -1379,6 +1379,14 @@ void GDRESettings::_set_error_encryption(bool is_encryption_error) {
 	error_encryption = is_encryption_error;
 }
 
+void GDRESettings::set_key_recovery_enabled(bool p_enabled) {
+	key_recovery_enabled = p_enabled;
+}
+
+bool GDRESettings::is_key_recovery_enabled() const {
+	return key_recovery_enabled;
+}
+
 Vector<uint8_t> GDRESettings::get_encryption_key() {
 	return enc_key;
 }
@@ -1403,6 +1411,9 @@ Error GDRESettings::set_encryption_key(Vector<uint8_t> key) {
 		return ERR_INVALID_PARAMETER;
 	}
 	enc_key = key;
+	if (key.size() == 32) {
+		memcpy(script_encryption_key, key.ptr(), 32);
+	}
 	return OK;
 }
 
@@ -3246,6 +3257,8 @@ void GDRESettings::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_custom_decryptor"), &GDRESettings::get_custom_decryptor);
 	ClassDB::bind_method(D_METHOD("reset_custom_decryptor"), &GDRESettings::reset_custom_decryptor);
 	ClassDB::bind_method(D_METHOD("had_encryption_error"), &GDRESettings::had_encryption_error);
+	ClassDB::bind_method(D_METHOD("set_key_recovery_enabled", "enabled"), &GDRESettings::set_key_recovery_enabled);
+	ClassDB::bind_method(D_METHOD("is_key_recovery_enabled"), &GDRESettings::is_key_recovery_enabled);
 	ClassDB::bind_method(D_METHOD("get_file_list", "filters"), &GDRESettings::get_file_list, DEFVAL(Vector<String>()));
 	ClassDB::bind_method(D_METHOD("get_file_info_array", "filters"), &GDRESettings::get_file_info_array, DEFVAL(Vector<String>()));
 	ClassDB::bind_method(D_METHOD("get_pack_type"), &GDRESettings::get_pack_type);

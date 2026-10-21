@@ -72,6 +72,7 @@ Recover/Extract Options:
 
 --key=<KEY>                          The Key to use if project is encrypted as a 64-character hex string,
                                          e.g.: '000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F'
+--recover-key                        Search the pack/executable for the encryption key when no key is provided
 --output=<DIR>                       Output directory, defaults to <NAME_extracted>, or the project directory if one of specified
 --scripts-only                       Only extract/recover scripts
 --include=<GLOB>                     Include files matching the glob pattern (can be repeated, see notes below)
