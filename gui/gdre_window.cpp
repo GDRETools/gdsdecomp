@@ -2,6 +2,7 @@
 #include "gui/gdre_progress.h"
 #include "scene/main/node.h"
 #include "scene/main/window.h"
+#include "servers/display/display_server.h"
 #include "utility/gdre_settings.h"
 
 #include "core/config/engine.h"
@@ -49,40 +50,83 @@ void GDREWindow::popup_box(Node *p_parent, Window *p_box, const String &p_messag
 	p_box->popup_centered();
 }
 
-void GDREWindow::set_window_autoscaling(Window *p_window, Size2i p_min_size) {
-#ifdef ANDROID_ENABLED
-	return;
-#endif
+Size2i GDREWindow::get_safe_window_size(Size2i p_new_size) {
+	// get the display's safe area
+	Rect2 safe_area = DisplayServer::get_singleton()->get_display_safe_area();
+	int64_t new_width = MIN(p_new_size.x, safe_area.size.x - 20);
+	int64_t new_height = MIN(p_new_size.y, safe_area.size.y - 20);
+	return Size2i(new_width, new_height);
+}
+
+static inline int64_t get_safe_dimension(int64_t p_pos, int64_t p_size, int64_t safe_area_pos, int64_t safe_area_width) {
+	if (p_pos < safe_area_pos) {
+		p_pos = safe_area_pos;
+	}
+	if (p_pos + p_size > safe_area_pos + safe_area_width) {
+		p_pos = MAX(safe_area_pos, safe_area_width - p_size);
+	}
+
+	return p_pos;
+}
+
+Rect2i GDREWindow::get_safe_window_size_and_position(Size2i p_size, Vector2i p_position) {
+	// get the display's safe area
+	Rect2i safe_area = DisplayServer::get_singleton()->get_display_safe_area();
+	int64_t new_width = MIN(p_size.x, safe_area.size.x - 20);
+	int64_t new_height = MIN(p_size.y, safe_area.size.y - 20);
+	int64_t new_x = get_safe_dimension(p_position.x, new_width, safe_area.position.x, safe_area.size.x);
+	int64_t new_y = get_safe_dimension(p_position.y, new_height, safe_area.position.y, safe_area.size.y);
+	Rect2i result = Rect2i(new_x, new_y, new_width, new_height);
+	return result;
+}
+
+void GDREWindow::ensure_safe_size_and_position(Window *p_window) {
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
+	set_size_pos_min_size_safe(p_window, p_window->get_size(), p_window->get_position(), p_window->get_min_size());
+}
+
+void GDREWindow::set_size_pos_min_size_safe(Window *p_window, Size2i size, Point2i position, Size2i min_size) {
+	if (min_size != Size2i()) {
+		min_size = GDREWindow::get_safe_window_size(min_size);
+		p_window->set_min_size(min_size);
+		if (size.x < min_size.x) {
+			size.x = min_size.x;
+		}
+		if (size.y < min_size.y) {
+			size.y = min_size.y;
+		}
+	}
+	Rect2i safe_area = GDREWindow::get_safe_window_size_and_position(size, position);
+	p_window->set_position(safe_area.position);
+	p_window->set_size(safe_area.size);
+}
+
+void GDREWindow::set_window_autoscaling(Window *p_window) {
 	ERR_FAIL_NULL(p_window);
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
 	}
 	float current_scale = p_window->get_content_scale_factor();
 	float auto_display_scale = GDRESettings::get_auto_display_scale();
-	if (auto_display_scale != 1.0 && auto_display_scale != current_scale) {
+	if (auto_display_scale != current_scale) {
 		p_window->set_content_scale_factor(auto_display_scale);
 	}
-	bool no_min = p_min_size == Size2i();
+	Size2i size = p_window->get_size();
+	Size2i min_size = p_window->get_min_size();
 	float size_scale = auto_display_scale / current_scale;
-	Size2i new_min_size = Size2i(float(p_min_size.x) * size_scale, float(p_min_size.y) * size_scale);
-
-	if (!no_min && p_window->get_min_size() != new_min_size) {
-		p_window->set_min_size(new_min_size);
-	}
-
-	Size2i current_size = p_window->get_size();
-	Size2i new_size = no_min ? Size2i(float(current_size.x) * size_scale, float(current_size.y) * size_scale) : new_min_size;
-	if (no_min || current_size < new_size) {
-		p_window->set_size(new_size);
-	}
+	Size2i new_min_size = Size2i(float(min_size.x) * size_scale, float(min_size.y) * size_scale);
+	Size2i new_size = Size2i(float(size.x) * size_scale, float(size.y) * size_scale);
+	set_size_pos_min_size_safe(p_window, new_size, p_window->get_position(), new_min_size);
 	p_window->set_oversampling_override(auto_display_scale);
 }
 
 void GDREWindow::_notification(int p_what) {
 	if (p_what == NOTIFICATION_ENTER_TREE) {
-		GDREWindow::set_window_autoscaling(this, get_min_size());
-		GDREWindow::set_window_autoscaling(confirmation_dialog, confirmation_dialog->get_min_size());
-		GDREWindow::set_window_autoscaling(error_dialog, error_dialog->get_min_size());
+		GDREWindow::set_window_autoscaling(this);
+		GDREWindow::set_window_autoscaling(confirmation_dialog);
+		GDREWindow::set_window_autoscaling(error_dialog);
 	}
 }
 
@@ -108,6 +152,10 @@ void GDREWindow::popup_confirm_box(const String &p_message, const String &p_titl
 
 void GDREWindow::popup_error_box(const String &p_message, const String &p_title, const Callable &p_callback) {
 	popup_box(this, error_dialog, p_message, p_title, p_callback);
+}
+
+void GDREWindow::safe_resize_and_position() {
+	GDREWindow::ensure_safe_size_and_position(this);
 }
 
 GDREAcceptDialogBase::GDREAcceptDialogBase() {
@@ -136,10 +184,14 @@ void GDREAcceptDialogBase::popup_error_box(const String &p_message, const String
 
 void GDREAcceptDialogBase::_notification(int p_what) {
 	if (p_what == NOTIFICATION_ENTER_TREE) {
-		GDREWindow::set_window_autoscaling(this, get_min_size());
-		GDREWindow::set_window_autoscaling(confirmation_dialog, confirmation_dialog->get_min_size());
-		GDREWindow::set_window_autoscaling(error_dialog, error_dialog->get_min_size());
+		GDREWindow::set_window_autoscaling(this);
+		GDREWindow::set_window_autoscaling(confirmation_dialog);
+		GDREWindow::set_window_autoscaling(error_dialog);
 	}
+}
+
+void GDREAcceptDialogBase::safe_resize_and_position() {
+	GDREWindow::ensure_safe_size_and_position(this);
 }
 
 GDREConfirmationDialogBase::GDREConfirmationDialogBase() {
@@ -160,9 +212,9 @@ GDREConfirmationDialogBase::~GDREConfirmationDialogBase() {
 
 void GDREConfirmationDialogBase::_notification(int p_what) {
 	if (p_what == NOTIFICATION_ENTER_TREE) {
-		GDREWindow::set_window_autoscaling(this, get_min_size());
-		GDREWindow::set_window_autoscaling(confirmation_dialog, confirmation_dialog->get_min_size());
-		GDREWindow::set_window_autoscaling(error_dialog, error_dialog->get_min_size());
+		GDREWindow::set_window_autoscaling(this);
+		GDREWindow::set_window_autoscaling(confirmation_dialog);
+		GDREWindow::set_window_autoscaling(error_dialog);
 	}
 }
 
@@ -174,9 +226,14 @@ void GDREConfirmationDialogBase::popup_error_box(const String &p_message, const 
 	GDREWindow::popup_box(this, error_dialog, p_message, p_title, p_callback);
 }
 
+
+void GDREConfirmationDialogBase::safe_resize_and_position() {
+	GDREWindow::ensure_safe_size_and_position(this);
+}
+
 void GDREFileDialog::_notification(int p_what) {
 	if (p_what == NOTIFICATION_ENTER_TREE) {
-		GDREWindow::set_window_autoscaling(this, get_min_size());
+		GDREWindow::set_window_autoscaling(this);
 	}
 }
 
@@ -184,15 +241,18 @@ void GDREWindow::_bind_methods() {
 	ClassDB::bind_static_method(get_class_static(), D_METHOD("popup_box", "p_parent", "p_box", "p_message", "p_title", "p_confirm_callback", "p_cancel_callback", "p_ok_button_text", "p_cancel_button_text"), &GDREWindow::popup_box, DEFVAL(Callable()), DEFVAL(Callable()), DEFVAL("OK"), DEFVAL("Cancel"));
 	ClassDB::bind_method(D_METHOD("popup_confirm_box", "p_message", "p_title", "p_confirm_callback", "p_cancel_callback", "p_ok_button_text", "p_cancel_button_text"), &GDREWindow::popup_confirm_box, DEFVAL(Callable()), DEFVAL(Callable()), DEFVAL("OK"), DEFVAL("Cancel"));
 	ClassDB::bind_method(D_METHOD("popup_error_box", "p_message", "p_title", "p_callback"), &GDREWindow::popup_error_box, DEFVAL("Error"), DEFVAL(Callable()));
-	ClassDB::bind_static_method(get_class_static(), D_METHOD("set_window_autoscaling", "p_window", "p_min_size"), &GDREWindow::set_window_autoscaling);
+	ClassDB::bind_static_method(get_class_static(), D_METHOD("set_window_autoscaling", "p_window"), &GDREWindow::set_window_autoscaling);
+	ClassDB::bind_method(D_METHOD("safe_resize_and_position"), &GDREWindow::safe_resize_and_position);
 }
 
 void GDREAcceptDialogBase::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("popup_confirm_box", "p_message", "p_title", "p_confirm_callback", "p_cancel_callback", "p_ok_button_text", "p_cancel_button_text"), &GDREAcceptDialogBase::popup_confirm_box, DEFVAL(Callable()), DEFVAL(Callable()), DEFVAL("OK"), DEFVAL("Cancel"));
 	ClassDB::bind_method(D_METHOD("popup_error_box", "p_message", "p_title", "p_callback"), &GDREAcceptDialogBase::popup_error_box, DEFVAL("Error"), DEFVAL(Callable()));
+	ClassDB::bind_method(D_METHOD("safe_resize_and_position"), &GDREAcceptDialogBase::safe_resize_and_position);
 }
 
 void GDREConfirmationDialogBase::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("popup_confirm_box", "p_message", "p_title", "p_confirm_callback", "p_cancel_callback", "p_ok_button_text", "p_cancel_button_text"), &GDREConfirmationDialogBase::popup_confirm_box, DEFVAL(Callable()), DEFVAL(Callable()), DEFVAL("OK"), DEFVAL("Cancel"));
 	ClassDB::bind_method(D_METHOD("popup_error_box", "p_message", "p_title", "p_callback"), &GDREConfirmationDialogBase::popup_error_box, DEFVAL("Error"), DEFVAL(Callable()));
+	ClassDB::bind_method(D_METHOD("safe_resize_and_position"), &GDREConfirmationDialogBase::safe_resize_and_position);
 }

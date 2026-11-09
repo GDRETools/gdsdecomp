@@ -159,9 +159,11 @@ void GodotREEditorStandalone::_notification(int p_notification) {
 			get_parent_window()->call_deferred("add_child", confirmation_dialog);
 			if (!Engine::get_singleton()->is_editor_hint()) {
 				Window *main_window = get_parent_window();
+				GDREWindow::set_window_autoscaling(main_window);
 				Size2i min_size = Size2i(GLOBAL_GET("display/window/size/viewport_width"), GLOBAL_GET("display/window/size/viewport_height"));
-				GDREWindow::set_window_autoscaling(main_window, min_size);
-				main_window->set_size(min_size * GDRESettings::get_auto_display_scale());
+				Size2i new_min_size = GDREWindow::get_safe_window_size(Size2i(min_size.x * GDRESettings::get_auto_display_scale(), min_size.y * GDRESettings::get_auto_display_scale()));
+				main_window->set_min_size(new_min_size);
+				main_window->set_size(new_min_size);
 				main_window->move_to_center();
 			}
 		}
