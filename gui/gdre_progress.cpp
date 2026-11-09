@@ -149,7 +149,7 @@ void GDREProgressDialog::_notification(int p_what) {
 	if (p_what == NOTIFICATION_PROCESS) {
 		main_thread_update();
 	} else if (p_what == NOTIFICATION_READY) {
-		GDREWindow::set_window_autoscaling(this, get_min_size());
+		GDREWindow::set_window_autoscaling(this);
 	}
 }
 

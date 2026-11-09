@@ -747,7 +747,7 @@ func _ready():
 		self.hide_root = true
 	_clear()
 	right_click_menu = PopupMenu.new()
-	GDREWindow.set_window_autoscaling(right_click_menu, Vector2i())
+	GDREWindow.set_window_autoscaling(right_click_menu)
 	pop_right_menu_items()
 	right_click_menu.visible = false
 	right_click_menu.connect("id_pressed", self._on_right_click_id)
